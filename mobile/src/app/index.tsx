@@ -40,7 +40,7 @@ export default function HomeScreen() {
         </ThemedView>
 
         <ThemedText type="code" style={styles.code}>
-          get started
+          Set up your Fundraiser with us!
         </ThemedText>
 
         <ThemedView type="backgroundElement" style={styles.stepContainer}>
