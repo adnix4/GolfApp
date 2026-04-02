@@ -3,6 +3,7 @@
     "name": "Golf_Fundraser_Pro",
     "slug": "Golf_Fundraser_Pro",
     "version": "1.0.0",
+    "main": "index.ts",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "golffundraserpro",
