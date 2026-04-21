@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Golf Fundraiser Pro — Event Organizer Flyer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --forest:   #31572c;
+    --leaf:     #409151;
+    --sage:     #8ba955;
+    --lime:     #ecf39e;
+    --cream:    #f4f7de;
+    --ink:      #1a2410;
+    --mist:     #c8d8b0;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── PAGE WRAPPER ── */
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    background: var(--forest);
+    padding: 64px 60px 52px;
+    position: relative;
+    overflow: visible;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 70% 60% at 110% -10%, rgba(64,145,81,0.35) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 80% at -10% 110%, rgba(139,169,85,0.2) 0%, transparent 55%);
+    pointer-events: none;
+  }
+  /* Large decorative flag */
+  .hero-flag {
+    position: absolute;
+    right: 52px;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    opacity: 0.07;
+    font-size: 220px;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+  }
+  .hero-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--lime);
+    margin-bottom: 20px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .hero-eyebrow::before {
+    content: '';
+    display: block;
+    width: 32px;
+    height: 1px;
+    background: var(--sage);
+  }
+  .hero-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(48px, 7vw, 76px);
+    font-weight: 900;
+    color: var(--cream);
+    line-height: 1;
+    letter-spacing: -1px;
+    position: relative;
+    margin-bottom: 8px;
+  }
+  .hero-title span {
+    color: var(--lime);
+  }
+  .hero-sub {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(18px, 2.8vw, 26px);
+    font-weight: 700;
+    font-style: italic;
+    color: var(--sage);
+    margin-bottom: 28px;
+    position: relative;
+  }
+  .hero-desc {
+    font-size: 15px;
+    font-weight: 300;
+    color: var(--mist);
+    line-height: 1.7;
+    max-width: 480px;
+    position: relative;
+  }
+  .hero-badge {
+    position: absolute;
+    bottom: 0;
+    right: 60px;
+    background: var(--lime);
+    color: var(--forest);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 8px 18px;
+    transform: translateY(50%);
+    z-index: 10;
+  }
+
+  /* ── TAGLINE BAND ── */
+  .band {
+    background: var(--leaf);
+    padding: 22px 60px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 1px;
+  }
+  .band-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--cream);
+    flex: 1;
+  }
+  .band-dots {
+    display: flex;
+    gap: 8px;
+  }
+  .band-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--lime);
+    opacity: 0.6;
+  }
+  .band-dots span:last-child { opacity: 1; }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--leaf);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--mist);
+    max-width: 60px;
+  }
+
+  /* ── FEATURES GRID ── */
+  .features-section {
+    padding: 56px 60px 40px;
+    background: var(--cream);
+  }
+  .features-section > h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--forest);
+    margin-bottom: 36px;
+    line-height: 1.15;
+  }
+  .features-section > h2 em {
+    color: var(--leaf);
+    font-style: italic;
+  }
+  .features-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+  }
+  .feature-card {
+    background: white;
+    padding: 28px 28px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--sage);
+    transition: width 0.2s ease;
+  }
+  .feature-card.accent::before { background: var(--leaf); }
+  .feature-card.dark {
+    background: var(--forest);
+  }
+  .feature-card.dark::before { background: var(--lime); }
+  .feature-card.lime-bg {
+    background: var(--lime);
+  }
+  .feature-card.lime-bg::before { background: var(--forest); }
+
+  .feature-icon {
+    font-size: 28px;
+    margin-bottom: 14px;
+    display: block;
+  }
+  .feature-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--forest);
+    margin-bottom: 10px;
+    line-height: 1.2;
+  }
+  .feature-card.dark .feature-title { color: var(--lime); }
+  .feature-card.lime-bg .feature-title { color: var(--forest); }
+  .feature-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .feature-list li {
+    font-size: 13px;
+    font-weight: 400;
+    color: #4a5c3a;
+    line-height: 1.5;
+    padding-left: 16px;
+    position: relative;
+  }
+  .feature-card.dark .feature-list li { color: var(--mist); }
+  .feature-card.lime-bg .feature-list li { color: var(--forest); }
+  .feature-list li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--leaf);
+    font-size: 11px;
+    top: 2px;
+  }
+  .feature-card.dark .feature-list li::before { color: var(--lime); }
+  .feature-card.lime-bg .feature-list li::before { color: var(--forest); }
+
+  /* ── HIGHLIGHT ROW: REGISTRATION ── */
+  .highlight-section {
+    background: var(--forest);
+    padding: 48px 60px;
+    position: relative;
+    overflow: hidden;
+  }
+  .highlight-section::after {
+    content: '⛳';
+    position: absolute;
+    right: 40px;
+    bottom: -20px;
+    font-size: 160px;
+    opacity: 0.05;
+    line-height: 1;
+    pointer-events: none;
+  }
+  .highlight-section > .section-label {
+    color: var(--lime);
+  }
+  .highlight-section > .section-label::after { background: rgba(255,255,255,0.15); }
+  .highlight-section > h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--cream);
+    margin-bottom: 8px;
+  }
+  .highlight-section > p {
+    font-size: 14px;
+    color: var(--mist);
+    margin-bottom: 32px;
+    font-weight: 300;
+  }
+  .reg-modes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    position: relative;
+    z-index: 1;
+  }
+  .reg-mode {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 24px 22px;
+    position: relative;
+  }
+  .reg-mode-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--lime);
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    display: block;
+  }
+  .reg-mode-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--cream);
+    margin-bottom: 10px;
+  }
+  .reg-mode-desc {
+    font-size: 12.5px;
+    color: var(--mist);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+  .reg-mode-tag {
+    display: inline-block;
+    margin-top: 14px;
+    background: var(--lime);
+    color: var(--forest);
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    font-weight: 500;
+  }
+
+  /* ── FUNDRAISING STRIP ── */
+  .fundraising-section {
+    padding: 48px 60px;
+    background: white;
+  }
+  .fundraising-section > h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--forest);
+    margin-bottom: 28px;
+  }
+  .fundraising-section > h2 em { color: var(--leaf); font-style: italic; }
+  .fundraise-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+  .fundraise-item {
+    border-top: 3px solid var(--sage);
+    padding-top: 18px;
+  }
+  .fundraise-item.primary { border-color: var(--leaf); }
+  .fundraise-item h4 {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--forest);
+    margin-bottom: 8px;
+  }
+  .fundraise-item p {
+    font-size: 13px;
+    color: #4a5c3a;
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  /* ── SPONSOR SECTION ── */
+  .sponsor-section {
+    background: var(--lime);
+    padding: 40px 60px;
+  }
+  .sponsor-section > h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--forest);
+    margin-bottom: 24px;
+  }
+  .sponsor-tiers {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+  .sponsor-tier {
+    background: rgba(255,255,255,0.55);
+    padding: 16px 14px;
+    text-align: center;
+    border-bottom: 3px solid var(--forest);
+  }
+  .sponsor-tier-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--forest);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .sponsor-tier-where {
+    font-size: 11px;
+    color: #4a5c3a;
+    line-height: 1.5;
+  }
+
+  /* ── TECH PILLARS ── */
+  .tech-section {
+    padding: 48px 60px;
+    background: var(--cream);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: start;
+  }
+  .tech-left > h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--forest);
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+  .tech-left > h2 em { color: var(--leaf); font-style: italic; }
+  .tech-left > p {
+    font-size: 13.5px;
+    color: #4a5c3a;
+    line-height: 1.7;
+    font-weight: 300;
+    margin-bottom: 24px;
+  }
+  .pillar-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .pillar {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+    background: white;
+  }
+  .pillar-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .pillar-body h4 {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--forest);
+    margin-bottom: 3px;
+  }
+  .pillar-body p {
+    font-size: 12px;
+    color: #5a6e4a;
+    line-height: 1.5;
+    font-weight: 300;
+  }
+  .tech-right {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .stat-block {
+    background: var(--forest);
+    padding: 28px 28px 24px;
+    position: relative;
+  }
+  .stat-block:nth-child(even) { background: var(--leaf); }
+  .stat-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 48px;
+    font-weight: 900;
+    color: var(--lime);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .stat-block:nth-child(even) .stat-num { color: var(--cream); }
+  .stat-label {
+    font-size: 13px;
+    color: var(--mist);
+    font-weight: 300;
+    line-height: 1.4;
+  }
+  .stat-block:nth-child(even) .stat-label { color: rgba(255,255,255,0.8); }
+
+  /* ── QR & EMAIL ── */
+  .comms-section {
+    background: white;
+    padding: 48px 60px;
+  }
+  .comms-section > h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--forest);
+    margin-bottom: 28px;
+  }
+  .comms-section > h2 em { color: var(--leaf); font-style: italic; }
+  .comms-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .comms-card {
+    border: 1px solid var(--mist);
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .comms-card::after {
+    content: attr(data-icon);
+    position: absolute;
+    right: 20px;
+    bottom: 10px;
+    font-size: 56px;
+    opacity: 0.07;
+    line-height: 1;
+  }
+  .comms-card h4 {
+    font-family: 'Playfair Display', serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--forest);
+    margin-bottom: 14px;
+  }
+  .comms-card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .comms-card ul li {
+    font-size: 13px;
+    color: #4a5c3a;
+    padding-left: 16px;
+    position: relative;
+    line-height: 1.5;
+    font-weight: 400;
+  }
+  .comms-card ul li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--leaf);
+    font-size: 11px;
+    font-weight: 600;
+    top: 1px;
+  }
+
+  /* ── FOOTER / CTA ── */
+  .footer {
+    background: var(--forest);
+    padding: 48px 60px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 40px;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .footer::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 100% 50%, rgba(64,145,81,0.2) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .footer-left h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--cream);
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .footer-left h2 em { color: var(--lime); font-style: italic; }
+  .footer-left p {
+    font-size: 14px;
+    color: var(--mist);
+    line-height: 1.6;
+    font-weight: 300;
+    max-width: 380px;
+    position: relative;
+  }
+  .footer-right {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-end;
+    position: relative;
+  }
+  .cta-btn {
+    background: var(--lime);
+    color: var(--forest);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 16px 36px;
+    text-decoration: none;
+    letter-spacing: 0.5px;
+    display: inline-block;
+    transition: background 0.2s ease;
+  }
+  .cta-btn:hover { background: var(--cream); }
+  .cta-btn.secondary {
+    background: transparent;
+    border: 1px solid var(--sage);
+    color: var(--sage);
+    font-size: 13px;
+    padding: 12px 28px;
+  }
+  .cta-btn.secondary:hover { border-color: var(--lime); color: var(--lime); background: transparent; }
+
+  /* ── PRINT OPTIMIZATION ── */
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { max-width: 100%; }
+  }
+
+  /* ── ANIMATION ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hero-eyebrow  { animation: fadeUp 0.5s ease 0.1s both; }
+  .hero-title    { animation: fadeUp 0.5s ease 0.2s both; }
+  .hero-sub      { animation: fadeUp 0.5s ease 0.3s both; }
+  .hero-desc     { animation: fadeUp 0.5s ease 0.4s both; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ══ HERO ══ -->
+  <header class="hero">
+    <div class="hero-flag">⛳</div>
+    <p class="hero-eyebrow">Event Management Software</p>
+    <h1 class="hero-title">Golf Fundraiser<br><span>Pro</span></h1>
+    <p class="hero-sub">Golf Scramble Made Easy.</p>
+    <p class="hero-desc">
+      The complete tournament platform built for event organizers — from first registration to final leaderboard, with every fundraising dollar tracked and every sponsor showcased.
+    </p>
+    <div class="hero-badge">For Event Organizers</div>
+  </header>
+
+  <!-- ══ TAGLINE BAND ══ -->
+  <div class="band">
+    <p class="band-text">Run your entire tournament from one platform — beautifully branded, zero chaos.</p>
+    <div class="band-dots"><span></span><span></span><span></span></div>
+  </div>
+
+  <!-- ══ CORE ORGANIZER FEATURES ══ -->
+  <section class="features-section">
+    <p class="section-label">Core Features</p>
+    <h2>Everything you need to run<br><em>a flawless event.</em></h2>
+    <div class="features-grid">
+
+      <div class="feature-card accent">
+        <span class="feature-icon">📋</span>
+        <h3 class="feature-title">Smart Event Setup</h3>
+        <ul class="feature-list">
+          <li>18 or 9 hole configuration in seconds</li>
+          <li>Shotgun start or scheduled tee times — both supported</li>
+          <li>Auto-assign starting holes to all 25 teams at once</li>
+          <li>Tee time intervals with auto-scheduling and PDF export</li>
+          <li>Per-event color scheme and branding overrides</li>
+        </ul>
+      </div>
+
+      <div class="feature-card dark">
+        <span class="feature-icon">✅</span>
+        <h3 class="feature-title">Day-of Check-In — Frictionless</h3>
+        <ul class="feature-list">
+          <li>QR scan checks in a player in under 2 seconds</li>
+          <li>Check in a whole team or individuals separately</li>
+          <li>Live counter: "18 of 25 teams checked in"</li>
+          <li>Walk-up same-day registration from check-in screen</li>
+          <li>Late arrivals added to any team on the spot</li>
+        </ul>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">📊</span>
+        <h3 class="feature-title">Live Admin Dashboard</h3>
+        <ul class="feature-list">
+          <li>Real-time score monitoring for all 25 teams</li>
+          <li>Score conflict alerts with one-tap resolution</li>
+          <li>Fundraising totals updating live throughout the round</li>
+          <li>Free agent pairing panel with drag-and-drop</li>
+          <li>Works on tablet, laptop, or phone — no install required</li>
+        </ul>
+      </div>
+
+      <div class="feature-card lime-bg">
+        <span class="feature-icon">🏆</span>
+        <h3 class="feature-title">Live Web Leaderboard</h3>
+        <ul class="feature-list">
+          <li>Public URL — share with anyone, no login needed</li>
+          <li>Fully branded with your colors and logo</li>
+          <li>TV mode for clubhouse displays — auto-scrolling</li>
+          <li>Hole challenges tab with live contest standings</li>
+          <li>Updates within 2 seconds of each score entry</li>
+        </ul>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">⛳</span>
+        <h3 class="feature-title">Hole Challenges</h3>
+        <ul class="feature-list">
+          <li>Closest to the Pin — GPS or manual entry</li>
+          <li>Longest Drive contest with device tracking</li>
+          <li>Putting Challenge, Straightest Drive, Beat the Pro</li>
+          <li>Hole-in-One detection — celebratory alert to all devices</li>
+          <li>Mulligan purchases tracked for fundraising totals</li>
+        </ul>
+      </div>
+
+      <div class="feature-card accent">
+        <span class="feature-icon">📵</span>
+        <h3 class="feature-title">Works Without WiFi or Cell</h3>
+        <ul class="feature-list">
+          <li>Full offline scoring — zero data loss on remote courses</li>
+          <li>Scores auto-sync the moment signal returns</li>
+          <li>QR scorecard transfer — no internet needed at round end</li>
+          <li>Course maps pre-downloaded before leaving the clubhouse</li>
+          <li>Paper backup PDF generated for every team, just in case</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══ REGISTRATION MODES ══ -->
+  <section class="highlight-section">
+    <p class="section-label">Registration System</p>
+    <h2>Three ways to register.<br>Every golfer covered.</h2>
+    <p>Each mode is independently toggleable — close team slots when full while keeping individual registration open.</p>
+    <div class="reg-modes">
+      <div class="reg-mode">
+        <span class="reg-mode-num">MODE 01</span>
+        <h3 class="reg-mode-title">Full Team Registration</h3>
+        <p class="reg-mode-desc">Captain registers the whole team in one session, or sends individual invite links to teammates to self-register into open slots.</p>
+        <span class="reg-mode-tag">Most Common</span>
+      </div>
+      <div class="reg-mode">
+        <span class="reg-mode-num">MODE 02</span>
+        <h3 class="reg-mode-title">Join an Existing Team</h3>
+        <p class="reg-mode-desc">Individual golfers register independently and find their team by name or via a captain's invite link. Entry fee split per-player or per-team.</p>
+        <span class="reg-mode-tag">Flexible</span>
+      </div>
+      <div class="reg-mode">
+        <span class="reg-mode-num">MODE 03</span>
+        <h3 class="reg-mode-title">Free Agent — Need a Team</h3>
+        <p class="reg-mode-desc">Solo players enter a Free Agent Pool. Organizer uses drag-and-drop pairing or one-tap auto-pair by handicap. Assignment email sent automatically.</p>
+        <span class="reg-mode-tag">Solo Friendly</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ FUNDRAISING ══ -->
+  <section class="fundraising-section">
+    <p class="section-label">Fundraising Tools</p>
+    <h2>Every dollar raised,<br><em>tracked and celebrated.</em></h2>
+    <div class="fundraise-grid">
+      <div class="fundraise-item primary">
+        <h4>Entry Fees</h4>
+        <p>Per-player or flat team fee. Payment status tracked per team. Stripe integration for online payments in a future phase.</p>
+      </div>
+      <div class="fundraise-item">
+        <h4>Hole Sponsorships</h4>
+        <p>Assign a sponsor to any hole. Their name and logo appear on the score entry screen and the web leaderboard — guaranteed impressions.</p>
+      </div>
+      <div class="fundraise-item">
+        <h4>Direct Donations</h4>
+        <p>Live thermometer on the landing page and leaderboard. Donor names displayed publicly. Receipt email sent automatically.</p>
+      </div>
+    </div>
+    <div class="fundraise-grid">
+      <div class="fundraise-item">
+        <h4>Real-Time Totals</h4>
+        <p>Grand total of all three revenue streams shown live on the admin dashboard and optionally on the public leaderboard.</p>
+      </div>
+      <div class="fundraise-item">
+        <h4>Mulligan Tracking</h4>
+        <p>Hole challenges include mulligan purchase tracking — extra shots sold on-course counted directly toward fundraising totals.</p>
+      </div>
+      <div class="fundraise-item primary">
+        <h4>Tax Receipt Emails</h4>
+        <p>For 501(c)3 organizations, donation receipts include the tax deductibility note automatically in every confirmation email.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SPONSOR PLACEMENTS ══ -->
+  <section class="sponsor-section">
+    <p class="section-label" style="color:var(--forest)">Sponsor Placement</p>
+    <h2>Six placement locations.<br>Maximum sponsor value.</h2>
+    <div class="sponsor-tiers">
+      <div class="sponsor-tier">
+        <span class="sponsor-tier-name">Title / Presented-By</span>
+        <p class="sponsor-tier-where">Hero band on landing page, email header, all printed materials</p>
+      </div>
+      <div class="sponsor-tier">
+        <span class="sponsor-tier-name">Gold Sponsor</span>
+        <p class="sponsor-tier-where">Prominent row on landing page, leaderboard banner, scorecard footer</p>
+      </div>
+      <div class="sponsor-tier">
+        <span class="sponsor-tier-name">Hole Sponsor</span>
+        <p class="sponsor-tier-where">Score entry screen, hole challenge screen, leaderboard hole tab</p>
+      </div>
+      <div class="sponsor-tier">
+        <span class="sponsor-tier-name">Silver Sponsor</span>
+        <p class="sponsor-tier-where">Landing page grid, email footer, leaderboard banner rotation</p>
+      </div>
+      <div class="sponsor-tier">
+        <span class="sponsor-tier-name">Bronze Sponsor</span>
+        <p class="sponsor-tier-where">Email footer listing, thank-you email acknowledgment</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ TECH + STATS ══ -->
+  <section class="tech-section">
+    <div class="tech-left">
+      <p class="section-label">Built for Real Courses</p>
+      <h2>Technology that <em>disappears</em> when you need it most.</h2>
+      <p>Golf Fundraiser Pro is built mobile-first with offline capability at its core — because rural courses don't have WiFi, and your tournament can't wait for a signal.</p>
+      <div class="pillar-list">
+        <div class="pillar">
+          <span class="pillar-icon">🔒</span>
+          <div class="pillar-body">
+            <h4>Zero score data loss — guaranteed</h4>
+            <p>Every score tap saves to the device instantly before any network call. No connectivity, no problem.</p>
+          </div>
+        </div>
+        <div class="pillar">
+          <span class="pillar-icon">🎨</span>
+          <div class="pillar-body">
+            <h4>Fully branded to your organization</h4>
+            <p>Five-token color system — your palette applied to leaderboard, landing page, mobile app, and emails automatically.</p>
+          </div>
+        </div>
+        <div class="pillar">
+          <span class="pillar-icon">📱</span>
+          <div class="pillar-body">
+            <h4>iOS, Android & Web — one platform</h4>
+            <p>Scorekeepers use the mobile app; spectators and sponsors view the web leaderboard; organizers manage from the web admin dashboard.</p>
+          </div>
+        </div>
+        <div class="pillar">
+          <span class="pillar-icon">⚡</span>
+          <div class="pillar-body">
+            <h4>Live updates under 2 seconds</h4>
+            <p>WebSocket-powered leaderboard pushes score changes to every connected device the moment they're submitted.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tech-right">
+      <div class="stat-block">
+        <div class="stat-num">25</div>
+        <div class="stat-label">Teams scoring simultaneously — no slowdowns, no queuing</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num">&lt; 2 sec</div>
+        <div class="stat-label">Score-to-leaderboard update time on live events</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num">0</div>
+        <div class="stat-label">Score records lost in offline mode — zero, ever</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num">6</div>
+        <div class="stat-label">Sponsor placement locations per event — every tier gets visibility</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ QR & EMAIL ══ -->
+  <section class="comms-section">
+    <p class="section-label">Communications & QR</p>
+    <h2>From first invite to <em>final thank-you</em> — automated.</h2>
+    <div class="comms-grid">
+      <div class="comms-card" data-icon="📧">
+        <h4>Automated Email System</h4>
+        <ul>
+          <li>Registration confirmation with QR check-in code</li>
+          <li>24-hour event reminder with tee time & course address</li>
+          <li>Thank-you email with final score and leaderboard position</li>
+          <li>Team assignment notification for Free Agent registrants</li>
+          <li>Donation receipts with 501(c)3 tax note</li>
+          <li>All emails branded with your colors and sponsor logos</li>
+        </ul>
+      </div>
+      <div class="comms-card" data-icon="📲">
+        <h4>Email Advertisement Builder</h4>
+        <ul>
+          <li>Drag-and-drop builder — no design skills needed</li>
+          <li>Auto-populated with event details, sponsor logos & colors</li>
+          <li>QR code linking to registration page embedded automatically</li>
+          <li>Export as HTML for Mailchimp, Constant Contact, or any platform</li>
+          <li>Live preview as you edit — desktop and mobile views</li>
+          <li>Send test email before publishing</li>
+        </ul>
+      </div>
+      <div class="comms-card" data-icon="🔲">
+        <h4>Complete QR Code Kit</h4>
+        <ul>
+          <li>Event join QR — for registration desk and printed materials</li>
+          <li>Player check-in QR — unique per golfer, in confirmation email</li>
+          <li>Leaderboard QR — for sponsor signage and table tents</li>
+          <li>Donation QR — for on-site fundraising displays</li>
+          <li>One-click Print Kit: all QRs as a ready-to-print PDF</li>
+          <li>Deep link: app opens directly when scanned on a phone</li>
+        </ul>
+      </div>
+      <div class="comms-card" data-icon="🌐">
+        <h4>Branded Event Landing Page</h4>
+        <ul>
+          <li>Shareable URL: golffundraiser.pro/e/YOURCODE</li>
+          <li>Registration, donation, sponsor showcase — all in one page</li>
+          <li>Countdown timer and remaining team slots counter</li>
+          <li>Auto-switches to 'Watch Live Scores' when round starts</li>
+          <li>Google Search rich results via structured data</li>
+          <li>Open Graph previews when shared on social media</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ FOOTER CTA ══ -->
+  <footer class="footer">
+    <div class="footer-left">
+      <h2>Ready to run your <em>best event yet?</em></h2>
+      <p>Golf Fundraiser Pro handles the logistics so you can focus on your mission. From registration to the final putt — we've got every hole covered.</p>
+    </div>
+    <div class="footer-right">
+      <a href="#" class="cta-btn">Get Early Access</a>
+      <a href="#" class="cta-btn secondary">Request a Demo</a>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>
