@@ -1,0 +1,106 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .github/workflows/eas-build.yml — EAS Build (iOS + Android)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# WHEN THIS RUNS:
+#   • Manual trigger (workflow_dispatch) — for on-demand builds during development
+#   • On version tags (v*.*.*) — for release builds submitted to App Store/Play Store
+#   NOT on every push — EAS Build is slow (10-30 min) and uses build credits.
+#
+# WHAT IT DOES:
+#   Runs `eas build --platform all` which:
+#     1. Sends the apps/mobile source code to Expo's cloud build servers
+#     2. Builds an .ipa (iOS) and .aab (Android) binary
+#     3. Makes them available at https://expo.dev for download/submission
+#
+# WHY EAS CLOUD BUILDS (not local):
+#   iOS builds require macOS + Xcode.  EAS handles this without developers
+#   needing a Mac or managing signing certificates manually.
+#   EAS also manages provisioning profiles, distribution certificates, and
+#   Android keystore files in a secure vault.
+#
+# BUILD PROFILES (defined in apps/mobile/eas.json):
+#   development — debug build with dev client, connects to local API
+#   preview     — release build for TestFlight / internal testing
+#   production  — store-ready build for App Store / Play Store submission
+#
+# SECRETS REQUIRED:
+#   EXPO_TOKEN  — get at https://expo.dev/settings/access-tokens
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: EAS Build (iOS + Android)
+
+on:
+  # Manual trigger with input for which build profile to use
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'EAS build profile'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+          - development
+          - preview
+          - production
+
+  # Automatic trigger on version tags (e.g. v1.2.3)
+  # Use for production release builds
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    name: EAS Build (${{ github.event.inputs.profile || 'production' }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        # Install workspace deps so packages/* are available to apps/mobile
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install --global eas-cli@latest
+
+      - name: Determine build profile
+        id: profile
+        run: |
+          # If triggered by a tag push, always use production profile
+          # If manually triggered, use the selected profile
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "profile=production" >> $GITHUB_OUTPUT
+          else
+            echo "profile=${{ github.event.inputs.profile }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run EAS Build (all platforms)
+        # --platform all  — build both iOS and Android
+        # --non-interactive — no prompts in CI
+        # --no-wait — submit the build and exit; don't wait for it to complete.
+        #   The build runs on Expo's servers. Check status at expo.dev.
+        #   Remove --no-wait if you need build artifacts in subsequent CI steps.
+        working-directory: apps/mobile
+        run: |
+          eas build \
+            --platform all \
+            --profile ${{ steps.profile.outputs.profile }} \
+            --non-interactive \
+            --no-wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build submitted
+        run: |
+          echo "✅ EAS Build submitted for profile: ${{ steps.profile.outputs.profile }}"
+          echo "Monitor progress at: https://expo.dev/accounts/[your-account]/projects/golf-fundraiser-pro/builds"

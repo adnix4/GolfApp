@@ -1,0 +1,92 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .github/workflows/deploy-web.yml — Deploy Next.js Public Web (Vercel)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# WHEN THIS RUNS:
+#   Push to main that touches apps/web/** or packages/** (shared deps).
+#
+# WHAT IT DOES:
+#   Deploys apps/web (Next.js 15) to Vercel production.
+#   Vercel automatically handles:
+#     • SSR / ISR / Static rendering
+#     • Edge network distribution (CDN)
+#     • Preview deployments for PRs (via Vercel GitHub integration, not this file)
+#
+# WHY VERCEL FOR Next.js:
+#   Vercel built Next.js. Their platform has first-class support for every
+#   Next.js feature (App Router, Server Components, ISR, Edge Runtime).
+#   The Vercel free tier supports production deploys with custom domains.
+#
+# SECRETS REQUIRED:
+#   VERCEL_TOKEN   — get at https://vercel.com/account/tokens
+#   VERCEL_ORG_ID  — found in Vercel dashboard → Settings → General → Team ID
+#   VERCEL_PROJECT_ID_WEB — found in Vercel dashboard → Project → Settings → General
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Deploy Web (Next.js)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'            # shared packages affect web output
+      - '.github/workflows/deploy-web.yml'
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared packages
+        # Build packages/* before apps/web so type imports resolve correctly.
+        # `--filter=./packages/*` runs build only in the packages/ workspaces.
+        run: npx turbo run build --filter='./packages/*'
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM:  ${{ secrets.TURBO_TEAM }}
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel environment variables
+        # Downloads the environment variables configured in the Vercel dashboard
+        # (NEXT_PUBLIC_API_URL, etc.) so the build can use them.
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+
+      - name: Build Next.js for production
+        # `vercel build --prod` runs `next build` with Vercel's build output API,
+        # which produces a .vercel/output directory that Vercel deploys atomically.
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+
+      - name: Deploy to Vercel production
+        # Uploads the .vercel/output artifact to Vercel's CDN.
+        # This is the atomic step — the old deployment stays live until this succeeds.
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}

@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .github/workflows/deploy-admin.yml — Deploy Expo Router Admin (EAS Hosting)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# WHEN THIS RUNS:
+#   Push to main that touches apps/admin/** or packages/**.
+#
+# WHAT IT DOES:
+#   Deploys apps/admin (Expo Router web) to EAS Hosting.
+#   The admin dashboard is:
+#     • Behind authentication — no SEO needed (unlike apps/web)
+#     • Served as a static web export from Expo Router
+#     • Accessed by event organizers from any browser (tablet, laptop, phone)
+#
+# WHY EAS HOSTING FOR ADMIN:
+#   The admin app shares components from packages/ui with the mobile app.
+#   EAS Hosting integrates with the same EAS Build infrastructure used
+#   for iOS/Android builds — one platform for the entire Expo ecosystem.
+#   It also handles Expo Router's web output format correctly out of the box.
+#
+# SECRETS REQUIRED:
+#   EXPO_TOKEN  — get at https://expo.dev/settings/access-tokens
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Deploy Admin (Expo Router Web)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/admin/**'
+      - 'packages/**'
+      - '.github/workflows/deploy-admin.yml'
+
+concurrency:
+  group: deploy-admin
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to EAS Hosting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared packages first
+        # Admin app imports from @gfp/ui, @gfp/theme, @gfp/shared-types.
+        # These must be compiled before the Expo web export runs.
+        run: npx turbo run build --filter='./packages/*'
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM:  ${{ secrets.TURBO_TEAM }}
+
+      - name: Install EAS CLI
+        run: npm install --global eas-cli@latest
+
+      - name: Deploy to EAS Hosting (production channel)
+        # `eas deploy --prod` exports the Expo Router web app as a static site
+        # and uploads it to EAS Hosting.
+        # The --non-interactive flag prevents prompts in CI.
+        working-directory: apps/admin
+        run: eas deploy --prod --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

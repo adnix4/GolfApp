@@ -1,0 +1,149 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .github/workflows/ci.yml — Continuous Integration
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# WHEN THIS RUNS:
+#   • On every pull_request targeting the main branch
+#   • On every push directly to main (catches direct commits)
+#
+# WHAT IT DOES:
+#   Runs three Turborepo tasks across ALL workspaces in parallel:
+#     1. turbo lint       — ESLint across all TypeScript workspaces
+#     2. turbo type-check — tsc --noEmit across all TypeScript workspaces
+#     3. dotnet build     — C# compilation check for apps/api
+#   All three must pass before the PR can be merged (configured in
+#   GitHub → Settings → Branch Protection → Required status checks).
+#
+# WHY TURBOREPO IN CI:
+#   Turborepo's remote cache (Vercel Remote Cache) means unchanged workspaces
+#   are skipped entirely.  If only apps/web changed, packages/* and apps/api
+#   lint results are restored from cache in ~2 seconds instead of re-running.
+#   This keeps CI fast as the monorepo grows.
+#
+# SECRETS REQUIRED (set in GitHub → Settings → Secrets → Actions):
+#   TURBO_TOKEN    — Vercel Remote Cache token (optional but speeds up CI)
+#   TURBO_TEAM     — Vercel team slug (optional, used with TURBO_TOKEN)
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel in-progress runs when a new commit is pushed to the same PR.
+# Prevents wasting CI minutes on outdated commits.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ── TYPESCRIPT WORKSPACES ─────────────────────────────────────────────────
+  typescript-checks:
+    name: Lint & Type-Check (TypeScript)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # fetch-depth: 0 gives Turborepo the full git history so it can
+          # accurately determine which files changed for cache invalidation.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Node 20 LTS — required by Metro bundler (spec Foundation §8)
+          node-version: '20'
+          # Cache npm dependencies keyed to package-lock.json hash.
+          # On cache hit, `npm ci` restores from cache instead of downloading.
+          cache: 'npm'
+
+      - name: Install dependencies
+        # `npm ci` — clean install from package-lock.json (not package.json).
+        # Faster than `npm install` and deterministic — guarantees exact versions.
+        run: npm ci
+
+      - name: Run ESLint across all workspaces
+        # `turbo run lint` fans out to every workspace that has a "lint" script.
+        # Results are cached — unchanged workspaces are skipped.
+        run: npm run lint
+        env:
+          # Turborepo remote cache credentials (optional — CI still works without them)
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM:  ${{ secrets.TURBO_TEAM }}
+
+      - name: Run TypeScript type-check across all workspaces
+        # `turbo run type-check` runs `tsc --noEmit` in every TypeScript workspace.
+        # Packages are type-checked before the apps that depend on them.
+        run: npm run type-check
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM:  ${{ secrets.TURBO_TEAM }}
+
+  # ── .NET API ──────────────────────────────────────────────────────────────
+  dotnet-build:
+    name: Build & Verify (ASP.NET Core)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          # Pinned to .NET 8 — matches the TargetFramework in apps/api/WebAPI.csproj
+          dotnet-version: '8.0.x'
+
+      - name: Restore NuGet packages
+        # `dotnet restore` downloads all NuGet dependencies declared in .csproj.
+        # Separated from build so CI can cache the restore step.
+        working-directory: apps/api
+        run: dotnet restore
+
+      - name: Build API (Release configuration)
+        # `dotnet build` compiles C# and catches all compile-time errors.
+        # --no-restore skips restore since we just ran it.
+        # -c Release catches Release-only issues (e.g. unused variable warnings
+        # treated as errors in Release mode).
+        working-directory: apps/api
+        run: dotnet build --no-restore -c Release
+
+      - name: Run API unit tests
+        # `dotnet test` runs all xUnit/NUnit test projects in the solution.
+        # --no-build skips rebuild since we just built.
+        # || true — don't fail the build if no test projects exist yet (Phase 1).
+        # Remove `|| true` once test projects are added.
+        working-directory: apps/api
+        run: dotnet test --no-build -c Release --verbosity normal || true
+
+  # ── REQUIRED STATUS CHECK GATE ──────────────────────────────────────────
+  # This job runs only after both above jobs succeed.
+  # GitHub branch protection can require THIS single job instead of
+  # tracking each individual job, which simplifies the branch protection config.
+  all-checks-passed:
+    name: All CI Checks Passed
+    runs-on: ubuntu-latest
+    needs: [typescript-checks, dotnet-build]
+    if: always()
+
+    steps:
+      - name: Check all jobs succeeded
+        # If any upstream job failed or was cancelled, fail this job too.
+        # This provides a single required status check for branch protection.
+        run: |
+          if [[ "${{ needs.typescript-checks.result }}" != "success" ]]; then
+            echo "TypeScript checks failed"
+            exit 1
+          fi
+          if [[ "${{ needs.dotnet-build.result }}" != "success" ]]; then
+            echo ".NET build failed"
+            exit 1
+          fi
+          echo "All CI checks passed ✓"
