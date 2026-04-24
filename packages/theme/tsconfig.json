@@ -1,0 +1,44 @@
+{
+  /**
+   * packages/theme/tsconfig.json
+   * ─────────────────────────────────────────────────────────────────────────
+   * WHY THIS EXISTS:
+   *   Each workspace needs its own tsconfig so `tsc --noEmit` (run by the
+   *   "type-check" turbo task) knows what files to check and what settings
+   *   to apply.
+   *
+   * WHY NO "extends":
+   *   The theme package has no framework-specific needs (no JSX, no DOM lib),
+   *   so we use a minimal standalone config rather than extending a larger base.
+   *   This keeps the package free of Expo/Next.js/React Native assumptions.
+   */
+  "compilerOptions": {
+    /* Target modern JS — consumed by app bundlers that handle transpilation */
+    "target": "ES2020",
+
+    /* Pure library — no DOM or React types needed */
+    "lib": ["ES2020"],
+
+    /* Module format understood by both Metro (Expo) and webpack (Next.js) */
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+
+    /* Strict mode catches the most bugs at compile time */
+    "strict": true,
+
+    /* Don't emit compiled files — bundlers read .ts directly via "main" in package.json */
+    "noEmit": true,
+
+    /* Allow importing from packages that don't have @types/* declarations */
+    "skipLibCheck": true,
+
+    /* Ensure consistent import casing on case-insensitive file systems (macOS) */
+    "forceConsistentCasingInFileNames": true,
+
+    /* Allow `export = ` and `import x = require('x')` for compatibility */
+    "esModuleInterop": true
+  },
+
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

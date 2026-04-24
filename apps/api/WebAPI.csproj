@@ -1,0 +1,121 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    apps/api/WebAPI.csproj — Golf Fundraiser Pro API
+    ═══════════════════════════════════════════════════════════════════════════
+
+    WHY EACH PACKAGE IS HERE:
+
+    ── CORE FRAMEWORK ──────────────────────────────────────────────────────────
+    Microsoft.AspNetCore.OpenApi + Swashbuckle
+      Generates the Swagger UI at /swagger. Essential during Phase 1 development
+      for testing endpoints without a frontend. Swashbuckle reads controller
+      attributes and generates the OpenAPI spec automatically.
+
+    ── DATABASE + ORM ──────────────────────────────────────────────────────────
+    Microsoft.EntityFrameworkCore.Design
+      Required for `dotnet ef migrations add` and `dotnet ef database update`.
+      The Design package provides the EF Core CLI tools. Remove for production
+      publish if you want a smaller binary (it's safe to remove post-migration).
+
+    Npgsql.EntityFrameworkCore.PostgreSQL
+      The EF Core provider for PostgreSQL. Translates LINQ queries to SQL,
+      handles connection pooling, and manages migrations against Postgres.
+
+    NetTopologySuite
+      Provides the .NET geometry types (Point, LineString, etc.) that map to
+      PostGIS GEOGRAPHY columns. Required because the schema uses:
+        courses.location            → GEOGRAPHY(Point,4326)
+        course_holes.cup_location   → GEOGRAPHY(PointZ,4326) [Phase 6]
+        scores.drive_location       → GEOGRAPHY(Point,4326) [Phase 6]
+      Without NetTopologySuite, EF Core cannot map these column types and
+      `dotnet ef migrations add` would fail on GEOGRAPHY columns.
+
+    ── AUTHENTICATION ──────────────────────────────────────────────────────────
+    Microsoft.AspNetCore.Authentication.JwtBearer
+      Validates JWT Bearer tokens on every protected endpoint.
+      Configured in Program.cs to read JWT_SECRET from environment.
+      The 15-minute access token + 30-day refresh token flow requires this.
+
+    Microsoft.AspNetCore.Identity.EntityFrameworkCore
+      ASP.NET Core Identity for user management (OrgAdmin accounts).
+      Provides password hashing, user store, role management.
+      Extends ApplicationDbContext with Identity tables (AspNetUsers, etc.)
+
+    System.IdentityModel.Tokens.Jwt
+      The JWT library for generating access and refresh tokens.
+      Used in the Auth feature to create signed JWTs with role claims.
+
+    ── EMAIL ───────────────────────────────────────────────────────────────────
+    SendGrid
+      The official SendGrid .NET SDK for sending transactional emails.
+      Used in Features/Emails/ for all six Phase 1 email triggers:
+      registration_confirm, invite, team_assignment, reminder, thank_you,
+      donation_receipt.
+
+    ── BACKGROUND JOBS ─────────────────────────────────────────────────────────
+    Hangfire.AspNetCore + Hangfire.PostgreSql
+      Background job library for scheduled tasks. Used for:
+        • Event reminder emails (sent 24 hours before start_at)
+        • Thank-you emails (sent when admin marks event = completed)
+      Hangfire.PostgreSql persists job state in the same Postgres database
+      (no separate job queue service needed for Phase 1).
+
+    ── UTILITIES ───────────────────────────────────────────────────────────────
+    FluentValidation.AspNetCore
+      Strongly-typed request validation. Each endpoint has a corresponding
+      Validator<TRequest> class. Returns structured VALIDATION_ERROR responses
+      matching the API error format in spec Foundation §10.1.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>GolfFundraiserPro.Api</AssemblyName>
+    <RootNamespace>GolfFundraiserPro.Api</RootNamespace>
+    <!-- Treat nullable warnings as errors — prevents null reference bugs -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors>CS8600;CS8602;CS8603;CS8604</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ── SWAGGER ── -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi"   Version="8.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore"         Version="6.5.0" />
+
+    <!-- ── EF CORE + POSTGRES ── -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design"  Version="8.0.0">
+      <!--
+        PrivateAssets="all" means this package is used at development time
+        (for running migrations) but is NOT included in the published output.
+        This keeps the production Docker image smaller.
+      -->
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL"            Version="8.0.0" />
+    <!--
+      NetTopologySuite integration for Npgsql — enables GEOGRAPHY column mapping.
+      UseNetTopologySuite() must be called on NpgsqlDataSourceBuilder in Program.cs.
+    -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="8.0.0" />
+    <PackageReference Include="NetTopologySuite"                                  Version="2.5.0" />
+
+    <!-- ── AUTHENTICATION ── -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"         Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore"     Version="8.0.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt"                      Version="7.5.1" />
+
+    <!-- ── EMAIL ── -->
+    <PackageReference Include="SendGrid" Version="9.29.3" />
+
+    <!-- ── BACKGROUND JOBS ── -->
+    <PackageReference Include="Hangfire.AspNetCore"  Version="1.8.14" />
+    <PackageReference Include="Hangfire.PostgreSql"  Version="1.20.9" />
+
+    <!-- ── VALIDATION ── -->
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
+  </ItemGroup>
+
+</Project>
