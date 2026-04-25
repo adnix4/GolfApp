@@ -123,9 +123,11 @@ public static class ServiceCollectionExtensions
 
         // ── APPLICATION SERVICES ──────────────────────────────────────────
         // Scoped = one instance per HTTP request.
-        // Both services depend on ApplicationDbContext which is also scoped.
+        // All services depend on ApplicationDbContext which is also scoped.
         services.AddScoped<TokenService>();
         services.AddScoped<Features.Auth.AuthService>();
+        services.AddScoped<Features.Events.EventService>();
+        services.AddScoped<Features.Teams.TeamService>();
 
         // ── JWT BEARER AUTHENTICATION ─────────────────────────────────────
         // Configures the middleware to validate JWT Bearer tokens on protected endpoints.

@@ -7,21 +7,21 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "lint": "turbo run lint",
+    "build":      "turbo run build",
+    "dev":        "turbo run dev",
+    "lint":       "turbo run lint",
     "type-check": "turbo run type-check",
-    "test": "turbo run test",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "test":       "turbo run test",
+    "clean":      "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
-    "turbo": "^2.3.3",
+    "turbo":      "^2.3.3",
     "typescript": "^5.4.5",
-    "eslint": "^8.57.0",
-    "prettier": "^3.2.5"
+    "eslint":     "^8.57.0",
+    "prettier":   "^3.2.5"
   },
   "engines": {
     "node": ">=20.0.0",
-    "npm": ">=10.0.0"
+    "npm":  ">=10.0.0"
   }
 }
