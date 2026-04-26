@@ -55,10 +55,11 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var connectionString = configuration["DATABASE_URL"]
+        var connectionString = ToNpgsqlConnectionString(
+            configuration["DATABASE_URL"]
             ?? throw new InvalidOperationException(
                 "DATABASE_URL environment variable is not set. " +
-                "Copy .env.example to .env.local and fill in the value.");
+                "Copy .env.example to .env.local and fill in the value."));
 
         services.AddDbContext<ApplicationDbContext>(options =>
         {
@@ -215,8 +216,9 @@ public static class ServiceCollectionExtensions
         // Jobs registered:
         //   • 24-hour reminder emails (scheduled relative to event.start_at)
         //   • Thank-you email dispatch (triggered when event → Completed)
-        var connectionString = configuration["DATABASE_URL"]
-            ?? throw new InvalidOperationException("DATABASE_URL not set");
+        var connectionString = ToNpgsqlConnectionString(
+            configuration["DATABASE_URL"]
+            ?? throw new InvalidOperationException("DATABASE_URL not set"));
 
         services.AddHangfire(hangfire => hangfire
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
@@ -329,5 +331,29 @@ public static class ServiceCollectionExtensions
         });
 
         return services;
+    }
+
+    // ── HELPERS ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Converts a postgresql:// URI to an Npgsql ADO.NET connection string.
+    /// Npgsql does not accept URI-format connection strings; platforms like
+    /// Railway and Heroku provide DATABASE_URL in URI format.
+    /// </summary>
+    private static string ToNpgsqlConnectionString(string raw)
+    {
+        if (!raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) &&
+            !raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
+            return raw; // already in key=value format
+
+        var uri      = new Uri(raw);
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty;
+        var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+        var host     = uri.Host;
+        var port     = uri.Port > 0 ? uri.Port : 5432;
+        var database = uri.AbsolutePath.TrimStart('/');
+
+        return $"Host={host};Port={port};Database={database};Username={username};Password={password}";
     }
 }

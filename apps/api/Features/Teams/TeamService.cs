@@ -825,20 +825,22 @@ public class TeamService
         catch { return null; }
     }
 
-    private static dynamic DeserializeConfig(string? json)
+    private sealed record EventConfig(bool? AllowWalkUps, int? MaxTeams, bool? FreeAgentEnabled);
+
+    private static EventConfig DeserializeConfig(string? json)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(json)) return new { AllowWalkUps = (bool?)null, MaxTeams = (int?)null, FreeAgentEnabled = (bool?)null };
+            if (string.IsNullOrWhiteSpace(json)) return new EventConfig(null, null, null);
             var doc = JsonDocument.Parse(json);
-            bool? allowWalkUps = doc.RootElement.TryGetProperty("allowWalkUps", out var aw) ? aw.GetBoolean() : null;
-            int?  maxTeams     = doc.RootElement.TryGetProperty("maxTeams",     out var mt) ? mt.GetInt32()   : null;
+            bool? allowWalkUps = doc.RootElement.TryGetProperty("allowWalkUps",     out var aw) ? aw.GetBoolean() : null;
+            int?  maxTeams     = doc.RootElement.TryGetProperty("maxTeams",         out var mt) ? mt.GetInt32()   : null;
             bool? freeAgent    = doc.RootElement.TryGetProperty("freeAgentEnabled", out var fa) ? fa.GetBoolean() : null;
-            return new { AllowWalkUps = allowWalkUps, MaxTeams = maxTeams, FreeAgentEnabled = freeAgent };
+            return new EventConfig(allowWalkUps, maxTeams, freeAgent);
         }
         catch
         {
-            return new { AllowWalkUps = (bool?)null, MaxTeams = (int?)null, FreeAgentEnabled = (bool?)null };
+            return new EventConfig(null, null, null);
         }
     }
 

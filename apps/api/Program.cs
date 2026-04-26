@@ -75,7 +75,14 @@ builder.Services.AddGolfFundraiserPro(builder.Configuration);
 // Controllers — enables attribute-based routing on controller classes.
 // The API uses the Minimal API style where possible, but some complex
 // feature areas (Auth, Events) use controllers for their built-in model binding.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+    {
+        // Serialize/deserialize enums as strings ("Scramble") instead of integers (0).
+        // Required so callers can pass human-readable values in request bodies.
+        opts.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 
 // ── BUILD APP ────────────────────────────────────────────────────────────────
 var app = builder.Build();

@@ -89,6 +89,11 @@ public class AuthService
         await EnsureRolesExistAsync();
 
         // Use a transaction — both org and user must succeed together
+        // Check slug uniqueness before opening the transaction (cleaner error message)
+        var slugTaken = await _db.Organizations.AnyAsync(o => o.Slug == request.OrgSlug, ct);
+        if (slugTaken)
+            throw new ConflictException($"Organization slug '{request.OrgSlug}' is already taken.");
+
         await using var transaction = await _db.Database.BeginTransactionAsync(ct);
 
         try

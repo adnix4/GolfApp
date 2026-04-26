@@ -325,7 +325,7 @@ public class Team
     /// Expires after 48 hours (invite_expires_at).
     /// </summary>
     [Column("invite_token")]
-    [MaxLength(64)]
+    [MaxLength(128)]
     public string? InviteToken { get; set; }
 
     [Column("invite_expires_at")]

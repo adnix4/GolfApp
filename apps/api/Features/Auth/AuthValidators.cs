@@ -18,33 +18,25 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 using FluentValidation;
-using Microsoft.EntityFrameworkCore;
-using GolfFundraiserPro.Api.Data;
 
 namespace GolfFundraiserPro.Api.Features.Auth;
 
 /// <summary>
 /// Validates POST /api/v1/auth/register requests.
-/// Checks are async because slug and email uniqueness require DB queries.
+/// Only synchronous format/length rules here — DB uniqueness is checked in AuthService
+/// because FluentValidation's ASP.NET auto-validation pipeline is synchronous and
+/// cannot execute MustAsync rules.
 /// </summary>
 public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
 {
-    private readonly ApplicationDbContext _db;
-
-    public RegisterRequestValidator(ApplicationDbContext db)
+    public RegisterRequestValidator()
     {
-        _db = db;
-
         // ── EMAIL ──────────────────────────────────────────────────────────
         RuleFor(x => x.Email)
             .NotEmpty()
             .EmailAddress()
             .MaximumLength(254)
-            .WithMessage("A valid email address is required.")
-            // Async check: is this email already registered?
-            // MustAsync runs a DB query — only reached if prior rules pass.
-            .MustAsync(BeUniqueEmailAsync)
-            .WithMessage("An account with this email address already exists.");
+            .WithMessage("A valid email address is required.");
 
         // ── PASSWORD ───────────────────────────────────────────────────────
         RuleFor(x => x.Password)
@@ -53,7 +45,6 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
             .WithMessage("Password must be at least 8 characters.")
             .Matches(@"\d")
             .WithMessage("Password must contain at least one number.")
-            // Prevent absurdly long passwords that could cause bcrypt DoS
             .MaximumLength(128)
             .WithMessage("Password must not exceed 128 characters.");
 
@@ -73,36 +64,12 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
         RuleFor(x => x.OrgSlug)
             .NotEmpty()
             .MaximumLength(60)
-            // Only lowercase letters, numbers, and hyphens allowed.
-            // This ensures the slug is safe in URLs without encoding.
             .Matches(@"^[a-z0-9\-]+$")
             .WithMessage("Slug must contain only lowercase letters, numbers, and hyphens. Example: 'clhs-boosters'")
-            // No leading/trailing hyphens
             .Must(slug => !slug.StartsWith('-') && !slug.EndsWith('-'))
             .WithMessage("Slug must not start or end with a hyphen.")
-            // No consecutive hyphens
             .Must(slug => !slug.Contains("--"))
-            .WithMessage("Slug must not contain consecutive hyphens.")
-            // Async: is this slug already taken by another org?
-            .MustAsync(BeUniqueSlugAsync)
-            .WithMessage("This organization slug is already taken. Please choose a different one.");
-    }
-
-    private async Task<bool> BeUniqueEmailAsync(
-        string email,
-        CancellationToken ct)
-    {
-        // Check ASP.NET Identity users table for duplicate email
-        return !await _db.Users
-            .AnyAsync(u => u.NormalizedEmail == email.ToUpperInvariant(), ct);
-    }
-
-    private async Task<bool> BeUniqueSlugAsync(
-        string slug,
-        CancellationToken ct)
-    {
-        return !await _db.Organizations
-            .AnyAsync(o => o.Slug == slug, ct);
+            .WithMessage("Slug must not contain consecutive hyphens.");
     }
 }
 
