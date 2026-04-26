@@ -107,7 +107,7 @@ public static class ServiceCollectionExtensions
             options.Password.RequireLowercase       = true;
             options.Password.RequireUppercase       = false; // don't force SHIFT key
             options.Password.RequireNonAlphanumeric = false;
-            options.Password.MinimumLength          = 8;
+            options.Password.RequiredLength          = 8;
 
             // Lockout — lock account after 5 failed attempts for 5 minutes.
             // Prevents brute force on organizer accounts.
@@ -123,9 +123,16 @@ public static class ServiceCollectionExtensions
 
         // ── APPLICATION SERVICES ──────────────────────────────────────────
         // Scoped = one instance per HTTP request.
-        // Both services depend on ApplicationDbContext which is also scoped.
-        services.AddScoped<TokenService>();
+        // All services depend on ApplicationDbContext which is also scoped.
+        services.AddScoped<Features.Auth.TokenService>();
         services.AddScoped<Features.Auth.AuthService>();
+        services.AddScoped<Features.Events.EventService>();
+        services.AddScoped<Features.Teams.TeamService>();
+        services.AddScoped<Features.Players.PlayerService>();
+        services.AddScoped<Features.Scores.ScoreService>();
+        services.AddScoped<Features.Sponsors.SponsorService>();
+        services.AddScoped<Features.QR.QrService>();
+        services.AddScoped<Features.Emails.EmailService>();
 
         // ── JWT BEARER AUTHENTICATION ─────────────────────────────────────
         // Configures the middleware to validate JWT Bearer tokens on protected endpoints.
@@ -215,8 +222,7 @@ public static class ServiceCollectionExtensions
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()
             .UseRecommendedSerializerSettings()
-            .UsePostgreSqlStorage(options =>
-                options.UseNpgsqlClientFactory(connectionString)));
+            .UsePostgreSqlStorage(connectionString));
 
         // Hangfire server processes background jobs in-process.
         // worker count 2 — enough for Phase 1 email volume (100 emails/day).
