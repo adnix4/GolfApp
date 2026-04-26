@@ -339,4 +339,5 @@ public record AutoPairResultResponse
     public int                TeamsModified  { get; init; }
     /// <summary>Any agents that couldn't be placed (e.g. odd numbers).</summary>
     public List<FreeAgentResponse> Unassigned { get; init; } = new();
+    public string?            Message        { get; init; }
 }

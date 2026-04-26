@@ -25,6 +25,7 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Common.Middleware;
 
 namespace GolfFundraiserPro.Api.Features.Teams;
