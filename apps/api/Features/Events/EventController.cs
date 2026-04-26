@@ -244,6 +244,63 @@ public class EventController : ControllerBase
         return Ok(response);
     }
 
+    // ── PUBLIC LEADERBOARD (no auth) ─────────────────────────────────────────
+
+    /// <summary>
+    /// Public live leaderboard for display boards, mobile spectators, and event websites.
+    /// No authentication required. Returns team names and scores — no financial data or emails.
+    /// 404 for Draft and Cancelled events.
+    /// </summary>
+    [HttpGet("api/v1/pub/events/{eventCode}/leaderboard")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(PublicLeaderboardResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PublicLeaderboardResponse>> GetPublicLeaderboard(
+        [FromRoute] string eventCode,
+        CancellationToken ct)
+    {
+        var response = await _eventService.GetPublicLeaderboardAsync(eventCode, ct);
+        return Ok(response);
+    }
+
+    // ── PUBLIC CHALLENGES (no auth) ───────────────────────────────────────────
+
+    /// <summary>
+    /// Public challenges live view: all hole contests and recorded results.
+    /// No authentication required.
+    /// 404 for Draft and Cancelled events.
+    /// </summary>
+    [HttpGet("api/v1/pub/events/{eventCode}/challenges")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(PublicChallengesResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PublicChallengesResponse>> GetPublicChallenges(
+        [FromRoute] string eventCode,
+        CancellationToken ct)
+    {
+        var response = await _eventService.GetPublicChallengesAsync(eventCode, ct);
+        return Ok(response);
+    }
+
+    // ── PUBLIC FUNDRAISING (no auth) ──────────────────────────────────────────
+
+    /// <summary>
+    /// Public fundraising thermometer data: total donations + entry fees.
+    /// No authentication required. No individual donor details.
+    /// 404 for Draft and Cancelled events.
+    /// </summary>
+    [HttpGet("api/v1/pub/events/{eventCode}/fundraising")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(PublicFundraisingInfo), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PublicFundraisingInfo>> GetPublicFundraising(
+        [FromRoute] string eventCode,
+        CancellationToken ct)
+    {
+        var response = await _eventService.GetPublicFundraisingAsync(eventCode, ct);
+        return Ok(response);
+    }
+
     // ── PRIVATE HELPERS ───────────────────────────────────────────────────────
 
     /// <summary>

@@ -396,3 +396,59 @@ public record PublicFundraisingInfo
     public int DonationsCents  { get; init; }
     public int GrandTotalCents { get; init; }
 }
+
+// ── PUBLIC LEADERBOARD ───────────────────────────────────────────────────────
+
+/// <summary>
+/// GET /api/v1/pub/events/{code}/leaderboard
+/// Public (unauthenticated) leaderboard for display boards, mobile spectators,
+/// and the event website. No financial data, no player emails.
+/// </summary>
+public record PublicLeaderboardResponse
+{
+    public Guid    EventId   { get; init; }
+    public string  EventName { get; init; } = string.Empty;
+    public string  Status    { get; init; } = string.Empty;
+    public List<PublicLeaderboardEntry> Standings { get; init; } = new();
+}
+
+public record PublicLeaderboardEntry
+{
+    public int     Rank          { get; init; }
+    public string  TeamName      { get; init; } = string.Empty;
+    public int     ToPar         { get; init; }
+    public int     GrossTotal    { get; init; }
+    public int     HolesComplete { get; init; }
+    public bool    IsComplete    { get; init; }
+}
+
+// ── PUBLIC CHALLENGES ────────────────────────────────────────────────────────
+
+/// <summary>
+/// GET /api/v1/pub/events/{code}/challenges
+/// Returns all hole challenges and their current results for the live view.
+/// </summary>
+public record PublicChallengesResponse
+{
+    public List<PublicChallengeDto> Challenges { get; init; } = new();
+}
+
+public record PublicChallengeDto
+{
+    public Guid    Id              { get; init; }
+    public string  ChallengeType   { get; init; } = string.Empty;
+    public short?  HoleNumber      { get; init; }
+    public string  Description     { get; init; } = string.Empty;
+    public string? PrizeDescription { get; init; }
+    public string? SponsorName     { get; init; }
+    public string? SponsorLogoUrl  { get; init; }
+    public List<PublicChallengeResultDto> Results { get; init; } = new();
+}
+
+public record PublicChallengeResultDto
+{
+    public string  TeamName   { get; init; } = string.Empty;
+    public string? PlayerName { get; init; }
+    public float? Value       { get; init; }
+    public string? Notes      { get; init; }
+}

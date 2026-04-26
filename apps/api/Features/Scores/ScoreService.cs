@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
@@ -255,6 +258,175 @@ public class ScoreService
         return MapToScoreResponse(score, score.Team.Name);
     }
 
+    // ── QR COLLECT ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Admin submits a QR-scanned scorecard at the 18th green.
+    /// Decodes and verifies the HMAC-SHA256 signature, then imports all hole scores.
+    ///
+    /// PAYLOAD FORMAT (spec Phase 2 §5.2):
+    ///   Base64-encoded JSON: { v, ec, tid, tn, did, ts, sig, scores:[{h,g,p?}] }
+    ///   sig = HMAC-SHA256(key="{event_code}:{team_id}", msg=canonical_payload_without_sig)
+    ///
+    /// CANONICAL MESSAGE:
+    ///   "{v}|{ec}|{tid}|{did}|{ts}|{scores_compact_json}"
+    ///   scores_compact_json = compact JSON array, sorted by hole number ascending.
+    /// </summary>
+    public async Task<QrCollectResponse> QrCollectAsync(
+        Guid orgId, Guid eventId,
+        QrCollectRequest request,
+        CancellationToken ct = default)
+    {
+        // ── 1. DECODE PAYLOAD ────────────────────────────────────────────────
+        string json;
+        try
+        {
+            var bytes = Convert.FromBase64String(request.Payload);
+            json = Encoding.UTF8.GetString(bytes);
+        }
+        catch
+        {
+            throw new ValidationException("QR payload is not valid Base64.");
+        }
+
+        QrPayload payload;
+        try
+        {
+            payload = JsonSerializer.Deserialize<QrPayload>(json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? throw new Exception("null result");
+        }
+        catch
+        {
+            throw new ValidationException("QR payload JSON is malformed.");
+        }
+
+        if (payload.V != 1)
+            throw new ValidationException($"Unsupported QR payload version {payload.V}.");
+
+        // ── 2. VERIFY EVENT ──────────────────────────────────────────────────
+        var evt = await _db.Events
+            .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
+
+        if (evt is null)
+            throw new NotFoundException("Event", eventId);
+
+        if (!evt.EventCode.Equals(payload.Ec, StringComparison.OrdinalIgnoreCase))
+            throw new ValidationException("QR code was generated for a different event.");
+
+        if (evt.Status is not (EventStatus.Active or EventStatus.Scoring or EventStatus.Completed))
+            throw new ValidationException("QR score collection is only available for Active, Scoring, or Completed events.");
+
+        // ── 3. VERIFY TEAM ───────────────────────────────────────────────────
+        if (!Guid.TryParse(payload.Tid, out var teamId))
+            throw new ValidationException("QR payload contains an invalid team ID.");
+
+        var team = await _db.Teams
+            .FirstOrDefaultAsync(t => t.Id == teamId && t.EventId == eventId, ct);
+
+        if (team is null)
+            throw new NotFoundException("Team", teamId);
+
+        // ── 4. VERIFY HMAC SIGNATURE ─────────────────────────────────────────
+        // Key: UTF-8("{event_code}:{team_id}")
+        // Message: "{v}|{ec}|{tid}|{did}|{ts}|{scores_compact_json}"
+        var scoresForSig = (payload.Scores ?? [])
+            .OrderBy(s => s.H)
+            .Select(s => s.P.HasValue
+                ? $"{{\"h\":{s.H},\"g\":{s.G},\"p\":{s.P}}}"
+                : $"{{\"h\":{s.H},\"g\":{s.G}}}")
+            .ToList();
+        var scoresJson = "[" + string.Join(",", scoresForSig) + "]";
+
+        var message = $"{payload.V}|{payload.Ec}|{payload.Tid}|{payload.Did}|{payload.Ts}|{scoresJson}";
+        var keyStr  = $"{evt.EventCode}:{payload.Tid}";
+
+        var keyBytes     = Encoding.UTF8.GetBytes(keyStr);
+        var messageBytes = Encoding.UTF8.GetBytes(message);
+        var expectedSig  = Convert.ToHexString(
+            HMACSHA256.HashData(keyBytes, messageBytes)).ToLowerInvariant();
+
+        if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(expectedSig),
+                Encoding.UTF8.GetBytes((payload.Sig ?? string.Empty).ToLowerInvariant())))
+        {
+            _logger.LogWarning(
+                "QR signature mismatch for event {EventId} team {TeamId} device {Did}",
+                eventId, teamId, payload.Did);
+            throw new ValidationException(
+                "QR signature is invalid. This scorecard may have been tampered with. " +
+                "Please manually verify and enter scores for this team.");
+        }
+
+        // ── 5. IMPORT SCORES ─────────────────────────────────────────────────
+        var existing = await _db.Scores
+            .Where(s => s.EventId == eventId && s.TeamId == teamId)
+            .ToDictionaryAsync(s => (int)s.HoleNumber, ct);
+
+        var imported  = 0;
+        var conflicts = new List<QrCollectConflictDto>();
+
+        foreach (var entry in payload.Scores ?? [])
+        {
+            if (entry.H < 1 || entry.H > evt.Holes || entry.G < 1 || entry.G > 20)
+                continue;
+
+            if (existing.TryGetValue(entry.H, out var current))
+            {
+                if (current.GrossScore != entry.G && !current.IsConflicted)
+                {
+                    current.IsConflicted = true;
+                    conflicts.Add(new QrCollectConflictDto
+                    {
+                        HoleNumber    = (short)entry.H,
+                        ExistingScore = current.GrossScore,
+                        QrScore       = (short)entry.G,
+                    });
+                }
+                else if (!current.IsConflicted)
+                {
+                    current.Putts    = entry.P.HasValue ? (short)entry.P.Value : current.Putts;
+                    current.SyncedAt = DateTime.UtcNow;
+                    current.Source   = ScoreSource.QrTransfer;
+                    imported++;
+                }
+            }
+            else
+            {
+                _db.Scores.Add(new Score
+                {
+                    Id           = Guid.NewGuid(),
+                    EventId      = eventId,
+                    TeamId       = teamId,
+                    HoleNumber   = (short)entry.H,
+                    GrossScore   = (short)entry.G,
+                    Putts        = entry.P.HasValue ? (short)entry.P.Value : null,
+                    DeviceId     = payload.Did ?? "qr-transfer",
+                    SubmittedAt  = DateTime.UtcNow,
+                    SyncedAt     = DateTime.UtcNow,
+                    Source       = ScoreSource.QrTransfer,
+                    IsConflicted = false,
+                });
+                imported++;
+            }
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "QR collect for event {EventId} team '{TeamName}': {Imported} imported, {Conflicts} conflicts",
+            eventId, team.Name, imported, conflicts.Count);
+
+        return new QrCollectResponse
+        {
+            TeamId          = teamId,
+            TeamName        = team.Name,
+            ScoresImported  = imported,
+            Conflicts       = conflicts.Count,
+            ConflictDetails = conflicts,
+        };
+    }
+
     // ── PRIVATE ────────────────────────────────────────────────────────────────
 
     private static ScoreResponse MapToScoreResponse(Score s, string teamName) => new()
@@ -272,4 +444,25 @@ public class ScoreService
         Source       = s.Source.ToString(),
         IsConflicted = s.IsConflicted,
     };
+
+    // ── QR PAYLOAD PRIVATE TYPES ───────────────────────────────────────────────
+
+    private sealed record QrPayload
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("v")]      public int    V      { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("ec")]     public string Ec     { get; init; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("tid")]    public string Tid    { get; init; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("tn")]     public string? Tn    { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("did")]    public string? Did   { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("ts")]     public long   Ts     { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("sig")]    public string? Sig   { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("scores")] public List<QrPayloadScore>? Scores { get; init; }
+    }
+
+    private sealed record QrPayloadScore
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("h")] public int  H { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("g")] public int  G { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("p")] public int? P { get; init; }
+    }
 }

@@ -601,6 +601,158 @@ public class EventService
         };
     }
 
+    // ── PUBLIC LEADERBOARD ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the public leaderboard looked up by event code.
+    /// No auth required. Hidden fields (emails, financials) are excluded.
+    /// 404 for Draft and Cancelled events.
+    /// </summary>
+    public async Task<PublicLeaderboardResponse> GetPublicLeaderboardAsync(
+        string eventCode,
+        CancellationToken ct = default)
+    {
+        var evt = await _db.Events
+            .Include(e => e.Teams)
+            .Include(e => e.Scores)
+            .Include(e => e.Course)
+                .ThenInclude(c => c!.Holes)
+            .FirstOrDefaultAsync(e => e.EventCode == eventCode.ToUpperInvariant(), ct);
+
+        if (evt is null || evt.Status is EventStatus.Draft or EventStatus.Cancelled)
+            throw new NotFoundException($"No event found with code '{eventCode}'.");
+
+        var parByHole = evt.Course?.Holes
+            .ToDictionary(h => (int)h.HoleNumber, h => (int)h.Par)
+            ?? Enumerable.Range(1, evt.Holes).ToDictionary(n => n, _ => 4);
+
+        var scoresByTeam = evt.Scores
+            .GroupBy(s => s.TeamId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var entries = new List<(string TeamName, int ToPar, int GrossTotal, int HolesComplete, bool IsComplete)>();
+
+        foreach (var team in evt.Teams)
+        {
+            var teamScores    = scoresByTeam.GetValueOrDefault(team.Id, []);
+            var grossTotal    = teamScores.Sum(s => (int)s.GrossScore);
+            var parTotal      = teamScores.Sum(s => parByHole.GetValueOrDefault(s.HoleNumber, 4));
+            var holesComplete = teamScores.Count;
+            entries.Add((team.Name, grossTotal - parTotal, grossTotal, holesComplete, holesComplete >= evt.Holes));
+        }
+
+        var sorted = entries
+            .OrderBy(e => e.HolesComplete == 0 ? 1 : 0)
+            .ThenBy(e => e.ToPar)
+            .ThenByDescending(e => e.HolesComplete)
+            .ToList();
+
+        var standings = new List<PublicLeaderboardEntry>();
+        var rank = 1;
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            if (i > 0 && sorted[i].HolesComplete > 0 && sorted[i].ToPar != sorted[i - 1].ToPar)
+                rank = i + 1;
+
+            standings.Add(new PublicLeaderboardEntry
+            {
+                Rank          = sorted[i].HolesComplete == 0 ? 0 : rank,
+                TeamName      = sorted[i].TeamName,
+                ToPar         = sorted[i].ToPar,
+                GrossTotal    = sorted[i].GrossTotal,
+                HolesComplete = sorted[i].HolesComplete,
+                IsComplete    = sorted[i].IsComplete,
+            });
+        }
+
+        return new PublicLeaderboardResponse
+        {
+            EventId   = evt.Id,
+            EventName = evt.Name,
+            Status    = evt.Status.ToString(),
+            Standings = standings,
+        };
+    }
+
+    // ── PUBLIC CHALLENGES ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns all hole challenges and their recorded results for a public live view.
+    /// No auth required. 404 for Draft and Cancelled events.
+    /// </summary>
+    public async Task<PublicChallengesResponse> GetPublicChallengesAsync(
+        string eventCode,
+        CancellationToken ct = default)
+    {
+        var evt = await _db.Events
+            .Include(e => e.HoleChallenges)
+                .ThenInclude(c => c.Sponsor)
+            .Include(e => e.HoleChallenges)
+                .ThenInclude(c => c.Results)
+                    .ThenInclude(r => r.Team)
+            .FirstOrDefaultAsync(e => e.EventCode == eventCode.ToUpperInvariant(), ct);
+
+        if (evt is null || evt.Status is EventStatus.Draft or EventStatus.Cancelled)
+            throw new NotFoundException($"No event found with code '{eventCode}'.");
+
+        var challenges = evt.HoleChallenges
+            .OrderBy(c => c.HoleNumber ?? 99)
+            .Select(c => new PublicChallengeDto
+            {
+                Id               = c.Id,
+                ChallengeType    = c.ChallengeType.ToString(),
+                HoleNumber       = c.HoleNumber,
+                Description      = c.Description,
+                PrizeDescription = c.PrizeDescription,
+                SponsorName      = c.Sponsor?.Name,
+                SponsorLogoUrl   = c.Sponsor?.LogoUrl,
+                Results = c.Results
+                    .OrderBy(r => r.RecordedAt)
+                    .Select(r => new PublicChallengeResultDto
+                    {
+                        TeamName  = r.Team.Name,
+                        Value     = r.ResultValue,
+                        Notes     = r.ResultNotes,
+                    })
+                    .ToList(),
+            })
+            .ToList();
+
+        return new PublicChallengesResponse { Challenges = challenges };
+    }
+
+    // ── PUBLIC FUNDRAISING ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns public fundraising totals (donations + entry fees).
+    /// No auth required. No individual donor details included.
+    /// 404 for Draft and Cancelled events.
+    /// </summary>
+    public async Task<PublicFundraisingInfo> GetPublicFundraisingAsync(
+        string eventCode,
+        CancellationToken ct = default)
+    {
+        var evt = await _db.Events
+            .Include(e => e.Teams)
+            .Include(e => e.Donations)
+            .FirstOrDefaultAsync(e => e.EventCode == eventCode.ToUpperInvariant(), ct);
+
+        if (evt is null || evt.Status is EventStatus.Draft or EventStatus.Cancelled)
+            throw new NotFoundException($"No event found with code '{eventCode}'.");
+
+        var config      = DeserializeConfig(evt.ConfigJson);
+        var feeCents    = config.EntryFeeCents ?? 0;
+        var teamsPaid   = evt.Teams.Count(t => t.EntryFeePaid);
+        var entryTotal  = teamsPaid * feeCents;
+        var donTotal    = evt.Donations.Sum(d => d.AmountCents);
+
+        return new PublicFundraisingInfo
+        {
+            DonationsCents  = donTotal,
+            GrandTotalCents = entryTotal + donTotal,
+        };
+    }
+
     // ── PRIVATE HELPERS ───────────────────────────────────────────────────────
 
     /// <summary>

@@ -134,6 +134,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Features.Sponsors.SponsorService>();
         services.AddScoped<Features.QR.QrService>();
         services.AddScoped<Features.Emails.EmailService>();
+        services.AddScoped<Features.Mobile.MobileService>();
 
         // ── JWT BEARER AUTHENTICATION ─────────────────────────────────────
         // Configures the middleware to validate JWT Bearer tokens on protected endpoints.

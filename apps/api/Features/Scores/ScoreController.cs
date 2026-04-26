@@ -105,6 +105,26 @@ public class ScoreController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>
+    /// Admin submits a QR-scanned scorecard after scanning a golfer's phone at the 18th green.
+    /// Decodes and verifies the HMAC-SHA256 signature, then imports all hole scores.
+    /// Conflicts are flagged (not rejected) so the admin can resolve them on the dashboard.
+    /// </summary>
+    [HttpPost("api/v1/events/{eventId:guid}/scores/qr-collect")]
+    [Authorize(Policy = "EventStaff")]
+    [ProducesResponseType(typeof(QrCollectResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<QrCollectResponse>> QrCollect(
+        [FromRoute] Guid eventId,
+        [FromBody]  QrCollectRequest request,
+        CancellationToken ct)
+    {
+        var orgId    = GetOrgId();
+        var response = await _scoreService.QrCollectAsync(orgId, eventId, request, ct);
+        return Ok(response);
+    }
+
     private Guid GetOrgId()
     {
         var claim = User.FindFirst("orgId")?.Value;

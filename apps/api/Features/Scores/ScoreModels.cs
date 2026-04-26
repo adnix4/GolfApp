@@ -52,6 +52,42 @@ public record ResolveConflictRequest
     public string? ResolutionNote { get; init; }
 }
 
+/// <summary>
+/// POST /api/v1/events/{eventId}/scores/qr-collect
+/// Admin submits a QR-scanned scorecard payload after scanning a golfer's phone at the 18th green.
+/// The payload is a Base64-encoded, HMAC-SHA256-signed JSON object (spec Phase 2 §5.2).
+///
+/// SIGNING KEY: UTF-8 bytes of "{event_code}:{team_id}"
+/// SIGNED MESSAGE: compact JSON of the payload with all fields EXCEPT "sig", keys in definition order.
+/// ALGORITHM: HMAC-SHA256
+/// </summary>
+public record QrCollectRequest
+{
+    /// <summary>
+    /// Base64-encoded QR payload string. The mobile app generates this at round end.
+    /// The API decodes it, verifies the HMAC signature, and imports the scores.
+    /// </summary>
+    [Required]
+    public string Payload { get; init; } = string.Empty;
+}
+
+/// <summary>Summary of scores imported from a QR scorecard scan.</summary>
+public record QrCollectResponse
+{
+    public Guid   TeamId       { get; init; }
+    public string TeamName     { get; init; } = string.Empty;
+    public int    ScoresImported { get; init; }
+    public int    Conflicts    { get; init; }
+    public List<QrCollectConflictDto> ConflictDetails { get; init; } = new();
+}
+
+public record QrCollectConflictDto
+{
+    public short  HoleNumber     { get; init; }
+    public short  ExistingScore  { get; init; }
+    public short  QrScore        { get; init; }
+}
+
 // ── RESPONSE MODELS ────────────────────────────────────────────────────────────
 
 public record ScoreResponse
