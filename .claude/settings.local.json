@@ -38,7 +38,25 @@
       "Read(//mnt/**)",
       "Read(//c//**)",
       "PowerShell(dotnet build *)",
-      "Bash(git -C C:/GolfApp diff --stat HEAD)"
+      "Bash(git -C C:/GolfApp diff --stat HEAD)",
+      "PowerShell(netstat *)",
+      "PowerShell(Start-Sleep -Seconds 20; try { $r = Invoke-WebRequest -Uri \"http://localhost:5000/health\" -Method GET -TimeoutSec 3; \"Ready: $\\($r.StatusCode\\)\" } catch { \"Not ready yet - still compiling\" })",
+      "PowerShell(Start-Sleep -Seconds 15; try { $r = Invoke-WebRequest -Uri \"http://localhost:5000/health\" -Method GET -TimeoutSec 3; \"Ready: $\\($r.StatusCode\\)\" } catch { \"Still not ready\" })",
+      "PowerShell(docker exec gfp-postgres *)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(xargs cat *)",
+      "Bash(npm run *)",
+      "Bash(node *)",
+      "Bash(npm show *)",
+      "Bash(pkill -f \"expo start\")",
+      "Bash(pkill -f \"node.*expo\")",
+      "Bash(npx expo *)",
+      "Bash(python -m json.tool)",
+      "Bash(pkill -f \"dotnet.*GolfFundraiserPro\")",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:5000/health\" -UseBasicParsing -ErrorAction SilentlyContinue)",
+      "Bash(dotnet user-secrets *)",
+      "Bash(grep -v \"//\")"
     ]
   }
 }

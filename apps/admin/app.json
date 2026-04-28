@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "GFP Admin",
+    "slug": "gfp-admin",
+    "version": "1.0.0",
+    "scheme": "gfp-admin",
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "platforms": ["web"],
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
