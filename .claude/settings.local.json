@@ -56,7 +56,11 @@
       "Bash(pkill -f \"dotnet.*GolfFundraiserPro\")",
       "PowerShell(Invoke-WebRequest -Uri \"http://localhost:5000/health\" -UseBasicParsing -ErrorAction SilentlyContinue)",
       "Bash(dotnet user-secrets *)",
-      "Bash(grep -v \"//\")"
+      "Bash(grep -v \"//\")",
+      "Bash(npm ci *)",
+      "Bash(npx eslint *)",
+      "Bash(C:/GolfApp/node_modules/.bin/eslint --version)",
+      "Bash(C:/GolfApp/node_modules/.bin/eslint src *)"
     ]
   }
 }
