@@ -1,0 +1,25 @@
+{
+  "name": "@gfp/web",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev":        "next dev --port 3000",
+    "build":      "next build",
+    "start":      "next start",
+    "lint":       "eslint src --ext .ts,.tsx",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gfp/shared-types": "*",
+    "@gfp/theme":        "*",
+    "next":              "^15.0.0",
+    "react":             "19.0.0",
+    "react-dom":         "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node":     "^20.0.0",
+    "@types/react":    "~19.2.10",
+    "@types/react-dom": "~19.2.0",
+    "typescript":      "^5.4.5"
+  }
+}
