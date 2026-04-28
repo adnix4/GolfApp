@@ -8,10 +8,12 @@
         "src/*"
       ],
       "react-native": [
-        "./node_modules/react-native"
+        "./node_modules/react-native",
+        "../../node_modules/react-native"
       ],
       "react-native/*": [
-        "./node_modules/react-native/*"
+        "./node_modules/react-native/*",
+        "../../node_modules/react-native/*"
       ]
     }
   },
