@@ -270,6 +270,10 @@ public static class ServiceCollectionExtensions
                     .WithOrigins(
                         "http://localhost:3000",  // Next.js web
                         "http://localhost:8081",  // Expo Router admin
+                        "http://localhost:8082",  // Expo Router admin (alt port)
+                        "http://localhost:8083",  // Expo Router admin (alt port)
+                        "http://localhost:8084",  // Expo Router admin (alt port)
+                        "http://localhost:8085",  // Expo Router admin (alt port)
                         "http://localhost:8080")  // nginx reverse proxy
                     .AllowAnyMethod()
                     .AllowAnyHeader()
