@@ -2,7 +2,7 @@ import React, {
   createContext, useCallback, useContext,
   useEffect, useState, type ReactNode,
 } from 'react';
-import { authApi, ApiError } from './api';
+import { authApi } from './api';
 import { storage } from './storage';
 
 interface AuthUser {
