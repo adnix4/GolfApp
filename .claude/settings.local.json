@@ -81,7 +81,9 @@
       "Bash(node_modules/.bin/tsc --noEmit -p apps/admin/tsconfig.json)",
       "Bash(node_modules/.bin/tsc --noEmit -p packages/ui/tsconfig.json)",
       "Bash(node_modules/.bin/tsc --noEmit -p packages/shared-types/tsconfig.json)",
-      "Bash(node_modules/.bin/tsc --noEmit -p packages/theme/tsconfig.json)"
+      "Bash(node_modules/.bin/tsc --noEmit -p packages/theme/tsconfig.json)",
+      "Bash(node_modules/.bin/tsc *)",
+      "Bash(echo \"Exit: $?\")"
     ]
   }
 }
