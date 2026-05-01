@@ -89,7 +89,11 @@
       "mcp__claude_ai_Google_Drive__read_file_content",
       "Bash(npx vitest *)",
       "Bash(grep -v \"^$\")",
-      "Bash(npx expo-doctor *)"
+      "Bash(npx expo-doctor *)",
+      "Bash(echo \"API_PID=$!\")",
+      "Bash(ASPNETCORE_ENVIRONMENT=Development cd /c/GolfApp/apps/api)",
+      "Bash(ASPNETCORE_ENVIRONMENT=Development dotnet run)",
+      "Bash(taskkill //F //IM dotnet.exe)"
     ]
   }
 }

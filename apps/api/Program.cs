@@ -39,33 +39,31 @@ using GolfFundraiserPro.Api.Data;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 
-var builder = WebApplication.CreateBuilder(args);
-
 // ── LOAD ENVIRONMENT VARIABLES ────────────────────────────────────────────────
-// Load from .env.local in development. In production, environment variables
-// are injected by Railway/Render — no .env file on the server.
+// Must happen BEFORE WebApplication.CreateBuilder so that IConfiguration picks
+// up the values. CreateBuilder snapshots environment variables at call time —
+// any Environment.SetEnvironmentVariable calls made after that point are not
+// visible to configuration["KEY"] lookups.
 //
-// DotNetEnv reads .env.local from the working directory.
-// This is optional — if the file doesn't exist, it's silently ignored.
-// Production servers must have all variables set in their platform config.
-if (builder.Environment.IsDevelopment())
+// In production, variables are injected by Railway/Render — no .env file.
+var aspnetEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+if (string.Equals(aspnetEnv, "Development", StringComparison.OrdinalIgnoreCase))
 {
-    // Look for .env.local in the monorepo root (two directories up from apps/api)
-    var envFile = Path.Combine(builder.Environment.ContentRootPath, "..", "..", ".env.local");
+    // Look for .env.local two directories up from apps/api (the monorepo root).
+    var envFile = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", ".env.local");
     if (File.Exists(envFile))
     {
-        // Manual .env parser — read each KEY=VALUE line and set as environment variable
         foreach (var line in File.ReadAllLines(envFile))
         {
             if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#')) continue;
             var parts = line.Split('=', 2);
             if (parts.Length == 2)
-            {
                 Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim());
-            }
         }
     }
 }
+
+var builder = WebApplication.CreateBuilder(args);
 
 // ── ADD SERVICES ──────────────────────────────────────────────────────────────
 // All service registrations delegated to the extension method.
