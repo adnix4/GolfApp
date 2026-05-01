@@ -7,15 +7,18 @@ export interface PublicCourseInfo {
 }
 
 export interface PublicSponsorInfo {
-  name:    string;
-  logoUrl: string;
-  tagline: string | null;
-  tier:    string;
+  name:                 string;
+  logoUrl:              string;
+  tagline:              string | null;
+  tier:                 string;
+  holeNumbers?:         number[];     // hole-sponsor associations
+  challengeDescription?: string;      // e.g. "Closest to Pin"
 }
 
 export interface PublicFundraisingInfo {
   donationsCents:  number;
   grandTotalCents: number;
+  goalCents?:      number;
 }
 
 export interface PublicEventData {

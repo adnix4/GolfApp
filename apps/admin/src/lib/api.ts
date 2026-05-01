@@ -50,8 +50,16 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
         body: body !== undefined ? JSON.stringify(body) : undefined,
       });
       if (retry.ok) return retry.json() as Promise<T>;
+      // Retry returned a non-2xx that isn't 401 — it's a real API error, not an auth issue.
+      // Do NOT clear tokens: the session is still valid, the request itself failed.
+      if (retry.status !== 401) {
+        let code = 'UNKNOWN_ERROR';
+        let msg  = `HTTP ${retry.status}`;
+        try { const e = await retry.json(); code = e.code ?? code; msg = e.error ?? msg; } catch {}
+        throw new ApiError(retry.status, code, msg);
+      }
     }
-    // Refresh failed — clear tokens so auth context redirects to login
+    // Refresh failed or retry returned 401 — session is gone, force re-login.
     storage.clearTokens();
     throw new ApiError(401, 'UNAUTHORIZED', 'Session expired. Please log in again.');
   }
@@ -159,6 +167,40 @@ export const teamsApi = {
   checkIn: (eventId: string, teamId: string) =>
     request<Team>(`/api/v1/events/${eventId}/teams/${teamId}/check-in`, {
       method: 'POST', body: {},
+    }),
+
+  markFeePaid: (eventId: string, teamId: string) =>
+    request<Team>(`/api/v1/events/${eventId}/teams/${teamId}/fee-paid`, {
+      method: 'POST', body: {},
+    }),
+};
+
+// ── FREE AGENTS ───────────────────────────────────────────────────────────────
+
+export const playersApi = {
+  listFreeAgents: (eventId: string) =>
+    request<Player[]>(`/api/v1/events/${eventId}/free-agents`),
+
+  assignToTeam: (eventId: string, playerId: string, teamId: string) =>
+    request<Player>(`/api/v1/events/${eventId}/players/${playerId}/assign`, {
+      method: 'POST', body: { teamId },
+    }),
+};
+
+// ── CHALLENGES ────────────────────────────────────────────────────────────────
+
+export const challengesApi = {
+  list: (eventId: string) =>
+    request<HoleChallenge[]>(`/api/v1/events/${eventId}/challenges`),
+
+  upsert: (eventId: string, holeNumber: number, payload: UpsertChallengePayload) =>
+    request<HoleChallenge>(`/api/v1/events/${eventId}/challenges/${holeNumber}`, {
+      method: 'PUT', body: payload,
+    }),
+
+  remove: (eventId: string, holeNumber: number) =>
+    request<void>(`/api/v1/events/${eventId}/challenges/${holeNumber}`, {
+      method: 'DELETE',
     }),
 };
 
@@ -280,6 +322,14 @@ export interface QrCollectResult {
   conflictDetails: { holeNumber: number; existingScore: number; qrScore: number }[];
 }
 
+export interface HoleChallenge {
+  holeNumber:   number;
+  description:  string;
+  sponsorName:  string | null;
+  winnerId:     string | null;
+  winnerName:   string | null;
+}
+
 // Payload types
 export interface CreateEventPayload {
   name: string; format: string; startType: string; holes: number; startAt?: string;
@@ -299,6 +349,11 @@ export interface RegisterTeamPayload {
 export interface SubmitScorePayload {
   teamId: string; holeNumber: number; grossScore: number; putts?: number; deviceId?: string;
 }
+export interface UpsertChallengePayload {
+  description: string;
+  sponsorName?: string;
+}
+
 export interface CreateSponsorPayload {
   name: string; logoUrl: string; tier: string; websiteUrl?: string; tagline?: string;
   placements?: Record<string, unknown>;

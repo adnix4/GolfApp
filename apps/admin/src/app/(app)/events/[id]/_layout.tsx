@@ -3,12 +3,18 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useTheme } from '@gfp/ui';
 
 const TABS = [
-  { label: 'Overview',    path: ''            },
-  { label: 'Teams',       path: 'teams'       },
-  { label: 'Scoring',     path: 'scoring'     },
-  { label: 'Leaderboard', path: 'leaderboard' },
-  { label: 'Sponsors',    path: 'sponsors'    },
-  { label: 'Fundraising', path: 'fundraising' },
+  { label: 'Overview',     path: ''             },
+  { label: 'Teams',        path: 'teams'        },
+  { label: 'Registration', path: 'registration' },
+  { label: 'Free Agents',  path: 'free-agents'  },
+  { label: 'Scoring',      path: 'scoring'      },
+  { label: 'Leaderboard',  path: 'leaderboard'  },
+  { label: 'Shotgun',      path: 'shotgun'      },
+  { label: 'QR Import',    path: 'qr-import'    },
+  { label: 'Challenges',   path: 'challenges'   },
+  { label: 'Sponsors',     path: 'sponsors'     },
+  { label: 'Fundraising',  path: 'fundraising'  },
+  { label: 'Print Kit',    path: 'print'        },
 ];
 
 export default function EventLayout() {

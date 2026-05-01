@@ -13,10 +13,10 @@ import type { SyncConflictDto } from '@/lib/api';
 function ScoreRow({
   holeNumber, par, grossScore, putts, isConflicted,
 }: {
-  holeNumber:  number;
-  par:         number;
-  grossScore:  number;
-  putts:       number | null;
+  holeNumber:   number;
+  par:          number;
+  grossScore:   number;
+  putts:        number | null;
   isConflicted: boolean;
 }) {
   const theme    = useTheme();
@@ -29,8 +29,8 @@ function ScoreRow({
       rowStyles.row,
       { backgroundColor: isConflicted ? '#fff8f0' : theme.colors.surface },
     ]}>
-      <Text style={[rowStyles.hole, { color: theme.colors.primary }]}>{holeNumber}</Text>
-      <Text style={[rowStyles.par,  { color: theme.colors.accent  }]}>{par}</Text>
+      <Text style={[rowStyles.hole,  { color: theme.colors.primary }]}>{holeNumber}</Text>
+      <Text style={[rowStyles.par,   { color: theme.colors.accent  }]}>{par}</Text>
       <Text style={[rowStyles.score, { color: theme.colors.primary }]}>{grossScore}</Text>
       <Text style={[rowStyles.rel,   { color: relColor }]}>{relLabel}</Text>
       <Text style={[rowStyles.putts, { color: theme.colors.accent }]}>
@@ -74,9 +74,9 @@ const conflictStyles = StyleSheet.create({
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
 
-export default function SummaryScreen() {
-  const theme                                       = useTheme();
-  const router                                      = useRouter();
+export default function SyncScreen() {
+  const theme                                                                   = useTheme();
+  const router                                                                  = useRouter();
   const { session, loading, pendingScores, syncStatus, syncScores, clearSession } = useSession();
 
   const [syncing,   setSyncing]   = useState(false);
@@ -84,7 +84,7 @@ export default function SummaryScreen() {
 
   useEffect(() => {
     if (!loading && !session) {
-      router.replace('/');
+      router.replace('/join');
     }
   }, [loading, session]);
 
@@ -101,7 +101,6 @@ export default function SummaryScreen() {
     );
   }
 
-  // Aggregate totals
   const grossTotal = pendingScores.reduce((sum, s) => sum + s.grossScore, 0);
   const toPar      = pendingScores.reduce((sum, s) => {
     const hole = session.course?.holes.find(h => h.holeNumber === s.holeNumber);
@@ -132,7 +131,7 @@ export default function SummaryScreen() {
 
   async function handleNewRound() {
     await clearSession();
-    router.replace('/');
+    router.replace('/join');
   }
 
   return (
@@ -187,7 +186,7 @@ export default function SummaryScreen() {
             {
               backgroundColor:
                 syncStatus === 'synced' ? '#27ae60' :
-                pressed                ? theme.colors.accent :
+                pressed                 ? theme.colors.accent :
                                           theme.colors.primary,
               opacity: syncing ? 0.7 : 1,
             },
@@ -212,10 +211,9 @@ export default function SummaryScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Scorecard</Text>
 
-          {/* Table header */}
           <View style={[styles.tableHeader, { backgroundColor: theme.colors.primary }]}>
-            <Text style={[rowStyles.hole, styles.thText]}>Hole</Text>
-            <Text style={[rowStyles.par,  styles.thText]}>Par</Text>
+            <Text style={[rowStyles.hole,  styles.thText]}>Hole</Text>
+            <Text style={[rowStyles.par,   styles.thText]}>Par</Text>
             <Text style={[rowStyles.score, styles.thText]}>Score</Text>
             <Text style={[rowStyles.rel,   styles.thText]}>+/−</Text>
             <Text style={[rowStyles.putts, styles.thText]}>Putts</Text>
@@ -228,11 +226,10 @@ export default function SummaryScreen() {
             const isConflict = conflicts.some(c => c.holeNumber === holeNum);
 
             if (!score) {
-              // Hole not scored
               return (
                 <View key={holeNum} style={[rowStyles.row, { backgroundColor: theme.colors.surface, opacity: 0.45 }]}>
-                  <Text style={[rowStyles.hole, { color: theme.colors.primary }]}>{holeNum}</Text>
-                  <Text style={[rowStyles.par,  { color: theme.colors.accent  }]}>{par}</Text>
+                  <Text style={[rowStyles.hole,  { color: theme.colors.primary }]}>{holeNum}</Text>
+                  <Text style={[rowStyles.par,   { color: theme.colors.accent  }]}>{par}</Text>
                   <Text style={[rowStyles.score, { color: theme.colors.accent }]}>—</Text>
                   <Text style={[rowStyles.rel,   { color: theme.colors.accent }]}>—</Text>
                   <Text style={[rowStyles.putts, { color: theme.colors.accent }]}>—</Text>
@@ -252,6 +249,21 @@ export default function SummaryScreen() {
             );
           })}
         </View>
+
+        {/* ── QR TRANSFER ── */}
+        <Pressable
+          onPress={() => router.push('/qr-transfer')}
+          style={({ pressed }) => [
+            styles.qrBtn,
+            { borderColor: theme.colors.primary, opacity: pressed ? 0.6 : 1 },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Generate scorecard QR for admin scan"
+        >
+          <Text style={[styles.qrBtnText, { color: theme.colors.primary }]}>
+            Generate Scorecard QR
+          </Text>
+        </Pressable>
 
         {/* ── NEW ROUND ── */}
         <Pressable
@@ -295,10 +307,10 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 8, elevation: 3,
   },
-  totalsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
-  totalItem: { alignItems: 'center', flex: 1 },
-  totalValue: { fontSize: 36, fontWeight: '800' },
-  totalLabel: { fontSize: 12, fontWeight: '600', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  totalsRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
+  totalItem:    { alignItems: 'center', flex: 1 },
+  totalValue:   { fontSize: 36, fontWeight: '800' },
+  totalLabel:   { fontSize: 12, fontWeight: '600', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   totalDivider: { width: 1, height: 48, marginHorizontal: 8 },
 
   section:      { marginTop: 16 },
@@ -310,12 +322,12 @@ const styles = StyleSheet.create({
   },
   thText: { color: '#fff', fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
 
-  syncBtn: {
-    paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginBottom: 4,
-  },
+  syncBtn:     { paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginBottom: 4 },
   syncBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
   syncError:   { fontSize: 13, color: '#c0392b', textAlign: 'center', marginBottom: 8 },
 
+  qrBtn:     { paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1.5, marginBottom: 8 },
+  qrBtnText: { fontSize: 15, fontWeight: '600' },
   newRoundBtn: {
     marginTop: 20, paddingVertical: 14, borderRadius: 12, alignItems: 'center',
     borderWidth: 2,

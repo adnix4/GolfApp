@@ -83,7 +83,11 @@
       "Bash(node_modules/.bin/tsc --noEmit -p packages/shared-types/tsconfig.json)",
       "Bash(node_modules/.bin/tsc --noEmit -p packages/theme/tsconfig.json)",
       "Bash(node_modules/.bin/tsc *)",
-      "Bash(echo \"Exit: $?\")"
+      "Bash(echo \"Exit: $?\")",
+      "Bash(xargs wc *)",
+      "WebFetch(domain:docs.google.com)",
+      "mcp__claude_ai_Google_Drive__read_file_content",
+      "Bash(npx vitest *)"
     ]
   }
 }

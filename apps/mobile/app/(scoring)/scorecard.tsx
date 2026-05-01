@@ -7,7 +7,6 @@ import { useRouter } from 'expo-router';
 import { ScoreCard, useTheme } from '@gfp/ui';
 import type { ThemeContextValue } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
-import type { PendingScore } from '@/lib/api';
 
 // ── INLINE SUB-COMPONENTS ─────────────────────────────────────────────────────
 
@@ -84,7 +83,8 @@ export default function ScorecardScreen() {
     upsertScore, syncScores,
   } = useSession();
 
-  const [holeIndex, setHoleIndex] = useState(0);
+  const [holeIndex,  setHoleIndex]  = useState(0);
+  const [shotsOpen,  setShotsOpen]  = useState(false);
 
   const holeOrder = useMemo(
     () => session
@@ -95,7 +95,7 @@ export default function ScorecardScreen() {
 
   useEffect(() => {
     if (!loading && !session) {
-      router.replace('/');
+      router.replace('/join');
     }
   }, [loading, session]);
 
@@ -115,11 +115,14 @@ export default function ScorecardScreen() {
   const currentScore       = pendingScores.find(s => s.holeNumber === currentHoleNumber) ?? null;
   const isLastHole         = holeIndex === holeOrder.length - 1;
 
+  const playerShots: Record<string, number> = currentScore?.playerShots ?? {};
+
   function handleScoreChange(grossScore: number) {
     upsertScore({
       holeNumber:        currentHoleNumber,
       grossScore,
       putts:             currentScore?.putts ?? null,
+      playerShots:       currentScore?.playerShots,
       clientTimestampMs: Date.now(),
     });
   }
@@ -127,13 +130,27 @@ export default function ScorecardScreen() {
   function changePutts(delta: number) {
     const curr = currentScore?.putts ?? 0;
     const next = Math.max(0, Math.min(10, curr + delta));
-    const score: PendingScore = {
+    upsertScore({
       holeNumber:        currentHoleNumber,
       grossScore:        currentScore?.grossScore ?? par,
       putts:             next,
+      playerShots:       currentScore?.playerShots,
       clientTimestampMs: Date.now(),
-    };
-    upsertScore(score);
+    });
+  }
+
+  function changePlayerShots(playerId: string, delta: number) {
+    const curr = playerShots[playerId] ?? 0;
+    const next = Math.max(0, curr + delta);
+    const updated = { ...playerShots };
+    if (next === 0) delete updated[playerId]; else updated[playerId] = next;
+    upsertScore({
+      holeNumber:        currentHoleNumber,
+      grossScore:        currentScore?.grossScore ?? par,
+      putts:             currentScore?.putts ?? null,
+      playerShots:       Object.keys(updated).length > 0 ? updated : undefined,
+      clientTimestampMs: Date.now(),
+    });
   }
 
   function handlePrev() {
@@ -142,7 +159,7 @@ export default function ScorecardScreen() {
 
   function handleNext() {
     if (isLastHole) {
-      router.replace('/summary');
+      router.replace('/sync');
     } else {
       setHoleIndex(i => i + 1);
     }
@@ -245,6 +262,63 @@ export default function ScorecardScreen() {
           </View>
         </View>
 
+        {/* ── PLAYER SHOTS ── */}
+        {session.team.players.length > 0 && (
+          <View style={[styles.playerShotsCard, { backgroundColor: theme.colors.surface }]}>
+            <Pressable
+              onPress={() => setShotsOpen(o => !o)}
+              style={styles.playerShotsHeader}
+              accessibilityRole="button"
+              accessibilityLabel={shotsOpen ? 'Collapse player shots' : 'Expand player shots'}
+            >
+              <Text style={[styles.playerShotsTitle, { color: theme.colors.primary }]}>
+                Player Shots (optional)
+              </Text>
+              <Text style={[styles.playerShotsChevron, { color: theme.colors.accent }]}>
+                {shotsOpen ? '▲' : '▼'}
+              </Text>
+            </Pressable>
+
+            {shotsOpen && session.team.players.map(player => {
+              const shots    = playerShots[player.id] ?? 0;
+              const initials = `${player.firstName[0]}${player.lastName[0]}`;
+              return (
+                <View key={player.id} style={[styles.playerRow, { borderTopColor: '#f0f0f0' }]}>
+                  <View style={[styles.playerAvatar, { backgroundColor: theme.colors.highlight }]}>
+                    <Text style={[styles.playerInitials, { color: theme.colors.primary }]}>
+                      {initials}
+                    </Text>
+                  </View>
+                  <Text style={[styles.playerName, { color: theme.colors.primary }]} numberOfLines={1}>
+                    {player.firstName}
+                  </Text>
+                  <View style={styles.shotControls}>
+                    <Pressable
+                      onPress={() => changePlayerShots(player.id, -1)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={[styles.shotBtn, { backgroundColor: theme.colors.primary }]}
+                      accessibilityLabel={`Decrease shots for ${player.firstName}`}
+                    >
+                      <Text style={styles.shotBtnText}>−</Text>
+                    </Pressable>
+                    <Text style={[styles.shotCount, { color: theme.colors.primary }]}>
+                      {shots > 0 ? shots : '—'}
+                    </Text>
+                    <Pressable
+                      onPress={() => changePlayerShots(player.id, 1)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={[styles.shotBtn, { backgroundColor: theme.colors.primary }]}
+                      accessibilityLabel={`Increase shots for ${player.firstName}`}
+                    >
+                      <Text style={styles.shotBtnText}>+</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         {/* ── SYNC STATUS ── */}
         <SyncStatusBar
           status={syncStatus}
@@ -342,6 +416,36 @@ const styles = StyleSheet.create({
   puttsBtnText: { fontSize: 26, fontWeight: '300', color: '#fff', lineHeight: 30 },
   puttsValue:   { fontSize: 32, fontWeight: '800', minWidth: 48, textAlign: 'center' },
 
+  playerShotsCard: {
+    borderRadius: 12, marginTop: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+    overflow: 'hidden',
+  },
+  playerShotsHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 14,
+  },
+  playerShotsTitle:   { fontSize: 13, fontWeight: '600' },
+  playerShotsChevron: { fontSize: 13, fontWeight: '700' },
+
+  playerRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  playerAvatar:   { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  playerInitials: { fontSize: 13, fontWeight: '800' },
+  playerName:     { flex: 1, fontSize: 14, fontWeight: '600' },
+
+  shotControls: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  shotBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  shotBtnText: { fontSize: 20, fontWeight: '300', color: '#fff', lineHeight: 24 },
+  shotCount:   { fontSize: 22, fontWeight: '800', minWidth: 28, textAlign: 'center' },
+
   navBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,
@@ -352,6 +456,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 14,
     borderRadius: 10, minWidth: 100, alignItems: 'center',
   },
-  navBtnText:   { fontSize: 15, fontWeight: '700', color: '#fff' },
-  holeCounter:  { fontSize: 15, fontWeight: '600' },
+  navBtnText:  { fontSize: 15, fontWeight: '700', color: '#fff' },
+  holeCounter: { fontSize: 15, fontWeight: '600' },
 });

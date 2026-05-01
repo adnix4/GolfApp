@@ -4,7 +4,9 @@ import React, {
 } from 'react';
 import type { JoinEventResponse, PendingScore, BatchSyncResponse } from './api';
 import { batchSync } from './api';
-import { loadSession, saveSession, clearSession, loadPendingScores, savePendingScores, clearPendingScores, getDeviceId } from './store';
+import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsyncedScores, upsertPendingScore, markScoresSynced, clearPendingScores, getDeviceId } from './store';
+import { attemptSync } from './backgroundSync';
+import { useNetworkTier, POLL_INTERVAL_MS, type NetworkTier } from './useNetworkTier';
 
 interface SessionContextValue {
   session:       JoinEventResponse | null;
@@ -12,6 +14,7 @@ interface SessionContextValue {
   loading:       boolean;
   pendingScores: PendingScore[];
   syncStatus:    'idle' | 'syncing' | 'error' | 'synced';
+  networkTier:   NetworkTier;
   setSession:    (data: JoinEventResponse) => Promise<void>;
   clearSession:  () => Promise<void>;
   upsertScore:   (score: PendingScore) => Promise<void>;
@@ -26,6 +29,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loading,       setLoading]         = useState(true);
   const [pendingScores, setPendingScores]   = useState<PendingScore[]>([]);
   const [syncStatus,    setSyncStatus]      = useState<'idle' | 'syncing' | 'error' | 'synced'>('idle');
+  const networkTier = useNetworkTier();
 
   useEffect(() => {
     async function init() {
@@ -41,17 +45,44 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     init();
   }, []);
 
+  // Adaptive foreground polling — interval shrinks/stops based on network tier.
+  // Piggybacks on the same backoff/mutex as the OS background task.
+  useEffect(() => {
+    if (!session || networkTier === 'offline') return;
+    let cancelled = false;
+    const poll = async () => {
+      const synced = await attemptSync();
+      if (synced && !cancelled) {
+        const updated = await loadPendingScores(session.event.id, session.team.id);
+        setPendingScores(updated);
+        setSyncStatus('synced');
+      }
+    };
+    poll();
+    const id = setInterval(poll, POLL_INTERVAL_MS[networkTier]);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [session?.event.id, session?.team.id, networkTier]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const setSession = useCallback(async (data: JoinEventResponse) => {
-    await saveSession(data);
-    const scores = await loadPendingScores(data.event.id, data.team.id);
-    setSessionState(data);
-    setPendingScores(scores);
-    setSyncStatus('idle');
+    try {
+      await saveSession(data);
+      const scores = await loadPendingScores(data.event.id, data.team.id);
+      setSessionState(data);
+      setPendingScores(scores);
+      setSyncStatus('idle');
+    } catch {
+      // Persist the session in-memory even if SQLite write fails
+      setSessionState(data);
+      setPendingScores([]);
+      setSyncStatus('idle');
+    }
   }, []);
 
   const clear = useCallback(async () => {
-    if (session) await clearPendingScores(session.event.id, session.team.id);
-    await clearSession();
+    try {
+      if (session) await clearPendingScores(session.event.id, session.team.id);
+      await clearSession();
+    } catch { /* ignore DB errors on clear — we still reset in-memory state */ }
     setSessionState(null);
     setPendingScores([]);
     setSyncStatus('idle');
@@ -63,27 +94,35 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       ...pendingScores.filter(s => s.holeNumber !== score.holeNumber),
       score,
     ].sort((a, b) => a.holeNumber - b.holeNumber);
+    // Update in-memory state immediately so the UI is responsive
     setPendingScores(updated);
-    await savePendingScores(session.event.id, session.team.id, updated);
     setSyncStatus('idle');
+    try {
+      await upsertPendingScore(session.event.id, session.team.id, score);
+    } catch {
+      // Score stays in-memory; backgroundSync will retry DB write on next poll
+    }
   }, [session, pendingScores]);
 
   const syncScores = useCallback(async (): Promise<BatchSyncResponse | null> => {
-    if (!session || pendingScores.length === 0) return null;
+    if (!session) return null;
     setSyncStatus('syncing');
     try {
-      const result = await batchSync(session.event.id, session.team.id, deviceId, pendingScores);
+      const unsynced = await loadUnsyncedScores(session.event.id, session.team.id);
+      if (unsynced.length === 0) { setSyncStatus('synced'); return null; }
+      const result = await batchSync(session.event.id, session.team.id, deviceId, unsynced);
+      await markScoresSynced(session.event.id, session.team.id);
       setSyncStatus('synced');
       return result;
     } catch {
       setSyncStatus('error');
       return null;
     }
-  }, [session, pendingScores, deviceId]);
+  }, [session, deviceId]);
 
   return (
     <SessionContext.Provider value={{
-      session, deviceId, loading, pendingScores, syncStatus,
+      session, deviceId, loading, pendingScores, syncStatus, networkTier,
       setSession, clearSession: clear, upsertScore, syncScores,
     }}>
       {children}
@@ -97,7 +136,4 @@ export function useSession(): SessionContextValue {
   return ctx;
 }
 
-export function getHoleOrder(startingHole: number | null, totalHoles: number): number[] {
-  if (!startingHole) return Array.from({ length: totalHoles }, (_, i) => i + 1);
-  return Array.from({ length: totalHoles }, (_, i) => ((startingHole - 1 + i) % totalHoles) + 1);
-}
+export { getHoleOrder } from './holeUtils';
