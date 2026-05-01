@@ -55,7 +55,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       if (retry.status !== 401) {
         let code = 'UNKNOWN_ERROR';
         let msg  = `HTTP ${retry.status}`;
-        try { const e = await retry.json(); code = e.code ?? code; msg = e.error ?? msg; } catch {}
+        try { const e = await retry.json(); code = e.code ?? code; msg = e.error ?? msg; } catch { /* not JSON */ }
         throw new ApiError(retry.status, code, msg);
       }
     }

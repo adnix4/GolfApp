@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import type { PlayerCacheDto } from '@/lib/api';

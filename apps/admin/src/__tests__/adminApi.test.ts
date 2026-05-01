@@ -1,15 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock storage so we never touch localStorage in tests
-const mockStorage = {
-  getAccessToken:  vi.fn(() => null as string | null),
-  getRefreshToken: vi.fn(() => null as string | null),
-  setAccessToken:  vi.fn(),
-  setRefreshToken: vi.fn(),
-  clearTokens:     vi.fn(),
-};
+// vi.mock() is hoisted above const declarations, so use vi.hoisted() to create
+// mockStorage before the factory runs — prevents TDZ ReferenceError.
+// Use relative path (not @/ alias) so Vitest matches api.ts's './storage' import.
+const { mockStorage } = vi.hoisted(() => ({
+  mockStorage: {
+    getAccessToken:  vi.fn(() => null as string | null),
+    getRefreshToken: vi.fn(() => null as string | null),
+    setAccessToken:  vi.fn(),
+    setRefreshToken: vi.fn(),
+    clearTokens:     vi.fn(),
+  },
+}));
 
-vi.mock('@/lib/storage', () => ({ storage: mockStorage }));
+vi.mock('../lib/storage', () => ({ storage: mockStorage }));
 
 import { authApi, eventsApi, teamsApi, challengesApi, ApiError } from '../lib/api';
 
@@ -74,26 +78,16 @@ describe('authApi.login', () => {
 
   it('throws ApiError with correct status and message', async () => {
     mockErr(401, { code: 'INVALID_CREDENTIALS', error: 'Bad password' });
-    try {
-      await authApi.login('a@b.com', 'wrong');
-    } catch (err) {
-      expect(err).toBeInstanceOf(ApiError);
-      const apiErr = err as ApiError;
-      expect(apiErr.status).toBe(401);
-      expect(apiErr.message).toBe('Bad password');
-      expect(apiErr.code).toBe('INVALID_CREDENTIALS');
-    }
+    await expect(authApi.login('a@b.com', 'wrong')).rejects.toMatchObject({
+      status:  401,
+      message: 'Bad password',
+      code:    'INVALID_CREDENTIALS',
+    });
   });
 
   it('falls back to HTTP status in message when error body is not JSON', async () => {
     mockErrNoJson(500);
-    try {
-      await authApi.login('a@b.com', 'pw');
-    } catch (err) {
-      const apiErr = err as ApiError;
-      expect(apiErr.status).toBe(500);
-      expect(apiErr.message).toContain('500');
-    }
+    await expect(authApi.login('a@b.com', 'pw')).rejects.toMatchObject({ status: 500 });
   });
 });
 
@@ -104,20 +98,17 @@ describe('401 auto-refresh', () => {
     mockStorage.getAccessToken.mockReturnValue('old-token');
     mockStorage.getRefreshToken.mockReturnValue('ref-token');
 
-    // First call → 401
     mockErr(401);
-    // Refresh → 200 with new token
     mockFetch.mockResolvedValueOnce({
       ok: true, status: 200,
       json: () => Promise.resolve({ accessToken: 'new-acc', refreshToken: 'new-ref' }),
     });
-    // Retry → 200
     mockOk([]);
 
-    mockStorage.getAccessToken.mockReturnValue('new-acc'); // after refresh
+    mockStorage.getAccessToken.mockReturnValue('new-acc');
     const result = await eventsApi.list();
     expect(result).toEqual([]);
-    expect(mockFetch).toHaveBeenCalledTimes(3); // original + refresh + retry
+    expect(mockFetch).toHaveBeenCalledTimes(3);
   });
 
   it('clears tokens and throws UNAUTHORIZED when refresh itself fails', async () => {
@@ -125,17 +116,10 @@ describe('401 auto-refresh', () => {
     mockStorage.getRefreshToken.mockReturnValue('ref-token');
 
     mockErr(401);
-    // Refresh → 401
     mockFetch.mockResolvedValueOnce({ ok: false, status: 401, json: () => Promise.resolve({}) });
 
-    try {
-      await eventsApi.list();
-    } catch (err) {
-      const apiErr = err as ApiError;
-      expect(apiErr.status).toBe(401);
-      expect(apiErr.code).toBe('UNAUTHORIZED');
-      expect(mockStorage.clearTokens).toHaveBeenCalled();
-    }
+    await expect(eventsApi.list()).rejects.toMatchObject({ status: 401, code: 'UNAUTHORIZED' });
+    expect(mockStorage.clearTokens).toHaveBeenCalled();
   });
 
   it('does NOT clear tokens when retry returns 403 (Bug #3 regression)', async () => {
@@ -143,25 +127,18 @@ describe('401 auto-refresh', () => {
     mockStorage.getRefreshToken.mockReturnValue('ref-token');
 
     mockErr(401);
-    // Refresh succeeds
     mockFetch.mockResolvedValueOnce({
       ok: true, status: 200,
       json: () => Promise.resolve({ accessToken: 'new-acc' }),
     });
-    // Retry returns 403 (forbidden — valid session, wrong permission)
     mockFetch.mockResolvedValueOnce({
       ok: false, status: 403,
       json: () => Promise.resolve({ code: 'FORBIDDEN', error: 'Not authorized' }),
     });
 
     mockStorage.getAccessToken.mockReturnValue('new-acc');
-    try {
-      await eventsApi.list();
-    } catch (err) {
-      const apiErr = err as ApiError;
-      expect(apiErr.status).toBe(403);   // must preserve the real error status
-      expect(mockStorage.clearTokens).not.toHaveBeenCalled(); // must NOT clear tokens
-    }
+    await expect(eventsApi.list()).rejects.toMatchObject({ status: 403 });
+    expect(mockStorage.clearTokens).not.toHaveBeenCalled();
   });
 
   it('skips refresh when no refresh token is stored', async () => {
@@ -169,7 +146,7 @@ describe('401 auto-refresh', () => {
     mockStorage.getRefreshToken.mockReturnValue(null);
     mockErr(401);
     await expect(eventsApi.list()).rejects.toMatchObject({ status: 401, code: 'UNAUTHORIZED' });
-    expect(mockFetch).toHaveBeenCalledTimes(1); // no refresh attempt
+    expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(mockStorage.clearTokens).toHaveBeenCalled();
   });
 });

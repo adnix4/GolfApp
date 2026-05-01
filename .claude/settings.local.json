@@ -87,7 +87,9 @@
       "Bash(xargs wc *)",
       "WebFetch(domain:docs.google.com)",
       "mcp__claude_ai_Google_Drive__read_file_content",
-      "Bash(npx vitest *)"
+      "Bash(npx vitest *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(npx expo-doctor *)"
     ]
   }
 }

@@ -1,6 +1,38 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock all external dependencies before importing the module under test
+// vi.mock() factories are hoisted to run before any import/const declarations.
+// Use vi.hoisted() to create the mock functions first so the factories can
+// reference them without hitting the temporal dead zone.
+const {
+  mockLoadSession,
+  mockGetDeviceId,
+  mockLoadUnsynced,
+  mockMarkSynced,
+  mockIncrementAttempts,
+  mockBatchSync,
+} = vi.hoisted(() => ({
+  mockLoadSession:       vi.fn(),
+  mockGetDeviceId:       vi.fn(),
+  mockLoadUnsynced:      vi.fn(),
+  mockMarkSynced:        vi.fn(),
+  mockIncrementAttempts: vi.fn(),
+  mockBatchSync:         vi.fn(),
+}));
+
+// Use relative paths (not @/ alias) so Vitest resolves to the same absolute
+// path as backgroundSync.ts's own './store' and './api' relative imports.
+vi.mock('../lib/store', () => ({
+  loadSession:           mockLoadSession,
+  getDeviceId:           mockGetDeviceId,
+  loadUnsyncedScores:    mockLoadUnsynced,
+  markScoresSynced:      mockMarkSynced,
+  incrementSyncAttempts: mockIncrementAttempts,
+}));
+
+vi.mock('../lib/api', () => ({
+  batchSync: mockBatchSync,
+}));
+
 vi.mock('expo-task-manager', () => ({
   defineTask:              vi.fn(),
   isTaskRegisteredAsync:   vi.fn().mockResolvedValue(false),
@@ -12,26 +44,7 @@ vi.mock('expo-background-fetch', () => ({
   BackgroundFetchResult: { NewData: 'newData', NoData: 'noData', Failed: 'failed' },
 }));
 
-const mockLoadSession      = vi.fn();
-const mockGetDeviceId      = vi.fn();
-const mockLoadUnsynced     = vi.fn();
-const mockMarkSynced       = vi.fn();
-const mockIncrementAttempts = vi.fn();
-const mockBatchSync        = vi.fn();
-
-vi.mock('@/lib/store', () => ({
-  loadSession:           mockLoadSession,
-  getDeviceId:           mockGetDeviceId,
-  loadUnsyncedScores:    mockLoadUnsynced,
-  markScoresSynced:      mockMarkSynced,
-  incrementSyncAttempts: mockIncrementAttempts,
-}));
-
-vi.mock('@/lib/api', () => ({
-  batchSync: mockBatchSync,
-}));
-
-import { attemptSync, registerBackgroundSync, TASK_NAME } from '../lib/backgroundSync';
+import { attemptSync, registerBackgroundSync, TASK_NAME, __resetSyncState } from '../lib/backgroundSync';
 import * as TaskManager from 'expo-task-manager';
 
 const SESSION = {
@@ -44,15 +57,11 @@ const SCORES = [
 
 const SYNC_OK = { accepted: 1, conflicts: 0, conflictDetails: [] };
 
-// Advance fake time by 1 000 000 ms (≫ 480 s backoff cap) before each test so that
-// the module-level `lastAttemptMs` left by the previous test never blocks the next one.
-// Tests that need to verify throttling control time within the test body.
-let fakeNow = 2_000_000_000_000;
-
 beforeEach(() => {
-  fakeNow += 1_000_000;
-  vi.useFakeTimers();
-  vi.setSystemTime(new Date(fakeNow));
+  // Reset in-module state (isSyncing, consecutiveFails, lastAttemptMs = 0).
+  // With lastAttemptMs = 0, Date.now() - 0 >> 30 000 ms so the backoff check
+  // always passes at the start of each test without any time-mocking.
+  __resetSyncState();
   vi.clearAllMocks();
   mockLoadSession.mockResolvedValue(SESSION);
   mockGetDeviceId.mockResolvedValue('dev-001');
@@ -60,10 +69,6 @@ beforeEach(() => {
   mockMarkSynced.mockResolvedValue(undefined);
   mockIncrementAttempts.mockResolvedValue(undefined);
   mockBatchSync.mockResolvedValue(SYNC_OK);
-});
-
-afterEach(() => {
-  vi.useRealTimers();
 });
 
 // ── attemptSync ───────────────────────────────────────────────────────────────
@@ -126,9 +131,8 @@ describe('attemptSync', () => {
   it('prevents concurrent sync runs (mutex)', async () => {
     mockLoadUnsynced.mockResolvedValue(SCORES);
 
-    // Capture resolve handle only after batchSync is actually called —
-    // the mock executor runs synchronously when batchSync() is invoked,
-    // at which point resolveFirst is assigned and firstSyncStarted resolves.
+    // The mock executor runs synchronously when batchSync() is invoked, at which
+    // point resolveFirst is assigned and firstSyncStarted resolves.
     let resolveFirst!: () => void;
     const firstSyncStarted = new Promise<void>(signalReady => {
       mockBatchSync.mockImplementationOnce(
@@ -139,12 +143,12 @@ describe('attemptSync', () => {
       );
     });
 
-    // p1 runs synchronously up to the first await, setting isSyncing = true.
+    // p1 runs synchronously up to its first await, setting isSyncing = true.
     const p1 = attemptSync();
-    // p2 sees isSyncing = true immediately and returns false without awaiting.
+    // p2 sees isSyncing = true at line 1 of attemptSync and returns false immediately.
     const p2 = attemptSync();
 
-    // Wait until attemptSync has progressed far enough to call batchSync.
+    // Suspend test until p1 has progressed through its await chain to batchSync().
     await firstSyncStarted;
     resolveFirst();
 
@@ -189,12 +193,12 @@ describe('attemptSync backoff', () => {
   it('is throttled by the minimum interval after a successful sync', async () => {
     mockLoadUnsynced.mockResolvedValue(SCORES);
 
-    // First call — time is frozen at fakeNow, lastAttemptMs is far in the past → succeeds
+    // First call: lastAttemptMs = 0, so Date.now() - 0 >> 30 000 → passes.
     const r1 = await attemptSync();
     expect(r1).toBe(true);
 
-    // Immediate second call — Date.now() still returns fakeNow, so
-    // Date.now() - lastAttemptMs = 0 < backoffMs(0) = 30 000 → throttled
+    // Immediate second call: both calls happen in the same JS tick, so the
+    // real-time delta is microseconds << 30 000 ms → throttled.
     const r2 = await attemptSync();
     expect(r2).toBe(false);
     expect(mockBatchSync).toHaveBeenCalledTimes(1);

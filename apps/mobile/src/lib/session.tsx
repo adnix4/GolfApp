@@ -61,7 +61,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     poll();
     const id = setInterval(poll, POLL_INTERVAL_MS[networkTier]);
     return () => { cancelled = true; clearInterval(id); };
-  }, [session?.event.id, session?.team.id, networkTier]); // eslint-disable-line react-hooks/exhaustive-deps
+  // deps are intentionally limited: poll/POLL_INTERVAL_MS are stable and excluding them avoids restarting the interval on every render
+  }, [session?.event.id, session?.team.id, networkTier]);
 
   const setSession = useCallback(async (data: JoinEventResponse) => {
     try {

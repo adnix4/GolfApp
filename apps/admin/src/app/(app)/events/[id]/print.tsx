@@ -5,7 +5,7 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import {
-  eventsApi, teamsApi, scoresApi, sponsorsApi,
+  eventsApi, teamsApi, sponsorsApi,
   type EventDetail, type Team, type LeaderboardEntry, type Sponsor,
 } from '@/lib/api';
 
@@ -206,7 +206,7 @@ function buildScorecardHtml(event: EventDetail, teams: Team[]): string {
 }
 
 function buildLeaderboardHtml(event: EventDetail, entries: LeaderboardEntry[]): string {
-  const rows = entries.map((e, i) => {
+  const rows = entries.map((e, _i) => {
     const toPar = e.toPar === 0 ? 'E' : e.toPar > 0 ? `+${e.toPar}` : `${e.toPar}`;
     const color = e.toPar < 0 ? '#27ae60' : e.toPar > 0 ? '#e74c3c' : '#111';
     return `<tr>

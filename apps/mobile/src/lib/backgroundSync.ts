@@ -15,6 +15,11 @@ let isSyncing        = false;
 let consecutiveFails = 0;
 let lastAttemptMs    = 0;
 
+/** Resets module-level sync state. Only used in tests. */
+export function __resetSyncState(): void {
+  isSyncing = false; consecutiveFails = 0; lastAttemptMs = 0;
+}
+
 function backoffMs(): number {
   // 30 s → 60 s → 120 s → 240 s → 480 s (8 min cap)
   return Math.min(30_000 * Math.pow(2, consecutiveFails), 480_000);
@@ -98,5 +103,5 @@ export async function registerBackgroundSync(): Promise<void> {
 }
 
 export async function unregisterBackgroundSync(): Promise<void> {
-  try { await BackgroundFetch.unregisterTaskAsync(TASK_NAME); } catch {}
+  try { await BackgroundFetch.unregisterTaskAsync(TASK_NAME); } catch { /* not critical */ }
 }
