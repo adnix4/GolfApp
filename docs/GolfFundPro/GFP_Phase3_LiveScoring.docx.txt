@@ -1,0 +1,131 @@
+﻿Golf Fundraiser Pro  ·  Phase 3: Live Real-Time Scoring + CommunicationsImplementation Design
+
+
+③
+GOLF FUNDRAISER PRO
+Phase 3
+Live Real-Time Scoring + Communications
+
+
+SignalR · Redis · Email Ad Builder · Push Notifications · Hole-in-One
+Golf Scramble Made Easy  ·  Implementation Design Series  ·  v1.0
+
+
+________________
+
+
+1. Phase 3 Goal & Scope
+Phase 3 is shorter than Phase 2 because the infrastructure is already in place. SignalR hub and Redis were scaffolded in Phase 1 — Phase 3 wires them to score events. The leaderboard stops polling and starts receiving push updates. The email advertisement builder ships. Hole challenge leaderboards update live.
+
+
+Timeline
+	4–6 weeks
+	Updated Apps
+	apps/api (SignalR events), apps/web (WebSocket client), apps/mobile (push notifications)
+	New Infrastructure
+	Redis backplane (Docker Compose already has it), Expo Notifications
+	Key Change
+	Leaderboard goes from 15-second polling to < 2-second SignalR push
+	
+
+2. SignalR Hub — TournamentHub
+2.1  Hub Setup (already scaffolded in Phase 1)
+
+// apps/api/Hubs/TournamentHub.cs
+public class TournamentHub : Hub {
+ // Clients join a group by event_code on connection
+ public async Task JoinEvent(string eventCode) {
+   await Groups.AddToGroupAsync(Context.ConnectionId, eventCode);
+ }
+
+ // Server sends to group; clients do not send to Hub directly
+}
+
+// In Program.cs (already wired):app.MapHub<TournamentHub>("/hubs/tournament");
+
+
+2.2  Score Event Flow
+1. Scorekeeper submits score → PATCH /api/v1/scores/{teamId}/{holeNumber}
+2. ScoreService saves to PostgreSQL, recalculates standings
+3. ScoreService calls: await _hub.Clients.Group(eventCode).SendAsync("ScoreUpdated", payload)
+4. All connected leaderboard clients (browser + mobile) receive ScoreUpdated event within < 2 seconds
+5. Client re-sorts standings array client-side. No full page reload.
+
+
+2.3  Phase 3 SignalR Events
+Event Name
+	Payload → Recipients
+	ScoreUpdated
+	{ teamId, holeNumber, grossScore, toParTotal, rank } → all clients in event group
+	LeaderboardRefreshed
+	{ standings: [ { rank, teamName, toPar, thru } ] } → all clients. Full refresh if needed.
+	ChallengeUpdated
+	{ challengeId, leaderId, leaderValue } → all clients. E.g. 'new closest to pin: 8 ft'
+	HoleInOneAlert
+	{ teamName, playerName, holeNumber } → all clients. Triggers celebration animation.
+	CheckInUpdated
+	{ checkedIn, total } → admin clients only. Dashboard counter updates live.
+	FundraisingUpdated
+	{ grandTotal } → all clients. Thermometer updates on leaderboard.
+	
+
+2.4  Redis Backplane
+* Required when running multiple API instances. Redis backplane ensures all instances share SignalR message bus.
+* Install: dotnet add package Microsoft.AspNetCore.SignalR.StackExchangeRedis
+* Configure: builder.Services.AddSignalR().AddStackExchangeRedis(redisConnectionString)
+* Redis also used for leaderboard cache: SET leaderboard:{eventCode} {json} EX 5 (5-second TTL). Cache read before DB query. Cache invalidated on score update.
+
+
+3. Hole-in-One Auto-Detection
+* ScoreService checks: if gross_score == 1 for any hole → fire HoleInOneAlert SignalR event
+* Mobile app receives HoleInOneAlert: full-screen celebration animation (confetti, flag emoji, player name). Plays sound if device not muted.
+* Public leaderboard receives HoleInOneAlert: banner appears at top with golfer name and hole number. Persists for 60 seconds.
+* Admin receives HoleInOneAlert notification in dashboard. Challenge result auto-created if hole_in_one challenge exists for that hole.
+
+
+4. Email Advertisement Builder
+The email ad builder lets the organizer compose a pre-event or mid-season announcement email that is pre-populated with event data, sponsor logos, and a QR code linking to registration. The output is an HTML email exportable to Mailchimp or any platform.
+
+
+4.1  Builder UI (Expo Router Web)
+* Drag-and-drop section reordering: header band, title sponsor banner, event details, mission statement, CTA button, QR block, sponsor grid, donation CTA, footer
+* Each section has configurable content: text, color, image swap. Org branding applied by default.
+* Live preview pane: desktop (600px) and mobile (375px) viewport toggle
+* QR code PNG auto-generated from event registration URL and embedded in email at selected position
+
+
+4.2  Email Export Formats
+* HTML file: inline styles, VML button fallback for Outlook, HTML table layout (not CSS grid/flex). Download button.
+* SendGrid direct send: organizer enters 'To' address list or connects SendGrid contact list. Preview → Send.
+* Plain text version: auto-generated from HTML. Attached as multipart/alternative for accessibility.
+
+
+Outlook Compatibility:  All layout must use HTML tables, not CSS flexbox or grid. All styles must be inline (no <style> blocks — Gmail strips them). Use VML conditional comments for button backgrounds. Test with Litmus or Email on Acid before launch.
+
+
+5. Push Notifications
+* Library: expo-notifications. Registers device token on app launch (POST /api/v1/players/{id}/push-token).
+* Phase 3 uses push notifications for: Hole-in-One alert (all event participants), outbid alert (Phase 4), round result (Phase 5).
+* API sends via Expo Push API: POST https://exp.host/--/api/v2/push/send
+* Token stored in players.expo_push_token. Player opts out via app settings (sets to null).
+
+
+6. Phase 3 New API Endpoints
+Method
+	Endpoint
+	Description
+	GET
+	/events/{id}/email-builder/data
+	Pre-populated email builder payload: event details, sponsor logos, QR URL, org theme
+	POST
+	/events/{id}/email-builder/send
+	Send built email via SendGrid. Body: { html, subject, recipientListId }
+	GET
+	/events/{id}/email-builder/export
+	Download HTML file of built email
+	POST
+	/players/{id}/push-token
+	Register or update Expo push notification token
+	
+
+Golf Fundraiser Pro — ConfidentialPage

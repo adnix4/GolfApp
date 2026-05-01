@@ -561,6 +561,11 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("stripe_customer_id");
 
+                    b.Property<string>("ExpoPushToken")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("expo_push_token");
+
                     b.Property<Guid?>("TeamId")
                         .HasColumnType("uuid")
                         .HasColumnName("team_id");

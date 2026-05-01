@@ -110,6 +110,18 @@ export async function checkConnectivity(): Promise<boolean> {
   ]);
 }
 
+export async function registerPushToken(playerId: string, token: string | null): Promise<void> {
+  const res = await fetch(`${BASE}/api/v1/players/${playerId}/push-token`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ token }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `Push token registration failed (${res.status})`);
+  }
+}
+
 export async function batchSync(
   eventId: string,
   teamId: string,

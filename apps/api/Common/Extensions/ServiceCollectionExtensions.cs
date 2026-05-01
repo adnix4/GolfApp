@@ -25,7 +25,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using StackExchange.Redis;
 using GolfFundraiserPro.Api.Data;
+using GolfFundraiserPro.Api.Hubs;
 
 namespace GolfFundraiserPro.Api.Common.Extensions;
 
@@ -42,10 +44,14 @@ public static class ServiceCollectionExtensions
         services
             .AddGfpDatabase(configuration)
             .AddGfpIdentityAndAuth(configuration)
+            .AddGfpRealTime(configuration)
             .AddGfpBackgroundJobs(configuration)
             .AddGfpValidation()
             .AddGfpCors()
             .AddGfpSwagger();
+
+        // HTTP client factory used by PushNotificationService and EmailBuilderService
+        services.AddHttpClient();
 
         return services;
     }
@@ -135,6 +141,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Features.QR.QrService>();
         services.AddScoped<Features.Emails.EmailService>();
         services.AddScoped<Features.Mobile.MobileService>();
+        services.AddScoped<Features.RealTime.RealTimeService>();
+        services.AddScoped<Features.Notifications.PushNotificationService>();
+        services.AddScoped<Features.EmailBuilder.EmailBuilderService>();
 
         // ── JWT BEARER AUTHENTICATION ─────────────────────────────────────
         // Configures the middleware to validate JWT Bearer tokens on protected endpoints.
@@ -205,6 +214,36 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    // ── SIGNALR + REDIS ───────────────────────────────────────────────────────
+    private static IServiceCollection AddGfpRealTime(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var redisUrl = configuration["REDIS_URL"];
+
+        if (!string.IsNullOrWhiteSpace(redisUrl))
+        {
+            // Normalize redis:// URI → host:port format expected by StackExchange.Redis
+            var connStr = redisUrl.StartsWith("redis://", StringComparison.OrdinalIgnoreCase)
+                ? redisUrl["redis://".Length..]
+                : redisUrl;
+
+            // IConnectionMultiplexer is a singleton — one connection shared app-wide
+            services.AddSingleton<IConnectionMultiplexer>(
+                _ => ConnectionMultiplexer.Connect(connStr));
+
+            // Redis SignalR backplane — required when running multiple API instances
+            services.AddSignalR().AddStackExchangeRedis(connStr);
+        }
+        else
+        {
+            // No Redis configured (local dev without Docker Redis) — in-memory SignalR only
+            services.AddSignalR();
+        }
+
+        return services;
+    }
+
     // ── BACKGROUND JOBS ───────────────────────────────────────────────────────
     private static IServiceCollection AddGfpBackgroundJobs(
         this IServiceCollection services,
@@ -227,13 +266,11 @@ public static class ServiceCollectionExtensions
             .UseRecommendedSerializerSettings()
             .UsePostgreSqlStorage(connectionString));
 
-        // Hangfire server processes background jobs in-process.
-        // worker count 2 — enough for Phase 1 email volume (100 emails/day).
-        // Increase in Phase 3+ when push notification jobs are added.
+        // Phase 3: increased to 5 workers to handle push notification jobs alongside email jobs.
         services.AddHangfireServer(options =>
         {
-            options.WorkerCount = 2;
-            options.Queues      = ["emails", "default"];
+            options.WorkerCount = 5;
+            options.Queues      = ["emails", "notifications", "default"];
         });
 
         return services;

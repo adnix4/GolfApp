@@ -441,6 +441,14 @@ public class Player
     [MaxLength(50)]
     public string? StripeCustomerId { get; set; }
 
+    /// <summary>
+    /// Phase 3: Expo push notification token registered from the mobile app.
+    /// Null = player has not granted permission or has opted out.
+    /// </summary>
+    [Column("expo_push_token")]
+    [MaxLength(500)]
+    public string? ExpoPushToken { get; set; }
+
     // Navigation
     [ForeignKey(nameof(TeamId))]
     public Team? Team { get; set; }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, FlatList, Pressable, StyleSheet,
+  View, Text, FlatList, Pressable, StyleSheet, Modal,
   ActivityIndicator, SafeAreaView, Platform,
 } from 'react-native';
 import { useTheme } from '@gfp/ui';
@@ -9,6 +9,13 @@ import { fetchLeaderboard } from '@/lib/api';
 import type { PublicLeaderboard, PublicLeaderboardEntry } from '@/lib/api';
 
 const POLL_MS = 15_000;
+const BASE    = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
+
+interface HoleInOneData {
+  teamName:   string;
+  playerName: string;
+  holeNumber: number;
+}
 
 // ── ROW ───────────────────────────────────────────────────────────────────────
 
@@ -58,6 +65,51 @@ const headerStyles = StyleSheet.create({
   th: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
 });
 
+// ── HOLE-IN-ONE OVERLAY ───────────────────────────────────────────────────────
+
+function HoleInOneOverlay({
+  data,
+  onDismiss,
+  theme,
+}: {
+  data:      HoleInOneData;
+  onDismiss: () => void;
+  theme:     ReturnType<typeof useTheme>;
+}) {
+  // Auto-dismiss after 10 s on mobile (shorter than 60 s web banner)
+  useEffect(() => {
+    const id = setTimeout(onDismiss, 10_000);
+    return () => clearTimeout(id);
+  }, [onDismiss]);
+
+  return (
+    <Modal transparent animationType="fade" onRequestClose={onDismiss}>
+      <Pressable style={hioStyles.backdrop} onPress={onDismiss}>
+        <View style={[hioStyles.card, { backgroundColor: theme.colors.highlight }]}>
+          <Text style={hioStyles.flag}>⛳</Text>
+          <Text style={[hioStyles.headline, { color: theme.colors.primary }]}>HOLE-IN-ONE!</Text>
+          <Text style={[hioStyles.name, { color: theme.colors.primary }]}>{data.playerName}</Text>
+          <Text style={[hioStyles.sub,  { color: theme.colors.accent  }]}>Hole {data.holeNumber}</Text>
+          <Pressable style={[hioStyles.btn, { backgroundColor: theme.colors.primary }]} onPress={onDismiss}>
+            <Text style={hioStyles.btnText}>Amazing!</Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const hioStyles = StyleSheet.create({
+  backdrop:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+  card:      { width: '82%', borderRadius: 20, padding: 32, alignItems: 'center', gap: 8 },
+  flag:      { fontSize: 64, marginBottom: 8 },
+  headline:  { fontSize: 28, fontWeight: '900', letterSpacing: 1 },
+  name:      { fontSize: 20, fontWeight: '700', textAlign: 'center' },
+  sub:       { fontSize: 16, fontWeight: '500' },
+  btn:       { marginTop: 16, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 12 },
+  btnText:   { color: '#fff', fontSize: 16, fontWeight: '700' },
+});
+
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
 
 export default function LeaderboardScreen() {
@@ -69,19 +121,20 @@ export default function LeaderboardScreen() {
   const [error,       setError]       = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [nowTick,     setNowTick]     = useState(new Date());
+  const [hioAlert,    setHioAlert]    = useState<HoleInOneData | null>(null);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    // tick every 10 s to keep the "X ago" text fresh
     const t = setInterval(() => setNowTick(new Date()), 10_000);
     return () => clearInterval(t);
   }, []);
 
+  // ── Polling fallback (SignalR not available in bare React Native without native module) ──
   useEffect(() => {
     if (!session) return;
-    const code = session.event.eventCode;
-    let cancelled = false;
+    const code      = session.event.eventCode;
+    let cancelled   = false;
 
     async function poll() {
       try {
@@ -108,17 +161,24 @@ export default function LeaderboardScreen() {
     };
   }, [session?.event.eventCode]);
 
-  // "X s ago" / "X min ago" label
   function agoText(): string {
     if (!lastUpdated) return '';
-    const diffMs = nowTick.getTime() - lastUpdated.getTime();
-    const diffS  = Math.floor(diffMs / 1000);
-    if (diffS < 60) return `${diffS}s ago`;
-    return `${Math.floor(diffS / 60)}m ago`;
+    const diffS = Math.floor((nowTick.getTime() - lastUpdated.getTime()) / 1000);
+    return diffS < 60 ? `${diffS}s ago` : `${Math.floor(diffS / 60)}m ago`;
   }
 
   return (
     <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+
+      {/* ── HOLE-IN-ONE OVERLAY ── */}
+      {hioAlert && (
+        <HoleInOneOverlay
+          data={hioAlert}
+          onDismiss={() => setHioAlert(null)}
+          theme={theme}
+        />
+      )}
+
       {/* ── STATUS BAR ── */}
       <View style={[styles.statusBar, {
         backgroundColor: error ? '#fdf2f2' : '#f0faf4',

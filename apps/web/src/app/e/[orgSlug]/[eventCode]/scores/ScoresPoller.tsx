@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import * as signalR from '@microsoft/signalr';
 import type { PublicEventData, PublicLeaderboard, PublicLeaderboardEntry } from '@/lib/api';
 
-const POLL_MS = 15_000;
-const BASE    = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
+const FALLBACK_POLL_MS = 30_000;
+const BASE             = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
-async function pollLeaderboard(eventCode: string): Promise<PublicLeaderboard | null> {
+async function fetchLeaderboard(eventCode: string): Promise<PublicLeaderboard | null> {
   try {
     const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/leaderboard`, { cache: 'no-store' });
     if (!res.ok) return null;
@@ -14,6 +15,13 @@ async function pollLeaderboard(eventCode: string): Promise<PublicLeaderboard | n
   } catch {
     return null;
   }
+}
+
+interface HoleInOneAlert {
+  teamName:   string;
+  playerName: string;
+  holeNumber: number;
+  expiresAt:  number;
 }
 
 // ── COMPONENT ─────────────────────────────────────────────────────────────────
@@ -33,12 +41,60 @@ export default function ScoresPoller({
   const [lastUpdated, setLastUpdated] = useState(() => new Date());
   const [secondsAgo,  setSecondsAgo]  = useState(0);
   const [fetchError,  setFetchError]  = useState(false);
+  const [connected,   setConnected]   = useState(false);
+  const [hioAlert,    setHioAlert]    = useState<HoleInOneAlert | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
-  // 15 s leaderboard poll
+  // ── SignalR real-time connection ───────────────────────────────────────────
   useEffect(() => {
-    const poll = async () => {
-      const data = await pollLeaderboard(eventCode);
+    const hub = new signalR.HubConnectionBuilder()
+      .withUrl(`${BASE}/hubs/tournament`)
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Warning)
+      .build();
+
+    let startedOk = false;
+
+    hub.on('LeaderboardRefreshed', (data: { standings: PublicLeaderboardEntry[] }) => {
+      if (data?.standings) {
+        setLeaderboard(prev => prev
+          ? { ...prev, standings: data.standings }
+          : null);
+        setLastUpdated(new Date());
+        setSecondsAgo(0);
+        setFetchError(false);
+      }
+    });
+
+    hub.on('HoleInOneAlert', (data: HoleInOneAlert) => {
+      setHioAlert({
+        ...data,
+        expiresAt: Date.now() + 60_000,
+      });
+    });
+
+    hub.onreconnecting(() => setConnected(false));
+    hub.onreconnected(async () => {
+      setConnected(true);
+      await hub.invoke('JoinEvent', eventCode).catch(() => {});
+    });
+
+    hub.start()
+      .then(async () => {
+        startedOk = true;
+        setConnected(true);
+        await hub.invoke('JoinEvent', eventCode).catch(() => {});
+      })
+      .catch(() => setFetchError(true));
+
+    return () => { hub.stop(); };
+  }, [eventCode]);
+
+  // ── Fallback poll (when SignalR disconnected) ──────────────────────────────
+  useEffect(() => {
+    if (connected) return;
+    const id = setInterval(async () => {
+      const data = await fetchLeaderboard(eventCode);
       if (data) {
         setLeaderboard(data);
         setLastUpdated(new Date());
@@ -47,19 +103,27 @@ export default function ScoresPoller({
       } else {
         setFetchError(true);
       }
-    };
-    const id = setInterval(poll, POLL_MS);
+    }, FALLBACK_POLL_MS);
     return () => clearInterval(id);
-  }, [eventCode]);
+  }, [connected, eventCode]);
 
-  // 1 s "Updated Xs ago" ticker — resets whenever lastUpdated changes
+  // ── "Updated Xs ago" ticker ────────────────────────────────────────────────
   useEffect(() => {
     setSecondsAgo(0);
     const id = setInterval(() => setSecondsAgo(s => s + 1), 1000);
     return () => clearInterval(id);
   }, [lastUpdated]);
 
-  // TV mode — auto-scroll table when content overflows, loop with pause
+  // ── Hole-in-one alert expiry ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!hioAlert) return;
+    const ms = hioAlert.expiresAt - Date.now();
+    if (ms <= 0) { setHioAlert(null); return; }
+    const id = setTimeout(() => setHioAlert(null), ms);
+    return () => clearTimeout(id);
+  }, [hioAlert]);
+
+  // ── TV mode auto-scroll ────────────────────────────────────────────────────
   useEffect(() => {
     if (!tvMode) return;
     let frameId: number;
@@ -92,14 +156,23 @@ export default function ScoresPoller({
   const isCompleted = event.status === 'completed';
   const standings   = leaderboard?.standings ?? [];
 
-  // Countdown bar: shrinks from 100% → 0% over POLL_MS
-  const countdownPct = Math.max(0, 100 - (secondsAgo / (POLL_MS / 1000)) * 100);
-
   const st = tvMode ? tv : nm;
 
   return (
     <>
       <style>{cssKeyframes}</style>
+
+      {/* ── HOLE-IN-ONE BANNER ── */}
+      {hioAlert && (
+        <div style={hio.banner}>
+          <span style={hio.flag}>⛳</span>
+          <span style={hio.text}>
+            HOLE-IN-ONE! <strong>{hioAlert.playerName}</strong> — Hole {hioAlert.holeNumber}
+          </span>
+          <button style={hio.close} onClick={() => setHioAlert(null)}>✕</button>
+        </div>
+      )}
+
       <div style={st.page}>
 
         {/* ── HEADER ── */}
@@ -114,19 +187,12 @@ export default function ScoresPoller({
               {isLive && (
                 <span style={st.liveBadge}>
                   <span style={st.liveDot} />
-                  Live
+                  {connected ? 'Live' : 'Live ↻'}
                 </span>
               )}
             </div>
           </div>
         </header>
-
-        {/* ── COUNTDOWN BAR (TV only) ── */}
-        {tvMode && (
-          <div style={tv.countdownTrack}>
-            <div style={{ ...tv.countdownFill, width: `${countdownPct}%` }} />
-          </div>
-        )}
 
         {/* ── TABLE ── */}
         <main style={st.main}>
@@ -157,14 +223,16 @@ export default function ScoresPoller({
           )}
         </main>
 
-        {/* ── FOOTER (normal mode only) ── */}
+        {/* ── FOOTER (normal mode) ── */}
         {!tvMode && (
           <footer style={nm.footer}>
             <div style={nm.footerInner}>
               <span style={fetchError ? nm.footerError : nm.footerMeta}>
                 {fetchError
                   ? 'Connection issue — retrying…'
-                  : `Updated ${secondsAgo}s ago · Auto-refreshes every ${POLL_MS / 1000}s`}
+                  : connected
+                    ? `Live · Updated ${secondsAgo}s ago`
+                    : `Updated ${secondsAgo}s ago · polling every ${FALLBACK_POLL_MS / 1000}s`}
               </span>
               <a href={`/e/${event.orgSlug}/${eventCode}`} style={nm.backLink}>
                 ← Event page
@@ -178,7 +246,9 @@ export default function ScoresPoller({
           <div style={tv.statusBar}>
             {fetchError
               ? <span style={tv.statusError}>Connection issue — retrying…</span>
-              : <span style={tv.statusMeta}>Updated {secondsAgo}s ago</span>}
+              : <span style={tv.statusMeta}>
+                  {connected ? `Live · Updated ${secondsAgo}s ago` : `Updated ${secondsAgo}s ago`}
+                </span>}
           </div>
         )}
 
@@ -240,7 +310,35 @@ const cssKeyframes = `
     0%, 100% { opacity: 1; }
     50%       { opacity: 0.25; }
   }
+  @keyframes gfp-hio-slide {
+    from { transform: translateY(-100%); opacity: 0; }
+    to   { transform: translateY(0);     opacity: 1; }
+  }
 `;
+
+// ── HOLE-IN-ONE BANNER STYLES ─────────────────────────────────────────────────
+
+const hio = {
+  banner: {
+    position: 'fixed' as const,
+    top: 0, left: 0, right: 0,
+    zIndex: 9999,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    padding: '0.875rem 1.5rem',
+    backgroundColor: '#f59e0b',
+    color: '#1c1917',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+    animation: 'gfp-hio-slide 0.4s ease-out',
+  },
+  flag: { fontSize: '1.5rem' },
+  text: { flex: 1, fontSize: '1rem', fontWeight: 600 },
+  close: {
+    background: 'none', border: 'none', cursor: 'pointer',
+    fontSize: '1.1rem', color: '#1c1917', lineHeight: 1,
+  },
+} as const;
 
 // ── NORMAL MODE STYLES ────────────────────────────────────────────────────────
 
@@ -287,9 +385,6 @@ const tv = {
   liveBadge:   { display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#da3633', color: '#fff', padding: '6px 16px', borderRadius: 16, fontSize: '0.95rem', fontWeight: 800, letterSpacing: 1 },
   liveDot:     { width: 10, height: 10, borderRadius: '50%', backgroundColor: '#fff', animation: 'gfp-pulse 1.4s ease-in-out infinite', display: 'inline-block' },
   finalBadge:  { backgroundColor: '#238636', color: '#fff', padding: '6px 16px', borderRadius: 16, fontSize: '0.95rem', fontWeight: 800 },
-
-  countdownTrack: { height: 4, backgroundColor: '#21262d' },
-  countdownFill:  { height: '100%', backgroundColor: '#2ea043', transition: 'width 1s linear' },
 
   main:      { flex: 1, padding: '1.5rem 2.5rem', overflow: 'hidden', display: 'flex', flexDirection: 'column' as const },
 

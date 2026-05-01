@@ -93,7 +93,9 @@
       "Bash(echo \"API_PID=$!\")",
       "Bash(ASPNETCORE_ENVIRONMENT=Development cd /c/GolfApp/apps/api)",
       "Bash(ASPNETCORE_ENVIRONMENT=Development dotnet run)",
-      "Bash(taskkill //F //IM dotnet.exe)"
+      "Bash(taskkill //F //IM dotnet.exe)",
+      "Bash(xargs grep *)",
+      "Bash(dotnet add *)"
     ]
   }
 }

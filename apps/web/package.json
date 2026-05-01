@@ -10,11 +10,12 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@gfp/shared-types": "*",
-    "@gfp/theme":        "*",
-    "next":              "^15.0.0",
-    "react":             "19.0.0",
-    "react-dom":         "19.0.0"
+    "@gfp/shared-types":   "*",
+    "@gfp/theme":          "*",
+    "@microsoft/signalr":  "^8.0.0",
+    "next":                "^15.0.0",
+    "react":               "19.0.0",
+    "react-dom":           "19.0.0"
   },
   "devDependencies": {
     "@types/node":     "^20.0.0",
