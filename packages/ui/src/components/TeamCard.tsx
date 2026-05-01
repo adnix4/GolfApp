@@ -23,7 +23,7 @@ interface TeamCardProps {
   showCheckIn?: boolean;
 }
 
-export function TeamCard({ team, showCheckIn = false }: TeamCardProps) {
+export function TeamCard({ team, showCheckIn: _showCheckIn = false }: TeamCardProps) {
   const theme = useTheme();
 
   /**

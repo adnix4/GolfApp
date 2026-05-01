@@ -28,7 +28,6 @@ import {
   StyleSheet,
   Text,
   View,
-  AccessibilityInfo,
 } from 'react-native';
 import { useTheme } from './ThemeProvider';
 

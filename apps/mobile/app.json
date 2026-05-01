@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "GFP Scorer",
+    "slug": "gfp-scorer",
+    "version": "1.0.0",
+    "scheme": "gfp",
+    "platforms": ["ios", "android"],
+    "plugins": ["expo-router", "expo-sqlite", "expo-battery", "expo-brightness"],
+    "ios": {
+      "bundleIdentifier": "pro.golffundraiser.scorer",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "pro.golffundraiser.scorer",
+      "adaptiveIcon": {
+        "backgroundColor": "#31572c"
+      }
+    }
+  }
+}

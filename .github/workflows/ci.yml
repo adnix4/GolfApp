@@ -65,9 +65,10 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        # `npm ci` — clean install from package-lock.json (not package.json).
-        # Faster than `npm install` and deterministic — guarantees exact versions.
-        run: npm ci
+        # --legacy-peer-deps: react-native-web 0.21 declares react@^18 peer dep
+        # but expo SDK 55 runs on react@19. Flag silences the conflict without
+        # downgrading either package.
+        run: npm ci --legacy-peer-deps
 
       - name: Run ESLint across all workspaces
         # `turbo run lint` fans out to every workspace that has a "lint" script.

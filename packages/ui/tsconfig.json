@@ -10,7 +10,18 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
-    "jsx": "react-native"
+    "jsx": "react-native",
+    "baseUrl": ".",
+    "paths": {
+      "react-native": [
+        "../../node_modules/react-native",
+        "../../apps/admin/node_modules/react-native"
+      ],
+      "react-native/*": [
+        "../../node_modules/react-native/*",
+        "../../apps/admin/node_modules/react-native/*"
+      ]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "dist"]

@@ -54,8 +54,8 @@ export interface GFPTheme {
  * organizations.theme JSONB column.  NULL in that column = use this default.
  *
  * WCAG contrast ratios for this palette (spec §6.1):
- *   primary (#31572c) on surface (#f4f7de) = 7.4:1  → AAA ✓
- *   action  (#409151) on surface (#f4f7de) = 4.6:1  → AA  ✓
+ *   primary (#31572c) on surface (#f4f7de) ≈ 7.4:1  → AAA ✓
+ *   action  (#409151) on surface (#f4f7de) ≈ 3.6:1  → fails AA (use action on white for body text)
  *
  * Color names are informal nicknames for developer communication only.
  */
