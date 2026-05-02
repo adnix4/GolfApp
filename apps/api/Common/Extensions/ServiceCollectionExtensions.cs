@@ -141,9 +141,15 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Features.QR.QrService>();
         services.AddScoped<Features.Emails.EmailService>();
         services.AddScoped<Features.Mobile.MobileService>();
+        services.AddScoped<Features.RealTime.IRealTimeService, Features.RealTime.RealTimeService>();
         services.AddScoped<Features.RealTime.RealTimeService>();
         services.AddScoped<Features.Notifications.PushNotificationService>();
         services.AddScoped<Features.EmailBuilder.EmailBuilderService>();
+
+        // Phase 4: Payments + Auction
+        services.AddScoped<Features.Payments.PaymentsService>();
+        services.AddScoped<Features.Auction.AuctionService>();
+        services.AddScoped<Features.Auction.AuctionCloseJob>();
 
         // ── JWT BEARER AUTHENTICATION ─────────────────────────────────────
         // Configures the middleware to validate JWT Bearer tokens on protected endpoints.

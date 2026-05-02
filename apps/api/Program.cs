@@ -169,7 +169,13 @@ if (app.Environment.IsDevelopment())
     app.Logger.LogInformation("Hangfire dashboard available at: http://localhost:5000/hangfire");
 }
 
-// 9. Map controllers to routes
+// 9. Register Hangfire recurring jobs
+RecurringJob.AddOrUpdate<GolfFundraiserPro.Api.Features.Auction.AuctionCloseJob>(
+    "auction-close",
+    job => job.RunAsync(),
+    "*/10 * * * * *"); // every 10 seconds (Hangfire Cron seconds expression)
+
+// 9b. Map controllers to routes
 app.MapControllers();
 
 // 10. SignalR hub — clients connect and call JoinEvent(eventCode) to subscribe

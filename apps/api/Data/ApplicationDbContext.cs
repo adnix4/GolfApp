@@ -115,6 +115,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     /// </summary>
     public DbSet<RefreshTokenRecord> RefreshTokens => Set<RefreshTokenRecord>();
 
+    // ── Phase 4: Payments + Auction ────────────────────────────────────────
+    public DbSet<StripeCustomer> StripeCustomers => Set<StripeCustomer>();
+    public DbSet<AuctionItem> AuctionItems => Set<AuctionItem>();
+    public DbSet<Bid> Bids => Set<Bid>();
+    public DbSet<AuctionWinner> AuctionWinners => Set<AuctionWinner>();
+    public DbSet<AuctionSession> AuctionSessions => Set<AuctionSession>();
+
     // ── MODEL CONFIGURATION ────────────────────────────────────────────────
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -376,6 +383,97 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
               .WithMany()
               .HasForeignKey(r => r.UserId)
               .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── STRIPE CUSTOMER ───────────────────────────────────────────────
+        modelBuilder.Entity<StripeCustomer>(sc =>
+        {
+            sc.Property(s => s.Id).ValueGeneratedNever();
+
+            sc.HasIndex(s => s.PlayerId).IsUnique()
+              .HasDatabaseName("IX_stripe_customers_player_id_unique");
+
+            sc.HasOne(s => s.Player)
+              .WithMany()
+              .HasForeignKey(s => s.PlayerId)
+              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── AUCTION ITEM ──────────────────────────────────────────────────
+        modelBuilder.Entity<AuctionItem>(item =>
+        {
+            item.Property(i => i.Id).ValueGeneratedNever();
+            item.Property(i => i.AuctionType).HasConversion<string>();
+            item.Property(i => i.Status).HasConversion<string>();
+            item.Property(i => i.PhotoUrlsJson).HasColumnType("jsonb");
+            item.Property(i => i.DonationDenominationsJson).HasColumnType("jsonb");
+
+            item.HasIndex(i => i.EventId)
+                .HasDatabaseName("IX_auction_items_event_id");
+
+            item.HasOne(i => i.Event)
+                .WithMany()
+                .HasForeignKey(i => i.EventId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── BID ───────────────────────────────────────────────────────────
+        modelBuilder.Entity<Bid>(bid =>
+        {
+            bid.Property(b => b.Id).ValueGeneratedNever();
+
+            bid.HasIndex(b => b.AuctionItemId)
+               .HasDatabaseName("IX_bids_auction_item_id");
+
+            bid.HasOne(b => b.AuctionItem)
+               .WithMany(i => i.Bids)
+               .HasForeignKey(b => b.AuctionItemId)
+               .OnDelete(DeleteBehavior.Cascade);
+
+            bid.HasOne(b => b.Player)
+               .WithMany()
+               .HasForeignKey(b => b.PlayerId)
+               .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── AUCTION WINNER ────────────────────────────────────────────────
+        modelBuilder.Entity<AuctionWinner>(winner =>
+        {
+            winner.Property(w => w.Id).ValueGeneratedNever();
+            winner.Property(w => w.ChargeStatus).HasConversion<string>();
+
+            winner.HasIndex(w => w.AuctionItemId)
+                  .HasDatabaseName("IX_auction_winners_auction_item_id");
+
+            winner.HasOne(w => w.AuctionItem)
+                  .WithMany(i => i.Winners)
+                  .HasForeignKey(w => w.AuctionItemId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            winner.HasOne(w => w.Player)
+                  .WithMany()
+                  .HasForeignKey(w => w.PlayerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── AUCTION SESSION ────────────────────────────────────────────────
+        modelBuilder.Entity<AuctionSession>(session =>
+        {
+            session.Property(s => s.Id).ValueGeneratedNever();
+
+            session.HasIndex(s => s.EventId)
+                   .HasDatabaseName("IX_auction_sessions_event_id");
+
+            session.HasOne(s => s.Event)
+                   .WithMany()
+                   .HasForeignKey(s => s.EventId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            session.HasOne(s => s.CurrentItem)
+                   .WithMany()
+                   .HasForeignKey(s => s.CurrentItemId)
+                   .IsRequired(false)
+                   .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── APPLICATION USER (additional config) ──────────────────────────

@@ -28,8 +28,6 @@
 //        unassigned based on whether the remainder >= 2
 // ─────────────────────────────────────────────────────────────────────────────
 
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Common.Middleware;
@@ -717,81 +715,21 @@ public class TeamService
                 $"{string.Join(", ", duplicates)}");
     }
 
-    /// <summary>
-    /// Generates a self-verifying HMAC invite token.
-    /// Format: base64url(teamId:expiresAtUnixSeconds).base64url(HMAC-SHA256)
-    ///
-    /// WHY SELF-VERIFYING:
-    ///   The token contains the teamId, so we know which team to look up
-    ///   without a DB query. We verify the HMAC to ensure the token wasn't
-    ///   tampered with (an attacker can't change the teamId in the payload
-    ///   because the HMAC would no longer match).
-    /// </summary>
+    // Token generation and validation are now in InviteTokenHelper (pure, testable).
+
     private (string token, DateTime expiresAt) GenerateInviteToken(Guid teamId)
     {
-        var expiresAt  = DateTime.UtcNow.Add(InviteTokenLifetime);
-        var expiresUnix = new DateTimeOffset(expiresAt).ToUnixTimeSeconds();
-        var payload    = $"{teamId}:{expiresUnix}";
-
-        var secret   = _config["JWT_SECRET"]
+        var secret = _config["JWT_SECRET"]
             ?? throw new InvalidOperationException("JWT_SECRET not configured");
-        var keyBytes = Encoding.UTF8.GetBytes(secret);
-        var payBytes = Encoding.UTF8.GetBytes(payload);
-
-        var hmacBytes = HMACSHA256.HashData(keyBytes, payBytes);
-        var signature = Convert.ToBase64String(hmacBytes)
-            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
-        var payloadB64 = Convert.ToBase64String(payBytes)
-            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
-
-        return ($"{payloadB64}.{signature}", expiresAt);
+        var (token, expiresAt) = InviteTokenHelper.Generate(teamId, secret);
+        return (token, expiresAt);
     }
 
-    /// <summary>
-    /// Validates the HMAC invite token and returns the embedded team ID.
-    /// Throws ValidationException if the token is malformed, expired, or tampered.
-    /// </summary>
     private Guid ValidateInviteToken(string token)
     {
-        try
-        {
-            var parts = token.Split('.');
-            if (parts.Length != 2)
-                throw new ValidationException("Invalid invite token format.");
-
-            // Decode payload
-            var payloadBytes = Convert.FromBase64String(
-                parts[0].Replace('-', '+').Replace('_', '/') + "==");
-            var payload    = Encoding.UTF8.GetString(payloadBytes);
-            var payParts   = payload.Split(':');
-            if (payParts.Length != 2)
-                throw new ValidationException("Invalid invite token format.");
-
-            var teamId       = Guid.Parse(payParts[0]);
-            var expiresUnix  = long.Parse(payParts[1]);
-            var expiresAt    = DateTimeOffset.FromUnixTimeSeconds(expiresUnix).UtcDateTime;
-
-            if (DateTime.UtcNow > expiresAt)
-                throw new ValidationException(
-                    "This invite link has expired. Ask the team captain for a new one.");
-
-            // Verify HMAC
-            var secret   = _config["JWT_SECRET"]
-                ?? throw new InvalidOperationException("JWT_SECRET not configured");
-            var keyBytes = Encoding.UTF8.GetBytes(secret);
-            var expected = HMACSHA256.HashData(keyBytes, payloadBytes);
-            var expectedB64 = Convert.ToBase64String(expected)
-                .Replace('+', '-').Replace('/', '_').TrimEnd('=');
-
-            if (expectedB64 != parts[1])
-                throw new ValidationException("This invite link is not valid.");
-
-            return teamId;
-        }
-        catch (Exception ex) when (ex is not ValidationException)
-        {
-            throw new ValidationException("This invite link is not valid.");
-        }
+        var secret = _config["JWT_SECRET"]
+            ?? throw new InvalidOperationException("JWT_SECRET not configured");
+        return InviteTokenHelper.Validate(token, secret);
     }
 
     private static string BuildInviteUrl(Event evt, Team team)

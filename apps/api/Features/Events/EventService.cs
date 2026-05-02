@@ -44,20 +44,7 @@ public class EventService
     private readonly ApplicationDbContext _db;
     private readonly ILogger<EventService> _logger;
 
-    // Characters used in event codes — uppercase alpha + digits, no ambiguous chars
-    // (O/0 and I/1 are excluded to avoid confusion when reading printed QR codes)
-    private const string EventCodeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-    // Valid status transitions — enforced in UpdateAsync (defence-in-depth)
-    private static readonly Dictionary<EventStatus, EventStatus[]> ValidTransitions = new()
-    {
-        [EventStatus.Draft]        = [EventStatus.Registration, EventStatus.Cancelled],
-        [EventStatus.Registration] = [EventStatus.Active, EventStatus.Cancelled],
-        [EventStatus.Active]       = [EventStatus.Scoring, EventStatus.Cancelled],
-        [EventStatus.Scoring]      = [EventStatus.Completed, EventStatus.Cancelled],
-        [EventStatus.Completed]    = [],
-        [EventStatus.Cancelled]    = [],
-    };
+    // State machine and code format are now in EventStatusRules / EventCodeRules (pure, testable).
 
     public EventService(ApplicationDbContext db, ILogger<EventService> logger)
     {
@@ -771,14 +758,7 @@ public class EventService
             "Failed to generate a unique event code after 5 attempts.");
     }
 
-    private static string GenerateEventCode()
-    {
-        var random = new Random();
-        var sb = new StringBuilder(8);
-        for (int i = 0; i < 8; i++)
-            sb.Append(EventCodeChars[random.Next(EventCodeChars.Length)]);
-        return sb.ToString();
-    }
+    private static string GenerateEventCode() => EventCodeRules.Generate();
 
     /// <summary>
     /// Validates a status transition against the state machine.
@@ -790,13 +770,12 @@ public class EventService
         EventStatus next,
         Event evt)
     {
-        if (!ValidTransitions.TryGetValue(current, out var allowed) ||
-            !allowed.Contains(next))
+        if (!EventStatusRules.CanTransition(current, next))
         {
             throw new ValidationException(
                 $"Cannot transition event from '{current}' to '{next}'. " +
                 $"Valid transitions from '{current}': " +
-                $"{string.Join(", ", ValidTransitions.GetValueOrDefault(current, []))}.");
+                $"{string.Join(", ", EventStatusRules.AllowedNext(current))}.");
         }
 
         // Prerequisite: must have a start time before opening registration

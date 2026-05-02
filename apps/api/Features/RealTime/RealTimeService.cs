@@ -12,7 +12,7 @@ namespace GolfFundraiserPro.Api.Features.RealTime;
 /// Scoped service that wraps the SignalR hub context and Redis cache.
 /// Called by ScoreService and MobileService after a score is persisted.
 /// </summary>
-public class RealTimeService
+public class RealTimeService : IRealTimeService
 {
     private readonly IHubContext<TournamentHub> _hub;
     private readonly ApplicationDbContext _db;
@@ -134,6 +134,49 @@ public class RealTimeService
     public async Task SendFundraisingUpdatedAsync(
         string eventCode, decimal grandTotal, CancellationToken ct = default) =>
         await TrySendAsync("FundraisingUpdated", eventCode, new { grandTotal }, ct);
+
+    // ── PHASE 4 AUCTION EVENTS ─────────────────────────────────────────────────
+
+    public async Task SendBidPlacedAsync(
+        string eventCode, Guid itemId, Guid playerId, int amountCents,
+        bool isDonation, CancellationToken ct = default) =>
+        await TrySendAsync("BidPlaced", eventCode,
+            new { itemId, playerId, amountCents, isDonation }, ct);
+
+    public async Task SendAuctionExtendedAsync(
+        string eventCode, Guid itemId, DateTime newClosesAt, CancellationToken ct = default) =>
+        await TrySendAsync("AuctionExtended", eventCode,
+            new { itemId, newClosesAt }, ct);
+
+    public async Task SendItemClosedAsync(
+        string eventCode, Guid itemId, Guid? winnerId, int finalAmountCents,
+        CancellationToken ct = default) =>
+        await TrySendAsync("ItemClosed", eventCode,
+            new { itemId, winnerId, finalAmountCents }, ct);
+
+    public async Task SendLiveAuctionStartedAsync(
+        string eventCode, Guid sessionId, CancellationToken ct = default) =>
+        await TrySendAsync("LiveAuctionStarted", eventCode, new { sessionId }, ct);
+
+    public async Task SendLiveItemAdvancedAsync(
+        string eventCode, Guid? itemId, CancellationToken ct = default) =>
+        await TrySendAsync("LiveItemAdvanced", eventCode, new { itemId }, ct);
+
+    public async Task SendPledgeReceivedAsync(
+        string eventCode, Guid itemId, Guid playerId, int amountCents,
+        CancellationToken ct = default) =>
+        await TrySendAsync("PledgeReceived", eventCode,
+            new { itemId, playerId, amountCents }, ct);
+
+    public async Task SendAuctionTotalUpdatedAsync(
+        string eventCode, Guid itemId, int totalCents, CancellationToken ct = default) =>
+        await TrySendAsync("AuctionTotalUpdated", eventCode,
+            new { itemId, totalCents }, ct);
+
+    public async Task SendAuctionAmountUpdatedAsync(
+        string eventCode, Guid? itemId, int amountCents, CancellationToken ct = default) =>
+        await TrySendAsync("AuctionAmountUpdated", eventCode,
+            new { itemId, amountCents }, ct);
 
     // ── HELPERS ────────────────────────────────────────────────────────────────
 

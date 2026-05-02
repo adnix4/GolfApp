@@ -84,7 +84,9 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: apps/api
+          # Context must be the repo root — the Dockerfile's COPY commands
+          # use paths like "apps/api/WebAPI.csproj" which are relative to root.
+          context: .
           # apps/api/Dockerfile uses multi-stage build:
           #   Stage 1 (sdk image):   dotnet publish -c Release
           #   Stage 2 (aspnet image): copies published output, minimal runtime image

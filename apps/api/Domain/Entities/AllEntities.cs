@@ -765,6 +765,247 @@ public class EmailTemplate
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// STRIPE CUSTOMER
+// Maps to "stripe_customers" — one row per player who has saved a card.
+// The canonical Stripe customer/payment_method record; Player.StripeCustomerId
+// is a denormalized FK for fast lookup.
+// ─────────────────────────────────────────────────────────────────────────────
+[Table("stripe_customers")]
+public class StripeCustomer
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("player_id")]
+    public Guid PlayerId { get; set; }
+
+    /// <summary>Stripe Customer ID (cus_...). Created once per player.</summary>
+    [Column("stripe_customer_id")]
+    [MaxLength(50)]
+    public string StripeCustomerId { get; set; } = string.Empty;
+
+    /// <summary>Stripe PaymentMethod ID (pm_...). The default saved card.</summary>
+    [Column("stripe_payment_method_id")]
+    [MaxLength(50)]
+    public string StripePaymentMethodId { get; set; } = string.Empty;
+
+    /// <summary>Card brand displayed in the UI (e.g. "visa", "mastercard").</summary>
+    [Column("card_brand")]
+    [MaxLength(20)]
+    public string? CardBrand { get; set; }
+
+    /// <summary>Last 4 digits of the saved card for display purposes.</summary>
+    [Column("card_last4")]
+    [MaxLength(4)]
+    public string? CardLast4 { get; set; }
+
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [ForeignKey(nameof(PlayerId))]
+    public Player Player { get; set; } = null!;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUCTION ITEM
+// Maps to "auction_items" — one row per item for any auction format.
+// ─────────────────────────────────────────────────────────────────────────────
+[Table("auction_items")]
+public class AuctionItem
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("event_id")]
+    public Guid EventId { get; set; }
+
+    [Column("title")]
+    [MaxLength(200)]
+    public string Title { get; set; } = string.Empty;
+
+    [Column("description")]
+    [MaxLength(2000)]
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>JSONB array of photo URLs uploaded to CDN.</summary>
+    [Column("photo_urls", TypeName = "jsonb")]
+    public string PhotoUrlsJson { get; set; } = "[]";
+
+    [Column("auction_type")]
+    public AuctionType AuctionType { get; set; }
+
+    [Column("status")]
+    public AuctionItemStatus Status { get; set; } = AuctionItemStatus.Open;
+
+    /// <summary>Starting bid amount in cents.</summary>
+    [Column("starting_bid_cents")]
+    public int StartingBidCents { get; set; }
+
+    /// <summary>Minimum increment over the current high bid in cents.</summary>
+    [Column("bid_increment_cents")]
+    public int BidIncrementCents { get; set; } = 500;
+
+    /// <summary>If set and a bid reaches this amount, item closes immediately (buy-now).</summary>
+    [Column("buy_now_price_cents")]
+    public int? BuyNowPriceCents { get; set; }
+
+    /// <summary>Current highest bid in cents. Denormalized for fast display.</summary>
+    [Column("current_high_bid_cents")]
+    public int CurrentHighBidCents { get; set; }
+
+    /// <summary>When this item's silent auction closes.</summary>
+    [Column("closes_at")]
+    public DateTime? ClosesAt { get; set; }
+
+    /// <summary>Original scheduled close time. Used to compute max_extension_min ceiling.</summary>
+    [Column("original_closes_at")]
+    public DateTime? OriginalClosesAt { get; set; }
+
+    /// <summary>Maximum minutes the close time can be extended via bid-extension rule.</summary>
+    [Column("max_extension_min")]
+    public int MaxExtensionMin { get; set; } = 10;
+
+    /// <summary>Display order on the auction screen.</summary>
+    [Column("display_order")]
+    public int DisplayOrder { get; set; }
+
+    // Donation-item fields
+    /// <summary>JSONB array of fixed pledge denominations in cents, or null for open amount.</summary>
+    [Column("donation_denominations", TypeName = "jsonb")]
+    public string? DonationDenominationsJson { get; set; }
+
+    /// <summary>Minimum bid/pledge in cents (for open-amount donation items).</summary>
+    [Column("minimum_bid_cents")]
+    public int? MinimumBidCents { get; set; }
+
+    /// <summary>Fair-market value in cents. Used for tax receipt deductible calculation.</summary>
+    [Column("fair_market_value_cents")]
+    public int FairMarketValueCents { get; set; }
+
+    /// <summary>Fundraising goal in cents for the goal thermometer display.</summary>
+    [Column("goal_cents")]
+    public int? GoalCents { get; set; }
+
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [ForeignKey(nameof(EventId))]
+    public Event Event { get; set; } = null!;
+
+    public ICollection<Bid> Bids { get; set; } = new List<Bid>();
+    public ICollection<AuctionWinner> Winners { get; set; } = new List<AuctionWinner>();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BID
+// Maps to "bids" — one row per bid (or pledge for donation items).
+// ─────────────────────────────────────────────────────────────────────────────
+[Table("bids")]
+public class Bid
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("auction_item_id")]
+    public Guid AuctionItemId { get; set; }
+
+    [Column("player_id")]
+    public Guid PlayerId { get; set; }
+
+    [Column("amount_cents")]
+    public int AmountCents { get; set; }
+
+    [Column("placed_at")]
+    public DateTime PlacedAt { get; set; } = DateTime.UtcNow;
+
+    [ForeignKey(nameof(AuctionItemId))]
+    public AuctionItem AuctionItem { get; set; } = null!;
+
+    [ForeignKey(nameof(PlayerId))]
+    public Player Player { get; set; } = null!;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUCTION WINNER
+// Maps to "auction_winners" — one row per winner per item.
+// Silent/live items: one row. Donation items: one row per pledger.
+// ─────────────────────────────────────────────────────────────────────────────
+[Table("auction_winners")]
+public class AuctionWinner
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("auction_item_id")]
+    public Guid AuctionItemId { get; set; }
+
+    [Column("player_id")]
+    public Guid PlayerId { get; set; }
+
+    [Column("amount_cents")]
+    public int AmountCents { get; set; }
+
+    [Column("charge_status")]
+    public ChargeStatus ChargeStatus { get; set; } = ChargeStatus.Pending;
+
+    /// <summary>Stripe PaymentIntent ID (pi_...) for this winner's charge.</summary>
+    [Column("stripe_payment_intent_id")]
+    [MaxLength(100)]
+    public string? StripePaymentIntentId { get; set; }
+
+    [Column("receipt_sent")]
+    public bool ReceiptSent { get; set; } = false;
+
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [ForeignKey(nameof(AuctionItemId))]
+    public AuctionItem AuctionItem { get; set; } = null!;
+
+    [ForeignKey(nameof(PlayerId))]
+    public Player Player { get; set; } = null!;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUCTION SESSION
+// Maps to "auction_sessions" — tracks a live auction session.
+// One session per live auction run for an event.
+// ─────────────────────────────────────────────────────────────────────────────
+[Table("auction_sessions")]
+public class AuctionSession
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("event_id")]
+    public Guid EventId { get; set; }
+
+    /// <summary>True while the live auction is in progress. False once ended.</summary>
+    [Column("is_active")]
+    public bool IsActive { get; set; } = true;
+
+    /// <summary>The auction_item currently being called by the host.</summary>
+    [Column("current_item_id")]
+    public Guid? CurrentItemId { get; set; }
+
+    /// <summary>The amount currently being called by the host (in cents).</summary>
+    [Column("current_called_amount_cents")]
+    public int CurrentCalledAmountCents { get; set; }
+
+    [Column("started_at")]
+    public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+
+    [Column("ended_at")]
+    public DateTime? EndedAt { get; set; }
+
+    [ForeignKey(nameof(EventId))]
+    public Event Event { get; set; } = null!;
+
+    [ForeignKey(nameof(CurrentItemId))]
+    public AuctionItem? CurrentItem { get; set; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // QR CODE
 // Maps to the "qr_codes" table.
 // Pre-generated QR codes for an event (included in the Print Kit PDF).

@@ -1,0 +1,144 @@
+﻿Golf Fundraiser Pro  ·  Phase 4: Payments + AuctionImplementation Design
+
+
+④
+GOLF FUNDRAISER PRO
+Phase 4
+Payments + Auction
+
+
+Stripe Setup Intents · Silent Auction · Live Auction · Donation Items · Auto-Charging
+Golf Scramble Made Easy  ·  Implementation Design Series  ·  v1.0
+
+
+________________
+
+
+1. Phase 4 Goal & Scope
+Phase 4 adds Stripe payment processing and the complete three-format auction system. Stripe is integrated once and reused across entry fee collection, auction winner charging, and donation pledge charging. The auction uses SignalR from Phase 3 for bid updates, Redis for race condition protection, and PostgreSQL row-level locks to prevent simultaneous bid conflicts.
+
+
+Timeline
+	8–10 weeks
+	Stripe Libs
+	Stripe .NET SDK (server), @stripe/stripe-js (client setup intent)
+	New Tables
+	stripe_customers, auction_items, bids, auction_winners, auction_sessions
+	New SignalR Events
+	BidPlaced, AuctionExtended, ItemClosed, LiveAuctionStarted, LiveItemAdvanced, PledgeReceived, AuctionTotalUpdated
+	Prerequisite
+	Phase 3 complete. SignalR hub running. Redis available.
+	
+
+2. Stripe Integration
+2.1  Card-on-File — Setup Intent Flow
+1. Client calls POST /api/v1/payments/setup-intent → server creates Stripe SetupIntent, returns client_secret
+2. Client renders Stripe Elements card form with the client_secret. Player enters card details. Stripe tokenizes client-side — raw card number never touches GFP servers.
+3. On card entry complete: client calls POST /api/v1/payments/confirm-setup → server confirms SetupIntent, retrieves PaymentMethod ID, saves to stripe_customers table, sets players.has_payment_method = true
+Security:  The Stripe secret key only ever lives on the server. client_secret is safe to expose to the browser — it can only be used to confirm the specific SetupIntent it belongs to.
+
+
+2.2  Charging a Winner
+4. Auction item closes (timer expires or admin awards live item)
+5. For each winner: server creates Stripe PaymentIntent with { amount, currency, customer, payment_method, confirm: true, off_session: true }
+6. On payment.succeeded webhook: auction_winners.charge_status = succeeded, receipt_sent = true, SendGrid receipt email fired
+7. On payment.failed webhook: admin dashboard alert. Manual resolution: re-charge or waive.
+
+
+3. Silent Auction
+3.1  Bid Submission Endpoint
+
+POST /api/v1/auction/items/{id}/bid
+Body: { amount_cents: 7500 }
+
+Server logic (all in a PostgreSQL transaction):
+1. SELECT ... FOR UPDATE on auction_items row (row-level lock)
+2. Validate: closes_at > NOW()  → else AUCTION_CLOSED
+3. Validate: player has_payment_method OR check_in_status=checked_in  → else NO_PAYMENT_METHOD
+4. Validate: amount >= current_high_bid + bid_increment  → else BID_TOO_LOW
+5. If buy_now_price and amount >= buy_now_price: set status=closed
+6. INSERT into bids
+7. Apply 30-second extension:
+  if NOW() > closes_at - 30s AND closes_at < original_closes_at + max_extension_min:
+    SET closes_at = LEAST(NOW() + 30s, original_closes_at + max_extension_min)
+    fire AuctionExtended SignalR event
+8. fire BidPlaced SignalR event9. COMMIT
+
+
+3.2  Auction Close Job
+* Hangfire recurring job runs every 10 seconds: SELECT * FROM auction_items WHERE status='open' AND closes_at <= NOW()
+* For each expired item: SET status='closed', determine winner (highest bid), INSERT into auction_winners
+* Fire ItemClosed SignalR event → all clients update item status
+* Trigger automatic winner charge (see §2.2)
+* Donation items: INSERT one auction_winners row per bidder
+
+
+4. Live Auction
+4.1  Admin Host Control Screen
+* Admin navigates to Event → Live Auction → Start Session. POST /api/v1/events/{id}/auction/sessions/start
+* All connected clients receive LiveAuctionStarted event → 'Live Auction in Progress' banner appears everywhere
+* Host screen shows: current item large photo, title, description, starting bid. Amount input field (admin types current called amount). Winner dropdown (all checked-in attendees with accounts).
+* Admin types live bid amount as room bids verbally → AuctionAmountUpdated SignalR fires → all attendee screens show current called amount updating in real time
+* Admin selects winner → taps 'Award Item' → POST /api/v1/auction/items/{id}/award → charge fires automatically → ItemClosed event
+* Admin taps 'Next Item' → POST /api/v1/events/{id}/auction/sessions/next-item → LiveItemAdvanced SignalR event
+
+
+4.2  Attendee Screen During Live Auction
+* Mobile app shows 'Live Auction' tab with current item details and live called amount (updated via SignalR)
+* 'I'm Bidding' button: soft paddle-raise. Server increments a counter visible to admin on host screen. Not a formal bid.
+* Donation items: attendee taps their pledge denomination on phone → POST /api/v1/auction/items/{id}/pledge → PledgeReceived SignalR event → running total updates on all screens
+
+
+5. Donation Items (Fund-a-Need)
+* auction_type = donation_silent or donation_live
+* donation_denominations = [2500, 5000, 10000, 25000] cents (or null for open amount)
+* Fixed denomination: bidding screen shows one button per denomination. Multiple attendees can tap the same amount — all charged.
+* Open amount: text input. Any amount >= minimum_bid_cents accepted.
+* Close: all pledgers in bids table are charged simultaneously. One auction_winners row per pledger.
+* Goal thermometer: displayed on item detail page and public leaderboard. Live total from PledgeReceived events.
+* Tax receipts: FMV = 0 for pure fund-a-need items → receipt says 'fully tax deductible'. FMV > 0 for tangible items → deductible amount = pledge − FMV.
+
+
+6. Phase 4 API Endpoints
+Method
+	Endpoint
+	Description
+	POST
+	/payments/setup-intent
+	Create Stripe SetupIntent. Returns client_secret for Stripe Elements card form.
+	POST
+	/payments/confirm-setup
+	Confirm SetupIntent. Saves PaymentMethod to player. Sets has_payment_method=true.
+	CRUD
+	/events/{id}/auction/items
+	Admin: create/edit/delete auction items with all fields
+	GET
+	/events/{id}/auction/items/public
+	Public: open items with current high bid, countdown, photos. No auth.
+	POST
+	/auction/items/{id}/bid
+	Submit bid. Validates eligibility, minimum, timing, extension. Fires BidPlaced.
+	POST
+	/auction/items/{id}/buy-now
+	Instant-win at buy_now_price. Closes item immediately.
+	POST
+	/auction/items/{id}/pledge
+	Donation item pledge. Denomination or open amount. Multiple winners allowed.
+	POST
+	/auction/items/{id}/award
+	Admin: assign live auction winner. Body: { player_id, amount_cents }.
+	POST
+	/events/{id}/auction/sessions/start
+	Admin: start live auction session. Fires LiveAuctionStarted to all clients.
+	POST
+	/events/{id}/auction/sessions/next-item
+	Admin: advance to next item. Fires LiveItemAdvanced.
+	GET
+	/players/{id}/bids
+	Player's bid history: item title, current status (Winning/Outbid/Won/Lost), amount.
+	POST
+	/webhooks/stripe
+	Stripe webhook receiver. Validates signature. Handles payment.succeeded, payment.failed, setup_intent.succeeded.
+	
+
+Golf Fundraiser Pro — ConfidentialPage
