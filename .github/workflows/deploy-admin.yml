@@ -53,7 +53,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Build shared packages first
         # Admin app imports from @gfp/ui, @gfp/theme, @gfp/shared-types.

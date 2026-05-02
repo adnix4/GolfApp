@@ -103,26 +103,16 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore NuGet packages
-        # `dotnet restore` downloads all NuGet dependencies declared in .csproj.
-        # Separated from build so CI can cache the restore step.
-        working-directory: apps/api
-        run: dotnet restore
+        # `dotnet restore` on the solution restores both the API and test projects.
+        run: dotnet restore GolfApp.sln
 
       - name: Build API (Release configuration)
-        # `dotnet build` compiles C# and catches all compile-time errors.
-        # --no-restore skips restore since we just ran it.
-        # -c Release catches Release-only issues (e.g. unused variable warnings
-        # treated as errors in Release mode).
-        working-directory: apps/api
-        run: dotnet build --no-restore -c Release
+        # Build the full solution so the test project is also compiled.
+        run: dotnet build GolfApp.sln --no-restore -c Release
 
       - name: Run API unit tests
-        # `dotnet test` runs all xUnit/NUnit test projects in the solution.
-        # --no-build skips rebuild since we just built.
-        # || true — don't fail the build if no test projects exist yet (Phase 1).
-        # Remove `|| true` once test projects are added.
-        working-directory: apps/api
-        run: dotnet test --no-build -c Release --verbosity normal || true
+        # Runs xUnit tests in apps/api-tests against the in-memory database.
+        run: dotnet test GolfApp.sln --no-build -c Release --verbosity normal
 
   # ── REQUIRED STATUS CHECK GATE ──────────────────────────────────────────
   # This job runs only after both above jobs succeed.

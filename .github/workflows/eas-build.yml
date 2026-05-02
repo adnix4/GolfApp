@@ -68,7 +68,7 @@ jobs:
 
       - name: Install root dependencies
         # Install workspace deps so packages/* are available to apps/mobile
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Install EAS CLI
         run: npm install --global eas-cli@latest
