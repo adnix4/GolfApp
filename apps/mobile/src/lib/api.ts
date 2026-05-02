@@ -122,6 +122,145 @@ export async function registerPushToken(playerId: string, token: string | null):
   }
 }
 
+// ── PHASE 4: AUCTION ──────────────────────────────────────────────────────────
+
+export interface AuctionItemDto {
+  id: string;
+  eventId: string;
+  title: string;
+  description: string;
+  photoUrls: string[];
+  auctionType: string;
+  status: string;
+  startingBidCents: number;
+  bidIncrementCents: number;
+  buyNowPriceCents: number | null;
+  currentHighBidCents: number;
+  closesAt: string | null;
+  maxExtensionMin: number;
+  donationDenominations: number[] | null;
+  minimumBidCents: number | null;
+  fairMarketValueCents: number;
+  goalCents: number | null;
+  totalRaisedCents: number;
+}
+
+export interface BidResponse {
+  id: string;
+  auctionItemId: string;
+  playerId: string;
+  amountCents: number;
+  placedAt: string;
+  isWinning: boolean;
+  newClosesAt: string | null;
+}
+
+export interface AuctionSessionDto {
+  id: string;
+  eventId: string;
+  isActive: boolean;
+  currentItemId: string | null;
+  currentCalledAmountCents: number;
+  startedAt: string;
+  endedAt: string | null;
+}
+
+export interface PlayerBidHistoryItem {
+  auctionItemId: string;
+  itemTitle: string;
+  amountCents: number;
+  status: string;
+  placedAt: string;
+}
+
+export async function fetchAuctionItems(eventId: string): Promise<AuctionItemDto[]> {
+  const res = await fetch(`${BASE}/api/v1/events/${eventId}/auction/items/public`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `Auction items fetch failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function placeBid(
+  itemId: string,
+  playerId: string,
+  amountCents: number,
+): Promise<BidResponse> {
+  const res = await fetch(`${BASE}/api/v1/auction/items/${itemId}/bid`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerId, amountCents }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `Bid failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function pledge(
+  itemId: string,
+  playerId: string,
+  amountCents: number,
+): Promise<BidResponse> {
+  const res = await fetch(`${BASE}/api/v1/auction/items/${itemId}/pledge`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerId, amountCents }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `Pledge failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function createSetupIntent(playerId: string): Promise<{ clientSecret: string }> {
+  const res = await fetch(`${BASE}/api/v1/payments/setup-intent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `Setup intent failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function confirmSetup(
+  playerId: string,
+  setupIntentId: string,
+): Promise<{ hasPaymentMethod: boolean }> {
+  const res = await fetch(`${BASE}/api/v1/payments/confirm-setup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerId, setupIntentId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `Confirm setup failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function fetchPlayerBidHistory(playerId: string): Promise<PlayerBidHistoryItem[]> {
+  const res = await fetch(`${BASE}/api/v1/players/${playerId}/bids`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `Bid history fetch failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function fetchActiveAuctionSession(eventId: string): Promise<AuctionSessionDto | null> {
+  const res = await fetch(`${BASE}/api/v1/events/${eventId}/auction/sessions/active`);
+  if (res.status === 204) return null;
+  if (!res.ok) return null;
+  return res.json();
+}
+
 export async function batchSync(
   eventId: string,
   teamId: string,

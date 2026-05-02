@@ -313,6 +313,62 @@ public enum QrType
     AppDownload
 }
 
+// ── AUCTION / PAYMENT ENUMS ───────────────────────────────────────────────────
+
+/// <summary>
+/// The format of an auction item. Determines bidding rules and close behavior.
+/// Maps to auction_items.auction_type. See spec Phase 4 §3–5.
+/// </summary>
+public enum AuctionType
+{
+    /// <summary>Timed online bidding — highest bid when timer expires wins.</summary>
+    Silent,
+
+    /// <summary>Verbally called by host in the room — admin awards winner manually.</summary>
+    Live,
+
+    /// <summary>Fund-a-Need via silent (timed) bidding — multiple winners allowed.</summary>
+    DonationSilent,
+
+    /// <summary>Fund-a-Need via live room pledging — multiple winners allowed.</summary>
+    DonationLive
+}
+
+/// <summary>
+/// Lifecycle state of an auction item.
+/// Maps to auction_items.status.
+/// </summary>
+public enum AuctionItemStatus
+{
+    /// <summary>Accepting bids. Timer has not expired.</summary>
+    Open,
+
+    /// <summary>Bidding closed. Winner(s) determined. Charges pending or complete.</summary>
+    Closed,
+
+    /// <summary>Item was cancelled. No winner charged.</summary>
+    Cancelled
+}
+
+/// <summary>
+/// Payment charge status for an auction winner row.
+/// Maps to auction_winners.charge_status.
+/// </summary>
+public enum ChargeStatus
+{
+    /// <summary>Winner determined; charge has not been attempted yet.</summary>
+    Pending,
+
+    /// <summary>Stripe PaymentIntent succeeded. Receipt email sent.</summary>
+    Succeeded,
+
+    /// <summary>Stripe charge failed. Admin must re-charge or waive.</summary>
+    Failed,
+
+    /// <summary>Admin manually waived the charge (e.g. sponsor donation).</summary>
+    Waived
+}
+
 // ── EMAIL TEMPLATE ENUMS ──────────────────────────────────────────────────────
 
 /// <summary>

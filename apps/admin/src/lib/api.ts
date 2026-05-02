@@ -397,4 +397,92 @@ export interface CreateSponsorPayload {
   placements?: Record<string, unknown>;
 }
 
+// ── AUCTION ───────────────────────────────────────────────────────────────────
+
+export const auctionApi = {
+  getItems: (eventId: string) =>
+    request<AuctionItem[]>(`/api/v1/events/${eventId}/auction/items`),
+
+  createItem: (eventId: string, payload: CreateAuctionItemPayload) =>
+    request<AuctionItem>(`/api/v1/events/${eventId}/auction/items`, {
+      method: 'POST', body: payload,
+    }),
+
+  updateItem: (eventId: string, itemId: string, payload: Partial<CreateAuctionItemPayload>) =>
+    request<AuctionItem>(`/api/v1/events/${eventId}/auction/items/${itemId}`, {
+      method: 'PATCH', body: payload,
+    }),
+
+  deleteItem: (eventId: string, itemId: string) =>
+    request<void>(`/api/v1/events/${eventId}/auction/items/${itemId}`, { method: 'DELETE' }),
+
+  startSession: (eventId: string) =>
+    request<AuctionSession>(`/api/v1/events/${eventId}/auction/sessions/start`, { method: 'POST', body: {} }),
+
+  nextItem: (eventId: string) =>
+    request<AuctionSession>(`/api/v1/events/${eventId}/auction/sessions/next-item`, { method: 'POST', body: {} }),
+
+  updateCalledAmount: (eventId: string, amountCents: number) =>
+    request<AuctionSession>(`/api/v1/events/${eventId}/auction/sessions/called-amount`, {
+      method: 'POST', body: { amountCents },
+    }),
+
+  getActiveSession: (eventId: string) =>
+    request<AuctionSession | null>(`/api/v1/events/${eventId}/auction/sessions/active`, { public: true }),
+
+  awardItem: (itemId: string, playerId: string, amountCents: number) =>
+    request<{ awarded: boolean }>(`/api/v1/auction/items/${itemId}/award`, {
+      method: 'POST', body: { playerId, amountCents },
+    }),
+};
+
+export interface AuctionItem {
+  id: string;
+  eventId: string;
+  title: string;
+  description: string;
+  photoUrls: string[];
+  auctionType: string;
+  status: string;
+  startingBidCents: number;
+  bidIncrementCents: number;
+  buyNowPriceCents: number | null;
+  currentHighBidCents: number;
+  closesAt: string | null;
+  maxExtensionMin: number;
+  displayOrder: number;
+  donationDenominations: number[] | null;
+  minimumBidCents: number | null;
+  fairMarketValueCents: number;
+  goalCents: number | null;
+  totalRaisedCents: number;
+}
+
+export interface AuctionSession {
+  id: string;
+  eventId: string;
+  isActive: boolean;
+  currentItemId: string | null;
+  currentCalledAmountCents: number;
+  startedAt: string;
+  endedAt: string | null;
+}
+
+export interface CreateAuctionItemPayload {
+  title: string;
+  description: string;
+  photoUrls?: string[];
+  auctionType: string;
+  startingBidCents: number;
+  bidIncrementCents?: number;
+  buyNowPriceCents?: number;
+  closesAt?: string;
+  maxExtensionMin?: number;
+  displayOrder?: number;
+  donationDenominations?: number[];
+  minimumBidCents?: number;
+  fairMarketValueCents?: number;
+  goalCents?: number;
+}
+
 export { ApiError };

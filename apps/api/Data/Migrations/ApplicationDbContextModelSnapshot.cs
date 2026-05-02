@@ -796,6 +796,266 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                     b.ToTable("teams");
                 });
 
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.AuctionItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AuctionType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("auction_type");
+
+                    b.Property<int>("BidIncrementCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("bid_increment_cents");
+
+                    b.Property<int?>("BuyNowPriceCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("buy_now_price_cents");
+
+                    b.Property<DateTime?>("ClosesAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closes_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("CurrentHighBidCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("current_high_bid_cents");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("DonationDenominationsJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("donation_denominations");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<int>("FairMarketValueCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("fair_market_value_cents");
+
+                    b.Property<int?>("GoalCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("goal_cents");
+
+                    b.Property<int>("MaxExtensionMin")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_extension_min");
+
+                    b.Property<int?>("MinimumBidCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("minimum_bid_cents");
+
+                    b.Property<DateTime?>("OriginalClosesAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("original_closes_at");
+
+                    b.Property<string>("PhotoUrlsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("photo_urls");
+
+                    b.Property<int>("StartingBidCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("starting_bid_cents");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .HasDatabaseName("IX_auction_items_event_id");
+
+                    b.ToTable("auction_items");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.AuctionSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("CurrentCalledAmountCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("current_called_amount_cents");
+
+                    b.Property<Guid?>("CurrentItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("current_item_id");
+
+                    b.Property<DateTime?>("EndedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ended_at");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .HasDatabaseName("IX_auction_sessions_event_id");
+
+                    b.HasIndex("CurrentItemId");
+
+                    b.ToTable("auction_sessions");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.AuctionWinner", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuctionItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("auction_item_id");
+
+                    b.Property<int>("AmountCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("amount_cents");
+
+                    b.Property<string>("ChargeStatus")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("charge_status");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_id");
+
+                    b.Property<bool>("ReceiptSent")
+                        .HasColumnType("boolean")
+                        .HasColumnName("receipt_sent");
+
+                    b.Property<string>("StripePaymentIntentId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("stripe_payment_intent_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuctionItemId")
+                        .HasDatabaseName("IX_auction_winners_auction_item_id");
+
+                    b.HasIndex("PlayerId");
+
+                    b.ToTable("auction_winners");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Bid", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AmountCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("amount_cents");
+
+                    b.Property<Guid>("AuctionItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("auction_item_id");
+
+                    b.Property<DateTime>("PlacedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("placed_at");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuctionItemId")
+                        .HasDatabaseName("IX_bids_auction_item_id");
+
+                    b.HasIndex("PlayerId");
+
+                    b.ToTable("bids");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.StripeCustomer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CardBrand")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("card_brand");
+
+                    b.Property<string>("CardLast4")
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)")
+                        .HasColumnName("card_last4");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_id");
+
+                    b.Property<string>("StripeCustomerId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("stripe_customer_id");
+
+                    b.Property<string>("StripePaymentMethodId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("stripe_payment_method_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_stripe_customers_player_id_unique");
+
+                    b.ToTable("stripe_customers");
+                });
+
             modelBuilder.Entity("GolfFundraiserPro.Api.Features.Auth.RefreshTokenRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1143,6 +1403,84 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                     b.Navigation("Event");
                 });
 
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.AuctionItem", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.AuctionSession", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.AuctionItem", "CurrentItem")
+                        .WithMany()
+                        .HasForeignKey("CurrentItemId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Event");
+
+                    b.Navigation("CurrentItem");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.AuctionWinner", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.AuctionItem", "AuctionItem")
+                        .WithMany("Winners")
+                        .HasForeignKey("AuctionItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AuctionItem");
+
+                    b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Bid", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.AuctionItem", "AuctionItem")
+                        .WithMany("Bids")
+                        .HasForeignKey("AuctionItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AuctionItem");
+
+                    b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.StripeCustomer", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Player");
+                });
+
             modelBuilder.Entity("GolfFundraiserPro.Api.Features.Auth.RefreshTokenRecord", b =>
                 {
                     b.HasOne("GolfFundraiserPro.Api.Data.ApplicationUser", "User")
@@ -1203,6 +1541,13 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.AuctionItem", b =>
+                {
+                    b.Navigation("Bids");
+
+                    b.Navigation("Winners");
                 });
 
             modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Course", b =>

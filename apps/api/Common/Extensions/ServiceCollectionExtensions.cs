@@ -145,6 +145,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Features.Notifications.PushNotificationService>();
         services.AddScoped<Features.EmailBuilder.EmailBuilderService>();
 
+        // Phase 4: Payments + Auction
+        services.AddScoped<Features.Payments.PaymentsService>();
+        services.AddScoped<Features.Auction.AuctionService>();
+        services.AddScoped<Features.Auction.AuctionCloseJob>();
+
         // ── JWT BEARER AUTHENTICATION ─────────────────────────────────────
         // Configures the middleware to validate JWT Bearer tokens on protected endpoints.
         // The token is expected in the Authorization header: "Bearer <token>"
