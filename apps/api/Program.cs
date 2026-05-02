@@ -36,6 +36,7 @@
 using GolfFundraiserPro.Api.Common.Extensions;
 using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
+using GolfFundraiserPro.Api.Hubs;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 
@@ -170,6 +171,9 @@ if (app.Environment.IsDevelopment())
 
 // 9. Map controllers to routes
 app.MapControllers();
+
+// 10. SignalR hub — clients connect and call JoinEvent(eventCode) to subscribe
+app.MapHub<TournamentHub>("/hubs/tournament");
 
 // ── HEALTH CHECK ENDPOINT ─────────────────────────────────────────────────────
 // Simple endpoint for Docker health checks and Railway/Render uptime monitoring.

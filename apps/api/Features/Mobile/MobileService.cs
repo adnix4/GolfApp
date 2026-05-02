@@ -4,6 +4,7 @@ using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
 using GolfFundraiserPro.Api.Domain.Enums;
+using GolfFundraiserPro.Api.Features.RealTime;
 
 namespace GolfFundraiserPro.Api.Features.Mobile;
 
@@ -27,6 +28,7 @@ namespace GolfFundraiserPro.Api.Features.Mobile;
 public class MobileService
 {
     private readonly ApplicationDbContext _db;
+    private readonly RealTimeService _realTime;
     private readonly ILogger<MobileService> _logger;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -34,10 +36,11 @@ public class MobileService
         PropertyNameCaseInsensitive = true,
     };
 
-    public MobileService(ApplicationDbContext db, ILogger<MobileService> logger)
+    public MobileService(ApplicationDbContext db, RealTimeService realTime, ILogger<MobileService> logger)
     {
-        _db     = db;
-        _logger = logger;
+        _db       = db;
+        _realTime = realTime;
+        _logger   = logger;
     }
 
     // ── JOIN ──────────────────────────────────────────────────────────────────
@@ -213,8 +216,9 @@ public class MobileService
             .Where(s => s.EventId == request.EventId && s.TeamId == request.TeamId)
             .ToDictionaryAsync(s => (int)s.HoleNumber, ct);
 
-        var accepted  = 0;
-        var conflicts = new List<SyncConflictDto>();
+        var accepted      = 0;
+        var conflicts     = new List<SyncConflictDto>();
+        var acceptedScores = new List<(Guid TeamId, string TeamName, short HoleNumber, short GrossScore)>();
 
         foreach (var pending in request.Scores)
         {
@@ -254,6 +258,7 @@ public class MobileService
                     current.SyncedAt      = DateTime.UtcNow;
                     current.IsConflicted  = false;
                     accepted++;
+                    acceptedScores.Add((request.TeamId, team.Name, pending.HoleNumber, pending.GrossScore));
                 }
             }
             else
@@ -274,6 +279,7 @@ public class MobileService
                     IsConflicted    = false,
                 });
                 accepted++;
+                acceptedScores.Add((request.TeamId, team.Name, pending.HoleNumber, pending.GrossScore));
             }
         }
 
@@ -282,6 +288,12 @@ public class MobileService
         _logger.LogInformation(
             "Batch sync for team {TeamId}: {Accepted} accepted, {Conflicts} conflicts",
             request.TeamId, accepted, conflicts.Count);
+
+        // Phase 3: push real-time update to connected leaderboard clients
+        if (acceptedScores.Count > 0 && !string.IsNullOrEmpty(evt.EventCode))
+        {
+            await _realTime.PublishLeaderboardAsync(evt.EventCode, request.EventId, acceptedScores, ct);
+        }
 
         return new BatchSyncResponse
         {

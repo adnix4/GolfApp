@@ -6,18 +6,21 @@ using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
 using GolfFundraiserPro.Api.Domain.Enums;
+using GolfFundraiserPro.Api.Features.RealTime;
 
 namespace GolfFundraiserPro.Api.Features.Scores;
 
 public class ScoreService
 {
     private readonly ApplicationDbContext _db;
+    private readonly RealTimeService _realTime;
     private readonly ILogger<ScoreService> _logger;
 
-    public ScoreService(ApplicationDbContext db, ILogger<ScoreService> logger)
+    public ScoreService(ApplicationDbContext db, RealTimeService realTime, ILogger<ScoreService> logger)
     {
-        _db     = db;
-        _logger = logger;
+        _db       = db;
+        _realTime = realTime;
+        _logger   = logger;
     }
 
     // ── SUBMIT ─────────────────────────────────────────────────────────────────
@@ -107,6 +110,16 @@ public class ScoreService
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // Phase 3: push real-time update to all connected leaderboard clients
+        if (!string.IsNullOrEmpty(evt.EventCode) && !score.IsConflicted)
+        {
+            await _realTime.PublishScoreAsync(
+                evt.EventCode, eventId,
+                score.TeamId, score.HoleNumber, score.GrossScore,
+                team.Name, ct);
+        }
+
         return MapToScoreResponse(score, team.Name);
     }
 
