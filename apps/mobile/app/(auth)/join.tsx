@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { joinEvent } from '@/lib/api';
+import { registerForPushNotifications } from '@/lib/pushNotifications';
 
 export default function JoinScreen() {
   const theme  = useTheme();
@@ -35,6 +36,9 @@ export default function JoinScreen() {
     try {
       const data = await joinEvent(code, emailT, deviceId);
       await setSession(data);
+      // Fire-and-forget: request push permission + register token with server.
+      // Non-blocking — join succeeds even if notifications are denied.
+      registerForPushNotifications(data.player.id).catch(() => {});
       router.replace('/preflight');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not join event. Check your code and email.');

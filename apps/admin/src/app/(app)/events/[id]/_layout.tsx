@@ -14,7 +14,8 @@ const TABS = [
   { label: 'Challenges',   path: 'challenges'   },
   { label: 'Sponsors',     path: 'sponsors'     },
   { label: 'Fundraising',  path: 'fundraising'  },
-  { label: 'Print Kit',    path: 'print'        },
+  { label: 'Print Kit',     path: 'print'         },
+  { label: 'Email Builder', path: 'email-builder' },
 ];
 
 export default function EventLayout() {

@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Hubs;
+using GolfFundraiserPro.Api.Domain.Enums;
+using GolfFundraiserPro.Api.Features.Notifications;
 
 namespace GolfFundraiserPro.Api.Features.RealTime;
 
@@ -14,17 +16,20 @@ public class RealTimeService
 {
     private readonly IHubContext<TournamentHub> _hub;
     private readonly ApplicationDbContext _db;
+    private readonly PushNotificationService _push;
     private readonly ILogger<RealTimeService> _logger;
     private readonly IDatabase? _cache;
 
     public RealTimeService(
         IHubContext<TournamentHub> hub,
         ApplicationDbContext db,
+        PushNotificationService push,
         ILogger<RealTimeService> logger,
         IServiceProvider services)
     {
         _hub    = hub;
         _db     = db;
+        _push   = push;
         _logger = logger;
         _cache  = services.GetService<IConnectionMultiplexer>()?.GetDatabase();
     }
@@ -59,6 +64,8 @@ public class RealTimeService
                 holeNumber,
             }, ct);
 
+            await SendHoleInOnePushAsync(eventId, teamName, holeNumber, ct);
+
             _logger.LogInformation(
                 "Hole-in-one on event {EventCode} hole {Hole} by team '{Team}'",
                 eventCode, holeNumber, teamName);
@@ -89,6 +96,8 @@ public class RealTimeService
                     holeNumber,
                 }, ct);
 
+                await SendHoleInOnePushAsync(eventId, teamName, holeNumber, ct);
+
                 _logger.LogInformation(
                     "Hole-in-one on event {EventCode} hole {Hole} by team '{Team}'",
                     eventCode, holeNumber, teamName);
@@ -98,6 +107,22 @@ public class RealTimeService
         var standings = await ComputeStandingsAsync(eventId, ct);
         await TrySendAsync("LeaderboardRefreshed", eventCode, new { standings }, ct);
         await InvalidateCacheAsync(eventCode);
+    }
+
+    /// <summary>
+    /// Fires CheckInUpdated after a player is checked in.
+    /// Queries current checked-in count so the admin dashboard counter stays accurate.
+    /// </summary>
+    public async Task SendCheckInUpdatedAsync(
+        string eventCode, Guid eventId, CancellationToken ct = default)
+    {
+        var total     = await _db.Players.CountAsync(p => p.EventId == eventId, ct);
+        var checkedIn = await _db.Players
+            .CountAsync(p => p.EventId == eventId &&
+                (p.CheckInStatus == Domain.Enums.CheckInStatus.CheckedIn ||
+                 p.CheckInStatus == Domain.Enums.CheckInStatus.Complete), ct);
+
+        await TrySendAsync("CheckInUpdated", eventCode, new { checkedIn, total }, ct);
     }
 
     public async Task SendChallengeUpdatedAsync(
@@ -132,6 +157,25 @@ public class RealTimeService
         {
             _logger.LogWarning(ex, "Redis invalidation failed for {EventCode}", eventCode);
         }
+    }
+
+    // Fetches all player push tokens for the event and sends a hole-in-one push notification.
+    private async Task SendHoleInOnePushAsync(
+        Guid eventId, string teamName, short holeNumber, CancellationToken ct)
+    {
+        var tokens = await _db.Players
+            .Where(p => p.EventId == eventId && p.ExpoPushToken != null)
+            .Select(p => p.ExpoPushToken!)
+            .ToListAsync(ct);
+
+        if (tokens.Count == 0) return;
+
+        await _push.SendAsync(
+            tokens,
+            title: "Hole-in-One!",
+            body:  $"{teamName} just made a hole-in-one on hole {holeNumber}!",
+            data:  new { type = "hole_in_one", teamName, holeNumber },
+            ct:    ct);
     }
 
     // Computes standings from live DB data. Uses par-4 default when no course is attached.

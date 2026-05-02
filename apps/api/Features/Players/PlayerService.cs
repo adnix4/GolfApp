@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Enums;
+using GolfFundraiserPro.Api.Features.RealTime;
 using GolfFundraiserPro.Api.Features.Teams;
 
 namespace GolfFundraiserPro.Api.Features.Players;
@@ -9,12 +10,14 @@ namespace GolfFundraiserPro.Api.Features.Players;
 public class PlayerService
 {
     private readonly ApplicationDbContext _db;
+    private readonly RealTimeService _realTime;
     private readonly ILogger<PlayerService> _logger;
 
-    public PlayerService(ApplicationDbContext db, ILogger<PlayerService> logger)
+    public PlayerService(ApplicationDbContext db, RealTimeService realTime, ILogger<PlayerService> logger)
     {
-        _db     = db;
-        _logger = logger;
+        _db       = db;
+        _realTime = realTime;
+        _logger   = logger;
     }
 
     public async Task<List<PlayerResponse>> GetAllAsync(
@@ -88,7 +91,11 @@ public class PlayerService
     public async Task<PlayerResponse> CheckInAsync(
         Guid orgId, Guid eventId, Guid playerId, CancellationToken ct = default)
     {
-        await VerifyEventOwnershipAsync(orgId, eventId, ct);
+        var evt = await _db.Events
+            .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
+
+        if (evt is null)
+            throw new NotFoundException("Event", eventId);
 
         var player = await _db.Players
             .Include(p => p.Team)
@@ -104,7 +111,6 @@ public class PlayerService
         player.CheckInStatus = CheckInStatus.CheckedIn;
         player.CheckInAt     = DateTime.UtcNow;
 
-        // Promote team to Complete when every member has checked in
         if (player.Team is not null)
         {
             var allIn = player.Team.Players
@@ -118,6 +124,9 @@ public class PlayerService
 
         _logger.LogInformation(
             "Checked in player {PlayerId} for event {EventId}", playerId, eventId);
+
+        if (!string.IsNullOrEmpty(evt.EventCode))
+            await _realTime.SendCheckInUpdatedAsync(evt.EventCode, eventId, ct);
 
         return MapToPlayerResponse(player);
     }
@@ -154,6 +163,8 @@ public class PlayerService
     public async Task<PlayerResponse> CheckInByPlayerIdAsync(
         Guid playerId, Guid eventId, CancellationToken ct = default)
     {
+        var evt = await _db.Events.FirstOrDefaultAsync(e => e.Id == eventId, ct);
+
         var player = await _db.Players
             .Include(p => p.Team)
                 .ThenInclude(t => t!.Players)
@@ -178,6 +189,10 @@ public class PlayerService
         }
 
         await _db.SaveChangesAsync(ct);
+
+        if (evt is not null && !string.IsNullOrEmpty(evt.EventCode))
+            await _realTime.SendCheckInUpdatedAsync(evt.EventCode, eventId, ct);
+
         return MapToPlayerResponse(player);
     }
 

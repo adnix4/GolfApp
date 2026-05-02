@@ -250,6 +250,44 @@ export const sponsorsApi = {
     request<void>(`/api/v1/events/${eventId}/sponsors/${sponsorId}`, { method: 'DELETE' }),
 };
 
+export const emailBuilderApi = {
+  getData: (eventId: string) =>
+    request<EmailBuilderData>(`/api/v1/events/${eventId}/email-builder/data`),
+
+  send: (eventId: string, payload: { toAddress: string; subject: string; html: string }) =>
+    request<{ sent: boolean }>(`/api/v1/events/${eventId}/email-builder/send`, {
+      method: 'POST', body: payload,
+    }),
+
+  export: async (eventId: string, html: string): Promise<Blob> => {
+    const token   = storage.getAccessToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
+    const res = await fetch(`${BASE_URL}/api/v1/events/${eventId}/email-builder/export`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ html }),
+    });
+    if (!res.ok) throw new ApiError(res.status, 'EXPORT_FAILED', 'Email export failed.');
+    return res.blob();
+  },
+};
+
+export interface EmailBuilderData {
+  eventName:        string;
+  orgName:          string;
+  orgLogoUrl:       string | null;
+  eventDate:        string;
+  eventLocation:    string;
+  registrationUrl:  string;
+  qrCodeUrl:        string;
+  primaryColor:     string;
+  missionStatement: string | null;
+  sponsors:         Array<{ name: string; logoUrl: string | null; tier: string }>;
+}
+
 // ── LOCAL TYPES (mirror shared-types DTOs, explicit for this app) ─────────────
 
 export interface EventSummary {

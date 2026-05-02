@@ -15,8 +15,9 @@ public class EmailBuilderController : ControllerBase
 
     public EmailBuilderController(EmailBuilderService svc) => _svc = svc;
 
-    private Guid OrgId => Guid.Parse(User.FindFirstValue("org_id")
-        ?? throw new UnauthorizedException());
+    private Guid OrgId => Guid.TryParse(User.FindFirstValue("org_id"), out var id)
+        ? id
+        : throw new ForbiddenException();
 
     /// <summary>GET /events/{id}/email-builder/data — Pre-populated builder payload.</summary>
     [HttpGet("data")]
