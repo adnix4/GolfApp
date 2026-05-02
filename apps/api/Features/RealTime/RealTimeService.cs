@@ -12,7 +12,7 @@ namespace GolfFundraiserPro.Api.Features.RealTime;
 /// Scoped service that wraps the SignalR hub context and Redis cache.
 /// Called by ScoreService and MobileService after a score is persisted.
 /// </summary>
-public class RealTimeService
+public class RealTimeService : IRealTimeService
 {
     private readonly IHubContext<TournamentHub> _hub;
     private readonly ApplicationDbContext _db;

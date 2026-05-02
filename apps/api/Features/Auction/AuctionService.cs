@@ -12,13 +12,13 @@ namespace GolfFundraiserPro.Api.Features.Auction;
 public class AuctionService
 {
     private readonly ApplicationDbContext _db;
-    private readonly RealTimeService _realTime;
+    private readonly IRealTimeService _realTime;
     private readonly PaymentsService _payments;
     private readonly ILogger<AuctionService> _logger;
 
     public AuctionService(
         ApplicationDbContext db,
-        RealTimeService realTime,
+        IRealTimeService realTime,
         PaymentsService payments,
         ILogger<AuctionService> logger)
     {
@@ -141,43 +141,30 @@ public class AuctionService
             .FirstOrDefaultAsync(ct)
             ?? throw new NotFoundException("AuctionItem", itemId);
 
-        if (item.Status != AuctionItemStatus.Open)
-            throw new ValidationException("AUCTION_CLOSED");
+        var now0 = DateTime.UtcNow;
 
-        if (item.ClosesAt.HasValue && item.ClosesAt.Value <= DateTime.UtcNow)
+        if (AuctionBidRules.IsItemClosed(item.Status, item.ClosesAt, now0))
             throw new ValidationException("AUCTION_CLOSED");
 
         var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == req.PlayerId, ct)
             ?? throw new NotFoundException("Player", req.PlayerId);
 
-        if (!player.HasPaymentMethod && player.CheckInStatus != CheckInStatus.CheckedIn)
+        if (AuctionBidRules.NeedsPaymentMethod(player.HasPaymentMethod, player.CheckInStatus))
             throw new ValidationException("NO_PAYMENT_METHOD");
 
         var isDonation = item.AuctionType is AuctionType.DonationSilent or AuctionType.DonationLive;
 
-        if (!isDonation)
-        {
-            var minRequired = Math.Max(
-                item.StartingBidCents,
-                item.CurrentHighBidCents + item.BidIncrementCents);
+        var minRequired = AuctionBidRules.MinimumRequired(
+            item.AuctionType, item.StartingBidCents, item.BidIncrementCents,
+            item.CurrentHighBidCents, item.MinimumBidCents);
 
-            if (req.AmountCents < minRequired)
-                throw new ValidationException($"BID_TOO_LOW:{minRequired}");
-        }
-        else
-        {
-            var floor = item.MinimumBidCents ?? item.StartingBidCents;
-            if (req.AmountCents < floor)
-                throw new ValidationException($"BID_TOO_LOW:{floor}");
-        }
+        if (req.AmountCents < minRequired)
+            throw new ValidationException($"BID_TOO_LOW:{minRequired}");
 
         // Buy-now check
-        bool closedByBuyNow = false;
-        if (item.BuyNowPriceCents.HasValue && req.AmountCents >= item.BuyNowPriceCents.Value)
-        {
+        bool closedByBuyNow = AuctionBidRules.IsBuyNow(item.BuyNowPriceCents, req.AmountCents);
+        if (closedByBuyNow)
             item.Status = AuctionItemStatus.Closed;
-            closedByBuyNow = true;
-        }
 
         var bid = new Bid
         {
@@ -185,7 +172,7 @@ public class AuctionService
             AuctionItemId = itemId,
             PlayerId      = req.PlayerId,
             AmountCents   = req.AmountCents,
-            PlacedAt      = DateTime.UtcNow,
+            PlacedAt      = now0,
         };
         _db.Bids.Add(bid);
 
@@ -193,17 +180,14 @@ public class AuctionService
             item.CurrentHighBidCents = Math.Max(item.CurrentHighBidCents, req.AmountCents);
 
         DateTime? newClosesAt = null;
-        if (!closedByBuyNow && item.ClosesAt.HasValue && item.OriginalClosesAt.HasValue)
+        if (!closedByBuyNow)
         {
-            var now           = DateTime.UtcNow;
-            var ceiling       = item.OriginalClosesAt.Value.AddMinutes(item.MaxExtensionMin);
-            var thirtySecMark = item.ClosesAt.Value.AddSeconds(-30);
-
-            if (now > thirtySecMark && item.ClosesAt.Value < ceiling)
+            var ext = AuctionBidRules.ComputeExtension(
+                item.ClosesAt, item.OriginalClosesAt, item.MaxExtensionMin, now0);
+            if (ext.HasValue)
             {
-                var extended = DateTime.UtcNow.AddSeconds(30);
-                item.ClosesAt = extended < ceiling ? extended : ceiling;
-                newClosesAt   = item.ClosesAt;
+                item.ClosesAt = ext.Value;
+                newClosesAt   = ext.Value;
             }
         }
 

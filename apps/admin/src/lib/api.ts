@@ -428,7 +428,8 @@ export const auctionApi = {
     }),
 
   getActiveSession: (eventId: string) =>
-    request<AuctionSession | null>(`/api/v1/events/${eventId}/auction/sessions/active`, { public: true }),
+    request<AuctionSession | null>(`/api/v1/events/${eventId}/auction/sessions/active`, { public: true })
+      .then(r => r ?? null),
 
   awardItem: (itemId: string, playerId: string, amountCents: number) =>
     request<{ awarded: boolean }>(`/api/v1/auction/items/${itemId}/award`, {

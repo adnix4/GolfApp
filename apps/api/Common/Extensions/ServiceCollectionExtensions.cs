@@ -141,6 +141,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Features.QR.QrService>();
         services.AddScoped<Features.Emails.EmailService>();
         services.AddScoped<Features.Mobile.MobileService>();
+        services.AddScoped<Features.RealTime.IRealTimeService, Features.RealTime.RealTimeService>();
         services.AddScoped<Features.RealTime.RealTimeService>();
         services.AddScoped<Features.Notifications.PushNotificationService>();
         services.AddScoped<Features.EmailBuilder.EmailBuilderService>();

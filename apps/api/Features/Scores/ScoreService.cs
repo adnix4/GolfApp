@@ -13,10 +13,10 @@ namespace GolfFundraiserPro.Api.Features.Scores;
 public class ScoreService
 {
     private readonly ApplicationDbContext _db;
-    private readonly RealTimeService _realTime;
+    private readonly IRealTimeService _realTime;
     private readonly ILogger<ScoreService> _logger;
 
-    public ScoreService(ApplicationDbContext db, RealTimeService realTime, ILogger<ScoreService> logger)
+    public ScoreService(ApplicationDbContext db, IRealTimeService realTime, ILogger<ScoreService> logger)
     {
         _db       = db;
         _realTime = realTime;
@@ -67,10 +67,9 @@ public class ScoreService
 
         if (existing is not null)
         {
-            var sameDevice = existing.DeviceId == request.DeviceId;
-            var sameValue  = existing.GrossScore == request.GrossScore;
-
-            if (!sameDevice && !sameValue)
+            if (ScoreConflictRules.IsConflict(
+                    existing.DeviceId, existing.GrossScore,
+                    request.DeviceId,  request.GrossScore))
             {
                 existing.IsConflicted = true;
                 _logger.LogWarning(

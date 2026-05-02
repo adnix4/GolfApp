@@ -15,7 +15,7 @@ const { mockStorage } = vi.hoisted(() => ({
 
 vi.mock('../lib/storage', () => ({ storage: mockStorage }));
 
-import { authApi, eventsApi, teamsApi, challengesApi, ApiError } from '../lib/api';
+import { authApi, eventsApi, teamsApi, challengesApi, auctionApi, ApiError } from '../lib/api';
 
 // ── fetch mock ───────────────────────────────────────────────────────────────
 
@@ -191,5 +191,174 @@ describe('teamsApi.markFeePaid', () => {
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('/teams/t1/fee-paid');
     expect(opts.method).toBe('POST');
+  });
+});
+
+// ── auctionApi ────────────────────────────────────────────────────────────────
+
+const AUCTION_ITEM = {
+  id: 'item1', eventId: 'ev1', title: 'Golf Bag', description: 'A nice bag',
+  photoUrls: [] as string[], auctionType: 'Silent', status: 'Open',
+  startingBidCents: 5000, bidIncrementCents: 500, buyNowPriceCents: null,
+  currentHighBidCents: 7500, closesAt: '2026-06-01T20:00:00Z',
+  maxExtensionMin: 10, donationDenominations: null, minimumBidCents: null,
+  fairMarketValueCents: 5000, goalCents: null, totalRaisedCents: 7500,
+};
+
+const SESSION = {
+  id: 'sess1', eventId: 'ev1', isActive: true,
+  currentItemId: 'item1', currentCalledAmountCents: 15000,
+  startedAt: '2026-06-01T18:00:00Z', endedAt: null,
+};
+
+describe('auctionApi.createItem', () => {
+  it('sends POST to the auction items endpoint with the payload', async () => {
+    mockOk(AUCTION_ITEM);
+    await auctionApi.createItem('ev1', {
+      title: 'Golf Bag', description: 'A nice bag',
+      auctionType: 'Silent', startingBidCents: 5000,
+      fairMarketValueCents: 5000,
+    });
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/events/ev1/auction/items');
+    expect(opts.method).toBe('POST');
+    const body = JSON.parse(opts.body as string);
+    expect(body.title).toBe('Golf Bag');
+    expect(body.auctionType).toBe('Silent');
+    expect(body.startingBidCents).toBe(5000);
+  });
+
+  it('returns the created AuctionItem on success', async () => {
+    mockOk(AUCTION_ITEM);
+    const item = await auctionApi.createItem('ev1', {
+      title: 'Golf Bag', auctionType: 'Silent',
+      startingBidCents: 5000, fairMarketValueCents: 5000,
+      description: '',
+    });
+    expect(item.id).toBe('item1');
+    expect(item.status).toBe('Open');
+  });
+
+  it('throws ApiError on validation failure', async () => {
+    mockErr(400, { code: 'VALIDATION_ERROR', error: 'Title is required' });
+    await expect(auctionApi.createItem('ev1', {
+      title: '', auctionType: 'Silent', startingBidCents: 0,
+      fairMarketValueCents: 0, description: '',
+    })).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe('auctionApi.updateItem', () => {
+  it('sends PATCH to the specific item endpoint', async () => {
+    mockOk({ ...AUCTION_ITEM, title: 'Updated Bag' });
+    await auctionApi.updateItem('ev1', 'item1', { title: 'Updated Bag' });
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/events/ev1/auction/items/item1');
+    expect(opts.method).toBe('PATCH');
+    expect(JSON.parse(opts.body as string)).toMatchObject({ title: 'Updated Bag' });
+  });
+});
+
+describe('auctionApi.deleteItem', () => {
+  it('sends DELETE to the specific item endpoint', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 204, json: vi.fn() });
+    await auctionApi.deleteItem('ev1', 'item1');
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/events/ev1/auction/items/item1');
+    expect(opts.method).toBe('DELETE');
+  });
+
+  it('throws when trying to delete a closed item', async () => {
+    mockErr(400, { code: 'VALIDATION_ERROR', error: 'Cannot delete a closed auction item.' });
+    await expect(auctionApi.deleteItem('ev1', 'item1')).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe('auctionApi.awardItem', () => {
+  it('sends POST to /auction/items/{id}/award with playerId and amountCents', async () => {
+    mockOk({ awarded: true });
+    await auctionApi.awardItem('item1', 'pl1', 25000);
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/auction/items/item1/award');
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body as string)).toMatchObject({ playerId: 'pl1', amountCents: 25000 });
+  });
+
+  it('returns { awarded: true } on success', async () => {
+    mockOk({ awarded: true });
+    const result = await auctionApi.awardItem('item1', 'pl1', 25000);
+    expect(result.awarded).toBe(true);
+  });
+
+  it('throws when the item is already closed', async () => {
+    mockErr(400, { code: 'VALIDATION_ERROR', error: 'Item is already closed.' });
+    await expect(auctionApi.awardItem('item1', 'pl1', 25000)).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe('auctionApi.updateCalledAmount', () => {
+  it('sends POST to /events/{id}/auction/sessions/called-amount with amountCents', async () => {
+    mockOk(SESSION);
+    await auctionApi.updateCalledAmount('ev1', 20000);
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/events/ev1/auction/sessions/called-amount');
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body as string)).toMatchObject({ amountCents: 20000 });
+  });
+
+  it('returns the updated session', async () => {
+    mockOk({ ...SESSION, currentCalledAmountCents: 20000 });
+    const result = await auctionApi.updateCalledAmount('ev1', 20000);
+    expect(result.currentCalledAmountCents).toBe(20000);
+  });
+});
+
+describe('auctionApi.getActiveSession', () => {
+  it('returns the session when one is active', async () => {
+    mockOk(SESSION);
+    const result = await auctionApi.getActiveSession('ev1');
+    expect(result).not.toBeNull();
+    expect(result!.isActive).toBe(true);
+    expect(result!.currentItemId).toBe('item1');
+  });
+
+  it('returns null on 204 (no active session)', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 204, json: vi.fn() });
+    const result = await auctionApi.getActiveSession('ev1');
+    expect(result).toBeNull();
+  });
+});
+
+describe('auctionApi.startSession', () => {
+  it('sends POST to /events/{id}/auction/sessions/start', async () => {
+    mockOk(SESSION);
+    await auctionApi.startSession('ev1');
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/events/ev1/auction/sessions/start');
+    expect(opts.method).toBe('POST');
+  });
+
+  it('returns the new session', async () => {
+    mockOk(SESSION);
+    const result = await auctionApi.startSession('ev1');
+    expect(result.isActive).toBe(true);
+    expect(result.eventId).toBe('ev1');
+  });
+});
+
+describe('auctionApi.nextItem', () => {
+  it('sends POST to /events/{id}/auction/sessions/next-item', async () => {
+    mockOk({ ...SESSION, currentItemId: 'item2' });
+    await auctionApi.nextItem('ev1');
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/events/ev1/auction/sessions/next-item');
+    expect(opts.method).toBe('POST');
+  });
+
+  it('returns the session with the new currentItemId', async () => {
+    mockOk({ ...SESSION, currentItemId: 'item2', currentCalledAmountCents: 5000 });
+    const result = await auctionApi.nextItem('ev1');
+    expect(result.currentItemId).toBe('item2');
+    expect(result.currentCalledAmountCents).toBe(5000);
   });
 });
