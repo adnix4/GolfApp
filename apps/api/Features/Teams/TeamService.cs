@@ -326,6 +326,52 @@ public class TeamService
         return teams.Select(MapToTeamResponse).ToList();
     }
 
+    // ── CHECK IN TEAM ─────────────────────────────────────────────────────────
+
+    public async Task<TeamResponse> CheckInTeamAsync(
+        Guid orgId,
+        Guid eventId,
+        Guid teamId,
+        CancellationToken ct = default)
+    {
+        var team = await _db.Teams
+            .Include(t => t.Players)
+            .FirstOrDefaultAsync(t =>
+                t.Id == teamId &&
+                t.EventId == eventId &&
+                t.Event.OrgId == orgId, ct);
+
+        if (team is null)
+            throw new NotFoundException("Team", teamId);
+
+        team.CheckInStatus = CheckInStatus.CheckedIn;
+        await _db.SaveChangesAsync(ct);
+        return MapToTeamResponse(team);
+    }
+
+    // ── MARK FEE PAID ─────────────────────────────────────────────────────────
+
+    public async Task<TeamResponse> MarkFeePaidAsync(
+        Guid orgId,
+        Guid eventId,
+        Guid teamId,
+        CancellationToken ct = default)
+    {
+        var team = await _db.Teams
+            .Include(t => t.Players)
+            .FirstOrDefaultAsync(t =>
+                t.Id == teamId &&
+                t.EventId == eventId &&
+                t.Event.OrgId == orgId, ct);
+
+        if (team is null)
+            throw new NotFoundException("Team", teamId);
+
+        team.EntryFeePaid = true;
+        await _db.SaveChangesAsync(ct);
+        return MapToTeamResponse(team);
+    }
+
     // ── UPDATE TEAM ───────────────────────────────────────────────────────────
 
     public async Task<TeamResponse> UpdateTeamAsync(

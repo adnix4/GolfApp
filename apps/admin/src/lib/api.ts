@@ -173,6 +173,9 @@ export const teamsApi = {
     request<Team>(`/api/v1/events/${eventId}/teams/${teamId}/fee-paid`, {
       method: 'POST', body: {},
     }),
+
+  update: (eventId: string, teamId: string, payload: { name?: string; maxPlayers?: number; entryFeePaid?: boolean }) =>
+    request<Team>(`/api/v1/events/${eventId}/teams/${teamId}`, { method: 'PATCH', body: payload }),
 };
 
 // ── FREE AGENTS ───────────────────────────────────────────────────────────────
@@ -373,7 +376,8 @@ export interface CreateEventPayload {
   name: string; format: string; startType: string; holes: number; startAt?: string;
 }
 export interface UpdateEventPayload {
-  name?: string; status?: string; startAt?: string;
+  name?: string; format?: string; startType?: string; holes?: number;
+  status?: string; startAt?: string;
   config?: Record<string, unknown>;
 }
 export interface AttachCoursePayload {

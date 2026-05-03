@@ -180,6 +180,36 @@ public class TeamController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>Marks a team as checked in.</summary>
+    [HttpPost("api/v1/events/{eventId:guid}/teams/{teamId:guid}/check-in")]
+    [Authorize(Policy = "EventStaff")]
+    [ProducesResponseType(typeof(TeamResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TeamResponse>> CheckInTeam(
+        [FromRoute] Guid eventId,
+        [FromRoute] Guid teamId,
+        CancellationToken ct)
+    {
+        var orgId    = GetOrgId();
+        var response = await _teamService.CheckInTeamAsync(orgId, eventId, teamId, ct);
+        return Ok(response);
+    }
+
+    /// <summary>Marks a team's entry fee as paid.</summary>
+    [HttpPost("api/v1/events/{eventId:guid}/teams/{teamId:guid}/fee-paid")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(typeof(TeamResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TeamResponse>> MarkFeePaid(
+        [FromRoute] Guid eventId,
+        [FromRoute] Guid teamId,
+        CancellationToken ct)
+    {
+        var orgId    = GetOrgId();
+        var response = await _teamService.MarkFeePaidAsync(orgId, eventId, teamId, ct);
+        return Ok(response);
+    }
+
     /// <summary>
     /// Regenerates the invite token for a team.
     /// Use this when a token has expired or needs to be invalidated.

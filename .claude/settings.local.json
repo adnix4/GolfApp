@@ -96,7 +96,9 @@
       "Bash(taskkill //F //IM dotnet.exe)",
       "Bash(xargs grep *)",
       "Bash(dotnet add *)",
-      "Bash(dotnet test *)"
+      "Bash(dotnet test *)",
+      "Bash(xargs head *)",
+      "Bash(grep -E \"\\\\.\\(cs|ts\\)$\")"
     ]
   }
 }
