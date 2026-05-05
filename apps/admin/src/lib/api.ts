@@ -160,9 +160,10 @@ export const teamsApi = {
     request<Team>(`/api/v1/events/${eventId}/teams/${teamId}`),
 
   registerTeam: (eventId: string, payload: RegisterTeamPayload) =>
-    request<{ team: Team }>(`/api/v1/events/${eventId}/register/team`, {
-      method: 'POST', body: payload,
-    }),
+    request<{ team: Team; inviteUrl: string | null; message: string }>(
+      `/api/v1/events/${eventId}/register/team`,
+      { method: 'POST', body: payload },
+    ),
 
   checkIn: (eventId: string, teamId: string) =>
     request<Team>(`/api/v1/events/${eventId}/teams/${teamId}/check-in`, {
@@ -185,8 +186,8 @@ export const playersApi = {
     request<Player[]>(`/api/v1/events/${eventId}/free-agents`),
 
   assignToTeam: (eventId: string, playerId: string, teamId: string) =>
-    request<Player>(`/api/v1/events/${eventId}/players/${playerId}/assign`, {
-      method: 'POST', body: { teamId },
+    request<Team>(`/api/v1/events/${eventId}/free-agents/assign`, {
+      method: 'POST', body: { playerId, teamId },
     }),
 };
 

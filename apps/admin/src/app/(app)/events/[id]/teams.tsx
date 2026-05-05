@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Pressable, FlatList, Modal, TextInput,
-  StyleSheet, ActivityIndicator, ScrollView,
+  StyleSheet, ActivityIndicator, ScrollView, Alert,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
@@ -17,10 +17,12 @@ export default function TeamsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
 
-  const [teams,   setTeams]   = useState<Team[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
+  const [teams,    setTeams]    = useState<Team[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
+  const [showAdd,  setShowAdd]  = useState(false);
+  const [editing,  setEditing]  = useState<Team | null>(null);
+  const [inviteResult, setInviteResult] = useState<{ teamName: string; url: string | null } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -28,7 +30,7 @@ export default function TeamsScreen() {
     try {
       setTeams(await teamsApi.list(id));
     } catch (e: any) {
-      setError(e.message ?? 'Failed to load teams.');
+      setError(e.message ?? 'Failed to load teams. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -41,8 +43,21 @@ export default function TeamsScreen() {
       const updated = await teamsApi.checkIn(id, teamId);
       setTeams(prev => prev.map(t => t.id === teamId ? updated : t));
     } catch (e: any) {
-      setError(e.message ?? 'Check-in failed.');
+      setError(e.message ?? 'Check-in failed. Please try again.');
     }
+  }
+
+  function handleRegistered(team: Team, inviteUrl?: string | null) {
+    setTeams(prev => [...prev, team]);
+    setShowAdd(false);
+    if (inviteUrl) {
+      setInviteResult({ teamName: team.name, url: inviteUrl });
+    }
+  }
+
+  function handleUpdated(team: Team) {
+    setTeams(prev => prev.map(t => t.id === team.id ? team : t));
+    setEditing(null);
   }
 
   return (
@@ -63,6 +78,27 @@ export default function TeamsScreen() {
       {error && (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
+          <Pressable onPress={() => setError(null)} style={{ marginTop: 6 }}>
+            <Text style={{ color: '#c0392b', fontSize: 12 }}>Dismiss</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Invite link banner after registration */}
+      {inviteResult && (
+        <View style={styles.inviteBox}>
+          <Text style={styles.inviteTitle}>Team "{inviteResult.teamName}" registered!</Text>
+          {inviteResult.url ? (
+            <>
+              <Text style={styles.inviteLabel}>Invite link for teammates:</Text>
+              <Text style={styles.inviteUrl} selectable>{inviteResult.url}</Text>
+            </>
+          ) : (
+            <Text style={styles.inviteLabel}>Team is full — no invite link needed.</Text>
+          )}
+          <Pressable onPress={() => setInviteResult(null)} style={{ marginTop: 8 }}>
+            <Text style={{ color: '#1a5276', fontSize: 12, fontWeight: '600' }}>Dismiss</Text>
+          </Pressable>
         </View>
       )}
 
@@ -94,14 +130,22 @@ export default function TeamsScreen() {
                   <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[team.checkInStatus] ?? '#aaa' }]}>
                     <Text style={styles.statusText}>{team.checkInStatus.replace('_', ' ')}</Text>
                   </View>
-                  {team.checkInStatus === 'pending' && (
+                  <View style={styles.actionBtns}>
                     <Pressable
-                      style={[styles.checkInBtn, { backgroundColor: theme.colors.action }]}
-                      onPress={() => handleCheckIn(team.id)}
+                      style={[styles.editBtn, { borderColor: theme.colors.accent }]}
+                      onPress={() => setEditing(team)}
                     >
-                      <Text style={styles.checkInText}>Check In</Text>
+                      <Text style={[styles.editBtnText, { color: theme.colors.accent }]}>Edit</Text>
                     </Pressable>
-                  )}
+                    {team.checkInStatus === 'pending' && (
+                      <Pressable
+                        style={[styles.checkInBtn, { backgroundColor: theme.colors.action }]}
+                        onPress={() => handleCheckIn(team.id)}
+                      >
+                        <Text style={styles.checkInText}>Check In</Text>
+                      </Pressable>
+                    )}
+                  </View>
                 </View>
               </View>
 
@@ -139,7 +183,15 @@ export default function TeamsScreen() {
         visible={showAdd}
         eventId={id}
         onClose={() => setShowAdd(false)}
-        onRegistered={team => { setTeams(prev => [...prev, team]); setShowAdd(false); }}
+        onRegistered={handleRegistered}
+      />
+
+      <EditTeamModal
+        visible={editing != null}
+        eventId={id}
+        team={editing}
+        onClose={() => setEditing(null)}
+        onSaved={handleUpdated}
       />
     </View>
   );
@@ -151,7 +203,7 @@ interface RegisterTeamModalProps {
   visible:      boolean;
   eventId:      string;
   onClose:      () => void;
-  onRegistered: (team: Team) => void;
+  onRegistered: (team: Team, inviteUrl?: string | null) => void;
 }
 
 interface PlayerDraft {
@@ -180,30 +232,46 @@ function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: Register
 
   function addPlayer() { setPlayers(prev => [...prev, blankPlayer()]); }
   function removePlayer(idx: number) {
-    setPlayers(prev => prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev);
+    if (players.length <= 1) return;
+    setPlayers(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  function validate(): boolean {
+    if (!teamName.trim()) { setError('Team name is required.'); return false; }
+    if (teamName.trim().length > 200) { setError('Team name must be 200 characters or fewer.'); return false; }
+    const validPlayers = players.filter(p => p.firstName.trim() && p.lastName.trim());
+    if (validPlayers.length === 0) { setError('At least one player with a first and last name is required.'); return false; }
+    for (const p of players) {
+      if (p.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email.trim())) {
+        setError(`"${p.email}" is not a valid email address.`); return false;
+      }
+      if (p.handicap.trim() && isNaN(Number(p.handicap))) {
+        setError('Handicap must be a number.'); return false;
+      }
+    }
+    return true;
   }
 
   async function handleSubmit() {
-    if (!teamName.trim()) { setError('Team name is required.'); return; }
-    const validPlayers = players.filter(p => p.firstName.trim() && p.lastName.trim());
-    if (validPlayers.length === 0) { setError('At least one player with a name is required.'); return; }
+    if (!validate()) return;
     setError(null);
     setLoading(true);
     try {
+      const validPlayers = players.filter(p => p.firstName.trim() && p.lastName.trim());
       const payload: RegisterTeamPayload = {
         teamName: teamName.trim(),
         players: validPlayers.map(p => ({
           firstName: p.firstName.trim(),
           lastName:  p.lastName.trim(),
           email:     p.email.trim(),
-          ...(p.handicap ? { handicap: Number(p.handicap) } : {}),
+          ...(p.handicap.trim() ? { handicap: Number(p.handicap) } : {}),
         })),
       };
       const result = await teamsApi.registerTeam(eventId, payload);
       reset();
-      onRegistered(result.team);
+      onRegistered(result.team, result.inviteUrl);
     } catch (e: any) {
-      setError(e.message ?? 'Registration failed.');
+      setError(e.message ?? 'Registration failed. Check the details and try again.');
     } finally {
       setLoading(false);
     }
@@ -212,19 +280,20 @@ function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: Register
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => { reset(); onClose(); }}>
       <View style={styles.overlay}>
-        <ScrollView contentContainerStyle={styles.modalScroll}>
+        <ScrollView contentContainerStyle={styles.modalScroll} keyboardShouldPersistTaps="handled">
           <View style={styles.modal}>
             <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Register Team</Text>
             {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
 
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Team Name</Text>
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Team Name *</Text>
             <TextInput
               style={[styles.input, { borderColor: theme.colors.accent }]}
               value={teamName}
-              onChangeText={setTeamName}
+              onChangeText={v => { setTeamName(v); if (error) setError(null); }}
               placeholder="The Eagles"
               placeholderTextColor="#999"
               editable={!loading}
+              maxLength={200}
             />
 
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Players</Text>
@@ -232,7 +301,7 @@ function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: Register
               <View key={idx} style={styles.playerForm}>
                 <View style={styles.playerFormHeader}>
                   <Text style={[styles.playerFormTitle, { color: theme.colors.primary }]}>
-                    Player {idx + 1}
+                    Player {idx + 1}{idx === 0 ? ' (Captain)' : ''}
                   </Text>
                   {players.length > 1 && (
                     <Pressable onPress={() => removePlayer(idx)}>
@@ -244,12 +313,12 @@ function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: Register
                   <TextInput
                     style={[styles.input, styles.halfInput, { borderColor: theme.colors.accent }]}
                     value={p.firstName} onChangeText={v => updatePlayer(idx, 'firstName', v)}
-                    placeholder="First" placeholderTextColor="#999" editable={!loading}
+                    placeholder="First *" placeholderTextColor="#999" editable={!loading}
                   />
                   <TextInput
                     style={[styles.input, styles.halfInput, { borderColor: theme.colors.accent }]}
                     value={p.lastName} onChangeText={v => updatePlayer(idx, 'lastName', v)}
-                    placeholder="Last" placeholderTextColor="#999" editable={!loading}
+                    placeholder="Last *" placeholderTextColor="#999" editable={!loading}
                   />
                 </View>
                 <TextInput
@@ -261,8 +330,8 @@ function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: Register
                 <TextInput
                   style={[styles.input, { borderColor: theme.colors.accent, marginTop: 6 }]}
                   value={p.handicap} onChangeText={v => updatePlayer(idx, 'handicap', v)}
-                  placeholder="Handicap (optional)" placeholderTextColor="#999"
-                  keyboardType="numeric" editable={!loading}
+                  placeholder="Handicap index (optional)" placeholderTextColor="#999"
+                  keyboardType="decimal-pad" editable={!loading}
                 />
               </View>
             ))}
@@ -292,11 +361,113 @@ function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: Register
   );
 }
 
+// ── Edit Team Modal ───────────────────────────────────────────────────────────
+
+interface EditTeamModalProps {
+  visible:  boolean;
+  eventId:  string;
+  team:     Team | null;
+  onClose:  () => void;
+  onSaved:  (team: Team) => void;
+}
+
+function EditTeamModal({ visible, eventId, team, onClose, onSaved }: EditTeamModalProps) {
+  const theme = useTheme();
+  const [name,       setName]       = useState('');
+  const [maxPlayers, setMaxPlayers] = useState('');
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visible || !team) return;
+    setName(team.name);
+    setMaxPlayers(String(team.maxPlayers));
+    setError(null);
+  }, [visible, team]);
+
+  async function handleSave() {
+    if (!name.trim()) { setError('Team name is required.'); return; }
+    if (name.trim().length > 200) { setError('Team name must be 200 characters or fewer.'); return; }
+    const max = parseInt(maxPlayers);
+    if (isNaN(max) || max < 1 || max > 8) { setError('Max players must be between 1 and 8.'); return; }
+    if (team && max < team.players.length) {
+      setError(`Cannot set max players to ${max} — this team already has ${team.players.length} players.`);
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const updated = await teamsApi.update(eventId, team!.id, {
+        name: name.trim(),
+        maxPlayers: max,
+      });
+      onSaved(updated);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to save team. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View style={styles.modal}>
+          <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Edit Team</Text>
+          {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
+
+          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Team Name *</Text>
+          <TextInput
+            style={[styles.input, { borderColor: theme.colors.accent }]}
+            value={name}
+            onChangeText={v => { setName(v); if (error) setError(null); }}
+            placeholder="Team name"
+            placeholderTextColor="#999"
+            editable={!loading}
+            maxLength={200}
+          />
+
+          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Max Players (1–8)</Text>
+          <TextInput
+            style={[styles.input, { borderColor: theme.colors.accent }]}
+            value={maxPlayers}
+            onChangeText={v => { setMaxPlayers(v.replace(/[^0-9]/g, '')); if (error) setError(null); }}
+            placeholder="4"
+            placeholderTextColor="#999"
+            keyboardType="number-pad"
+            editable={!loading}
+          />
+          {team && (
+            <Text style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+              Currently {team.players.length} player{team.players.length !== 1 ? 's' : ''} on this team.
+            </Text>
+          )}
+
+          <View style={styles.modalActions}>
+            <Pressable style={[styles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
+              <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.submitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
+              onPress={handleSave}
+              disabled={loading}
+            >
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.submitText}>Save</Text>}
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   page:   { flex: 1, padding: 28 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   title:  { fontSize: 22, fontWeight: '800' },
   addBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 8 },
   addBtnText: { fontSize: 14, fontWeight: '700' },
@@ -314,8 +485,11 @@ const styles = StyleSheet.create({
   teamName: { fontSize: 16, fontWeight: '700' },
   meta: { fontSize: 13, marginTop: 2 },
   cardRight: { alignItems: 'flex-end', gap: 6 },
+  actionBtns: { flexDirection: 'row', gap: 6, alignItems: 'center' },
   statusBadge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 10 },
   statusText: { fontSize: 11, fontWeight: '700', color: '#fff', textTransform: 'capitalize' },
+  editBtn: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
+  editBtnText: { fontSize: 12, fontWeight: '600' },
   checkInBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
   checkInText: { fontSize: 12, fontWeight: '700', color: '#fff' },
   players: { gap: 6, paddingTop: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#eee' },
@@ -329,6 +503,13 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3, borderLeftColor: '#e74c3c',
   },
   errorText: { color: '#c0392b', fontSize: 14 },
+  inviteBox: {
+    backgroundColor: '#ebf5fb', borderRadius: 10, padding: 14, marginBottom: 14,
+    borderLeftWidth: 3, borderLeftColor: '#2980b9',
+  },
+  inviteTitle: { fontSize: 14, fontWeight: '700', color: '#1a5276', marginBottom: 6 },
+  inviteLabel: { fontSize: 13, color: '#1a5276', marginBottom: 4 },
+  inviteUrl:   { fontSize: 12, color: '#2980b9', fontFamily: 'monospace' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
   modalScroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   modal: { width: '100%', maxWidth: 500, backgroundColor: '#fff', borderRadius: 16, padding: 28 },

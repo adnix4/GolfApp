@@ -130,6 +130,7 @@ export default function EmailBuilderScreen() {
   const [toAddress,   setToAddress]   = useState('');
   const [sending,     setSending]     = useState(false);
   const [sendStatus,  setSendStatus]  = useState<'idle' | 'sent' | 'error'>('idle');
+  const [sendError,   setSendError]   = useState<string | null>(null);
 
   useEffect(() => {
     emailBuilderApi.getData(eventId)
@@ -158,7 +159,14 @@ export default function EmailBuilderScreen() {
     setSections(prev => prev.includes(id) ? prev : [...prev, id]), []);
 
   const handleSend = async () => {
-    if (!builderData || !toAddress.trim()) return;
+    if (!builderData) return;
+    setSendError(null);
+    if (!subject.trim()) { setSendError('Subject line is required.'); return; }
+    if (!toAddress.trim()) { setSendError('To address is required.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toAddress.trim())) {
+      setSendError('Enter a valid email address.');
+      return;
+    }
     setSending(true);
     setSendStatus('idle');
     try {
@@ -266,29 +274,35 @@ export default function EmailBuilderScreen() {
         <View style={[styles.card, { backgroundColor: '#fff' }]}>
           <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>Send Email</Text>
 
-          <Text style={[styles.label, { color: theme.colors.accent }]}>Subject line</Text>
+          <Text style={[styles.label, { color: theme.colors.accent }]}>Subject line *</Text>
           <TextInput
             style={[styles.input, { borderColor: '#ddd', color: theme.colors.primary }]}
             value={subject}
-            onChangeText={setSubject}
+            onChangeText={v => { setSubject(v); if (sendError) setSendError(null); }}
             placeholder="Email subject"
           />
 
-          <Text style={[styles.label, { color: theme.colors.accent }]}>To address</Text>
+          <Text style={[styles.label, { color: theme.colors.accent }]}>To address *</Text>
           <TextInput
             style={[styles.input, { borderColor: '#ddd', color: theme.colors.primary }]}
             value={toAddress}
-            onChangeText={setToAddress}
+            onChangeText={v => { setToAddress(v); if (sendError) setSendError(null); }}
             placeholder="recipient@example.com"
             keyboardType="email-address"
             autoCapitalize="none"
           />
 
+          {sendError && (
+            <View style={styles.sendErrorBox}>
+              <Text style={styles.errorMsg}>{sendError}</Text>
+            </View>
+          )}
+
           <View style={styles.buttonRow}>
             <Pressable
-              style={[styles.btn, { backgroundColor: theme.colors.primary }, (!toAddress.trim() || sending) && styles.btnDisabled]}
+              style={[styles.btn, { backgroundColor: theme.colors.primary }, sending && styles.btnDisabled]}
               onPress={handleSend}
-              disabled={sending || !toAddress.trim()}
+              disabled={sending}
             >
               {sending
                 ? <ActivityIndicator color="#fff" size="small" />
@@ -366,6 +380,7 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.5 },
   btnText:     { color: '#fff', fontSize: 14, fontWeight: '700' },
 
+  sendErrorBox: { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 10, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
   successMsg: { color: '#27ae60', fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  errorMsg:   { color: '#e74c3c', fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  errorMsg:   { color: '#c0392b', fontSize: 13, fontWeight: '600' },
 });

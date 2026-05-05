@@ -1,21 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Pressable, StyleSheet, TextInput,
-  ScrollView, ActivityIndicator, Alert,
+  ScrollView, ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { auctionApi, AuctionItem, AuctionSession } from '@/lib/api';
+import { auctionApi, type AuctionItem, type AuctionSession } from '@/lib/api';
 
 export default function LiveAuctionScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
 
-  const [items, setItems]         = useState<AuctionItem[]>([]);
-  const [session, setSession]     = useState<AuctionSession | null>(null);
-  const [loading, setLoading]     = useState(true);
+  const [items,     setItems]     = useState<AuctionItem[]>([]);
+  const [session,   setSession]   = useState<AuctionSession | null>(null);
+  const [loading,   setLoading]   = useState(true);
+  const [working,   setWorking]   = useState(false);
+  const [error,     setError]     = useState<string | null>(null);
+  const [success,   setSuccess]   = useState<string | null>(null);
   const [calledAmt, setCalledAmt] = useState('');
-  const [working, setWorking]     = useState(false);
 
   const currentItem = session?.currentItemId
     ? items.find(i => i.id === session.currentItemId) ?? null
@@ -23,6 +25,7 @@ export default function LiveAuctionScreen() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const [itemData, sessionData] = await Promise.all([
         auctionApi.getItems(eventId),
@@ -31,8 +34,10 @@ export default function LiveAuctionScreen() {
       setItems(itemData.filter(i => i.auctionType === 'Live' || i.auctionType === 'DonationLive'));
       setSession(sessionData);
       if (sessionData) {
-        setCalledAmt(String(sessionData.currentCalledAmountCents));
+        setCalledAmt(centsToDollars(sessionData.currentCalledAmountCents));
       }
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to load live auction data.');
     } finally {
       setLoading(false);
     }
@@ -40,26 +45,32 @@ export default function LiveAuctionScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  function clearFeedback() { setError(null); setSuccess(null); }
+
   async function startSession() {
+    clearFeedback();
     setWorking(true);
     try {
       const s = await auctionApi.startSession(eventId);
       setSession(s);
-    } catch (e: unknown) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to start');
+      setSuccess('Live auction session started.');
+    } catch (e: any) {
+      setError(e.message ?? 'Could not start the session. Ensure there are live auction items configured.');
     } finally {
       setWorking(false);
     }
   }
 
   async function advanceItem() {
+    clearFeedback();
     setWorking(true);
     try {
       const s = await auctionApi.nextItem(eventId);
       setSession(s);
-      setCalledAmt(String(s.currentCalledAmountCents));
-    } catch (e: unknown) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to advance');
+      setCalledAmt(centsToDollars(s.currentCalledAmountCents));
+      if (!s.currentItemId) setSuccess('All items have been presented.');
+    } catch (e: any) {
+      setError(e.message ?? 'Could not advance to the next item.');
     } finally {
       setWorking(false);
     }
@@ -67,27 +78,30 @@ export default function LiveAuctionScreen() {
 
   async function updateCalledAmount() {
     if (!session) return;
-    const cents = parseInt(calledAmt) || 0;
+    clearFeedback();
+    const cents = dollarsToCents(calledAmt);
     setWorking(true);
     try {
       const s = await auctionApi.updateCalledAmount(eventId, cents);
       setSession(s);
-    } catch (e: unknown) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to update amount');
+      setSuccess(`Called amount updated to ${fmt(cents)}.`);
+    } catch (e: any) {
+      setError(e.message ?? 'Could not update the called amount.');
     } finally {
       setWorking(false);
     }
   }
 
   async function awardItem(item: AuctionItem, winnerId: string) {
-    const cents = parseInt(calledAmt) || item.currentHighBidCents;
+    clearFeedback();
+    const cents = dollarsToCents(calledAmt) || item.currentHighBidCents;
     setWorking(true);
     try {
       await auctionApi.awardItem(item.id, winnerId, cents);
-      Alert.alert('Awarded', `"${item.title}" awarded successfully. Charge initiated.`);
+      setSuccess(`"${item.title}" awarded for ${fmt(cents)}. Charge initiated.`);
       await load();
-    } catch (e: unknown) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to award');
+    } catch (e: any) {
+      setError(e.message ?? 'Could not award the item. Verify the player ID and try again.');
     } finally {
       setWorking(false);
     }
@@ -102,19 +116,46 @@ export default function LiveAuctionScreen() {
   );
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
+    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <Text style={[styles.heading, { color: theme.colors.primary }]}>Live Auction Host Control</Text>
 
-      {/* Session status */}
+      {/* Feedback banners */}
+      {error && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable onPress={() => setError(null)} style={{ marginTop: 6 }}>
+            <Text style={{ color: '#c0392b', fontSize: 12 }}>Dismiss</Text>
+          </Pressable>
+        </View>
+      )}
+      {success && (
+        <View style={styles.successBox}>
+          <Text style={styles.successText}>✓ {success}</Text>
+          <Pressable onPress={() => setSuccess(null)} style={{ marginTop: 6 }}>
+            <Text style={{ color: '#1a6b3c', fontSize: 12 }}>Dismiss</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Pre-session state */}
       {!session ? (
         <View style={styles.card}>
-          <Text style={{ fontSize: 15, color: '#555', marginBottom: 16 }}>
-            No live auction session is active.
-          </Text>
+          <Text style={styles.infoText}>No live auction session is active.</Text>
+          {items.length === 0 ? (
+            <View style={styles.warnBox}>
+              <Text style={styles.warnText}>
+                No live auction items found. Add items with type "Live" or "Donation (Live)" from the Auction Items tab first.
+              </Text>
+            </View>
+          ) : (
+            <Text style={[styles.infoText, { marginBottom: 16, color: '#555' }]}>
+              {items.length} live item{items.length !== 1 ? 's' : ''} ready.
+            </Text>
+          )}
           <Pressable
-            style={[styles.bigBtn, { backgroundColor: theme.colors.primary }]}
+            style={[styles.bigBtn, { backgroundColor: items.length === 0 ? '#aaa' : theme.colors.primary }]}
             onPress={startSession}
-            disabled={working}
+            disabled={working || items.length === 0}
           >
             {working
               ? <ActivityIndicator color="#fff" />
@@ -124,36 +165,38 @@ export default function LiveAuctionScreen() {
       ) : (
         <>
           {/* Session active banner */}
-          <View style={[styles.banner, { backgroundColor: '#27ae60' }]}>
-            <Text style={styles.bannerText}>🔴 LIVE AUCTION IN PROGRESS</Text>
+          <View style={[styles.banner, { backgroundColor: '#e74c3c' }]}>
+            <Text style={styles.bannerText}>🔴  LIVE SESSION IN PROGRESS</Text>
           </View>
 
-          {/* Current item display */}
+          {/* Current item */}
           {currentItem ? (
             <View style={styles.card}>
               <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>
                 {currentItem.title}
               </Text>
-              <Text style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>
-                {currentItem.description}
-              </Text>
-              <Text style={{ color: '#555' }}>
-                Starting: {fmt(currentItem.startingBidCents)}
+              {currentItem.description ? (
+                <Text style={styles.itemDesc}>{currentItem.description}</Text>
+              ) : null}
+              <Text style={styles.itemMeta}>
+                Starting bid: {fmt(currentItem.startingBidCents)}
+                {currentItem.currentHighBidCents > 0
+                  ? `  ·  Current high bid: ${fmt(currentItem.currentHighBidCents)}`
+                  : ''}
               </Text>
 
-              {/* Called amount input */}
-              <Text style={[styles.label, { marginTop: 16 }]}>Currently Called Amount</Text>
+              {/* Called amount */}
+              <Text style={[styles.label, { marginTop: 16 }]}>Called Amount ($)</Text>
               <View style={styles.amountRow}>
+                <Text style={styles.dollarSign}>$</Text>
                 <TextInput
                   style={[styles.amtInput, { borderColor: theme.colors.primary }]}
                   value={calledAmt}
                   onChangeText={setCalledAmt}
-                  keyboardType="number-pad"
-                  placeholder="cents"
+                  keyboardType="decimal-pad"
+                  placeholder="0.00"
+                  placeholderTextColor="#aaa"
                 />
-                <Text style={styles.amtDisplay}>
-                  = {fmt(parseInt(calledAmt) || 0)}
-                </Text>
                 <Pressable
                   style={[styles.btn, { backgroundColor: theme.colors.primary }]}
                   onPress={updateCalledAmount}
@@ -164,13 +207,9 @@ export default function LiveAuctionScreen() {
               </View>
 
               {/* Award item */}
-              <Text style={[styles.label, { marginTop: 20 }]}>Award Item</Text>
-              <Text style={{ color: '#888', fontSize: 13, marginBottom: 8 }}>
-                Enter winner player ID to award at the current called amount.
-              </Text>
+              <Text style={[styles.label, { marginTop: 20 }]}>Award Item to Winner</Text>
               <AwardWinnerInput
                 item={currentItem}
-                calledCents={parseInt(calledAmt) || 0}
                 onAward={(winnerId) => awardItem(currentItem, winnerId)}
                 disabled={working}
                 theme={theme}
@@ -178,33 +217,37 @@ export default function LiveAuctionScreen() {
             </View>
           ) : (
             <View style={styles.card}>
-              <Text style={{ color: '#888', fontSize: 15 }}>
-                No item selected. Tap "Next Item" to begin.
-              </Text>
+              <Text style={styles.infoText}>No item selected. Tap "Next Item" to begin.</Text>
             </View>
           )}
 
           {/* Controls */}
-          <View style={styles.controlRow}>
-            <Pressable
-              style={[styles.bigBtn, { backgroundColor: theme.colors.accent, flex: 1, marginRight: 8 }]}
-              onPress={advanceItem}
-              disabled={working}
-            >
-              <Text style={styles.bigBtnText}>Next Item →</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            style={[styles.bigBtn, { backgroundColor: theme.colors.accent }]}
+            onPress={advanceItem}
+            disabled={working}
+          >
+            {working
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.bigBtnText}>Next Item →</Text>}
+          </Pressable>
 
-          {/* Upcoming items list */}
+          {/* Queue */}
           <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
             Remaining Items ({items.filter(i => i.status === 'Open').length})
           </Text>
           {items.filter(i => i.status === 'Open').map(item => (
-            <View key={item.id} style={[styles.miniCard, { opacity: item.id === session.currentItemId ? 1 : 0.7 }]}>
+            <View
+              key={item.id}
+              style={[
+                styles.miniCard,
+                item.id === session.currentItemId && { borderLeftWidth: 3, borderLeftColor: theme.colors.primary },
+              ]}
+            >
               <Text style={{ fontWeight: '700', color: theme.colors.primary }}>{item.title}</Text>
               <Text style={{ color: '#555', fontSize: 12 }}>
-                Start: {fmt(item.startingBidCents)}
-                {item.id === session.currentItemId ? '  ← Current' : ''}
+                Starting: {fmt(item.startingBidCents)}
+                {item.id === session.currentItemId ? '  ← On stage now' : ''}
               </Text>
             </View>
           ))}
@@ -214,58 +257,97 @@ export default function LiveAuctionScreen() {
   );
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function centsToDollars(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
+
+function dollarsToCents(val: string): number {
+  const n = parseFloat(val.replace(/[^0-9.]/g, ''));
+  return isNaN(n) ? 0 : Math.round(n * 100);
+}
+
+// ── Award Winner Input ────────────────────────────────────────────────────────
+
 function AwardWinnerInput({
-  item, calledCents, onAward, disabled, theme,
+  item, onAward, disabled, theme,
 }: {
-  item: AuctionItem;
-  calledCents: number;
-  onAward: (winnerId: string) => void;
+  item:     AuctionItem;
+  onAward:  (winnerId: string) => void;
   disabled: boolean;
-  theme: ReturnType<typeof import('@gfp/ui').useTheme>;
+  theme:    ReturnType<typeof import('@gfp/ui').useTheme>;
 }) {
   const [winnerId, setWinnerId] = useState('');
+  const [idError,  setIdError]  = useState<string | null>(null);
+
+  function handleAward() {
+    const id = winnerId.trim();
+    if (!id) { setIdError('Enter the winner\'s player ID.'); return; }
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidPattern.test(id)) { setIdError('Enter a valid player ID (UUID format, e.g. from the Teams screen).'); return; }
+    setIdError(null);
+    onAward(id);
+    setWinnerId('');
+  }
 
   return (
-    <View style={{ flexDirection: 'row', gap: 8 }}>
-      <TextInput
-        style={[styles.amtInput, { flex: 1, borderColor: '#ddd' }]}
-        value={winnerId}
-        onChangeText={setWinnerId}
-        placeholder="Winner player ID (UUID)"
-      />
-      <Pressable
-        style={[styles.btn, { backgroundColor: '#27ae60' }]}
-        disabled={disabled || !winnerId.trim()}
-        onPress={() => {
-          if (winnerId.trim()) {
-            onAward(winnerId.trim());
-            setWinnerId('');
-          }
-        }}
-      >
-        <Text style={styles.btnText}>Award</Text>
-      </Pressable>
+    <View>
+      <Text style={{ color: '#666', fontSize: 13, marginBottom: 8 }}>
+        Find the player ID on the Teams or Registration screen.
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <TextInput
+          style={[
+            styles.amtInput,
+            { flex: 1, borderColor: idError ? '#e74c3c' : '#ddd', fontSize: 14 },
+          ]}
+          value={winnerId}
+          onChangeText={v => { setWinnerId(v); if (idError) setIdError(null); }}
+          placeholder="Player ID (UUID)"
+          placeholderTextColor="#aaa"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <Pressable
+          style={[styles.btn, { backgroundColor: '#27ae60' }, (disabled || !winnerId.trim()) && { opacity: 0.5 }]}
+          disabled={disabled || !winnerId.trim()}
+          onPress={handleAward}
+        >
+          <Text style={styles.btnText}>Award</Text>
+        </Pressable>
+      </View>
+      {idError && <Text style={{ color: '#e74c3c', fontSize: 12, marginTop: 4 }}>{idError}</Text>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   page:        { flex: 1, backgroundColor: '#f5f5f5' },
+  content:     { padding: 20, paddingBottom: 60, gap: 12 },
   center:      { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  heading:     { fontSize: 22, fontWeight: '800', marginBottom: 16 },
-  card:        { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, elevation: 2 },
-  banner:      { borderRadius: 10, padding: 14, marginBottom: 16, alignItems: 'center' },
-  bannerText:  { color: '#fff', fontWeight: '800', fontSize: 16 },
+  heading:     { fontSize: 22, fontWeight: '800' },
+  card:        { backgroundColor: '#fff', borderRadius: 12, padding: 16, elevation: 1, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
+  banner:      { borderRadius: 10, padding: 14, alignItems: 'center' },
+  bannerText:  { color: '#fff', fontWeight: '800', fontSize: 16, letterSpacing: 0.5 },
+  infoText:    { fontSize: 14, color: '#555', marginBottom: 12 },
   itemTitle:   { fontSize: 18, fontWeight: '800', marginBottom: 6 },
-  label:       { fontSize: 13, fontWeight: '600', marginBottom: 6 },
+  itemDesc:    { color: '#555', fontSize: 14, marginBottom: 8 },
+  itemMeta:    { color: '#777', fontSize: 13 },
+  label:       { fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#333' },
   amountRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  amtInput:    { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, minWidth: 100 },
-  amtDisplay:  { fontSize: 20, fontWeight: '800', color: '#27ae60', flex: 1 },
-  btn:         { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
+  dollarSign:  { fontSize: 20, fontWeight: '800', color: '#27ae60' },
+  amtInput:    { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 18, fontWeight: '700', minWidth: 100, backgroundColor: '#fafafa' },
+  btn:         { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   btnText:     { color: '#fff', fontWeight: '700', fontSize: 14 },
   bigBtn:      { paddingVertical: 16, borderRadius: 10, alignItems: 'center' },
   bigBtnText:  { color: '#fff', fontWeight: '800', fontSize: 16 },
-  controlRow:  { flexDirection: 'row', marginBottom: 20 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 10 },
-  miniCard:    { backgroundColor: '#fff', borderRadius: 8, padding: 12, marginBottom: 8 },
+  sectionTitle: { fontSize: 16, fontWeight: '700' },
+  miniCard:    { backgroundColor: '#fff', borderRadius: 8, padding: 12 },
+  errorBox:    { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
+  errorText:   { color: '#c0392b', fontSize: 14, fontWeight: '600' },
+  successBox:  { backgroundColor: '#f0faf4', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#27ae60' },
+  successText: { color: '#1a6b3c', fontSize: 14, fontWeight: '600' },
+  warnBox:     { backgroundColor: '#fff8e1', borderRadius: 8, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#f39c12' },
+  warnText:    { color: '#7d5a00', fontSize: 13 },
 });

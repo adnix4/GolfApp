@@ -6,12 +6,15 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { teamsApi, type Team } from '@/lib/api';
+import { useResponsive } from '@/lib/responsive';
 
 type Filter = 'all' | 'pending' | 'checked_in';
 
 export default function RegistrationScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
+
+  const { isMobile, pagePadding } = useResponsive();
 
   const [teams,   setTeams]   = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +61,7 @@ export default function RegistrationScreen() {
   return (
     <View style={styles.page}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingHorizontal: pagePadding }]}>
         <Text style={[styles.title, { color: theme.colors.primary }]}>
           Registration
         </Text>
@@ -69,11 +72,15 @@ export default function RegistrationScreen() {
 
       {/* Stats strip */}
       {!loading && (
-        <View style={[styles.statsRow, { backgroundColor: theme.colors.surface }]}>
-          <StatChip label="Total"      value={teams.length}   color={theme.colors.primary} />
-          <StatChip label="Checked In" value={checkedIn}      color="#27ae60" />
-          <StatChip label="Fees Paid"  value={feesPaid}       color="#2980b9" />
-          <StatChip label="Pending"    value={teams.length - checkedIn} color="#f39c12" />
+        <View style={[
+          styles.statsRow,
+          { backgroundColor: theme.colors.surface, paddingHorizontal: pagePadding },
+          isMobile && styles.statsRowMobile,
+        ]}>
+          <StatChip label="Total"      value={teams.length}              color={theme.colors.primary} style={isMobile ? styles.statHalf : undefined} />
+          <StatChip label="Checked In" value={checkedIn}                 color="#27ae60"              style={isMobile ? styles.statHalf : undefined} />
+          <StatChip label="Fees Paid"  value={feesPaid}                  color="#2980b9"              style={isMobile ? styles.statHalf : undefined} />
+          <StatChip label="Pending"    value={teams.length - checkedIn}  color="#f39c12"              style={isMobile ? styles.statHalf : undefined} />
         </View>
       )}
 
@@ -178,9 +185,9 @@ export default function RegistrationScreen() {
   );
 }
 
-function StatChip({ label, value, color }: { label: string; value: number; color: string }) {
+function StatChip({ label, value, color, style }: { label: string; value: number; color: string; style?: object }) {
   return (
-    <View style={styles.statChip}>
+    <View style={[styles.statChip, style]}>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -189,13 +196,15 @@ function StatChip({ label, value, color }: { label: string; value: number; color
 
 const styles = StyleSheet.create({
   page:   { flex: 1, backgroundColor: '#f7f8fa' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, paddingBottom: 12 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 24, paddingBottom: 12 },
   title:  { fontSize: 22, fontWeight: '800' },
   refreshBtn: { paddingVertical: 6, paddingHorizontal: 12 },
   refreshText: { fontSize: 14, fontWeight: '600' },
 
-  statsRow: { flexDirection: 'row', paddingHorizontal: 24, paddingVertical: 14, gap: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e0e0e0' },
-  statChip: { alignItems: 'center' },
+  statsRow:       { flexDirection: 'row', paddingVertical: 14, gap: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e0e0e0' },
+  statsRowMobile: { flexWrap: 'wrap', gap: 0 },
+  statChip:       { alignItems: 'center', flex: 1 },
+  statHalf:       { flex: 0, width: '50%', paddingVertical: 10, paddingHorizontal: 8 },
   statValue: { fontSize: 22, fontWeight: '900' },
   statLabel: { fontSize: 11, fontWeight: '600', color: '#888', textTransform: 'uppercase', letterSpacing: 0.4 },
 

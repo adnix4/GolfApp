@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Pressable, FlatList, Modal, TextInput,
-  StyleSheet, ActivityIndicator, ScrollView, Image,
+  StyleSheet, ActivityIndicator, ScrollView, Image, Alert,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
@@ -40,13 +40,25 @@ export default function SponsorsScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function handleDelete(sponsorId: string) {
-    try {
-      await sponsorsApi.delete(id, sponsorId);
-      setSponsors(prev => prev.filter(s => s.id !== sponsorId));
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to delete sponsor.');
-    }
+  function handleDelete(sponsor: Sponsor) {
+    Alert.alert(
+      'Remove Sponsor',
+      `Remove "${sponsor.name}" from this event? This cannot be undone.`,
+      [
+        { text: 'Keep', style: 'cancel' },
+        {
+          text: 'Remove', style: 'destructive',
+          onPress: async () => {
+            try {
+              await sponsorsApi.delete(id, sponsor.id);
+              setSponsors(prev => prev.filter(s => s.id !== sponsor.id));
+            } catch (e: any) {
+              setError(e.message ?? 'Failed to remove sponsor. Please try again.');
+            }
+          },
+        },
+      ],
+    );
   }
 
   function handleSaved(sponsor: Sponsor) {
@@ -120,7 +132,7 @@ export default function SponsorsScreen() {
                 </Pressable>
                 <Pressable
                   style={styles.deleteBtn}
-                  onPress={() => handleDelete(s.id)}
+                  onPress={() => handleDelete(s)}
                 >
                   <Text style={styles.deleteBtnText}>Delete</Text>
                 </Pressable>
@@ -173,7 +185,16 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
   }, [initialData, visible]);
 
   async function handleSubmit() {
-    if (!name.trim() || !logoUrl.trim()) { setError('Name and logo URL are required.'); return; }
+    if (!name.trim())    { setError('Sponsor name is required.'); return; }
+    if (!logoUrl.trim()) { setError('Logo URL is required.'); return; }
+    if (!/^https?:\/\/.+/.test(logoUrl.trim())) {
+      setError('Logo URL must start with http:// or https://');
+      return;
+    }
+    if (websiteUrl.trim() && !/^https?:\/\/.+/.test(websiteUrl.trim())) {
+      setError('Website URL must start with http:// or https://');
+      return;
+    }
     setError(null);
     setLoading(true);
     try {

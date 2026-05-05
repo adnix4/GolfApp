@@ -227,7 +227,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
           {/* Hole selector */}
           {!initial && (
             <>
-              <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Hole Number</Text>
+              <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Hole Number *</Text>
               <TextInput
                 style={[styles.input, { borderColor: theme.colors.accent }]}
                 value={holeNumber}
@@ -241,7 +241,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
           )}
 
           {/* Quick-pick challenge types */}
-          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Challenge Type</Text>
+          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Challenge Type *</Text>
           <View style={styles.quickPicks}>
             {COMMON_CHALLENGES.map(c => (
               <Pressable

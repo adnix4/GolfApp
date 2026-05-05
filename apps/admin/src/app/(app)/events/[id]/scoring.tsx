@@ -5,10 +5,14 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { ScoreCard, useTheme } from '@gfp/ui';
 import { teamsApi, scoresApi, eventsApi, type Team, type Scorecard, type EventDetail } from '@/lib/api';
+import { useResponsive } from '@/lib/responsive';
 
 export default function ScoringScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
+
+  const { width, isMobile } = useResponsive();
+  const cardWidth = isMobile ? Math.floor((width - 40) / 2) : 180;
 
   const [event,        setEvent]        = useState<EventDetail | null>(null);
   const [teams,        setTeams]        = useState<Team[]>([]);
@@ -149,7 +153,7 @@ export default function ScoringScreen() {
             const isSaving = saving === holeNum;
 
             return (
-              <View key={holeNum} style={styles.cardWrapper}>
+              <View key={holeNum} style={[styles.cardWrapper, { width: cardWidth }]}>
                 {isSaving && (
                   <View style={styles.savingOverlay}>
                     <ActivityIndicator color={theme.colors.primary} />
@@ -217,7 +221,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cardWrapper: {
-    width: 180,
     position: 'relative',
   },
   savingOverlay: {

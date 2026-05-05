@@ -1,0 +1,174 @@
+﻿Golf Fundraiser Pro  ·  Phase 5: League Play + HandicapsImplementation Design
+
+
+⑤
+GOLF FUNDRAISER PRO
+Phase 5
+League Play + Handicaps
+
+
+Season Scheduling · Handicap Engine · Standings · Pairing Engine · Skins
+Golf Scramble Made Easy  ·  Implementation Design Series  ·  v1.0
+
+
+________________
+
+
+1. Phase 5 Goal & Scope
+Phase 5 adds season-long league play with automated handicap tracking and weekly standings. Golf clubs, courses, and membership organizations can run week-to-week leagues where results accumulate and handicaps update after every round. The mobile scoring app, offline capability, SignalR, and email infrastructure from Phases 1–3 carry forward unchanged. What's new is the season data model, the handicap engine, the pairing engine, and the admin season dashboard.
+
+
+Timeline
+	14–19 weeks (5a: 8–10 wk, 5b: 6–8 wk)
+	Phase 5a
+	Club handicap formula, Stableford + stroke play, basic pairing, skins, season dashboard
+	Phase 5b
+	USGA handicap formula, match play + quota formats, full balanced schedule algorithm, player season mobile screens
+	New Tables
+	leagues, seasons, flights, league_members, league_rounds, league_pairings, league_scores, handicap_history, standings, skins
+	Prerequisite
+	Phase 3 complete. SignalR, Redis, and email infrastructure available.
+	
+
+2. Handicap Calculation Engine
+The handicap engine is a C# background service that runs automatically after every round is closed. It recalculates every active member's handicap index, writes the result to league_members, and creates an audit record in handicap_history.
+
+
+2.1  Phase 5a: Club/League Formula
+* Admin configures formula at league creation. Options:
+   * Best N of last M rounds: sort member's last M differentials ascending, average the lowest N. E.g. Best 5 of last 10.
+   * Rolling average: simple average of last N rounds. E.g. last 8 rounds.
+   * Percentage of average: e.g. 85% of last 10-round average. Common in competitive leagues.
+* Differential calculation (simple): Adjusted Gross Score − Course Par. No slope/rating required.
+* Differential calculation (full, if course rating and slope provided): (AdjustedGross − CourseRating) × 113 / SlopeRating
+* Handicap cap: configurable per league (e.g. max 36.0). Any calculated value above cap is stored as cap.
+* Admin manual override: PATCH /api/v1/members/{id}/handicap. Requires reason. Logged in handicap_history with admin_override = true.
+* Sandbagger flag: if a member's last 5 net scores are all ≥ 3 strokes better than their handicap suggests, admin dashboard shows ⚠ flag for review.
+
+
+2.2  Phase 5b: USGA Formula
+* Best 8 of last 20 Score Differentials. Each differential = (AdjustedGross − CourseRating) × 113 / SlopeRating.
+* Requires course_rating and slope_rating fields on course_holes (add in Phase 5b migration).
+* Adjusted Gross Score: equitable stroke control caps per-hole scores at max (net double bogey per USGA rules).
+* No GHIN API required for the calculation itself. GHIN is only needed to sync handicap indexes with the USGA system for official play.
+
+
+2.3  Net Score and Course Handicap
+
+// Course Handicap formula
+courseHandicap = Math.Round(handicapIndex * (slopeRating / 113.0)
+                + (courseRating - par));
+
+// Stroke play net score
+netScore = grossScore - courseHandicap;
+
+// Stableford points per hole
+// netHoleScore = gross - handicapStrokesForHole
+// Points: net eagle+ = 4, birdie = 3, par = 2, bogey = 1, double+ = 0
+stablefordPoints = Math.Max(0, 2 + (par - netHoleScore));
+
+// Match play: allocate strokes by hole handicap_index
+// Player receives a stroke on holes where holeHandicapIndex <= handicapDifferencestrokeReceived = holeHandicapIndex <= Math.Abs(handicapDifference);
+
+
+3. Weekly Pairing Engine
+3.1  Phase 5a: Greedy Pairing
+* Admin taps 'Generate Pairings' on a round. Engine runs synchronously (< 1 second for ≤ 100 members).
+* Step 1: Filter to active, non-absent members. Sort by flight, then by handicap index.
+* Step 2: Build groups of max_players_per_group (default 4, configurable). Partial groups filled last.
+* Step 3: Apply soft constraint — check pairing_history for recent matchups. Swap pairs if a better arrangement reduces repeats (simple greedy swap, not exhaustive).
+* Step 4: Return proposed pairings as { groups: [ { players: [...], suggestedTeeTime, suggestedStartingHole } ] }
+* Admin reviews in a drag-and-drop UI. Moves players between groups. Locks pairings when satisfied.
+
+
+3.2  Phase 5b: Balanced Schedule
+* Full round-robin scheduling across the season. Uses a circle algorithm for even-numbered groups; modified Berger tables for odd.
+* Hard constraint: players in different flights are not matched against each other for standing points.
+* Hard constraint: absent players excluded from pairings.
+* Soft constraint: for match play, no player faces the same opponent more than once until all have faced each other once.
+
+
+3.3  Substitute Handling
+* Admin adds substitute: POST /api/v1/rounds/{id}/substitutes — { absent_member_id, sub_player_id, sub_handicap_index }
+* Sub's score counted in sub's record. Absent member receives a penalty score (configurable: avg of last 5 rounds or league's defined penalty).
+* Sub can be a non-member (walk-in). Their scores don't affect season standings.
+
+
+4. Standings Calculation
+4.1  Stableford Standings
+* After each round closes: sum Stableford points per player across all counted rounds.
+* Tiebreaker: most recent round points, then head-to-head record if still tied.
+* Configurable: 'rounds counted' — all rounds, or best N of total rounds played.
+
+
+4.2  Stroke Play Standings
+* Net score = gross − course handicap per round.
+* Season standings: total net strokes (lowest wins) or season average net.
+* Admin configures which method at season creation.
+
+
+4.3  Skins
+* Per round, per hole: lowest NET score wins that hole's skin. If two or more players tie, the skin carries to the next hole.
+* Pot amount per hole is configurable (e.g. $2/player/hole × group size).
+* INSERT into skins after round close: winner_player_id, pot_cents, carried_over_from_hole (null if won cleanly).
+* Skins results displayed on round result page and in result emails.
+
+
+5. Admin Season Dashboard
+* Season Overview — Round list with status (Scheduled / Open / Scoring / Closed). Quick stats: members active, rounds complete, season points leader per flight.
+* Member Roster — Table: name, current handicap index, flight, dues status, rounds played, absences, last round gross/net. Sort by any column. Bulk email action.
+* Round Manager — Per round: status badge, date, course, pairing count, scoring % complete. Actions: Generate Pairings → Edit Pairings → Open Scoring → Close Round → Publish Results.
+* Handicap Manager — Per member: current index, trend sparkline, last 10 differentials, override button. Sandbagger flags shown with ⚠ icon.
+* Standings Board — Live standings per flight. Toggle: Stableford | Stroke | Match. Exportable to PDF for clubhouse posting.
+* Skins Tracker — Per round: which holes were won, carryovers, winner names, pot amounts. Season cumulative skins winnings per player.
+
+
+6. Phase 5 API Endpoints
+Method
+	Endpoint
+	Description
+	CRUD
+	/leagues
+	Create/manage leagues with format, handicap_system, max_flights, dues
+	CRUD
+	/leagues/{id}/seasons
+	Season creation with total_rounds, start_date, end_date
+	POST
+	/seasons/{id}/members
+	Register member: player_id, flight_id, collect dues via Stripe if dues_cents > 0
+	GET
+	/seasons/{id}/standings
+	Standings per flight. Cached; refreshed after each round closes.
+	POST
+	/rounds/{id}/generate-pairings
+	Run pairing engine. Returns proposed pairings for admin review.
+	PATCH
+	/rounds/{id}/pairings
+	Admin saves pairing edits. Locks pairings. Sends player notifications.
+	POST
+	/rounds/{id}/open-scoring
+	Opens the round for score entry in the mobile app.
+	POST
+	/rounds/{id}/close
+	Close round: runs handicap engine, recalculates standings, resolves skins, sends result emails.
+	GET
+	/members/{id}/handicap-history
+	Full audit trail of handicap changes with round references.
+	PATCH
+	/members/{id}/handicap
+	Admin override. Requires reason. Logged with admin_override=true.
+	POST
+	/rounds/{id}/absence
+	Player reports absence. Triggers substitute workflow notification to admin.
+	POST
+	/rounds/{id}/substitutes
+	Admin adds sub: absent_member_id, sub_player_id, sub_handicap.
+	GET
+	/seasons/{id}/skins/{roundId}
+	Skins results: winners, carryovers, pot amounts per hole.
+	GET
+	/members/{id}/season-summary
+	Player dashboard: handicap trend, standing, round history, head-to-head record.
+	
+
+Golf Fundraiser Pro — ConfidentialPage

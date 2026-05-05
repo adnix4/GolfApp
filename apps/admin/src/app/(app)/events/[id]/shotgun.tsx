@@ -6,11 +6,14 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { eventsApi, teamsApi, type EventDetail, type Team } from '@/lib/api';
+import { useResponsive } from '@/lib/responsive';
 import { autoAssignHoles, validateShotgunAssignments } from '@/lib/shotgunUtils';
 
 export default function ShotgunScreen() {
   const { id }  = useLocalSearchParams<{ id: string }>();
   const theme   = useTheme();
+
+  const { pagePadding } = useResponsive();
 
   const [event,    setEvent]    = useState<EventDetail | null>(null);
   const [teams,    setTeams]    = useState<Team[]>([]);
@@ -96,7 +99,7 @@ export default function ShotgunScreen() {
   return (
     <View style={styles.page}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingHorizontal: pagePadding, paddingTop: pagePadding }]}>
         <View>
           <Text style={[styles.title, { color: theme.colors.primary }]}>Shotgun Assignment</Text>
           {!loading && event && (
@@ -233,7 +236,7 @@ const styles = StyleSheet.create({
   page:   { flex: 1, backgroundColor: '#f7f8fa' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
 
-  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 24, paddingBottom: 14, flexWrap: 'wrap', gap: 12 },
+  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 14, flexWrap: 'wrap', gap: 12 },
   title:         { fontSize: 22, fontWeight: '800' },
   subtitle:      { fontSize: 13, marginTop: 3 },
   headerActions: { flexDirection: 'row', gap: 10, alignItems: 'center' },

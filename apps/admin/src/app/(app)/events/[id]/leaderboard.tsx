@@ -5,11 +5,14 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { LeaderboardRow, useTheme } from '@gfp/ui';
 import { eventsApi, type LeaderboardEntry } from '@/lib/api';
+import { useResponsive } from '@/lib/responsive';
 import type { LeaderboardEntryDTO } from '@gfp/shared-types';
 
 export default function LeaderboardScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
+
+  const { pagePadding } = useResponsive();
 
   const [entries,   setEntries]   = useState<LeaderboardEntry[]>([]);
   const [loading,   setLoading]   = useState(true);
@@ -51,7 +54,7 @@ export default function LeaderboardScreen() {
   }
 
   return (
-    <View style={styles.page}>
+    <View style={[styles.page, { padding: pagePadding }]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.colors.primary }]}>Leaderboard</Text>
@@ -99,7 +102,7 @@ export default function LeaderboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  page:   { flex: 1, padding: 28 },
+  page:   { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   title:  { fontSize: 22, fontWeight: '800' },
