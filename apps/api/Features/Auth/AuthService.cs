@@ -57,6 +57,7 @@ public class AuthService
     public const string RoleOrgAdmin   = "OrgAdmin";
     public const string RoleEventStaff = "EventStaff";
     public const string RoleGolfer     = "Golfer";
+    public const string RoleSuperAdmin = "SuperAdmin";
 
     public AuthService(
         ApplicationDbContext db,
@@ -363,7 +364,7 @@ public class AuthService
     /// </summary>
     private async Task EnsureRolesExistAsync()
     {
-        foreach (var roleName in new[] { RoleOrgAdmin, RoleEventStaff, RoleGolfer })
+        foreach (var roleName in new[] { RoleOrgAdmin, RoleEventStaff, RoleGolfer, RoleSuperAdmin })
         {
             if (!await _roleManager.RoleExistsAsync(roleName))
             {

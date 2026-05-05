@@ -51,8 +51,9 @@ public class RealTimeService : IRealTimeService
             teamId,
             holeNumber,
             grossScore,
-            toParTotal = entry?.ToPar ?? 0,
-            rank       = entry?.Rank   ?? 0,
+            toParTotal       = entry?.ToPar            ?? 0,
+            stablefordPoints = entry?.StablefordPoints ?? 0,
+            rank             = entry?.Rank             ?? 0,
         }, ct);
 
         if (grossScore == 1)
@@ -221,9 +222,21 @@ public class RealTimeService : IRealTimeService
             ct:    ct);
     }
 
-    // Computes standings from live DB data. Uses par-4 default when no course is attached.
+    // Computes standings from live DB data, format-aware.
     private async Task<List<StandingEntry>> ComputeStandingsAsync(Guid eventId, CancellationToken ct)
     {
+        var evt = await _db.Events
+            .Include(e => e.Course).ThenInclude(c => c!.Holes)
+            .Where(e => e.Id == eventId)
+            .Select(e => new { e.Format, Holes = e.Course != null ? e.Course.Holes : null })
+            .FirstOrDefaultAsync(ct);
+
+        bool isStableford = evt?.Format == Domain.Enums.EventFormat.Stableford;
+
+        var parByHole = evt?.Holes?
+            .ToDictionary(h => (int)h.HoleNumber, h => (int)h.Par)
+            ?? new Dictionary<int, int>();
+
         var teams = await _db.Teams
             .Where(t => t.EventId == eventId)
             .Select(t => new { t.Id, t.Name })
@@ -243,35 +256,42 @@ public class RealTimeService : IRealTimeService
             var ts    = byTeam.GetValueOrDefault(t.Id, []);
             var gross = ts.Sum(s => (int)s.GrossScore);
             var holes = ts.Count;
-            var toPar = gross - (holes * 4);
+            var par   = ts.Sum(s => parByHole.GetValueOrDefault(s.HoleNumber, 4));
+            var toPar = gross - par;
+            var stablefordPts = isStableford
+                ? ts.Sum(s => Math.Max(0, parByHole.GetValueOrDefault(s.HoleNumber, 4) - (int)s.GrossScore + 2))
+                : 0;
             return new StandingEntry
             {
-                TeamId   = t.Id,
-                TeamName = t.Name,
-                Gross    = gross,
-                ToPar    = toPar,
-                Thru     = holes,
+                TeamId          = t.Id,
+                TeamName        = t.Name,
+                Gross           = gross,
+                ToPar           = toPar,
+                StablefordPoints = stablefordPts,
+                Thru            = holes,
             };
-        })
-        .OrderBy(e => e.ToPar)
-        .ThenBy(e => e.Gross)
-        .ToList();
+        });
 
-        for (var i = 0; i < entries.Count; i++)
-            entries[i] = entries[i] with { Rank = i + 1 };
+        List<StandingEntry> sorted = isStableford
+            ? entries.OrderByDescending(e => e.StablefordPoints).ThenByDescending(e => e.Thru).ToList()
+            : entries.OrderBy(e => e.ToPar).ThenBy(e => e.Gross).ToList();
 
-        return entries;
+        for (var i = 0; i < sorted.Count; i++)
+            sorted[i] = sorted[i] with { Rank = i + 1 };
+
+        return sorted;
     }
 
     // ── MODELS ─────────────────────────────────────────────────────────────────
 
     internal sealed record StandingEntry
     {
-        public Guid   TeamId   { get; init; }
-        public string TeamName { get; init; } = string.Empty;
-        public int    Gross    { get; init; }
-        public int    ToPar    { get; init; }
-        public int    Thru     { get; init; }
-        public int    Rank     { get; init; }
+        public Guid   TeamId          { get; init; }
+        public string TeamName        { get; init; } = string.Empty;
+        public int    Gross           { get; init; }
+        public int    ToPar           { get; init; }
+        public int    StablefordPoints { get; init; }
+        public int    Thru            { get; init; }
+        public int    Rank            { get; init; }
     }
 }

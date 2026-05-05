@@ -1,0 +1,449 @@
+import { useState, useEffect, useCallback } from 'react';
+import {
+  View, Text, TextInput, Pressable, ScrollView,
+  Switch, StyleSheet, ActivityIndicator, Platform, Image,
+} from 'react-native';
+import { useTheme } from '@gfp/ui';
+import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, type GFPTheme } from '@gfp/theme';
+import { useResponsive } from '@/lib/responsive';
+import { orgApi, type OrgProfile } from '@/lib/api';
+
+// ── Colour tokens shown in the picker ────────────────────────────────────────
+
+const TOKEN_META: { key: keyof GFPTheme; label: string; desc: string }[] = [
+  { key: 'primary',   label: 'Primary',   desc: 'Nav, headers, footer, primary buttons' },
+  { key: 'action',    label: 'Action',    desc: 'CTAs, links, active tabs, leaderboard highlights' },
+  { key: 'accent',    label: 'Accent',    desc: 'Hover states, secondary badges, sponsor strip' },
+  { key: 'highlight', label: 'Highlight', desc: 'Selected states, callout banners, QR borders' },
+  { key: 'surface',   label: 'Surface',   desc: 'Page backgrounds, cards, email body background' },
+];
+
+function parseTheme(json: string | null): GFPTheme {
+  if (!json) return { ...ECO_GREEN_DEFAULT };
+  try { return { ...ECO_GREEN_DEFAULT, ...JSON.parse(json) }; }
+  catch { return { ...ECO_GREEN_DEFAULT }; }
+}
+
+function isValidHex(s: string): boolean {
+  return /^#[0-9a-fA-F]{6}$/.test(s);
+}
+
+// Opens the browser's native color picker via a programmatically-created input
+function openColorPicker(current: string, onChange: (v: string) => void) {
+  if (Platform.OS !== 'web') return;
+  const input = (globalThis as any).document?.createElement('input');
+  if (!input) return;
+  input.type  = 'color';
+  input.value = isValidHex(current) ? current : '#000000';
+  input.style.position = 'fixed';
+  input.style.opacity  = '0';
+  input.style.pointerEvents = 'none';
+  (globalThis as any).document.body.appendChild(input);
+  input.oninput  = () => onChange(input.value);
+  input.onchange = () => {
+    onChange(input.value);
+    (globalThis as any).document.body.removeChild(input);
+  };
+  input.click();
+}
+
+// ── Color row ─────────────────────────────────────────────────────────────────
+
+function ColorRow({
+  meta, value, onChange, disabled,
+}: {
+  meta: (typeof TOKEN_META)[number];
+  value: string;
+  onChange: (v: string) => void;
+  disabled: boolean;
+}) {
+  const valid = isValidHex(value);
+  return (
+    <View style={cr.row}>
+      <Pressable
+        style={[cr.swatch, { backgroundColor: valid ? value : '#cccccc' }]}
+        onPress={() => !disabled && openColorPicker(value, onChange)}
+        accessibilityLabel={`Pick color for ${meta.label}`}
+      />
+      <View style={cr.info}>
+        <Text style={cr.tokenLabel}>{meta.label}</Text>
+        <Text style={cr.tokenDesc}>{meta.desc}</Text>
+      </View>
+      <TextInput
+        style={[cr.hexInput, !valid && cr.hexInputError]}
+        value={value}
+        onChangeText={onChange}
+        placeholder="#rrggbb"
+        placeholderTextColor="#aaa"
+        autoCapitalize="none"
+        autoCorrect={false}
+        maxLength={7}
+        editable={!disabled}
+      />
+    </View>
+  );
+}
+
+const cr = StyleSheet.create({
+  row:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  swatch:    { width: 36, height: 36, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', flexShrink: 0 },
+  info:      { flex: 1 },
+  tokenLabel:{ fontSize: 14, fontWeight: '700', color: '#333' },
+  tokenDesc: { fontSize: 12, color: '#888', marginTop: 1 },
+  hexInput:  { borderWidth: 1, borderColor: '#ccc', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 7, fontSize: 14, width: 90, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
+  hexInputError: { borderColor: '#e74c3c' },
+});
+
+// ── Main Screen ───────────────────────────────────────────────────────────────
+
+export default function OrgSettingsScreen() {
+  const theme  = useTheme();
+  const { pagePadding } = useResponsive();
+
+  const [loading,    setLoading]    = useState(true);
+  const [saving,     setSaving]     = useState(false);
+  const [uploading,  setUploading]  = useState(false);
+  const [saved,      setSaved]      = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
+  const [uploadErr,  setUploadErr]  = useState<string | null>(null);
+
+  // Profile fields
+  const [slug,    setSlug]    = useState('');
+  const [name,    setName]    = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [mission, setMission] = useState('');
+  const [is501c3, setIs501c3] = useState(false);
+
+  // Theme tokens
+  const [colors, setColors] = useState<GFPTheme>({ ...ECO_GREEN_DEFAULT });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const org: OrgProfile = await orgApi.getMe();
+      setName(org.name);
+      setSlug(org.slug);
+      setLogoUrl(org.logoUrl ?? '');
+      setMission(org.missionStatement ?? '');
+      setIs501c3(org.is501c3);
+      setColors(parseTheme(org.themeJson));
+    } catch {
+      setError('Failed to load organization settings.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  function setToken(key: keyof GFPTheme, value: string) {
+    setColors(prev => ({ ...prev, [key]: value }));
+  }
+
+  const contrastRatio   = getContrastRatio(colors.primary, colors.surface);
+  const contrastPasses  = validateContrast(colors.primary, colors.surface);
+  const allColorsValid  = TOKEN_META.every(m => isValidHex(colors[m.key]));
+
+  async function handleSave() {
+    if (!name.trim()) { setError('Organization name is required.'); return; }
+    if (!allColorsValid) { setError('Fix invalid hex color values before saving.'); return; }
+    if (!contrastPasses) {
+      setError(`Primary on Surface contrast is ${contrastRatio.toFixed(1)}:1 — must be ≥ 4.5:1 (WCAG AA). Adjust Primary or Surface.`);
+      return;
+    }
+    setSaving(true);
+    setSaved(false);
+    setError(null);
+    try {
+      await orgApi.updateMe({
+        name:             name.trim(),
+        logoUrl:          logoUrl.trim() || null,
+        missionStatement: mission.trim() || null,
+        is501c3,
+        themeJson:        JSON.stringify(colors),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to save settings.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Web file picker ─────────────────────────────────────────────────────────
+
+  function openFilePicker() {
+    if (Platform.OS !== 'web') return;
+    const input = document.createElement('input');
+    input.type  = 'file';
+    input.accept = 'image/png,image/jpeg,image/svg+xml,image/webp';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      setUploadErr(null);
+      setUploading(true);
+      try {
+        const result = await orgApi.uploadLogo(file);
+        setLogoUrl(result.logoUrl);
+      } catch (e: any) {
+        setUploadErr(e.message ?? 'Upload failed.');
+      } finally {
+        setUploading(false);
+      }
+    };
+    input.click();
+  }
+
+  if (loading) {
+    return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
+  }
+
+  return (
+    <ScrollView
+      style={[styles.page, { backgroundColor: theme.pageBackground }]}
+      contentContainerStyle={{ padding: pagePadding, paddingBottom: 80 }}
+      keyboardShouldPersistTaps="handled"
+    >
+      <Text style={[styles.title, { color: theme.colors.primary }]}>Organization Settings</Text>
+      <Text style={[styles.sub,   { color: theme.colors.accent }]}>
+        Update your organization profile. Changes apply to all events.
+      </Text>
+
+      {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
+      {saved  && <View style={styles.successBox}><Text style={styles.successText}>Settings saved.</Text></View>}
+
+      {/* ── PROFILE CARD ── */}
+      <View style={styles.card}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Profile</Text>
+
+        {/* Slug (read-only) */}
+        <View style={styles.fieldWrap}>
+          <Text style={[styles.label, { color: theme.colors.primary }]}>URL Slug</Text>
+          <View style={[styles.readonlyBox, { borderColor: theme.colors.accent + '55' }]}>
+            <Text style={[styles.readonlyText, { color: theme.colors.accent }]}>{slug}</Text>
+          </View>
+          <Text style={[styles.hint, { color: theme.colors.accent }]}>
+            Cannot be changed after registration.
+          </Text>
+        </View>
+
+        {/* Name */}
+        <View style={styles.fieldWrap}>
+          <Text style={[styles.label, { color: theme.colors.primary }]}>Organization Name *</Text>
+          <TextInput
+            style={[styles.input, { borderColor: theme.colors.accent }]}
+            value={name}
+            onChangeText={v => { setName(v); setError(null); }}
+            placeholder="Clear Lake High School Boosters"
+            placeholderTextColor="#aaa"
+            autoCapitalize="words"
+            autoCorrect={false}
+            editable={!saving}
+          />
+        </View>
+
+        {/* Logo */}
+        <View style={styles.fieldWrap}>
+          <Text style={[styles.label, { color: theme.colors.primary }]}>Logo</Text>
+
+          {/* Preview */}
+          {!!logoUrl && (
+            <View style={styles.logoPreview}>
+              <Image
+                source={{ uri: logoUrl.startsWith('/') ? `${process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000'}${logoUrl}` : logoUrl }}
+                style={styles.logoImg}
+                resizeMode="contain"
+              />
+            </View>
+          )}
+
+          {uploadErr && <Text style={styles.uploadErr}>{uploadErr}</Text>}
+
+          {/* Upload button (web only) */}
+          {Platform.OS === 'web' && (
+            <Pressable
+              style={[styles.uploadBtn, { borderColor: theme.colors.primary }, uploading && { opacity: 0.6 }]}
+              onPress={openFilePicker}
+              disabled={uploading || saving}
+            >
+              {uploading
+                ? <ActivityIndicator size="small" color={theme.colors.primary} />
+                : <Text style={[styles.uploadBtnText, { color: theme.colors.primary }]}>
+                    {logoUrl ? 'Replace Logo' : 'Upload Logo'}
+                  </Text>}
+            </Pressable>
+          )}
+          <Text style={[styles.hint, { color: theme.colors.accent }]}>PNG, JPEG, SVG or WebP · max 2 MB</Text>
+
+          {/* URL field — fallback / alternative */}
+          <Text style={[styles.label, { color: theme.colors.primary, marginTop: 10 }]}>
+            Or paste a URL
+          </Text>
+          <TextInput
+            style={[styles.input, { borderColor: theme.colors.accent }]}
+            value={logoUrl}
+            onChangeText={setLogoUrl}
+            placeholder="https://cdn.example.com/logo.png"
+            placeholderTextColor="#aaa"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            editable={!saving}
+          />
+        </View>
+
+        {/* Mission */}
+        <View style={styles.fieldWrap}>
+          <Text style={[styles.label, { color: theme.colors.primary }]}>Mission Statement</Text>
+          <TextInput
+            style={[styles.textArea, { borderColor: theme.colors.accent }]}
+            value={mission}
+            onChangeText={setMission}
+            placeholder="Describe your organization's mission and what this event supports…"
+            placeholderTextColor="#aaa"
+            multiline
+            numberOfLines={4}
+            autoCapitalize="sentences"
+            editable={!saving}
+          />
+          <Text style={[styles.hint, { color: theme.colors.accent }]}>
+            Shown on your public event landing page.
+          </Text>
+        </View>
+
+        {/* 501(c)3 */}
+        <View style={styles.toggleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.label, { color: theme.colors.primary, marginTop: 0 }]}>
+              501(c)(3) Non-Profit
+            </Text>
+            <Text style={[styles.hint, { color: theme.colors.accent }]}>
+              Enables IRS tax-deductibility language in donation receipts.
+            </Text>
+          </View>
+          <Switch
+            value={is501c3}
+            onValueChange={setIs501c3}
+            trackColor={{ true: theme.colors.primary }}
+            disabled={saving}
+          />
+        </View>
+      </View>
+
+      {/* ── THEME CARD ── */}
+      <View style={[styles.card, { marginTop: 20 }]}>
+        <View style={styles.themeTitleRow}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Brand Colors</Text>
+          <Pressable
+            onPress={() => setColors({ ...ECO_GREEN_DEFAULT })}
+            style={[styles.resetBtn, { borderColor: theme.colors.accent }]}
+          >
+            <Text style={[styles.resetBtnText, { color: theme.colors.accent }]}>Reset to Eco Green</Text>
+          </Pressable>
+        </View>
+
+        <Text style={[styles.hint, { color: theme.colors.accent, marginBottom: 12 }]}>
+          Enter 6-digit hex codes. Use the color picker on the right to browse.
+          All changes are previewed live.
+        </Text>
+
+        {TOKEN_META.map(meta => (
+          <ColorRow
+            key={meta.key}
+            meta={meta}
+            value={colors[meta.key]}
+            onChange={v => setToken(meta.key, v)}
+            disabled={saving}
+          />
+        ))}
+
+        {/* WCAG contrast indicator */}
+        <View style={[
+          styles.contrastBadge,
+          { backgroundColor: contrastPasses ? '#f0fdf4' : '#fdf2f2',
+            borderColor:      contrastPasses ? '#27ae60'  : '#e74c3c' },
+        ]}>
+          <Text style={[styles.contrastText, { color: contrastPasses ? '#1e8449' : '#c0392b' }]}>
+            Primary on Surface: {contrastRatio.toFixed(1)}:1
+            {'  '}
+            {contrastPasses ? '✓ Passes WCAG AA' : '✗ Fails WCAG AA (need ≥ 4.5:1)'}
+          </Text>
+        </View>
+
+        {/* Live preview strip */}
+        <View style={styles.previewRow}>
+          {TOKEN_META.map(m => (
+            <View key={m.key} style={[styles.previewChip, { backgroundColor: isValidHex(colors[m.key]) ? colors[m.key] : '#ccc' }]}>
+              <Text style={[styles.previewLabel, { color: m.key === 'surface' || m.key === 'highlight' ? '#333' : '#fff' }]}>
+                {m.label}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* ── SAVE ── */}
+      <Pressable
+        style={[styles.saveBtn, { backgroundColor: theme.colors.primary }, saving && { opacity: 0.6 }]}
+        onPress={handleSave}
+        disabled={saving}
+      >
+        {saving
+          ? <ActivityIndicator color="#fff" />
+          : <Text style={styles.saveBtnText}>Save All Changes</Text>}
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  page:    { flex: 1 },
+  center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+  title: { fontSize: 24, fontWeight: '900', marginBottom: 4 },
+  sub:   { fontSize: 14, marginBottom: 20 },
+
+  errorBox:    { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
+  errorText:   { color: '#c0392b', fontSize: 14 },
+  successBox:  { backgroundColor: '#f0fdf4', borderRadius: 8, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#27ae60' },
+  successText: { color: '#1e8449', fontSize: 14, fontWeight: '600' },
+
+  card: {
+    backgroundColor: '#fff', borderRadius: 16, padding: 24,
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 }, elevation: 3,
+  },
+  sectionTitle: { fontSize: 17, fontWeight: '800', marginBottom: 4 },
+
+  fieldWrap:    { marginBottom: 4 },
+  label:        { fontSize: 13, fontWeight: '600', marginTop: 16, marginBottom: 6 },
+  input:        { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, backgroundColor: '#fafafa' },
+  textArea:     { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, backgroundColor: '#fafafa', minHeight: 100, textAlignVertical: 'top' },
+  readonlyBox:  { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, backgroundColor: '#f5f5f5' },
+  readonlyText: { fontSize: 15, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
+  hint:         { fontSize: 12, marginTop: 4, color: '#888' },
+
+  logoPreview:  { marginTop: 8, marginBottom: 8, height: 80, backgroundColor: '#f5f5f5', borderRadius: 8, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  logoImg:      { width: '100%', height: 80 },
+  uploadErr:    { color: '#c0392b', fontSize: 12, marginBottom: 4 },
+  uploadBtn:    { marginTop: 6, borderWidth: 1.5, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center', alignSelf: 'flex-start' },
+  uploadBtnText:{ fontSize: 14, fontWeight: '700' },
+
+  toggleRow:    { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 },
+
+  themeTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  resetBtn:      { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  resetBtnText:  { fontSize: 12, fontWeight: '600' },
+
+  contrastBadge: { marginTop: 16, borderRadius: 8, padding: 10, borderWidth: 1 },
+  contrastText:  { fontSize: 13, fontWeight: '600' },
+
+  previewRow:   { flexDirection: 'row', gap: 6, marginTop: 12, flexWrap: 'wrap' },
+  previewChip:  { flex: 1, minWidth: 60, paddingVertical: 8, borderRadius: 6, alignItems: 'center' },
+  previewLabel: { fontSize: 11, fontWeight: '700' },
+
+  saveBtn:     { marginTop: 24, paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
+  saveBtnText: { fontSize: 16, fontWeight: '800', color: '#fff' },
+});

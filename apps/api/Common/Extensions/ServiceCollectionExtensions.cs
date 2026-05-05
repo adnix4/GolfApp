@@ -146,6 +146,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Features.Notifications.PushNotificationService>();
         services.AddScoped<Features.EmailBuilder.EmailBuilderService>();
 
+        services.AddScoped<Features.Orgs.OrgService>();
+
         // Phase 4: Payments + Auction
         services.AddScoped<Features.Payments.PaymentsService>();
         services.AddScoped<Features.Auction.AuctionService>();

@@ -379,17 +379,12 @@ public class EventService
     // ── LEADERBOARD ───────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Computes the leaderboard from raw score rows.
+    /// Computes the leaderboard from raw score rows, respecting the event format.
     ///
-    /// ALGORITHM (spec Phase 1 §6.3):
-    ///   For each team:
-    ///     1. Collect all Score rows for this team
-    ///     2. For each scored hole, look up par from the course
-    ///     3. toPar = sum(gross_score) - sum(par for scored holes)
-    ///     4. Sort by toPar ASC (lowest = best), then by holesComplete DESC (tiebreak)
-    ///     5. Assign ranks — teams with equal toPar share the same rank
-    ///
-    /// Returns an empty list if no scores have been entered yet.
+    /// Stroke / Scramble / BestBall:  sort by ToPar ASC (lowest = best).
+    /// Stableford:  sort by StablefordPoints DESC (highest = best).
+    ///   Points per hole = max(0, par − gross + 2)
+    ///   Double bogey or worse = 0 · Bogey = 1 · Par = 2 · Birdie = 3 · Eagle = 4 · Albatross = 5
     /// </summary>
     public async Task<List<LeaderboardEntryResponse>> GetLeaderboardAsync(
         Guid orgId,
@@ -406,75 +401,91 @@ public class EventService
         if (evt is null)
             throw new NotFoundException("Event", eventId);
 
-        // Build a quick par lookup: holeNumber → par
-        // If no course is attached yet, default all holes to par 4
         var parByHole = evt.Course?.Holes
             .ToDictionary(h => (int)h.HoleNumber, h => (int)h.Par)
             ?? Enumerable.Range(1, evt.Holes).ToDictionary(n => n, _ => 4);
 
-        // Group scores by team
         var scoresByTeam = evt.Scores
             .GroupBy(s => s.TeamId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        bool isStableford = evt.Format == EventFormat.Stableford;
+
         var entries = new List<(Guid TeamId, string TeamName, int ToPar, int GrossTotal,
-            int HolesComplete, bool IsComplete, short? StartingHole, DateTime? TeeTime)>();
+            int StablefordPoints, int HolesComplete, bool IsComplete,
+            short? StartingHole, DateTime? TeeTime)>();
 
         foreach (var team in evt.Teams)
         {
-            var teamScores = scoresByTeam.GetValueOrDefault(team.Id, []);
-
+            var teamScores    = scoresByTeam.GetValueOrDefault(team.Id, []);
             var grossTotal    = teamScores.Sum(s => (int)s.GrossScore);
             var parTotal      = teamScores.Sum(s => parByHole.GetValueOrDefault(s.HoleNumber, 4));
             var holesComplete = teamScores.Count;
-            var isComplete    = holesComplete >= evt.Holes;
+
+            var stablefordPts = isStableford
+                ? teamScores.Sum(s => Math.Max(0, parByHole.GetValueOrDefault(s.HoleNumber, 4) - (int)s.GrossScore + 2))
+                : 0;
 
             entries.Add((
-                TeamId:        team.Id,
-                TeamName:      team.Name,
-                ToPar:         grossTotal - parTotal,
-                GrossTotal:    grossTotal,
-                HolesComplete: holesComplete,
-                IsComplete:    isComplete,
-                StartingHole:  team.StartingHole,
-                TeeTime:       team.TeeTime
+                TeamId:          team.Id,
+                TeamName:        team.Name,
+                ToPar:           grossTotal - parTotal,
+                GrossTotal:      grossTotal,
+                StablefordPoints: stablefordPts,
+                HolesComplete:   holesComplete,
+                IsComplete:      holesComplete >= evt.Holes,
+                StartingHole:    team.StartingHole,
+                TeeTime:         team.TeeTime
             ));
         }
 
-        // Sort: best score (lowest toPar) first.
-        // Tiebreak: more holes completed ranks higher (they've done more work).
-        // Teams with 0 holes scored sort last but are still included.
-        var sorted = entries
-            .OrderBy(e => e.HolesComplete == 0 ? 1 : 0) // unsorted teams last
-            .ThenBy(e => e.ToPar)
-            .ThenByDescending(e => e.HolesComplete)
-            .ToList();
+        // Stableford: highest points wins. All other formats: lowest ToPar wins.
+        IOrderedEnumerable<(Guid TeamId, string TeamName, int ToPar, int GrossTotal,
+            int StablefordPoints, int HolesComplete, bool IsComplete,
+            short? StartingHole, DateTime? TeeTime)> sorted;
 
-        // Assign ranks — tied teams share the same rank number
+        if (isStableford)
+        {
+            sorted = entries
+                .OrderBy(e => e.HolesComplete == 0 ? 1 : 0)
+                .ThenByDescending(e => e.StablefordPoints)
+                .ThenByDescending(e => e.HolesComplete);
+        }
+        else
+        {
+            sorted = entries
+                .OrderBy(e => e.HolesComplete == 0 ? 1 : 0)
+                .ThenBy(e => e.ToPar)
+                .ThenByDescending(e => e.HolesComplete);
+        }
+
+        var sortedList = sorted.ToList();
         var result = new List<LeaderboardEntryResponse>();
         var rank = 1;
-        for (int i = 0; i < sorted.Count; i++)
+
+        for (int i = 0; i < sortedList.Count; i++)
         {
-            // Increment rank only when toPar changes (and team has scores)
-            if (i > 0 &&
-                sorted[i].HolesComplete > 0 &&
-                sorted[i].ToPar != sorted[i - 1].ToPar)
+            if (i > 0 && sortedList[i].HolesComplete > 0)
             {
-                rank = i + 1;
+                bool tied = isStableford
+                    ? sortedList[i].StablefordPoints == sortedList[i - 1].StablefordPoints
+                    : sortedList[i].ToPar == sortedList[i - 1].ToPar;
+                if (!tied) rank = i + 1;
             }
 
-            var e = sorted[i];
+            var e = sortedList[i];
             result.Add(new LeaderboardEntryResponse
             {
-                Rank          = e.HolesComplete == 0 ? 0 : rank,
-                TeamId        = e.TeamId,
-                TeamName      = e.TeamName,
-                ToPar         = e.ToPar,
-                GrossTotal    = e.GrossTotal,
-                HolesComplete = e.HolesComplete,
-                IsComplete    = e.IsComplete,
-                StartingHole  = e.StartingHole,
-                TeeTime       = e.TeeTime,
+                Rank             = e.HolesComplete == 0 ? 0 : rank,
+                TeamId           = e.TeamId,
+                TeamName         = e.TeamName,
+                ToPar            = e.ToPar,
+                GrossTotal       = e.GrossTotal,
+                StablefordPoints = e.StablefordPoints,
+                HolesComplete    = e.HolesComplete,
+                IsComplete       = e.IsComplete,
+                StartingHole     = e.StartingHole,
+                TeeTime          = e.TeeTime,
             });
         }
 
@@ -617,7 +628,9 @@ public class EventService
             .GroupBy(s => s.TeamId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        var entries = new List<(string TeamName, int ToPar, int GrossTotal, int HolesComplete, bool IsComplete)>();
+        bool isStableford = evt.Format == EventFormat.Stableford;
+
+        var entries = new List<(string TeamName, int ToPar, int GrossTotal, int StablefordPoints, int HolesComplete, bool IsComplete)>();
 
         foreach (var team in evt.Teams)
         {
@@ -625,30 +638,45 @@ public class EventService
             var grossTotal    = teamScores.Sum(s => (int)s.GrossScore);
             var parTotal      = teamScores.Sum(s => parByHole.GetValueOrDefault(s.HoleNumber, 4));
             var holesComplete = teamScores.Count;
-            entries.Add((team.Name, grossTotal - parTotal, grossTotal, holesComplete, holesComplete >= evt.Holes));
+            var stablefordPts = isStableford
+                ? teamScores.Sum(s => Math.Max(0, parByHole.GetValueOrDefault(s.HoleNumber, 4) - (int)s.GrossScore + 2))
+                : 0;
+            entries.Add((team.Name, grossTotal - parTotal, grossTotal, stablefordPts, holesComplete, holesComplete >= evt.Holes));
         }
 
-        var sorted = entries
-            .OrderBy(e => e.HolesComplete == 0 ? 1 : 0)
-            .ThenBy(e => e.ToPar)
-            .ThenByDescending(e => e.HolesComplete)
-            .ToList();
+        var sorted = isStableford
+            ? entries
+                .OrderBy(e => e.HolesComplete == 0 ? 1 : 0)
+                .ThenByDescending(e => e.StablefordPoints)
+                .ThenByDescending(e => e.HolesComplete)
+                .ToList()
+            : entries
+                .OrderBy(e => e.HolesComplete == 0 ? 1 : 0)
+                .ThenBy(e => e.ToPar)
+                .ThenByDescending(e => e.HolesComplete)
+                .ToList();
 
         var standings = new List<PublicLeaderboardEntry>();
         var rank = 1;
         for (int i = 0; i < sorted.Count; i++)
         {
-            if (i > 0 && sorted[i].HolesComplete > 0 && sorted[i].ToPar != sorted[i - 1].ToPar)
-                rank = i + 1;
+            if (i > 0 && sorted[i].HolesComplete > 0)
+            {
+                bool tied = isStableford
+                    ? sorted[i].StablefordPoints == sorted[i - 1].StablefordPoints
+                    : sorted[i].ToPar == sorted[i - 1].ToPar;
+                if (!tied) rank = i + 1;
+            }
 
             standings.Add(new PublicLeaderboardEntry
             {
-                Rank          = sorted[i].HolesComplete == 0 ? 0 : rank,
-                TeamName      = sorted[i].TeamName,
-                ToPar         = sorted[i].ToPar,
-                GrossTotal    = sorted[i].GrossTotal,
-                HolesComplete = sorted[i].HolesComplete,
-                IsComplete    = sorted[i].IsComplete,
+                Rank             = sorted[i].HolesComplete == 0 ? 0 : rank,
+                TeamName         = sorted[i].TeamName,
+                ToPar            = sorted[i].ToPar,
+                GrossTotal       = sorted[i].GrossTotal,
+                StablefordPoints = sorted[i].StablefordPoints,
+                HolesComplete    = sorted[i].HolesComplete,
+                IsComplete       = sorted[i].IsComplete,
             });
         }
 
@@ -656,6 +684,7 @@ public class EventService
         {
             EventId   = evt.Id,
             EventName = evt.Name,
+            Format    = evt.Format.ToString(),
             Status    = evt.Status.ToString(),
             Standings = standings,
         };

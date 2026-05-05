@@ -318,6 +318,12 @@ public record LeaderboardEntryResponse
     /// <summary>True when all holes in the event have a score.</summary>
     public bool    IsComplete      { get; init; }
 
+    /// <summary>
+    /// Stableford points total. Only meaningful for Stableford-format events.
+    /// Formula per hole: max(0, par - gross + 2). Higher = better.
+    /// </summary>
+    public int     StablefordPoints { get; init; }
+
     /// <summary>The team's starting hole (shotgun) or tee time, for display.</summary>
     public short?  StartingHole   { get; init; }
     public DateTime? TeeTime      { get; init; }
@@ -408,18 +414,20 @@ public record PublicLeaderboardResponse
 {
     public Guid    EventId   { get; init; }
     public string  EventName { get; init; } = string.Empty;
+    public string  Format    { get; init; } = string.Empty;
     public string  Status    { get; init; } = string.Empty;
     public List<PublicLeaderboardEntry> Standings { get; init; } = new();
 }
 
 public record PublicLeaderboardEntry
 {
-    public int     Rank          { get; init; }
-    public string  TeamName      { get; init; } = string.Empty;
-    public int     ToPar         { get; init; }
-    public int     GrossTotal    { get; init; }
-    public int     HolesComplete { get; init; }
-    public bool    IsComplete    { get; init; }
+    public int     Rank             { get; init; }
+    public string  TeamName         { get; init; } = string.Empty;
+    public int     ToPar            { get; init; }
+    public int     GrossTotal       { get; init; }
+    public int     StablefordPoints { get; init; }
+    public int     HolesComplete    { get; init; }
+    public bool    IsComplete       { get; init; }
 }
 
 // ── PUBLIC CHALLENGES ────────────────────────────────────────────────────────

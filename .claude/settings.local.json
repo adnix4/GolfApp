@@ -98,7 +98,8 @@
       "Bash(dotnet add *)",
       "Bash(dotnet test *)",
       "Bash(xargs head *)",
-      "Bash(grep -E \"\\\\.\\(cs|ts\\)$\")"
+      "Bash(grep -E \"\\\\.\\(cs|ts\\)$\")",
+      "Bash(xargs ls *)"
     ]
   }
 }

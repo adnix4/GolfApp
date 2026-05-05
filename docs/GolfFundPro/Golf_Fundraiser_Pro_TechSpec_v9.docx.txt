@@ -1,0 +1,1359 @@
+﻿Golf Fundraiser Pro  ·  Technical Specification v9.0Golf Scramble Made Easy
+
+
+⛳
+GOLF FUNDRAISER PRO
+Golf Scramble Made Easy
+Technical Architecture & Feature Specification  ·  Version 9.0
+
+
+Cross-Platform Tournament Management for Scrambles, Leagues & Charity Events
+
+
+5-Phase Delivery Plan  ·  Hybrid Architecture  ·  3-Mode Registration  ·  Auction & Payments  ·  GPS & Mapping
+
+
+________________
+
+
+1. Phased Delivery Plan — Overview
+Golf Fundraiser Pro is delivered in four sequential phases. Each phase produces a complete, usable product that can run a real tournament — later phases add capability rather than replace what was built. Nothing built in Phase 1 is thrown away; each phase activates features that were always planned in the architecture.
+
+
+Core Principle:  Database schema, API structure, authentication, and organization branding are all designed for the full feature set from day one. Later phases flip switches — they don't require rework.
+
+
+1.1  Phase Summary
+Phase
+	Name
+	Timeline
+	Who Uses It
+	What It Delivers
+	1
+	Admin-Run Tournament
+	8–10 weeks
+	Organizers
+	Full tournament management from admin dashboard. Organizer enters scores manually. No mobile app yet.
+	2
+	Golfer Scoring App + QR Transfer
+	8–10 weeks
+	Golfers + Admins
+	iOS/Android app for score entry, offline capability, QR scorecard transfer. Public leaderboard goes live.
+	3
+	Live Real-Time Scoring + Comms
+	4–6 weeks
+	All users
+	Scores push live. Email ad builder. Hole challenge live leaderboards. Push notifications.
+	4
+	Payments + Auction
+	8–10 weeks
+	Golfers + Admins + Donors
+	Stripe card-on-file, silent auction with 30-sec extension, live auction (admin-assigned), donation items, winning charges.
+	5
+	League Play + Handicaps
+	14–19 weeks
+	League Members + Admins
+	Season scheduling, automated handicaps, Stableford/stroke play standings, flights, weekly pairings, player season history.
+	6
+	GPS & Mapping
+	6–8 weeks
+	Golfers
+	Distance to pin, elevation change, Mapbox satellite hole view, offline tile download, drive distance tracking.
+	
+
+1.2  What You Can Do at Each Phase
+Capability
+	Ph 1
+	Ph 2
+	Ph 3
+	Ph 4
+	Ph 5
+	Ph 6
+	Online registration (all 3 modes)
+	✓
+	✓
+	✓
+	✓
+	✓
+	✓
+	Free agent pool + auto-pairing
+	✓
+	✓
+	✓
+	✓
+	✓
+	✓
+	QR check-in at event
+	✓
+	✓
+	✓
+	✓
+	✓
+	✓
+	Admin score entry (tablet)
+	✓
+	✓
+	✓
+	✓
+	✓
+	✓
+	Branded landing page + donation
+	✓
+	✓
+	✓
+	✓
+	✓
+	✓
+	Sponsor placement — 5 tiers
+	✓
+	✓
+	✓
+	✓
+	✓
+	✓
+	Automated emails
+	✓
+	✓
+	✓
+	✓
+	✓
+	✓
+	Hole challenges + manual results
+	✓
+	✓
+	✓
+	✓
+	✓
+	✓
+	Admin-only leaderboard
+	✓
+	—
+	—
+	—
+	—
+	—
+	Golfer mobile scoring app
+	—
+	✓
+	✓
+	✓
+	✓
+	✓
+	Offline scoring with auto-sync
+	—
+	✓
+	✓
+	✓
+	✓
+	✓
+	QR scorecard transfer
+	—
+	✓
+	✓
+	✓
+	✓
+	✓
+	Public leaderboard + TV mode
+	—
+	✓
+	✓
+	✓
+	✓
+	✓
+	Live SignalR score pushes
+	—
+	—
+	✓
+	✓
+	✓
+	✓
+	Email advertisement builder
+	—
+	—
+	✓
+	✓
+	✓
+	✓
+	Hole challenge live leaderboards
+	—
+	—
+	✓
+	✓
+	✓
+	✓
+	Stripe card-on-file (Setup Intent)
+	—
+	—
+	—
+	✓
+	✓
+	✓
+	Silent auction with 30-sec extension
+	—
+	—
+	—
+	✓
+	✓
+	✓
+	Live auction (admin-assigned winner)
+	—
+	—
+	—
+	✓
+	✓
+	✓
+	Donation items (Fund-a-Need)
+	—
+	—
+	—
+	✓
+	✓
+	✓
+	Automatic winner charging
+	—
+	—
+	—
+	✓
+	✓
+	✓
+	Season scheduling & round management
+	—
+	—
+	—
+	—
+	✓
+	✓
+	Automated handicap calculation
+	—
+	—
+	—
+	—
+	✓
+	✓
+	Season standings + flights
+	—
+	—
+	—
+	—
+	✓
+	✓
+	Weekly pairing engine
+	—
+	—
+	—
+	—
+	✓
+	✓
+	Player handicap history & trend
+	—
+	—
+	—
+	—
+	✓
+	✓
+	Skins game tracking
+	—
+	—
+	—
+	—
+	✓
+	✓
+	GPS distance to pin (offline-capable)
+	—
+	—
+	—
+	—
+	—
+	✓
+	Mapbox satellite hole view
+	—
+	—
+	—
+	—
+	—
+	✓
+	GPS drive distance tracking
+	—
+	—
+	—
+	—
+	—
+	✓
+	Elevation change display
+	—
+	—
+	—
+	—
+	—
+	✓
+	
+
+2. Phase 1 — Admin-Run Tournament
+PHASE 1 GOAL:  A complete tournament management system that an organizer can use at a real event today. Golfers register online and check in via QR. The organizer enters scores manually from a tablet. No mobile scoring app, no public leaderboard.
+
+
+Everything an organizer needs to replace a spreadsheet and paper signup sheet with a real, branded, automated system. This phase could run the CLHS 4th Annual Golf & Give as soon as it's complete.
+
+
+2.1  Phase 1 Infrastructure (Sprints 1–2, 2 weeks)
+* Monorepo setup: Turborepo with apps/admin (Expo Router web), apps/web (Next.js), apps/api (ASP.NET), packages/ui, packages/shared-types, packages/theme
+* Docker Compose: PostgreSQL 16 + PostGIS, Redis, pgAdmin, ASP.NET API
+* GitHub Actions CI: lint, build, and test pipelines for all apps
+* EAS account setup and Vercel account — deploy targets ready even though mobile app is Phase 2
+* Database migrations: full schema for all phases (schema is forward-designed; Phase 2+ features just start using the tables)
+Why build the full schema in Phase 1:  Building the complete database schema upfront means Phase 2 doesn't require migrations that might break live data. Every table exists from day one — Phase 2 simply starts writing to the ones Phase 1 left empty.
+
+
+2.2  Phase 1 Feature Deliverables (Sprints 3–10, 8 weeks)
+Organization & Event Setup
+* Organization creation: name, slug, logo upload, 5-token color theme (Eco Green default), mission statement, 501(c)3 flag
+* Event creation: name, event code, format (scramble/stroke/stableford/best-ball), start type (shotgun/tee times), holes (9/18), team size, entry fee model
+* Shotgun start: organizer assigns teams to starting holes; system validates no duplicates
+* Tee time scheduler: interval-based auto-assignment with manual override; exportable PDF
+* Course setup: par per hole, handicap index, yardage — cup GPS coordinates NOT required until Phase 4
+* Sponsor configuration: upload logos, assign tiers (Title/Gold/Hole/Silver/Bronze), assign placements
+
+
+Three-Mode Registration System
+* Mode 1 (Full Team): captain registers team; optional invite links for teammates to self-register
+* Mode 2 (Join a Team): individual finds team by name or invite token; fuzzy name matching
+* Mode 3 (Free Agent): solo player enters pool with preferences (skill level, age, pairing notes)
+* Per-event toggle: organizer enables/disables each mode independently
+* Partial team support: configurable whether partial teams may submit
+* Entry fee payment tracking: paid / pending / waived per team (manual in Phase 1; Stripe in Phase 5+)
+
+
+Admin Dashboard (Expo Router Web)
+* Registration panel: complete teams, partial teams, free agent pool, pending invites — all in one view
+* Free agent pairing: drag-and-drop cards into teams; auto-pair button (handicap snake draft)
+* Score entry: organizer manually enters team scores hole-by-hole from tablet or laptop
+* Hole challenge results: manual entry (closest to pin, longest drive distances, etc.)
+* Fundraising panel: entry fee totals, sponsorship amounts, donation log, live grand total
+* Conflict resolution: flag and resolve any score discrepancies before publishing results
+
+
+QR Check-In
+* Admin check-in screen: scan player QR, search by name, or browse team list
+* Individual and team check-in modes; partial team check-in supported
+* Live counter: 'X of 25 teams checked in' with no-show tracking
+* Walk-up registration: abbreviated form from check-in screen; QR displayed on-screen for player to screenshot
+
+
+Admin-Only Leaderboard
+* Calculated standings visible to organizer only in the admin dashboard
+* Sortable by: to-par, total strokes, Stableford points, holes completed (thru)
+* Hole challenge leaderboard: manual results displayed alongside main leaderboard
+* NOT publicly accessible in Phase 1 — public leaderboard launches in Phase 2
+
+
+Organization Landing Page (Next.js)
+* Branded event page at /e/{eventCode}: logo, colors, mission statement
+* Registration CTA (all three modes), donation widget with thermometer, sponsor showcase
+* Countdown timer, remaining team slots, event details block
+* SEO: Open Graph tags, JSON-LD Event structured data for Google Search
+* 'Live scores coming soon' placeholder where leaderboard link will appear in Phase 2
+
+
+Automated Emails
+* Registration confirmation: event details, team info, QR check-in code
+* Team assignment email: sent when free agent is paired (Mode 3)
+* Invite link email: sent when captain requests teammate self-registration links
+* Event reminder: 24 hours before, with tee time / starting hole and course address
+* Thank-you email: final score, leaderboard position, total funds raised, sponsor acknowledgments
+* Donation receipt: amount, event name, 501(c)3 note where applicable
+* All emails: CLHS/org logo + color theme applied; unsubscribe link included
+
+
+QR Print Kit & Paper Backup
+* QR Print Kit PDF: event join QR, per-player check-in QRs, leaderboard QR (placeholder), donation QR — all in one printable PDF
+* Paper scorecard PDF: one per team, pre-filled with hole, par, handicap index — printed at registration desk as backup
+
+
+2.3  Phase 1 — What Is Explicitly Deferred
+Deferred Feature
+	Why / When
+	Golfer mobile app (iOS/Android)
+	Phase 2. Admin scores manually. Infrastructure is built; app is not.
+	Public web leaderboard
+	Phase 2. Admin-only leaderboard in Phase 1. Public version launches with the scoring app.
+	Offline SQLite scoring
+	Phase 2. No mobile app means no offline scoring device.
+	QR scorecard transfer
+	Phase 2. Requires the mobile scoring app.
+	Live SignalR real-time updates
+	Phase 3. Added when live scoring becomes available.
+	Email advertisement builder
+	Phase 3. Confirmation/thank-you emails ship in Phase 1; ad builder comes later.
+	GPS / Mapbox / distance to pin
+	Phase 6. Cup GPS coordinates column exists in DB but is unused until Phase 6.
+	Stripe payment processing
+	Phase 4. Manual payment tracking in Phase 1.
+	
+
+2.4  Phase 1 — API Endpoints
+All endpoints are built with the full feature set in mind. Phase 2+ endpoints are added alongside these, not replacing them.
+
+
+Method
+	Endpoint
+	Description
+	POST
+	/auth/register
+	Create organizer account
+	POST
+	/auth/login
+	JWT + refresh token
+	CRUD
+	/org/{id}
+	Organization management, branding, theme
+	CRUD
+	/events
+	Event create/read/update; returns event code + all config
+	POST
+	/events/{id}/register/team
+	Mode 1: full team registration
+	POST
+	/events/{id}/register/join
+	Mode 2: individual joins existing team
+	POST
+	/events/{id}/register/free-agent
+	Mode 3: solo player enters pool
+	GET
+	/events/{id}/free-agents
+	Admin: list unassigned free agents with preferences
+	POST
+	/events/{id}/free-agents/assign
+	Admin: assign free agents to team; triggers email
+	POST
+	/events/{id}/free-agents/auto-pair
+	Admin: auto-pair by handicap; returns proposal for review
+	POST
+	/events/{id}/checkin/*
+	Team and individual check-in; QR token validation
+	PATCH
+	/scores/{holeId}
+	Admin score entry; same endpoint mobile app will use in Phase 2
+	GET
+	/events/{id}/leaderboard
+	Admin-only in Phase 1; becomes public in Phase 2
+	CRUD
+	/events/{id}/sponsors
+	Sponsor management, logo upload, tier assignment
+	GET/POST
+	/events/{id}/fundraising
+	Totals + donation entry
+	GET
+	/events/{id}/qr/kit
+	Generate QR print kit ZIP of SVGs
+	GET
+	/events/{id}/scorecards/pdf
+	Paper backup scorecard PDF for all teams
+	
+
+3. Phase 2 — Golfer Scoring App + QR Transfer
+PHASE 2 GOAL:  Golfers get their own mobile experience. Score entry moves from the admin tablet to each team's phone. The public leaderboard goes live. QR scorecard transfer gives zero-internet score collection at round end. Phase 1 admin capabilities remain and are enhanced.
+
+
+Phase 2 is the largest technical phase because it introduces the React Native mobile app, the offline SQLite architecture, and the public Next.js leaderboard. However, the API from Phase 1 already handles almost all required operations — the mobile app is primarily a new client on top of the existing backend.
+
+
+3.1  Mobile App — Core (Sprints 1–4)
+Event Join & Team Card
+* Golfer opens app → scans event join QR → assigned team card appears
+* Team card shows: team name, player roster, starting hole or tee time, event format
+* Event config (course pars, hole list, cup coordinates placeholder) cached to SQLite at join time
+* App join works offline if the team cache is pre-populated by organizer export
+
+
+Score Entry UI
+* Hole-by-hole score entry: gross score via large ± buttons (56pt minimum touch target for golf gloves)
+* Optional per-hole fields: putts, fairway hit, green in regulation
+* Player shot contribution tracking: scorekeeper taps which player's drive was selected each hole
+* Running cumulative to-par score displayed at top of screen at all times
+* Previous hole editable via swipe-back gesture
+* Sponsor name shown on score entry screen for hole-sponsored holes
+
+
+Offline-First Architecture
+* Every score tap writes to SQLite (pending_scores table) instantly — before any network call
+* App retries sync every 30 seconds in the background via expo-background-task
+* Connectivity tier detection: Full (LTE/5G) / Degraded (3G) / Offline / Intermittent
+* Offline Event Mode: organizer-configurable flag that increases retry interval and disables live leaderboard on mobile to conserve battery
+* Pre-flight checklist: app blocks scoring start until event config is cached
+
+
+3.2  QR Scorecard Transfer (Round-End Score Collection)
+When internet sync is unavailable or incomplete at round end, QR Scorecard Transfer gives the admin a direct, zero-connectivity method to collect scores from each team's phone.
+
+
+Scorekeeper Side
+* Scorekeeper taps 'Generate Scorecard QR' on round complete screen
+* App compresses full scorecard to JSON, signs with HMAC-SHA256, encodes as QR
+* Screen brightness auto-maximized; QR remains until admin confirms receipt
+* Payload > 1,269 bytes: app auto-splits into Part 1 of 2 / Part 2 of 2
+
+
+Admin Side
+* Admin opens 'Collect Scores' on admin device → camera activates
+* Camera stays open continuously; chime on each successful scan
+* Running count: 'Collected: 18 of 25 teams'
+* Scanned scores write to SQLite, flagged as QR-collected, sync to server when connected
+* HMAC signature validated before accepting — rejects tampered payloads
+
+
+QR Payload
+* Fields: schema version, event code, team ID (8 chars), team name, device ID, timestamp, HMAC signature, 18-hole score array
+* Standard 18-hole payload: ~900 bytes — fits single QR at error correction level M
+* Admin collects 25 teams in approximately 8–12 minutes at the 18th green
+
+
+3.3  Public Web Leaderboard (Next.js)
+* Route: /e/{eventCode} — publicly accessible, no login required
+* SSR initial render for fast cold load; subsequent updates via polling (Phase 3 upgrades this to SignalR push)
+* TV mode at /e/{eventCode}/tv — large-font, auto-scrolling, sponsor banner rotation
+* Hole challenge tab — shows manual results entered by admin
+* Fundraising thermometer — live donation total
+* Sponsor banner — rotating Title/Gold sponsors in header area
+* 'Watch Live' link replaces the Phase 1 placeholder on the landing page
+
+
+3.4  Phase 2 New API Endpoints
+Method
+	Endpoint
+	Description
+	POST
+	/events/{id}/join
+	Golfer joins event via QR token; returns team + full event cache for SQLite
+	POST
+	/sync/scores
+	Batch offline score sync; returns conflict list
+	POST
+	/events/{id}/scores/qr-collect
+	Admin submits QR-scanned scorecard payload; validates signature; imports scores
+	GET
+	/events/{id}/leaderboard/public
+	Public leaderboard data — no auth required. Polled by Next.js leaderboard page.
+	
+
+3.5  Phase 2 — Low-Connectivity Operations
+Phase 2 introduces the full offline capability detailed in Section 7 of this spec. Key additions:
+
+
+* Mandatory pre-download checklist: event config, team roster, cup coordinate placeholders (Phase 4 will populate real coordinates)
+* End-of-round forced sync: app enters Aggressive Sync Mode (retry every 10 seconds) and prompts scorekeeper to move toward clubhouse
+* Admin 'Pending Sync' counter: shows X of 25 teams confirmed; blocks final leaderboard publish until all confirmed or QR-collected
+* Hotspot guidance: pre-event checklist recommends organizer bring a dedicated MiFi device for score sync at events with known dead zones
+
+
+4. Phase 3 — Live Real-Time Scoring + Communications
+PHASE 3 GOAL:  Scores push to the leaderboard live during the round — not just at round end. The email advertisement builder ships. Hole challenge leaderboards update in real time. This phase is shorter because Phase 2 already built the infrastructure; Phase 3 flips it on.
+
+
+Phase 3 is 4–6 weeks rather than 8–10 because all the heavy lifting is done. SignalR is already in the API from Phase 1; it just wasn't connected to score events. Redis is already running. The leaderboard already exists — it just starts receiving push updates instead of polling.
+
+
+4.1  Live SignalR Score Pushes
+* TournamentHub: existing SignalR hub receives ScoreUpdated events when PATCH /scores/{holeId} is called by the mobile app
+* All connected leaderboard clients receive the push and re-sort standings client-side
+* Admin dashboard also subscribes — organizer sees scores update live without refreshing
+* Latency target: < 2 seconds from score submission to leaderboard re-sort
+* Graceful fallback: clients without WebSocket support fall back to 15-second SSE polling
+* Redis leaderboard cache: 2–5 second TTL absorbs shotgun-burst load spikes
+
+
+Why Phase 3 not Phase 2:  QR scorecard transfer (Phase 2) gives you a working score collection system that functions perfectly without real-time infrastructure. Live SignalR is a UX enhancement, not a requirement for collecting scores. Separating them means Phase 2 ships faster and with less risk.
+
+
+4.2  Email Advertisement Builder
+* Drag-and-drop builder in Expo Router web admin — pre-populated with event data, sponsor logos, CLHS colors
+* QR code linking to registration page embedded automatically (PNG hosted on CDN)
+* 11-section email layout: header band, title sponsor banner, event details, mission statement, CTA button, QR block, hole challenge highlights, sponsor rows, donation CTA, footer
+* Export formats: HTML file (Mailchimp/Constant Contact ready), ZIP archive, plain text, SendGrid direct send
+* PDF preview via headless Chromium (Puppeteer) server-side
+* All styles inline for Outlook compatibility; VML button fallback; HTML table layout
+* Live preview: desktop and mobile viewport toggleable in the builder
+
+
+4.3  Hole Challenge Live Leaderboards
+* Challenge results update in real time via SignalR ChallengeUpdated event
+* Dedicated challenges tab on the public leaderboard: one live leaderboard per active challenge
+* Closest to Pin: GPS-based (Phase 4) or manual distance entry; admin can award from dashboard
+* Longest Drive: GPS-based (Phase 4) or manual; separate men's/women's categories optional
+* Hole-in-One auto-detection: when gross score = 1 on any hole, ChallengeAlert event broadcast to all connected devices
+* Hole-in-One celebratory animation displayed on mobile app and leaderboard simultaneously
+
+
+4.4  Additional Phase 3 Deliverables
+* Tee time schedule PDF export from admin dashboard (formatted, printable)
+* Score conflict resolution UI polish — improved admin review workflow
+* Push notification infrastructure (Expo Notifications) — used for Hole-in-One alert in Phase 3; extended in Phase 4 for GPS approach notifications
+* Leaderboard share card generation — OG image with current standings for social sharing
+
+
+5. Phase 4 — Payments + Auction
+PHASE 4 GOAL:  Golfers and attendees pay online, bid on silent auction items from their phones, and participate in a live auction run by an admin host. Donation items let multiple people pledge at any amount. All auction proceeds flow into the real-time fundraising total on the leaderboard.
+
+
+Phase 4 introduces Stripe payments and the full three-format auction system. Stripe is integrated once and reused across entry fees, auction winner charges, and donation pledges. The auction bidding system uses the SignalR hub already running from Phase 3 — BidPlaced and AuctionExtended events are new message types on the existing connection.
+
+
+4.1  Stripe Payment Integration
+Card-on-File — Stripe Setup Intent
+* Stripe Setup Intent saves a payment method without charging — required before any bidding
+* Pre-event: golfer is prompted to add a card at the end of the registration flow — 'Save card to bid in the auction and pay entry fees online'
+* Day-of: organizer shares a short URL or QR that opens a Stripe-hosted card entry page on the attendee's phone at check-in
+* Card stored as Stripe Customer + PaymentMethod; only a reference token saved in the database — no raw card data ever stored
+* Bidding eligibility rule: bid endpoint validates has_payment_method = true OR check_in_status = checked_in before accepting any bid
+
+
+Entry Fee Online Payment
+* Stripe PaymentIntent added to registration flow after team creation
+* Supports per-player and flat team fee models; webhook payment.succeeded sets entry_fees.paid_at
+* Partial tracking: admin dashboard shows 'Fees: 3 of 4 paid' for incomplete teams
+* Waiver override: admin marks any fee as waived without requiring payment
+
+
+Auction Winner Charging
+* Silent auction close: system automatically charges the winning bidder's saved card via Stripe PaymentIntent
+* Donation pledges: all pledgers charged simultaneously at item close
+* Failed charges: admin dashboard alert with manual resolution workflow (re-charge or waive)
+* All charges generate SendGrid receipts with item description, amount, FMV for 501(c)3 deductibility, and event name
+
+
+4.2  Three Auction Formats
+Format
+	Type Value
+	How It Works
+	Silent Auction
+	silent
+	Bidders compete; highest single bid wins. Closes at closes_at with 30-second anti-snipe extension. One winner charged automatically.
+	Live Auction
+	live
+	No automated bidding. Admin host runs room verbally, then enters final amount and selects winner from attendee list. Winner charged automatically.
+	Donation Item — Silent
+	donation_silent
+	Multiple winners — every bidder pledges and is charged. Fixed denominations or open amount. Self-serve on phone all event.
+	Donation Item — Live
+	donation_live
+	Admin assigns each pledge amount and pledger via host screen. All pledgers charged at close. Good for paddle-raise moments.
+	
+
+4.3  Silent Auction — 30-Second Extension Rule
+How Anti-Snipe Extension Works
+* When a valid bid is submitted: if NOW() > closes_at − 30 seconds, then closes_at = MAX(closes_at, NOW() + 30 seconds)
+* Extension cap: closes_at may never exceed original_closes_at + max_extension_minutes (default 10 minutes total)
+* Beyond the cap no further extensions are granted — auction closes hard at the cap
+* SignalR AuctionExtended event pushes the new closes_at to all connected clients immediately — countdown timer resets on every screen
+* Admin dashboard shows extension history: 'Extended 3 times — closes 8:34 PM (originally 8:30 PM)'
+
+
+Bid Validation Rules
+* Minimum amount: current_high_bid_cents + bid_increment_cents
+* Buy-now: if amount >= buy_now_price_cents, item closes immediately after bid is accepted
+* Race condition: bid submission uses a PostgreSQL row-level lock on the auction_items row — two simultaneous bids cannot both win
+* Outbid notification: previous high bidder receives Expo push notification + email
+* Eligibility: has_payment_method = true OR check_in_status = checked_in
+
+
+4.4  Live Auction — Admin Host Control Screen
+Host Screen (Expo Router Web Admin)
+* Admin taps 'Start Live Auction' — activates 'Live Auction in Progress' banner on all public and mobile screens
+* Current item shown with large photo, title, description, starting bid, and donor name
+* Amount field: admin types the current called amount as the room bids verbally — displayed live on attendee screens
+* Winner field: dropdown of all checked-in attendees; admin selects winner and taps 'Award Item'
+* Donation item during live: admin enters each pledge amount and pledger — multiple rows, 'Add Pledge' button
+* 'Next Item' button: advances queue; pushes LiveItemAdvanced SignalR event to all clients
+
+
+Attendee Experience During Live Auction
+* Mobile app shows 'Live Auction in Progress' tab with current item details and live called amount
+* 'I'm Bidding' button: soft paddle-raise indicator — not a formal bid, but visible as a count on the admin host screen
+* Donation items during live: attendees tap pledge denomination directly on phone; admin sees pledgers accumulate in real time
+
+
+4.5  Donation Items — Fund-a-Need / Paddle Raise
+Fixed Denomination Mode
+* Admin sets preset pledge amounts: e.g. $25, $50, $100, $250, $500 stored as donation_denominations[] (cents)
+* Bidding screen shows a button per denomination — attendee taps the amount they want to pledge
+* Multiple attendees can pledge the same amount — all charged at close
+* Running pledge total shown in real time: '$3,250 pledged — 18 donors'
+* Optional goal thermometer: admin sets a target amount; thermometer shown on item detail and public web page
+
+
+Open Amount Mode
+* donation_denominations = null — attendee enters any amount >= minimum_bid_cents
+* Useful for campaigns where maximum flexibility is preferred
+
+
+Both Donation Subtypes Close the Same Way
+* closes_at triggers; all pledgers charged simultaneously via Stripe batch PaymentIntents
+* Failed charge: admin notified individually; manual resolution
+* Receipts include amount, FMV = $0 (full donation), 501(c)3 note, tax year
+
+
+4.6  Auction Item Configuration Fields
+Field
+	Type
+	Description
+	title, description
+	String / Text
+	Item name and rich description; description shown on detail screen
+	photos
+	String[] CDN URLs
+	Up to 6 images; uploaded, compressed server-side, stored on CDN
+	fair_market_value_cents
+	Int
+	FMV for tax receipt — deductible amount = winning_bid − FMV
+	minimum_bid_cents
+	Int
+	Starting bid; bids below this are rejected
+	bid_increment_cents
+	Int
+	Minimum raise over current high bid, e.g. 500 = $5 min raise
+	buy_now_price_cents
+	Int (nullable)
+	Optional instant-win price; accepting closes item immediately
+	auction_type
+	Enum
+	silent | live | donation_silent | donation_live
+	donation_denominations
+	Int[] (nullable)
+	Preset pledge amounts for donation items (cents). Null = open amount.
+	closes_at
+	DateTime UTC (mutable)
+	Bidding end time. Updated by 30-second extension rule on last-minute bids.
+	original_closes_at
+	DateTime UTC (immutable)
+	Original scheduled close. Extension cap = original + max_extension_minutes.
+	max_extension_minutes
+	Int (default 10)
+	Maximum total extension beyond original close time. Prevents infinite extension.
+	donor_name, category, is_featured
+	String / Bool
+	Donor displayed on bidding screen; category for browse filter; featured items shown in carousel
+	status
+	Enum
+	draft | open | extended | closed | awarded | cancelled
+	
+
+4.7  Phase 4 Database Additions
+Table / Column
+	Change
+	Key Columns
+	auction_items
+	New table
+	id, event_id, title, description, photos[], fmv_cents, min_bid_cents, bid_increment_cents, buy_now_cents, auction_type, donation_denominations[], opens_at, closes_at, original_closes_at, max_extension_minutes, donor_name, category, is_featured, status
+	bids
+	New table
+	id, item_id, player_id, amount_cents, placed_at, is_winning (computed), is_buy_now, stripe_pm_id
+	auction_winners
+	New table
+	id, item_id, player_id, winning_amount_cents, awarded_at, stripe_payment_intent_id, charge_status, receipt_sent, pickup_notes
+	auction_sessions
+	New table
+	id, event_id, session_type (silent|live), started_at, ended_at, current_item_id
+	stripe_customers
+	New table
+	id, player_id, stripe_customer_id, default_payment_method_id, created_at
+	players.has_payment_method
+	Add column
+	Boolean computed from stripe_customers; used for bid eligibility check
+	donations.stripe_payment_intent_id
+	Add column
+	Links manual and auction-generated donations to Stripe charges
+	
+
+4.8  Phase 4 API Endpoints
+Method
+	Endpoint
+	Description
+	POST
+	/payments/setup-intent
+	Create Stripe Setup Intent; returns client_secret for card entry on client
+	POST
+	/payments/confirm-setup
+	Confirm Setup Intent after card entry; saves PaymentMethod to player record
+	CRUD
+	/events/{id}/auction/items
+	Admin: create/edit/delete auction items
+	GET
+	/events/{id}/auction/items/public
+	Public: open items with current high bid, countdown, photos
+	POST
+	/auction/items/{id}/bid
+	Submit bid. Validates eligibility, minimum, timing, extension rule. Fires BidPlaced SignalR event.
+	POST
+	/auction/items/{id}/buy-now
+	Instant-win at buy_now_price; closes item immediately
+	POST
+	/auction/items/{id}/pledge
+	Donation item pledge — denomination or open amount; multiple winners allowed
+	POST
+	/auction/items/{id}/award
+	Admin: assign live auction winner. Body: { player_id, amount_cents }
+	POST
+	/events/{id}/auction/sessions/start
+	Admin: start live auction session; activates banner on all clients
+	POST
+	/events/{id}/auction/sessions/next-item
+	Admin: advance to next live auction item
+	GET
+	/players/{id}/bids
+	My bids: item title, current status, amount
+	POST
+	/webhooks/stripe
+	Stripe webhook: payment.succeeded, payment.failed, setup_intent.succeeded
+	
+
+4.9  New SignalR Events — Phase 4
+Event
+	Payload & Recipients
+	BidPlaced
+	{ itemId, newHighBidCents, closesAt } → all clients on auction page; resets item countdown
+	AuctionExtended
+	{ itemId, newClosesAt, extensionCount } → all clients; countdown timer resets on all screens
+	ItemClosed
+	{ itemId, finalAmountCents } → all clients; triggers won/outbid status update per viewer
+	LiveAuctionStarted
+	{ sessionId, firstItemId } → all clients; activates 'Live Auction in Progress' banner
+	LiveItemAdvanced
+	{ itemId, title, photoUrl, startingBidCents } → all clients; host screen and public display update
+	PledgeReceived
+	{ itemId, totalPledgedCents, pledgeCount } → all clients; updates donation thermometer live
+	AuctionTotalUpdated
+	{ newAuctionTotalCents } → leaderboard + admin; auction proceeds added to fundraising grand total
+	
+
+6. Phase 5 — League Play + Handicaps
+PHASE 5 GOAL:  Golf clubs, courses, and membership organizations can run full season leagues: weekly scheduled rounds, automated handicap calculation after every round, Stableford and stroke play standings, flight divisions, balanced weekly pairings, skins games, and a player-facing season dashboard showing handicap trend and standing history.
+
+
+League play is stateful in a way tournament golf is not — the same players compete week after week, results accumulate into standings, and handicaps update after every round. The mobile scoring app, offline capability, SignalR, and email infrastructure from Phases 1–3 all carry forward unchanged. What's new is the season data model, the handicap engine, the pairing engine, and the admin season dashboard.
+
+
+5.1  What Carries Over Unchanged
+* Hole-by-hole score entry in the mobile app — identical UI and flow
+* Offline SQLite scoring with auto-sync — league rounds happen on the same rural courses
+* QR check-in — works identically for weekly rounds
+* Live scoring and SignalR — same infrastructure, now updates a season leaderboard
+* Automated emails — extended with new templates; not replaced
+* Stripe payments — extended for season dues; same integration
+* Organization branding and theme — applied to league season pages identically
+
+
+5.2  New Data Model
+League play requires a stateful, persistent data model layered on top of the existing event-centric schema. All new tables are additive — no existing tables are altered in breaking ways.
+
+
+New Table
+	Populated
+	Key Columns
+	leagues
+	Phase 5
+	id, org_id, name, season_year, format (stableford|stroke|match), handicap_system (club|usga), max_flights, dues_cents, status
+	seasons
+	Phase 5
+	id, league_id, name, start_date, end_date, total_rounds, status (registration|active|completed)
+	league_members
+	Phase 5
+	id, season_id, player_id, handicap_index, flight_id, dues_paid, rounds_played, absences, active
+	flights
+	Phase 5
+	id, season_id, name (Flight A / B / C), min_handicap, max_handicap, max_players
+	league_rounds
+	Phase 5
+	id, season_id, round_number, round_date, course_id, format_override, status (scheduled|open|scoring|closed), tee_assignment
+	league_pairings
+	Phase 5
+	id, round_id, group_number, player_ids[] (JSONB), tee_time, starting_hole, is_sub (flag for substitutes)
+	league_scores
+	Phase 5
+	id, round_id, player_id, hole_number, gross_score, net_score (computed), stableford_points (computed), match_result (W|L|H), putts
+	handicap_history
+	Phase 5
+	id, member_id, old_index, new_index, round_id (trigger), calculation_method, calculated_at, admin_override (bool)
+	standings
+	Phase 5
+	id, season_id, player_id, flight_id, total_points, wins, losses, halves, avg_gross, avg_net, rounds_counted, last_updated (cache)
+	skins
+	Phase 5
+	id, round_id, hole_number, winner_player_id (nullable — carryover if tied), pot_cents, carried_over_from_hole
+	league_members.handicap_index
+	Add column
+	League-specific handicap, separate from players.handicap_index (tournament). Updated by handicap engine after each round.
+	
+
+5.3  Handicap Calculation Engine
+Handicap is the most complex new requirement. The engine runs automatically after every round is finalized and updates every member's handicap_index, writing a full audit trail to handicap_history.
+
+
+Phase 5a: Club/League Formula (Launch)
+* Admin configures the formula at league creation — no external API required
+* Formula options: Best N of last M rounds (e.g. best 5 of last 10), straight average of last N, or percentage of scoring average (e.g. 85% of last 10 rounds average)
+* Each differential = Adjusted Gross Score − Course Par (simplified club formula)
+* Or full differential = (Adjusted Gross − Course Rating) × 113 / Slope Rating when course rating and slope are provided
+* After every round closes: engine queries each player's last M differentials, applies the formula, writes new index to league_members.handicap_index and handicap_history
+* Handicap cap: configurable max index per league (e.g. 36.0) — common for competitive leagues
+* Admin manual override: admin can override any player's handicap with a reason field; logged in handicap_history with admin_override = true
+* Sandbagger flag: if a player's handicap has not decreased after 5+ rounds significantly below their index, admin dashboard shows a flag for review
+
+
+Phase 5b: USGA Formula (Enhancement)
+* Uses the official USGA Handicap Index formula: best 8 of last 20 Score Differentials
+* Each Score Differential = (Adjusted Gross Score − Course Rating) × 113 / Slope Rating
+* Requires course rating and slope rating stored per course and per tee set in course_holes metadata
+* No GHIN API required for the calculation — GHIN is only needed to sync indexes with the USGA system
+* Start USGA GHIN API application during Phase 4; integrate in Phase 5b if approved
+
+
+Net Score and Course Handicap
+* Course Handicap = Handicap Index × (Slope Rating / 113) + (Course Rating − Par) — rounds to nearest integer
+* Stroke play net: Gross Score − Course Handicap
+* Stableford net: points awarded per hole based on net score vs. par (double bogey = 0, bogey = 1, par = 2, birdie = 3, eagle = 4)
+* Match play: handicap strokes allocated per hole by difficulty rank (stroke index 1–18); player receives a stroke on holes numbered ≤ their handicap difference
+
+
+5.4  Supported Formats
+Format
+	Phase
+	How Standings Work
+	Stableford
+	Phase 5a (launch)
+	Points per hole based on net score vs par. Season standings = total points across all rounds. Most popular US recreational format.
+	Stroke Play (net)
+	Phase 5a (launch)
+	Net score = gross − course handicap. Season standings = total net strokes (lowest wins) or season average net.
+	Match Play
+	Phase 5b
+	Head-to-head per hole. Win/loss/halve per match. Season standings = wins and losses record, then points.
+	Quota
+	Phase 5b
+	Each player has a target Stableford quota based on their handicap. Points above quota score; season = cumulative above-quota total.
+	
+
+5.5  Weekly Pairing Engine
+The pairing engine runs when an admin opens a new round and taps 'Generate Pairings.' It produces foursomes (or threesomes/twosomes at configurable thresholds) respecting flight boundaries and minimizing repeat matchups.
+
+
+Algorithm Constraints
+* Hard constraint: players in different flights are not matched against each other for standing points (though they may share a tee time physically)
+* Hard constraint: absent players (marked in advance or day-of) are excluded from pairings
+* Soft constraint: minimize repeat pairings — the engine tracks pairing history and penalizes repeat matchups in the current season
+* Soft constraint: for match play, balance wins/losses so no player plays the same opponent more than once until everyone has played everyone
+* Substitute handling: admin adds a substitute player with a temporary handicap; sub's round is counted for the substitute's record, not the absent member's
+
+
+Output
+* Pairings displayed as a tee sheet: group number, players, tee time, starting hole
+* Pairings PDF generated and available to print at the first tee
+* Players notified via push notification and email: 'Round 7 pairings are ready — you tee off at 8:42 AM in Group 4 with John, Mike, and Sarah'
+* Admin can manually drag-and-drop players between groups before locking pairings
+
+
+5.6  Admin Season Dashboard
+The league admin dashboard is season-centric rather than event-centric. Key admin views:
+
+
+* Season Overview Round-by-round completion status, standings snapshot per flight, upcoming schedule, season-to-date fundraising if dues are charged online
+* Member Roster All league members with current handicap index, flight assignment, dues status, rounds played, absences, and last round score
+* Round Management Create round → generate pairings → open scoring → close round → publish results → trigger handicap update. Each step is a distinct admin action.
+* Handicap Manager View all current handicaps, full history per player, manual override with reason, sandbagger flags, handicap trend chart
+* Standings Board Live standings per flight. Configurable tiebreaker rules. Exportable to PDF for clubhouse posting.
+* Skins Tracker Per-round skins results: which holes were won, carryovers, pot amounts, and winner payout summary
+* Substitute Manager Track who subbed for whom, sub's handicap applied for the round, impact on standings noted
+
+
+5.7  Player Season Experience (Mobile App)
+New Screens in Phase 5
+* Season Home: my current handicap index, my position in my flight, next round date and time, recent round history
+* Round History: tap any past round to see full scorecard — gross, net, Stableford points, match result — with hole-by-hole breakdown
+* Handicap Tracker: line chart of handicap index across the season with round markers
+* Season Standings: current standings for my flight, updated after each round closes
+* Absence Reporting: 'I can't make Round 8' — notifies admin; triggers substitute workflow
+* Head-to-Head Record (optional): my W/L record against each opponent this season — players love this
+
+
+5.8  Phase 5 API Endpoints
+Method
+	Endpoint
+	Description
+	CRUD
+	/leagues
+	Create/manage leagues; returns league config and current season
+	CRUD
+	/leagues/{id}/seasons
+	Season creation with rounds count, dates, format, handicap system
+	POST
+	/seasons/{id}/members
+	Register member for season; assign to flight; collect dues via Stripe
+	GET
+	/seasons/{id}/standings
+	Current standings per flight; cached, refreshed after each round closes
+	POST
+	/rounds/{id}/generate-pairings
+	Run pairing engine; returns proposed pairings for admin review before locking
+	PATCH
+	/rounds/{id}/pairings
+	Admin saves pairing adjustments; locks pairings and sends player notifications
+	POST
+	/rounds/{id}/close
+	Close round; triggers handicap engine, standings recalculation, skins resolution, and result emails
+	GET
+	/members/{id}/handicap-history
+	Full handicap history with round references and admin override flags
+	PATCH
+	/members/{id}/handicap
+	Admin manual handicap override; requires reason; logged in handicap_history
+	POST
+	/rounds/{id}/absence
+	Player reports absence for a round; triggers substitute notification to admin
+	GET
+	/seasons/{id}/skins/{roundId}
+	Skins results for a round: winners, carryovers, pot amounts
+	GET
+	/members/{id}/season-summary
+	Player's season dashboard data: handicap trend, standing, round history, head-to-head
+	
+
+7. Phase 6 — GPS & Mapping
+PHASE 6 GOAL:  Golfers see their distance to the pin in real time, with elevation change, on a Mapbox satellite view of the hole. Drive distance tracking enables GPS-based longest drive contests. Kept as its own phase because it has the highest technical risk and benefits from a stable platform underneath it.
+
+
+Phase 6 introduces genuinely different technical requirements: PostGIS spatial queries, Mapbox GL integration, DEM terrain elevation API, and on-course device GPS behavior. The database schema has had the cup_location column ready since Phase 1 — Phase 6 fills it in. GPS is also highly valuable for league play, where players return to the same course every week and will quickly memorize exact yardages.
+
+
+6.1  Cup GPS Location Database
+* course_holes.cup_location: geometry(PointZ, 4326) — exists in schema from Phase 1, first populated in Phase 6
+* course_holes.cup_elevation_m: elevation in meters from DEM API, stored at cup setup time
+* Admin 'Course Setup' tool in mobile app: organizer walks each hole, taps 'Set Pin Location'
+* One-time setup per course; reusable across events and league rounds; admin updates pin position on event day
+* PostGIS GIST spatial index on cup_location for fast proximity queries
+
+
+6.2  Distance to Pin — Offline-Capable
+Distance to pin works with zero connectivity once cup coordinates are cached at event join. This is the most resilient GPS feature — and particularly valuable for league courses where tiles are cached once and reused weekly.
+
+
+* Cup coordinates downloaded to SQLite at event/round join — < 5 KB for all 18 holes
+* Online mode: GET /holes/{id}/distance?lat=&lng= — server calculates via PostGIS ST_Distance
+* Offline mode: Haversine formula runs client-side in JavaScript — < 1ms, no network required
+* Display: 'XX yds to pin' with elevation: '+12 ft uphill' or '−8 ft downhill'
+* Elevation: DEM-keyed terrain elevation — far more accurate than device GPS altitude (±10–30 ft)
+* GPS polling: every 15 seconds when hole map active; paused on score entry screen to conserve battery
+* Uncertainty ring: ± confidence indicator shown for wooded or covered holes
+
+
+6.3  Mapbox Satellite Hole View
+* Mapbox satellite tile layer as base map; cup marker, player dot, distance line with yardage label
+* Map auto-rotates to face direction of play (GPS course-of-travel heading, not compass)
+* Yardage rings: 100, 150, 200 yard concentric circles togglable by golfer
+* Toggle: satellite view vs. hole layout graphic
+* Offline tile cache: ~150–250 MB per 18-hole course — downloaded before round, cached for weekly reuse in league mode
+
+
+GPS Accuracy Note:  Device GPS accuracy is 3–5 meters open, 10–30 meters under canopy. Display distances as approximate. Mark wooded holes in course config to disable GPS drive distance. Use DEM terrain data, not device altitude.
+
+
+6.4  GPS Drive Distance Tracking
+* 'Mark Drive' and 'Mark Ball' buttons in score entry; GPS coordinates stored in scores table
+* Drive distance displayed with ± disclaimer; manual entry always available
+* Longest drive contest: longest GPS drive per hole surfaced on challenge leaderboard
+* Wooded holes: GPS drive disabled per hole config; manual entry required
+
+
+6.5  Hole Layout Graphics
+* Organizer uploads hole layout PNG/SVG per hole in admin Course Setup tool
+* Overlay on Mapbox satellite view with alignment handles
+* Toggle between satellite and hole graphic
+* Auto-generated schematic from GPS boundary polygon is Phase 7+ feature
+
+
+6. Technology Stack
+The stack is fixed from Phase 1 and does not change across phases. Each phase adds libraries and activates features but does not require replacing any existing layer.
+
+
+Layer
+	Technology
+	First Used
+	Version / Notes
+	Mobile (iOS & Android)
+	React Native + Expo
+	Phase 2
+	Expo SDK 55, React Native 0.83, New Architecture mandatory
+	Admin Dashboard (web)
+	Expo Router web
+	Phase 1
+	Shares components with mobile via packages/ui. EAS Hosting.
+	Public Leaderboard & Landing Page
+	Next.js 15 (App Router)
+	Phase 1
+	SSR for SEO and cold-load. Vercel. TV mode.
+	Backend API
+	ASP.NET Core Web API
+	Phase 1
+	.NET 8 LTS, C# 12
+	Database
+	PostgreSQL 16 + PostGIS 3.4
+	Phase 1
+	Full schema from Phase 1. Cup GPS columns populated Phase 6. League tables added Phase 5.
+	Offline DB
+	SQLite (expo-sqlite v14)
+	Phase 2
+	WAL mode, concurrent reads. Full event cache + pending queue.
+	Real-Time
+	ASP.NET SignalR
+	Phase 3
+	Hub exists from Phase 1; score events Phase 3; auction events Phase 4.
+	Caching
+	Redis 7
+	Phase 3
+	Leaderboard TTL cache. StackExchange.Redis. Docker.
+	Payments
+	Stripe
+	Phase 4
+	Setup Intents (card-on-file), PaymentIntents (charges), Webhooks. .NET Stripe SDK.
+	Mapping
+	Mapbox GL
+	Phase 6
+	@rnmapbox/maps (mobile), mapbox-gl-js (web). Free tier: 50k loads/month.
+	Email
+	SendGrid
+	Phase 1
+	100 emails/day free tier. .NET SDK.
+	Auth
+	ASP.NET Identity + JWT
+	Phase 1
+	15-min JWT, refresh in SecureStore (mobile) / httpOnly cookie (web).
+	Build / CI
+	Turborepo + GitHub Actions
+	Phase 1
+	EAS Build for mobile. EAS Hosting for Expo web. Vercel for Next.js.
+	
+
+Hybrid Architecture:  The Admin Dashboard runs in Expo Router web (shared components with mobile), while the public Leaderboard and Landing Page run in Next.js (SSR for SEO and cold-load performance). Expo Router SSR is currently alpha in SDK 55 — not used for public-facing SEO surfaces. See Section 9 for the full architecture decision record.
+
+
+7. Registration System — Three Modes
+All three registration modes are built in Phase 1. The database schema, API endpoints, admin dashboard panels, and email triggers are fully operational before the mobile app exists.
+
+
+#
+	Mode
+	Golfer's Situation
+	What Happens
+	1
+	Register a Full Team
+	Captain registers 2–4 players as a complete team
+	Team created immediately. Invite links optional for self-registration. Entry fee charged.
+	2
+	Join an Existing Team
+	Golfer has a team but registers independently
+	Finds team by name or invite link. Slots tracked. Captain notified on join.
+	3
+	Free Agent — Need a Team
+	Solo golfer needs organizer to place them
+	Enters Free Agent Pool with preferences. Admin pairs via drag-and-drop or auto-pair.
+	
+
+Key database additions supporting the three modes:
+
+
+* players.registration_type — enum: full_team | individual_join | free_agent | free_agent_assigned | walk_up
+* players.skill_level, age_group, gender, pairing_note, accessibility_note — free agent preferences
+* players.assigned_by_admin_id, assigned_at — audit trail for admin pairing actions
+* teams.invite_token, invite_expires_at — 48-hour self-registration invite links
+* teams.max_players (default 4), is_complete (computed) — slot availability tracking
+
+
+8. Database Schema
+The full schema is created in Phase 1 migrations. Phase 2+ features write to columns that were always there. No breaking migrations are needed when advancing phases.
+
+
+Table
+	Populated
+	Key Columns
+	organizations
+	Phase 1
+	id, name, slug, logo_url, theme (JSONB 5-token), mission_statement, is_501c3
+	events
+	Phase 1
+	id, org_id, name, event_code, format, start_type, holes, status, start_at, config (JSONB)
+	courses
+	Phase 1
+	id, name, address, location (PostGIS Point)
+	course_holes
+	Phase 1/4
+	id, course_id, hole_number, par, handicap_index, yardage, cup_location (PostGIS PointZ) ← populated Phase 4, cup_elevation_m ← Phase 4
+	teams
+	Phase 1
+	id, event_id, name, captain_player_id, starting_hole, tee_time, entry_fee_paid, invite_token, max_players, is_complete
+	players
+	Phase 1
+	id, first_name, last_name, email, phone, handicap_index, registration_type, skill_level, age_group, pairing_note, check_in_status, assigned_at
+	scores
+	Phase 1/2/4
+	id, event_id, team_id, hole_number, gross_score, putts, player_shots (JSONB), device_id, submitted_at, synced_at, is_conflicted, drive_location (PostGIS) ← Phase 4, ball_location (PostGIS) ← Phase 4
+	hole_challenges
+	Phase 1
+	id, event_id, hole_number, challenge_type, description, prize_description, sponsor_id
+	challenge_results
+	Phase 1
+	id, challenge_id, team_id, result_value, result_notes, recorded_at
+	sponsors
+	Phase 1
+	id, event_id, name, logo_url, website_url, tagline, placements (JSONB)
+	donations
+	Phase 1
+	id, event_id, donor_name, donor_email, amount_cents, receipt_sent, created_at
+	email_templates
+	Phase 1
+	id, org_id, trigger_type, subject, html_body, is_active
+	qr_codes
+	Phase 1
+	id, event_id, qr_type, token (signed), svg_data, created_at
+	
+
+PostGIS:  Enable in Docker with image postgis/postgis:16-3.4. CREATE EXTENSION postgis in initial migration. EF Core uses NetTopologySuite for .NET spatial types. cup_location and drive/ball_location columns exist from Phase 1 — they're just nullable and unused until Phase 4.
+
+
+9. Architecture Decision — Expo Router Web vs. Next.js
+Evaluated with Expo SDK 53–55 and the New Architecture now default. The question: can the complete UI be built in React Native / Expo, abandoning Next.js?
+
+
+DECISION: Hybrid Architecture  Admin Dashboard moves to Expo Router web. Public leaderboard, landing page, and email ad builder remain in Next.js. Full abandonment of Next.js is not recommended at this time.
+
+
+9.1  Why Admin Dashboard → Expo Router Web
+* No SEO requirement — admin is behind authentication, never indexed by search engines
+* Shared components: score cards, team lists, check-in UI built once in packages/ui and rendered on both mobile and web admin
+* EAS Hosting handles deployment — one fewer platform to manage
+* Admin auth uses httpOnly cookies on web — supported by Expo Router middleware
+
+
+9.2  Why Leaderboard & Landing Page Stay in Next.js
+* Expo Router SSR is alpha in SDK 55 — not appropriate for public SEO-critical surfaces
+* Landing page needs ISR for donation counter freshness — not available in Expo Router
+* TV mode requires CSS media queries, VH/VW units, scroll-snap — no clean React Native Web equivalent
+* JSON-LD Event structured data (Google Search rich results) is simpler in Next.js generateMetadata()
+* Email advertisement HTML export (DOM + Puppeteer) is inherently web-native
+
+
+9.3  Monorepo Structure
+golf-fundraiser-pro/  apps/    mobile/        # Expo SDK 55 — iOS & Android (Phase 2)    admin/         # Expo Router web — organizer dashboard (Phase 1)    web/           # Next.js 15 — public leaderboard, landing page, email builder    api/           # ASP.NET Core Web API  packages/    ui/            # Shared React Native components (mobile + admin)    shared-types/  # TypeScript DTOs shared across all apps    theme/         # 5-token color system, Eco Green defaults, contrast validation  infra/    docker-compose.yml  # API + Postgres/PostGIS + Redis + pgAdmin  .github/workflows/   # CI: lint, test, build all apps
+
+
+Revisit Criteria:  Reconsider full Expo web migration when: Expo Router SSR graduates from alpha (expected SDK 56–57); Expo Router supports mixing server and static rendering; a production high-traffic case study on Expo Router web SSR is published.
+
+
+10. Theme & Color System
+Every organization can apply their own five-color palette across all surfaces. The Eco Green palette is the system default.
+
+
+10.1  Default Palette — Eco Green
+Token
+	Hex
+	Name
+	Semantic Role
+	--color-primary
+	#31572c
+	Dark Forest
+	Nav bar, headers, footer backgrounds, primary button fill
+	--color-action
+	#409151
+	Leaf Green
+	CTA buttons, links, active tabs, leaderboard highlights
+	--color-accent
+	#8ba955
+	Sage
+	Hover states, secondary badges, sponsor strip backgrounds
+	--color-highlight
+	#ecf39e
+	Pale Lime
+	Selected states, callout banners, QR border accent
+	--color-surface
+	#f4f7de
+	Cream
+	Page backgrounds, card surfaces, email body background
+	
+
+WCAG Compliance:  Dark Forest (#31572c) on Cream (#f4f7de) = 7.4:1 — passes AAA. Leaf Green (#409151) on Cream = 4.6:1 — passes AA. All default token pairings meet WCAG 2.1 AA minimum.
+
+
+10.2  Token Architecture by Platform
+* Web (Next.js): CSS custom properties injected in root layout.tsx at SSR time — zero FOUC
+* Admin (Expo Router web): same CSS custom properties via shared theme package
+* Mobile (React Native): ThemeContext provides tokens to all components via useTheme() hook
+* Email: inline style substitution at SendGrid render time — {{PRIMARY_COLOR}} → #31572c
+* Per-event override: events.theme_override (JSONB, nullable) — null = inherit org theme
+* Logo color extraction: org logo upload triggers color quantization algorithm to suggest matching palette
+* Contrast validation: WCAG 2.1 AA (4.5:1) enforced on save; blocks publish if primary text pairing fails
+
+
+11. Open Questions & Decisions
+#
+	Question
+	Phase
+	Recommendation
+	1
+	Hosting platform for API and web?
+	Phase 1
+	Railway or Render for API + Postgres + Redis (Docker-native, affordable). Vercel for Next.js. EAS Hosting for Expo web admin. Note: Phase 4 Stripe webhooks require a stable public HTTPS endpoint — confirm hosting supports this.
+	2
+	Guest players (no account) — how do they score in Phase 2?
+	Phase 2
+	Captain scores for whole team (simplest, recommended for MVP). For Phase 4 auction: guests need an account to bid — walk-up card-on-file entry at check-in covers day-of attendees.
+	3
+	Auction extension cap — how many total minutes?
+	Phase 4
+	Default 10 minutes recommended (original_closes_at + 10 min hard cap). Configurable per event. Prevents infinite runoff while rewarding active bidders in the final minutes. Confirm with organizers before first auction event.
+	4
+	Should outbid notifications be push, email, or both?
+	Phase 4
+	Both for high-urgency paths (outbid, auction won). Push only for extension alerts. Email only for post-event receipts. Golfer can opt out of push in profile settings without losing email receipts.
+	5
+	Donation item FMV — $0 or does it have tangible value?
+	Phase 4
+	Fund-a-Need / Paddle Raise items are typically FMV = $0 (fully deductible donation). Items with tangible value (e.g. donated dinner experience) should reflect actual FMV. Confirm with CLHS accountant before first auction.
+	6
+	Buy-now price — should it be enabled on all silent auction items?
+	Phase 4
+	Optional per item — leave buy_now_price_cents null to disable. Good for items where organizer wants competitive bidding. Use buy-now for items with a known retail value where instant purchase is preferable to risk of low final bid.
+	7
+	Who enters cup GPS coordinates — organizer, course staff, or pre-loaded?
+	Phase 6
+	Build admin 'Course Setup' tool in mobile app. Organizer walks each hole and taps 'Set Pin Location'. One-time setup per course; reusable across events. Admin can update pin position day-of.
+	8
+	Mapbox vs. Google Maps for satellite imagery?
+	Phase 6
+	Mapbox recommended: better free tier (50k loads/month), offline tile download for rural courses, cleaner React Native SDK. Switch to Google only if satellite coverage is poor at a specific course.
+	9
+	GPS drive distance: automated or manual entry for contests?
+	Phase 5
+	Both supported. GPS with ± uncertainty indicator shown in UI. Manual distance entry always available as override. Never use GPS-only for official competitive challenge results — require marshal verification.
+	10
+	Hole layout graphics: manual upload or auto-generated from GPS?
+	Phase 6
+	Manual upload in Phase 6 (PNG/SVG per hole). Auto-generation from GPS boundary polygon is Phase 6+ — requires significant UX work for hole boundary marking on-course.
+	11
+	Should league handicaps sync back to the player's tournament handicap_index?
+	Phase 5
+	Keep them separate — league_members.handicap_index is league-specific; players.handicap_index is tournament-specific. Different courses, different formats, different formulas. Admin can optionally sync with a toggle.
+	12
+	Which skins format at launch — gross, net, or both configurable?
+	Phase 5
+	Both configurable per league. Gross skins (most common in social leagues) and net skins (levels playing field for mixed-handicap groups). Admin sets format at league creation.
+	13
+	GHIN handicap API integration — which phase?
+	Phase 6+
+	Phase 6+. GHIN API requires USGA approval process. Manual handicap index entry with 'not GHIN-verified' note in Phases 1–4; Phase 5 uses club formula. Start USGA application during Phase 4 to have approval by Phase 6.
+	14
+	BLE scorecard transfer — replace or augment QR in Phase 2?
+	Phase 6+
+	QR is the Phase 2 implementation. BLE (react-native-ble-plx) is Phase 7+ for high-volume events (50+ teams). QR stays as fallback.
+	15
+	Multi-round tournament support?
+	Phase 6+
+	Schema supports it (round_number column on scores table). League play in Phase 5 handles multi-round seasons. For multi-round individual tournaments specifically, the admin UI is Phase 7+.
+	
+
+Confidential — For Development UsePage

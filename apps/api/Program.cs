@@ -36,8 +36,11 @@
 using GolfFundraiserPro.Api.Common.Extensions;
 using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
+using GolfFundraiserPro.Api.Domain.Entities;
+using GolfFundraiserPro.Api.Features.Auth;
 using GolfFundraiserPro.Api.Hubs;
 using Hangfire;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 // ── LOAD ENVIRONMENT VARIABLES ────────────────────────────────────────────────
@@ -117,6 +120,10 @@ if (app.Environment.IsDevelopment())
         // Don't crash the server — let it start so developers can see the error
         // and diagnose it. Requests will fail with DB errors until fixed.
     }
+
+    // Seed super admin account from environment config (idempotent — safe to run every startup)
+    try { await SeedSuperAdminAsync(scope.ServiceProvider); }
+    catch (Exception ex) { app.Logger.LogError(ex, "Super admin seeding failed."); }
 }
 
 // ── HTTP PIPELINE CONFIGURATION ───────────────────────────────────────────────
@@ -148,7 +155,10 @@ if (!app.Environment.IsDevelopment())
 var corsPolicy = app.Environment.IsDevelopment() ? "GfpDevelopment" : "GfpProduction";
 app.UseCors(corsPolicy);
 
-// 5. Routing — must come before auth middleware
+// 5. Static files — serves wwwroot/uploads/* for uploaded logos
+app.UseStaticFiles();
+
+// 6. Routing — must come before auth middleware
 app.UseRouting();
 
 // 6. Authentication — validates JWT Bearer tokens, sets HttpContext.User
@@ -201,3 +211,67 @@ app.Logger.LogInformation(
     Environment.GetEnvironmentVariable("ASPNETCORE_URLS") ?? "http://localhost:5000");
 
 await app.RunAsync();
+
+// ── SUPER ADMIN SEED ──────────────────────────────────────────────────────────
+// Creates a SuperAdmin account from SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD env vars.
+// Safe to run on every startup — exits early if the account already exists.
+static async Task SeedSuperAdminAsync(IServiceProvider services)
+{
+    var config   = services.GetRequiredService<IConfiguration>();
+    var email    = config["SUPER_ADMIN_EMAIL"];
+    var password = config["SUPER_ADMIN_PASSWORD"];
+    var name     = config["SUPER_ADMIN_NAME"] ?? "Platform Admin";
+
+    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password)) return;
+
+    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+    var db          = services.GetRequiredService<ApplicationDbContext>();
+    var logger      = services.GetRequiredService<ILoggerFactory>()
+                              .CreateLogger("SuperAdminSeed");
+
+    // Ensure SuperAdmin role exists
+    if (!await roleManager.RoleExistsAsync(AuthService.RoleSuperAdmin))
+        await roleManager.CreateAsync(new IdentityRole(AuthService.RoleSuperAdmin));
+
+    // Idempotent — don't recreate if already exists
+    if (await userManager.FindByEmailAsync(email) is not null) return;
+
+    // Create a private platform org (filtered out of all super-admin queries)
+    const string platformSlug = "gfp-platform-admin";
+    var platformOrg = await db.Organizations.FirstOrDefaultAsync(o => o.Slug == platformSlug);
+    if (platformOrg is null)
+    {
+        platformOrg = new Organization
+        {
+            Id        = Guid.NewGuid(),
+            Name      = "GFP Platform Admin",
+            Slug      = platformSlug,
+            Is501c3   = false,
+            CreatedAt = DateTime.UtcNow,
+        };
+        db.Organizations.Add(platformOrg);
+        await db.SaveChangesAsync();
+    }
+
+    var user = new ApplicationUser
+    {
+        UserName       = email,
+        Email          = email,
+        DisplayName    = name,
+        OrgId          = platformOrg.Id,
+        EmailConfirmed = true,
+    };
+
+    var result = await userManager.CreateAsync(user, password);
+    if (result.Succeeded)
+    {
+        await userManager.AddToRoleAsync(user, AuthService.RoleSuperAdmin);
+        logger.LogInformation("Super admin seeded: {Email}", email);
+    }
+    else
+    {
+        logger.LogWarning("Super admin seed failed: {Errors}",
+            string.Join(", ", result.Errors.Select(e => e.Description)));
+    }
+}

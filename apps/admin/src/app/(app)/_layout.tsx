@@ -4,8 +4,13 @@ import { useTheme } from '@gfp/ui';
 import { useAuth } from '@/lib/auth';
 import { useResponsive } from '@/lib/responsive';
 
-const NAV_ITEMS = [
-  { label: 'Events', segment: 'events', href: '/(app)/events' as const },
+const ORG_ADMIN_NAV = [
+  { label: 'Events',   segment: 'events',   href: '/(app)/events'   as const },
+  { label: 'Settings', segment: 'settings', href: '/(app)/settings' as const },
+];
+
+const SUPER_ADMIN_NAV = [
+  { label: 'Organizations', segment: 'admin', href: '/(app)/admin' as const },
 ];
 
 export default function AppLayout() {
@@ -14,6 +19,10 @@ export default function AppLayout() {
   const router   = useRouter();
   const segments = useSegments();
   const { isMobile } = useResponsive();
+
+  const isSuperAdmin = user?.role === 'SuperAdmin';
+  const navItems     = isSuperAdmin ? SUPER_ADMIN_NAV : ORG_ADMIN_NAV;
+  const identityLabel = isSuperAdmin ? 'Platform Admin' : (user?.email ?? '');
 
   async function handleLogout() {
     await logout();
@@ -27,13 +36,14 @@ export default function AppLayout() {
         <View style={[styles.topBar, { backgroundColor: theme.colors.primary }]}>
           <Text style={[styles.topLogo, { color: theme.colors.surface }]}>⛳ GFP</Text>
           <View style={styles.topNav}>
-            {NAV_ITEMS.map(item => {
+            {navItems.map(item => {
               const isActive = segments.includes(item.segment as never);
               return (
                 <Pressable
                   key={item.href}
                   style={[styles.topNavItem, isActive && styles.topNavItemActive]}
-                  onPress={() => router.push(item.href)}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  onPress={() => router.push(item.href as any)}
                   accessibilityRole="link"
                   accessibilityLabel={item.label}
                 >
@@ -45,7 +55,7 @@ export default function AppLayout() {
             })}
           </View>
           <Text style={[styles.topEmail, { color: theme.colors.accent }]} numberOfLines={1}>
-            {user?.email}
+            {identityLabel}
           </Text>
           <Pressable
             onPress={handleLogout}
@@ -73,7 +83,7 @@ export default function AppLayout() {
         </View>
 
         <View style={styles.nav}>
-          {NAV_ITEMS.map(item => {
+          {navItems.map(item => {
             const isActive = segments.includes(item.segment as never);
             return (
               <Pressable
@@ -82,7 +92,8 @@ export default function AppLayout() {
                   styles.navItem,
                   isActive && { backgroundColor: 'rgba(255,255,255,0.15)' },
                 ]}
-                onPress={() => router.push(item.href)}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  onPress={() => router.push(item.href as any)}
                 accessibilityRole="link"
                 accessibilityLabel={item.label}
               >
@@ -96,7 +107,7 @@ export default function AppLayout() {
 
         <View style={styles.bottomBox}>
           <Text style={[styles.userEmail, { color: theme.colors.accent }]} numberOfLines={1}>
-            {user?.email}
+            {identityLabel}
           </Text>
           <Pressable
             style={({ pressed }) => [

@@ -5,33 +5,60 @@ import React, {
 import { authApi } from './api';
 import { storage } from './storage';
 
-interface AuthUser {
-  email:  string;
-  orgId:  string;
-  token:  string;
+export interface AuthUser {
+  email:       string;
+  orgId:       string;
+  role:        string;       // "OrgAdmin" | "SuperAdmin" | ...
+  displayName: string;
+  token:       string;
+}
+
+export interface RegisterPayload {
+  email:       string;
+  password:    string;
+  displayName: string;
+  orgName:     string;
+  orgSlug:     string;
+  is501c3?:    boolean;
 }
 
 interface AuthContextValue {
-  user:    AuthUser | null;
-  loading: boolean;
-  login:   (email: string, password: string) => Promise<void>;
-  logout:  () => Promise<void>;
+  user:     AuthUser | null;
+  loading:  boolean;
+  login:    (email: string, password: string) => Promise<void>;
+  logout:   () => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function decodeUser(token: string): AuthUser {
+  const payload = JSON.parse(atob(token.split('.')[1]));
+  // ClaimTypes.Role maps to short "role" via JwtSecurityTokenHandler.OutboundClaimTypeMap.
+  // Fall back to the long .NET claim URI in case the map is disabled.
+  const role =
+    payload['role'] ??
+    payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ??
+    'OrgAdmin';
+  return {
+    email:       payload.email       ?? '',
+    orgId:       payload.orgId       ?? '',
+    role,
+    displayName: payload.displayName ?? '',
+    token,
+  };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser]       = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore session from localStorage on mount
+  // Restore session from storage on mount
   useEffect(() => {
     const token = storage.getAccessToken();
     if (token) {
-      // Decode the JWT payload to extract email + orgId without a library
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setUser({ email: payload.email ?? '', orgId: payload.orgId ?? '', token });
+        setUser(decodeUser(token));
       } catch {
         storage.clearTokens();
       }
@@ -43,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await authApi.login(email, password);
     storage.setAccessToken(data.accessToken);
     storage.setRefreshToken(data.refreshToken);
-    setUser({ email, orgId: data.orgId, token: data.accessToken });
+    setUser(decodeUser(data.accessToken));
   }, []);
 
   const logout = useCallback(async () => {
@@ -55,8 +82,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const register = useCallback(async (payload: RegisterPayload) => {
+    const data = await authApi.register(payload);
+    storage.setAccessToken(data.accessToken);
+    storage.setRefreshToken(data.refreshToken);
+    setUser(decodeUser(data.accessToken));
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
       {children}
     </AuthContext.Provider>
   );

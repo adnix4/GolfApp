@@ -11,11 +11,16 @@ function AuthGate() {
 
   useEffect(() => {
     if (loading) return;
-    const inAuth = segments[0] === '(auth)';
-    if (!user && !inAuth) {
+    const seg0     = segments[0] as string;
+    const inPublic = seg0 === '(public)';
+    const inAuth   = seg0 === '(auth)';
+    const inApp    = seg0 === '(app)';
+
+    if (!user && inApp) {
       router.replace('/(auth)/login');
-    } else if (user && inAuth) {
-      router.replace('/(app)/events');
+    } else if (user && (inAuth || inPublic)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      router.replace((user.role === 'SuperAdmin' ? '/(app)/admin' : '/(app)/events') as any);
     }
   }, [user, loading, segments]);
 

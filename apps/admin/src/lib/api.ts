@@ -109,7 +109,7 @@ export const authApi = {
 
   register: (payload: {
     email: string; password: string; displayName: string;
-    orgName: string; orgSlug: string;
+    orgName: string; orgSlug: string; is501c3?: boolean;
   }) =>
     request<{ accessToken: string; refreshToken: string; orgId: string }>(
       '/api/v1/auth/register',
@@ -344,8 +344,9 @@ export interface Scorecard {
 
 export interface LeaderboardEntry {
   rank: number; teamId: string; teamName: string;
-  toPar: number; grossTotal: number; holesComplete: number;
-  isComplete: boolean; startingHole: number | null; teeTime: string | null;
+  toPar: number; grossTotal: number; stablefordPoints: number;
+  holesComplete: number; isComplete: boolean;
+  startingHole: number | null; teeTime: string | null;
 }
 
 export interface FundraisingTotals {
@@ -473,6 +474,69 @@ export interface AuctionSession {
   startedAt: string;
   endedAt: string | null;
 }
+
+// ── ORG SETTINGS ─────────────────────────────────────────────────────────────
+
+export interface OrgProfile {
+  id: string; name: string; slug: string;
+  logoUrl: string | null; missionStatement: string | null;
+  is501c3: boolean; themeJson: string | null; createdAt: string;
+}
+
+export interface UpdateOrgPayload {
+  name?: string;
+  logoUrl?: string | null;
+  missionStatement?: string | null;
+  is501c3?: boolean;
+  themeJson?: string | null;
+}
+
+export const orgApi = {
+  getMe: () => request<OrgProfile>('/api/v1/orgs/me'),
+
+  updateMe: (payload: UpdateOrgPayload) =>
+    request<OrgProfile>('/api/v1/orgs/me', { method: 'PATCH', body: payload }),
+
+  uploadLogo: async (file: File): Promise<{ logoUrl: string; fullUrl: string }> => {
+    const token   = storage.getAccessToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const form = new FormData();
+    form.append('file', file);
+
+    const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
+    const res = await fetch(`${BASE_URL}/api/v1/orgs/me/logo`, {
+      method: 'POST', headers, body: form,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(res.status, 'UPLOAD_FAILED', (err as any).detail ?? 'Logo upload failed.');
+    }
+    return res.json();
+  },
+};
+
+// ── SUPER ADMIN ───────────────────────────────────────────────────────────────
+
+export interface OrgSummary {
+  id: string; name: string; slug: string;
+  is501c3: boolean; eventCount: number; createdAt: string;
+}
+
+export interface AllEventSummary {
+  id: string; name: string; status: string; eventCode: string;
+  orgId: string; orgName: string; orgSlug: string;
+  teamCount: number; startAt: string | null;
+}
+
+export const superAdminApi = {
+  listOrganizations: () =>
+    request<OrgSummary[]>('/api/v1/super-admin/organizations'),
+
+  listAllEvents: () =>
+    request<AllEventSummary[]>('/api/v1/super-admin/events'),
+};
 
 export interface CreateAuctionItemPayload {
   title: string;
