@@ -103,14 +103,13 @@ import {
 import type { JoinEventResponse } from '../lib/api';
 
 const SESSION: JoinEventResponse = {
-  event:  { id: 'ev1', name: 'Charity Cup', eventCode: 'ABCD1234', holes: 18,
-             format: 'Scramble', startType: 'Shotgun', status: 'Active',
-             startAt: null, courseId: null },
-  team:   { id: 'tm1', name: 'Eagles', entryFeePaid: false, maxPlayers: 4,
-             checkInStatus: 'Pending', players: [], eventId: 'ev1',
-             startingHole: null, teeTime: null },
-  player: { id: 'pl1', firstName: 'Alice', lastName: 'Smith', email: 'a@b.com',
-             checkInStatus: 'Pending', teamId: 'tm1', eventId: 'ev1' },
+  event:   { id: 'ev1', name: 'Charity Cup', eventCode: 'ABCD1234', holes: 18,
+              format: 'Scramble', startType: 'Shotgun', status: 'Active', startAt: null },
+  team:    { id: 'tm1', name: 'Eagles', players: [], startingHole: null, teeTime: null },
+  player:  { id: 'pl1', firstName: 'Alice', lastName: 'Smith', email: 'a@b.com' },
+  org:     { id: 'org1', name: 'Test Org', slug: 'test-org', logoUrl: null, themeJson: null },
+  course:  null,
+  sponsors: [],
 };
 
 const SCORE = {

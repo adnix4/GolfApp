@@ -369,6 +369,72 @@ public enum ChargeStatus
     Waived
 }
 
+// ── LEAGUE / SEASON ENUMS ─────────────────────────────────────────────────────
+
+/// <summary>
+/// Scoring format for a league season.
+/// Determines how standings are computed after each round closes.
+/// </summary>
+public enum LeagueFormat
+{
+    /// <summary>Stableford points per hole. Higher total wins.</summary>
+    Stableford,
+
+    /// <summary>Stroke play net score. Lower season total or average wins.</summary>
+    Stroke,
+
+    /// <summary>Match play head-to-head. Holes won per round.</summary>
+    Match
+}
+
+/// <summary>Handicap calculation formula used by a league.</summary>
+public enum HandicapSystem
+{
+    /// <summary>
+    /// Admin-configured formula: Best N of last M, rolling average, or percentage.
+    /// No USGA course rating / slope required.
+    /// </summary>
+    Club,
+
+    /// <summary>
+    /// USGA formula: Best 8 of last 20 differentials with ESC cap.
+    /// Requires course_rating and slope_rating on CourseHole (Phase 5b).
+    /// </summary>
+    USGA
+}
+
+/// <summary>Lifecycle state of a league round.</summary>
+public enum RoundStatus
+{
+    /// <summary>Round is on the schedule but scoring has not opened.</summary>
+    Scheduled,
+
+    /// <summary>Round is open — pairings locked, waiting for play day.</summary>
+    Open,
+
+    /// <summary>Scoring is active — mobile app accepts score entry.</summary>
+    Scoring,
+
+    /// <summary>
+    /// Round closed: handicaps recalculated, standings updated, skins resolved,
+    /// result emails sent.
+    /// </summary>
+    Closed
+}
+
+/// <summary>Membership status of a league member in a season.</summary>
+public enum MemberStatus
+{
+    /// <summary>Active, dues-paid member. Eligible for pairings and standings.</summary>
+    Active,
+
+    /// <summary>Inactive — opted out or removed mid-season. Excluded from pairings.</summary>
+    Inactive,
+
+    /// <summary>Walk-in substitute. Scores count for skins but not season standings.</summary>
+    Sub
+}
+
 // ── EMAIL TEMPLATE ENUMS ──────────────────────────────────────────────────────
 
 /// <summary>

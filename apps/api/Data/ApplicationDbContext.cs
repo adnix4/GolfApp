@@ -122,6 +122,18 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<AuctionWinner> AuctionWinners => Set<AuctionWinner>();
     public DbSet<AuctionSession> AuctionSessions => Set<AuctionSession>();
 
+    // ── Phase 5: League Play + Handicaps ──────────────────────────────────
+    public DbSet<League> Leagues => Set<League>();
+    public DbSet<Season> Seasons => Set<Season>();
+    public DbSet<Flight> Flights => Set<Flight>();
+    public DbSet<LeagueMember> LeagueMembers => Set<LeagueMember>();
+    public DbSet<LeagueRound> LeagueRounds => Set<LeagueRound>();
+    public DbSet<LeaguePairing> LeaguePairings => Set<LeaguePairing>();
+    public DbSet<LeagueScore> LeagueScores => Set<LeagueScore>();
+    public DbSet<HandicapHistory> HandicapHistories => Set<HandicapHistory>();
+    public DbSet<Standing> Standings => Set<Standing>();
+    public DbSet<Skin> Skins => Set<Skin>();
+
     // ── MODEL CONFIGURATION ────────────────────────────────────────────────
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -474,6 +486,179 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                    .HasForeignKey(s => s.CurrentItemId)
                    .IsRequired(false)
                    .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── PHASE 5: LEAGUE + SEASON ──────────────────────────────────────
+        modelBuilder.Entity<League>(league =>
+        {
+            league.Property(l => l.Id).ValueGeneratedNever();
+            league.Property(l => l.Format).HasConversion<string>();
+            league.Property(l => l.HandicapSystem).HasConversion<string>();
+            league.Property(l => l.HandicapFormulaJson).HasColumnType("jsonb");
+
+            league.HasOne(l => l.Organization)
+                  .WithMany()
+                  .HasForeignKey(l => l.OrgId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Season>(season =>
+        {
+            season.Property(s => s.Id).ValueGeneratedNever();
+
+            season.HasIndex(s => s.LeagueId)
+                  .HasDatabaseName("IX_seasons_league_id");
+
+            season.HasOne(s => s.League)
+                  .WithMany(l => l.Seasons)
+                  .HasForeignKey(s => s.LeagueId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Flight>(flight =>
+        {
+            flight.Property(f => f.Id).ValueGeneratedNever();
+
+            flight.HasOne(f => f.Season)
+                  .WithMany(s => s.Flights)
+                  .HasForeignKey(f => f.SeasonId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LeagueMember>(member =>
+        {
+            member.Property(m => m.Id).ValueGeneratedNever();
+            member.Property(m => m.Status).HasConversion<string>();
+
+            member.HasIndex(m => new { m.SeasonId, m.Email })
+                  .IsUnique()
+                  .HasDatabaseName("IX_league_members_season_id_email_unique");
+
+            member.HasOne(m => m.Season)
+                  .WithMany(s => s.Members)
+                  .HasForeignKey(m => m.SeasonId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            member.HasOne(m => m.Flight)
+                  .WithMany(f => f.Members)
+                  .HasForeignKey(m => m.FlightId)
+                  .IsRequired(false)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<LeagueRound>(round =>
+        {
+            round.Property(r => r.Id).ValueGeneratedNever();
+            round.Property(r => r.Status).HasConversion<string>();
+
+            round.HasIndex(r => r.SeasonId)
+                 .HasDatabaseName("IX_league_rounds_season_id");
+
+            round.HasOne(r => r.Season)
+                 .WithMany(s => s.Rounds)
+                 .HasForeignKey(r => r.SeasonId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+            round.HasOne(r => r.Course)
+                 .WithMany()
+                 .HasForeignKey(r => r.CourseId)
+                 .IsRequired(false)
+                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<LeaguePairing>(pairing =>
+        {
+            pairing.Property(p => p.Id).ValueGeneratedNever();
+            pairing.Property(p => p.MemberIdsJson).HasColumnType("jsonb");
+
+            pairing.HasIndex(p => p.RoundId)
+                   .HasDatabaseName("IX_league_pairings_round_id");
+
+            pairing.HasOne(p => p.Round)
+                   .WithMany(r => r.Pairings)
+                   .HasForeignKey(p => p.RoundId)
+                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LeagueScore>(score =>
+        {
+            score.Property(s => s.Id).ValueGeneratedNever();
+
+            score.HasIndex(s => new { s.RoundId, s.MemberId })
+                 .HasDatabaseName("IX_league_scores_round_member");
+
+            score.HasOne(s => s.Round)
+                 .WithMany(r => r.Scores)
+                 .HasForeignKey(s => s.RoundId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+            score.HasOne(s => s.Member)
+                 .WithMany(m => m.Scores)
+                 .HasForeignKey(s => s.MemberId)
+                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<HandicapHistory>(hh =>
+        {
+            hh.Property(h => h.Id).ValueGeneratedNever();
+
+            hh.HasIndex(h => h.MemberId)
+              .HasDatabaseName("IX_handicap_history_member_id");
+
+            hh.HasOne(h => h.Member)
+              .WithMany(m => m.HandicapHistories)
+              .HasForeignKey(h => h.MemberId)
+              .OnDelete(DeleteBehavior.Cascade);
+
+            hh.HasOne(h => h.Round)
+              .WithMany()
+              .HasForeignKey(h => h.RoundId)
+              .IsRequired(false)
+              .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Standing>(standing =>
+        {
+            standing.Property(s => s.Id).ValueGeneratedNever();
+
+            standing.HasIndex(s => new { s.SeasonId, s.MemberId })
+                    .IsUnique()
+                    .HasDatabaseName("IX_standings_season_member_unique");
+
+            standing.HasOne(s => s.Season)
+                    .WithMany(se => se.Standings)
+                    .HasForeignKey(s => s.SeasonId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+            standing.HasOne(s => s.Member)
+                    .WithMany()
+                    .HasForeignKey(s => s.MemberId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+            standing.HasOne(s => s.Flight)
+                    .WithMany()
+                    .HasForeignKey(s => s.FlightId)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Skin>(skin =>
+        {
+            skin.Property(s => s.Id).ValueGeneratedNever();
+
+            skin.HasIndex(s => s.RoundId)
+                .HasDatabaseName("IX_skins_round_id");
+
+            skin.HasOne(s => s.Round)
+                .WithMany(r => r.Skins)
+                .HasForeignKey(s => s.RoundId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            skin.HasOne(s => s.Winner)
+                .WithMany()
+                .HasForeignKey(s => s.WinnerMemberId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── APPLICATION USER (additional config) ──────────────────────────

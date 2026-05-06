@@ -153,6 +153,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Features.Auction.AuctionService>();
         services.AddScoped<Features.Auction.AuctionCloseJob>();
 
+        // Phase 5: League Play
+        services.AddScoped<Features.League.HandicapEngine>();
+        services.AddScoped<Features.League.StandingsCalculator>();
+        services.AddScoped<Features.League.SkinsCalculator>();
+        services.AddScoped<Features.League.PairingEngine>();
+        services.AddScoped<Features.League.LeagueService>();
+
         // ── JWT BEARER AUTHENTICATION ─────────────────────────────────────
         // Configures the middleware to validate JWT Bearer tokens on protected endpoints.
         // The token is expected in the Authorization header: "Bearer <token>"

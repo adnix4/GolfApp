@@ -555,4 +555,135 @@ export interface CreateAuctionItemPayload {
   goalCents?: number;
 }
 
+// ── LEAGUE ────────────────────────────────────────────────────────────────────
+
+export interface LeagueSummary {
+  id: string; orgId: string; name: string;
+  format: string; handicapSystem: string; handicapCap: number;
+  maxFlights: number; duesCents: number; seasonCount: number; createdAt: string;
+}
+
+export interface SeasonSummary {
+  id: string; leagueId: string; name: string;
+  totalRounds: number; startDate: string; endDate: string;
+  status: string; roundsCounted: number; standingMethod: string;
+  memberCount: number; roundCount: number; createdAt: string;
+}
+
+export interface FlightSummary {
+  id: string; seasonId: string; name: string;
+  minHandicap: number | null; maxHandicap: number | null; memberCount: number;
+}
+
+export interface LeagueMember {
+  id: string; seasonId: string; playerId: string | null; flightId: string | null;
+  flightName: string | null; firstName: string; lastName: string; email: string;
+  handicapIndex: number; duesPaid: boolean; roundsPlayed: number;
+  absences: number; status: string; isSandbagger: boolean;
+}
+
+export interface LeagueRound {
+  id: string; seasonId: string; courseId: string | null; courseName: string | null;
+  roundDate: string; status: string; notes: string | null;
+  pairingCount: number; scoredCount: number;
+}
+
+export interface PairingGroup {
+  id: string; groupNumber: number; memberIds: string[]; memberNames: string[];
+  teeTime: string | null; startingHole: number | null; isLocked: boolean;
+}
+
+export interface StandingRow {
+  rank: number; memberId: string; memberName: string; flightName: string;
+  handicapIndex: number; totalPoints: number; netStrokes: number;
+  seasonAvgNet: number; roundsPlayed: number;
+}
+
+export interface SkinRow {
+  id: string; holeNumber: number; winnerMemberId: string | null;
+  winnerName: string | null; potCents: number; carriedOverFromHole: number | null;
+}
+
+export interface HandicapHistoryRow {
+  id: string; roundId: string | null; roundDate: string | null;
+  oldIndex: number; newIndex: number; differential: number;
+  adminOverride: boolean; reason: string | null; createdAt: string;
+}
+
+export interface SeasonDashboard {
+  season: SeasonSummary; rounds: LeagueRound[]; roster: LeagueMember[];
+  flights: FlightSummary[]; standings: StandingRow[];
+}
+
+export const leagueApi = {
+  list: () => request<LeagueSummary[]>('/api/v1/leagues'),
+
+  create: (payload: { name: string; format: string; handicapSystem?: string; handicapCap?: number; maxFlights?: number; duesCents?: number }) =>
+    request<LeagueSummary>('/api/v1/leagues', { method: 'POST', body: payload }),
+
+  update: (leagueId: string, payload: Partial<{ name: string; format: string; handicapSystem: string; handicapCap: number; maxFlights: number; duesCents: number }>) =>
+    request<LeagueSummary>(`/api/v1/leagues/${leagueId}`, { method: 'PATCH', body: payload }),
+
+  getSeasons: (leagueId: string) =>
+    request<SeasonSummary[]>(`/api/v1/leagues/${leagueId}/seasons`),
+
+  getDashboard: (leagueId: string, seasonId: string) =>
+    request<SeasonDashboard>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}`),
+
+  createSeason: (leagueId: string, payload: { name: string; totalRounds: number; startDate: string; endDate: string; roundsCounted?: number; standingMethod?: string }) =>
+    request<SeasonSummary>(`/api/v1/leagues/${leagueId}/seasons`, { method: 'POST', body: payload }),
+
+  getFlights: (leagueId: string, seasonId: string) =>
+    request<FlightSummary[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/flights`),
+
+  createFlight: (leagueId: string, seasonId: string, payload: { name: string; minHandicap?: number; maxHandicap?: number }) =>
+    request<FlightSummary>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/flights`, { method: 'POST', body: payload }),
+
+  getMembers: (leagueId: string, seasonId: string) =>
+    request<LeagueMember[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/members`),
+
+  addMember: (leagueId: string, seasonId: string, payload: { firstName: string; lastName: string; email: string; handicapIndex?: number; flightId?: string; status?: string }) =>
+    request<LeagueMember>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/members`, { method: 'POST', body: payload }),
+
+  updateMember: (leagueId: string, seasonId: string, memberId: string, payload: Partial<{ flightId: string; handicapIndex: number; duesPaid: boolean; status: string }>) =>
+    request<LeagueMember>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/members/${memberId}`, { method: 'PATCH', body: payload }),
+
+  overrideHandicap: (leagueId: string, seasonId: string, memberId: string, newIndex: number, reason: string) =>
+    request<void>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/members/${memberId}/handicap`, {
+      method: 'PATCH', body: { newIndex, reason },
+    }),
+
+  getHandicapHistory: (leagueId: string, seasonId: string, memberId: string) =>
+    request<HandicapHistoryRow[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/members/${memberId}/handicap-history`),
+
+  getRounds: (leagueId: string, seasonId: string) =>
+    request<LeagueRound[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds`),
+
+  createRound: (leagueId: string, seasonId: string, payload: { roundDate: string; courseId?: string; notes?: string }) =>
+    request<LeagueRound>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds`, { method: 'POST', body: payload }),
+
+  generatePairings: (leagueId: string, seasonId: string, roundId: string, maxPerGroup?: number) =>
+    request<PairingGroup[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/generate-pairings?maxPerGroup=${maxPerGroup ?? 4}`),
+
+  savePairings: (leagueId: string, seasonId: string, roundId: string, groups: { memberIds: string[]; teeTime?: string; startingHole?: number }[], lock?: boolean) =>
+    request<void>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/pairings`, {
+      method: 'PATCH', body: { groups, lock: lock ?? true },
+    }),
+
+  openScoring: (leagueId: string, seasonId: string, roundId: string) =>
+    request<void>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/open-scoring`, { method: 'POST', body: {} }),
+
+  closeRound: (leagueId: string, seasonId: string, roundId: string, skinsPotCents?: number) =>
+    request<void>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/close?skinsPotCentsPerHolePerPlayer=${skinsPotCents ?? 0}`, { method: 'POST', body: {} }),
+
+  getStandings: (leagueId: string, seasonId: string) =>
+    request<StandingRow[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/standings`),
+
+  getSkins: (leagueId: string, seasonId: string, roundId: string) =>
+    request<SkinRow[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/skins`),
+
+  getScorecards: (leagueId: string, seasonId: string, roundId: string) =>
+    request<unknown[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/scorecards`),
+};
+
 export { ApiError };

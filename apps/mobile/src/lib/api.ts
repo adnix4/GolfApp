@@ -29,12 +29,15 @@ export interface EventCacheDto {
 }
 
 export interface JoinEventResponse {
-  event:    EventCacheDto;
-  team:     TeamCacheDto;
-  player:   PlayerCacheDto;
-  org:      OrgCacheDto;
-  course:   CourseCacheDto | null;
-  sponsors: SponsorCacheDto[];
+  event:     EventCacheDto;
+  team:      TeamCacheDto;
+  player:    PlayerCacheDto;
+  org:       OrgCacheDto;
+  course:    CourseCacheDto | null;
+  sponsors:  SponsorCacheDto[];
+  leagueId?: string;
+  seasonId?: string;
+  memberId?: string;
 }
 
 export interface SyncConflictDto {
@@ -258,6 +261,51 @@ export async function fetchActiveAuctionSession(eventId: string): Promise<Auctio
   const res = await fetch(`${BASE}/api/v1/events/${eventId}/auction/sessions/active`);
   if (res.status === 204) return null;
   if (!res.ok) return null;
+  return res.json();
+}
+
+// ── PHASE 5: LEAGUE ───────────────────────────────────────────────────────────
+
+export interface MemberSeasonSummary {
+  memberId:      string;
+  name:          string;
+  handicapIndex: number;
+  flightName:    string;
+  rank:          number;
+  totalPoints:   number;
+  roundsPlayed:  number;
+  handicapTrend: HandicapTrendRow[];
+  roundHistory:  RoundResultRow[];
+}
+
+export interface HandicapTrendRow {
+  id: string; roundId: string | null; roundDate: string | null;
+  oldIndex: number; newIndex: number; differential: number;
+  adminOverride: boolean; reason: string | null; createdAt: string;
+}
+
+export interface RoundResultRow {
+  roundId:          string;
+  roundDate:        string;
+  grossTotal:       number;
+  netTotal:         number;
+  stablefordPoints: number;
+  differential:     number;
+}
+
+export async function fetchMemberSeasonSummary(
+  leagueId: string,
+  seasonId: string,
+  memberId: string,
+): Promise<MemberSeasonSummary | null> {
+  const res = await fetch(
+    `${BASE}/api/v1/leagues/${leagueId}/seasons/${seasonId}/members/${memberId}/summary`,
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `Summary fetch failed (${res.status})`);
+  }
   return res.json();
 }
 

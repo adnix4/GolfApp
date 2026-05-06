@@ -1006,6 +1006,415 @@ public class AuctionSession
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PHASE 5: LEAGUE PLAY + HANDICAPS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── LEAGUE ────────────────────────────────────────────────────────────────────
+[Table("leagues")]
+public class League
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("org_id")]
+    public Guid OrgId { get; set; }
+
+    [Column("name")]
+    [MaxLength(200)]
+    public string Name { get; set; } = string.Empty;
+
+    [Column("format")]
+    public LeagueFormat Format { get; set; }
+
+    [Column("handicap_system")]
+    public HandicapSystem HandicapSystem { get; set; } = HandicapSystem.Club;
+
+    /// <summary>JSONB formula config. e.g. { "type": "BestNofM", "n": 5, "m": 10 }</summary>
+    [Column("handicap_formula", TypeName = "jsonb")]
+    public string HandicapFormulaJson { get; set; } = "{\"type\":\"BestNofM\",\"n\":5,\"m\":10}";
+
+    /// <summary>Maximum allowed handicap index. Any calculated value above this is capped.</summary>
+    [Column("handicap_cap")]
+    public double HandicapCap { get; set; } = 36.0;
+
+    /// <summary>Max number of player skill flights per season.</summary>
+    [Column("max_flights")]
+    public short MaxFlights { get; set; } = 1;
+
+    /// <summary>League dues in cents. 0 = no dues.</summary>
+    [Column("dues_cents")]
+    public int DuesCents { get; set; }
+
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [ForeignKey(nameof(OrgId))]
+    public Organization Organization { get; set; } = null!;
+
+    public ICollection<Season> Seasons { get; set; } = new List<Season>();
+}
+
+// ── SEASON ────────────────────────────────────────────────────────────────────
+[Table("seasons")]
+public class Season
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("league_id")]
+    public Guid LeagueId { get; set; }
+
+    [Column("name")]
+    [MaxLength(200)]
+    public string Name { get; set; } = string.Empty;
+
+    [Column("total_rounds")]
+    public short TotalRounds { get; set; }
+
+    [Column("start_date")]
+    public DateOnly StartDate { get; set; }
+
+    [Column("end_date")]
+    public DateOnly EndDate { get; set; }
+
+    /// <summary>Status mirrors EventStatus pattern: Draft / Active / Completed.</summary>
+    [Column("status")]
+    [MaxLength(50)]
+    public string Status { get; set; } = "Draft";
+
+    /// <summary>
+    /// How many rounds count toward standings. 0 = all rounds.
+    /// e.g. 10 = best 10 of total_rounds (lowest net or highest Stableford).
+    /// </summary>
+    [Column("rounds_counted")]
+    public short RoundsCounted { get; set; }
+
+    /// <summary>
+    /// Stroke play standing method: "TotalNet" or "AverageNet".
+    /// Only relevant when Format = Stroke.
+    /// </summary>
+    [Column("standing_method")]
+    [MaxLength(50)]
+    public string StandingMethod { get; set; } = "TotalNet";
+
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [ForeignKey(nameof(LeagueId))]
+    public League League { get; set; } = null!;
+
+    public ICollection<Flight> Flights { get; set; } = new List<Flight>();
+    public ICollection<LeagueMember> Members { get; set; } = new List<LeagueMember>();
+    public ICollection<LeagueRound> Rounds { get; set; } = new List<LeagueRound>();
+    public ICollection<Standing> Standings { get; set; } = new List<Standing>();
+}
+
+// ── FLIGHT ────────────────────────────────────────────────────────────────────
+[Table("flights")]
+public class Flight
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("season_id")]
+    public Guid SeasonId { get; set; }
+
+    [Column("name")]
+    [MaxLength(100)]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Lower bound of handicap range for this flight (inclusive). Null = no lower bound.</summary>
+    [Column("min_handicap")]
+    public double? MinHandicap { get; set; }
+
+    /// <summary>Upper bound of handicap range for this flight (inclusive). Null = no upper bound.</summary>
+    [Column("max_handicap")]
+    public double? MaxHandicap { get; set; }
+
+    [ForeignKey(nameof(SeasonId))]
+    public Season Season { get; set; } = null!;
+
+    public ICollection<LeagueMember> Members { get; set; } = new List<LeagueMember>();
+}
+
+// ── LEAGUE MEMBER ─────────────────────────────────────────────────────────────
+[Table("league_members")]
+public class LeagueMember
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("season_id")]
+    public Guid SeasonId { get; set; }
+
+    /// <summary>Optional link to an event-scoped Player record. Null for walk-in subs.</summary>
+    [Column("player_id")]
+    public Guid? PlayerId { get; set; }
+
+    [Column("flight_id")]
+    public Guid? FlightId { get; set; }
+
+    [Column("first_name")]
+    [MaxLength(100)]
+    public string FirstName { get; set; } = string.Empty;
+
+    [Column("last_name")]
+    [MaxLength(100)]
+    public string LastName { get; set; } = string.Empty;
+
+    [Column("email")]
+    [MaxLength(254)]
+    public string Email { get; set; } = string.Empty;
+
+    [Column("handicap_index")]
+    public double HandicapIndex { get; set; }
+
+    [Column("dues_paid")]
+    public bool DuesPaid { get; set; }
+
+    [Column("rounds_played")]
+    public short RoundsPlayed { get; set; }
+
+    [Column("absences")]
+    public short Absences { get; set; }
+
+    [Column("status")]
+    public MemberStatus Status { get; set; } = MemberStatus.Active;
+
+    [Column("joined_at")]
+    public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+
+    [ForeignKey(nameof(SeasonId))]
+    public Season Season { get; set; } = null!;
+
+    [ForeignKey(nameof(FlightId))]
+    public Flight? Flight { get; set; }
+
+    public ICollection<HandicapHistory> HandicapHistories { get; set; } = new List<HandicapHistory>();
+    public ICollection<LeagueScore> Scores { get; set; } = new List<LeagueScore>();
+}
+
+// ── LEAGUE ROUND ──────────────────────────────────────────────────────────────
+[Table("league_rounds")]
+public class LeagueRound
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("season_id")]
+    public Guid SeasonId { get; set; }
+
+    [Column("course_id")]
+    public Guid? CourseId { get; set; }
+
+    [Column("round_date")]
+    public DateOnly RoundDate { get; set; }
+
+    [Column("status")]
+    public RoundStatus Status { get; set; } = RoundStatus.Scheduled;
+
+    [Column("notes")]
+    [MaxLength(500)]
+    public string? Notes { get; set; }
+
+    [ForeignKey(nameof(SeasonId))]
+    public Season Season { get; set; } = null!;
+
+    [ForeignKey(nameof(CourseId))]
+    public Course? Course { get; set; }
+
+    public ICollection<LeaguePairing> Pairings { get; set; } = new List<LeaguePairing>();
+    public ICollection<LeagueScore> Scores { get; set; } = new List<LeagueScore>();
+    public ICollection<Skin> Skins { get; set; } = new List<Skin>();
+}
+
+// ── LEAGUE PAIRING ────────────────────────────────────────────────────────────
+[Table("league_pairings")]
+public class LeaguePairing
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("round_id")]
+    public Guid RoundId { get; set; }
+
+    [Column("group_number")]
+    public short GroupNumber { get; set; }
+
+    /// <summary>JSONB array of LeagueMember IDs in this group.</summary>
+    [Column("member_ids", TypeName = "jsonb")]
+    public string MemberIdsJson { get; set; } = "[]";
+
+    [Column("tee_time")]
+    public TimeOnly? TeeTime { get; set; }
+
+    [Column("starting_hole")]
+    public short? StartingHole { get; set; }
+
+    /// <summary>True once the admin has locked pairings and notified players.</summary>
+    [Column("is_locked")]
+    public bool IsLocked { get; set; }
+
+    [ForeignKey(nameof(RoundId))]
+    public LeagueRound Round { get; set; } = null!;
+}
+
+// ── LEAGUE SCORE ──────────────────────────────────────────────────────────────
+[Table("league_scores")]
+public class LeagueScore
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("round_id")]
+    public Guid RoundId { get; set; }
+
+    [Column("member_id")]
+    public Guid MemberId { get; set; }
+
+    [Column("hole_number")]
+    public short HoleNumber { get; set; }
+
+    [Column("gross_score")]
+    public short GrossScore { get; set; }
+
+    /// <summary>Net score = gross − handicap strokes allocated to this hole.</summary>
+    [Column("net_score")]
+    public short NetScore { get; set; }
+
+    /// <summary>Stableford points: max(0, 2 + par − net_score).</summary>
+    [Column("stableford_points")]
+    public short StablefordPoints { get; set; }
+
+    [ForeignKey(nameof(RoundId))]
+    public LeagueRound Round { get; set; } = null!;
+
+    [ForeignKey(nameof(MemberId))]
+    public LeagueMember Member { get; set; } = null!;
+}
+
+// ── HANDICAP HISTORY ──────────────────────────────────────────────────────────
+[Table("handicap_history")]
+public class HandicapHistory
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("member_id")]
+    public Guid MemberId { get; set; }
+
+    /// <summary>Null for manual overrides not tied to a specific round.</summary>
+    [Column("round_id")]
+    public Guid? RoundId { get; set; }
+
+    [Column("old_index")]
+    public double OldIndex { get; set; }
+
+    [Column("new_index")]
+    public double NewIndex { get; set; }
+
+    /// <summary>The differential that triggered this recalculation.</summary>
+    [Column("differential")]
+    public double Differential { get; set; }
+
+    /// <summary>True when an admin manually set the handicap (not engine-calculated).</summary>
+    [Column("admin_override")]
+    public bool AdminOverride { get; set; }
+
+    [Column("reason")]
+    [MaxLength(500)]
+    public string? Reason { get; set; }
+
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [ForeignKey(nameof(MemberId))]
+    public LeagueMember Member { get; set; } = null!;
+
+    [ForeignKey(nameof(RoundId))]
+    public LeagueRound? Round { get; set; }
+}
+
+// ── STANDING ──────────────────────────────────────────────────────────────────
+[Table("standings")]
+public class Standing
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("season_id")]
+    public Guid SeasonId { get; set; }
+
+    [Column("flight_id")]
+    public Guid? FlightId { get; set; }
+
+    [Column("member_id")]
+    public Guid MemberId { get; set; }
+
+    /// <summary>Season Stableford points total.</summary>
+    [Column("total_points")]
+    public int TotalPoints { get; set; }
+
+    /// <summary>Season net strokes total (stroke play).</summary>
+    [Column("net_strokes")]
+    public int NetStrokes { get; set; }
+
+    /// <summary>Season average net score (stroke play, AverageNet method).</summary>
+    [Column("season_avg_net")]
+    public double SeasonAvgNet { get; set; }
+
+    [Column("rounds_played")]
+    public short RoundsPlayed { get; set; }
+
+    /// <summary>Current rank within the flight (1 = leader). Recalculated on round close.</summary>
+    [Column("rank")]
+    public short Rank { get; set; }
+
+    [Column("updated_at")]
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [ForeignKey(nameof(SeasonId))]
+    public Season Season { get; set; } = null!;
+
+    [ForeignKey(nameof(MemberId))]
+    public LeagueMember Member { get; set; } = null!;
+
+    [ForeignKey(nameof(FlightId))]
+    public Flight? Flight { get; set; }
+}
+
+// ── SKIN ──────────────────────────────────────────────────────────────────────
+[Table("skins")]
+public class Skin
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("round_id")]
+    public Guid RoundId { get; set; }
+
+    [Column("hole_number")]
+    public short HoleNumber { get; set; }
+
+    /// <summary>Null if this hole tied (skin carried to next hole).</summary>
+    [Column("winner_member_id")]
+    public Guid? WinnerMemberId { get; set; }
+
+    [Column("pot_cents")]
+    public int PotCents { get; set; }
+
+    /// <summary>If this skin was carried over from a previous hole, that hole number. Null if won cleanly.</summary>
+    [Column("carried_over_from_hole")]
+    public short? CarriedOverFromHole { get; set; }
+
+    [ForeignKey(nameof(RoundId))]
+    public LeagueRound Round { get; set; } = null!;
+
+    [ForeignKey(nameof(WinnerMemberId))]
+    public LeagueMember? Winner { get; set; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // QR CODE
 // Maps to the "qr_codes" table.
 // Pre-generated QR codes for an event (included in the Print Kit PDF).

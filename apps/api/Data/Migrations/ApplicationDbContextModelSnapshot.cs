@@ -1056,6 +1056,462 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                     b.ToTable("stripe_customers");
                 });
 
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.League", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DuesCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("dues_cents");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("format");
+
+                    b.Property<double>("HandicapCap")
+                        .HasColumnType("double precision")
+                        .HasColumnName("handicap_cap");
+
+                    b.Property<string>("HandicapFormulaJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("handicap_formula");
+
+                    b.Property<string>("HandicapSystem")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("handicap_system");
+
+                    b.Property<short>("MaxFlights")
+                        .HasColumnType("smallint")
+                        .HasColumnName("max_flights");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("OrgId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("org_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrgId");
+
+                    b.ToTable("leagues");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Season", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("end_date");
+
+                    b.Property<Guid>("LeagueId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("league_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<short>("RoundsCounted")
+                        .HasColumnType("smallint")
+                        .HasColumnName("rounds_counted");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
+
+                    b.Property<string>("StandingMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("standing_method");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("status");
+
+                    b.Property<short>("TotalRounds")
+                        .HasColumnType("smallint")
+                        .HasColumnName("total_rounds");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LeagueId")
+                        .HasDatabaseName("IX_seasons_league_id");
+
+                    b.ToTable("seasons");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Flight", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double?>("MaxHandicap")
+                        .HasColumnType("double precision")
+                        .HasColumnName("max_handicap");
+
+                    b.Property<double?>("MinHandicap")
+                        .HasColumnType("double precision")
+                        .HasColumnName("min_handicap");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("SeasonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SeasonId");
+
+                    b.ToTable("flights");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.LeagueMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<short>("Absences")
+                        .HasColumnType("smallint")
+                        .HasColumnName("absences");
+
+                    b.Property<bool>("DuesPaid")
+                        .HasColumnType("boolean")
+                        .HasColumnName("dues_paid");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("first_name");
+
+                    b.Property<Guid?>("FlightId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("flight_id");
+
+                    b.Property<double>("HandicapIndex")
+                        .HasColumnType("double precision")
+                        .HasColumnName("handicap_index");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("joined_at");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("last_name");
+
+                    b.Property<Guid?>("PlayerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_id");
+
+                    b.Property<short>("RoundsPlayed")
+                        .HasColumnType("smallint")
+                        .HasColumnName("rounds_played");
+
+                    b.Property<Guid>("SeasonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SeasonId", "Email")
+                        .IsUnique()
+                        .HasDatabaseName("IX_league_members_season_id_email_unique");
+
+                    b.ToTable("league_members");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.LeagueRound", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("CourseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("course_id");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<DateOnly>("RoundDate")
+                        .HasColumnType("date")
+                        .HasColumnName("round_date");
+
+                    b.Property<Guid>("SeasonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SeasonId")
+                        .HasDatabaseName("IX_league_rounds_season_id");
+
+                    b.ToTable("league_rounds");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.LeaguePairing", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<short>("GroupNumber")
+                        .HasColumnType("smallint")
+                        .HasColumnName("group_number");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_locked");
+
+                    b.Property<string>("MemberIdsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("member_ids");
+
+                    b.Property<Guid>("RoundId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("round_id");
+
+                    b.Property<short?>("StartingHole")
+                        .HasColumnType("smallint")
+                        .HasColumnName("starting_hole");
+
+                    b.Property<TimeOnly?>("TeeTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("tee_time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoundId")
+                        .HasDatabaseName("IX_league_pairings_round_id");
+
+                    b.ToTable("league_pairings");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.LeagueScore", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<short>("GrossScore")
+                        .HasColumnType("smallint")
+                        .HasColumnName("gross_score");
+
+                    b.Property<short>("HoleNumber")
+                        .HasColumnType("smallint")
+                        .HasColumnName("hole_number");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("member_id");
+
+                    b.Property<short>("NetScore")
+                        .HasColumnType("smallint")
+                        .HasColumnName("net_score");
+
+                    b.Property<Guid>("RoundId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("round_id");
+
+                    b.Property<short>("StablefordPoints")
+                        .HasColumnType("smallint")
+                        .HasColumnName("stableford_points");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoundId", "MemberId")
+                        .HasDatabaseName("IX_league_scores_round_member");
+
+                    b.ToTable("league_scores");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.HandicapHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AdminOverride")
+                        .HasColumnType("boolean")
+                        .HasColumnName("admin_override");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<double>("Differential")
+                        .HasColumnType("double precision")
+                        .HasColumnName("differential");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("member_id");
+
+                    b.Property<double>("NewIndex")
+                        .HasColumnType("double precision")
+                        .HasColumnName("new_index");
+
+                    b.Property<double>("OldIndex")
+                        .HasColumnType("double precision")
+                        .HasColumnName("old_index");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid?>("RoundId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("round_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MemberId")
+                        .HasDatabaseName("IX_handicap_history_member_id");
+
+                    b.ToTable("handicap_history");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Standing", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("FlightId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("flight_id");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("member_id");
+
+                    b.Property<int>("NetStrokes")
+                        .HasColumnType("integer")
+                        .HasColumnName("net_strokes");
+
+                    b.Property<short>("Rank")
+                        .HasColumnType("smallint")
+                        .HasColumnName("rank");
+
+                    b.Property<short>("RoundsPlayed")
+                        .HasColumnType("smallint")
+                        .HasColumnName("rounds_played");
+
+                    b.Property<double>("SeasonAvgNet")
+                        .HasColumnType("double precision")
+                        .HasColumnName("season_avg_net");
+
+                    b.Property<Guid>("SeasonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_id");
+
+                    b.Property<int>("TotalPoints")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_points");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SeasonId", "MemberId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_standings_season_member_unique");
+
+                    b.ToTable("standings");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Skin", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<short?>("CarriedOverFromHole")
+                        .HasColumnType("smallint")
+                        .HasColumnName("carried_over_from_hole");
+
+                    b.Property<short>("HoleNumber")
+                        .HasColumnType("smallint")
+                        .HasColumnName("hole_number");
+
+                    b.Property<int>("PotCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("pot_cents");
+
+                    b.Property<Guid>("RoundId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("round_id");
+
+                    b.Property<Guid?>("WinnerMemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("winner_member_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoundId")
+                        .HasDatabaseName("IX_skins_round_id");
+
+                    b.ToTable("skins");
+                });
+
             modelBuilder.Entity("GolfFundraiserPro.Api.Features.Auth.RefreshTokenRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1543,6 +1999,167 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.League", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrgId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Season", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.League", "League")
+                        .WithMany("Seasons")
+                        .HasForeignKey("LeagueId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("League");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Flight", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.Season", "Season")
+                        .WithMany("Flights")
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Season");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.LeagueMember", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.Flight", "Flight")
+                        .WithMany("Members")
+                        .HasForeignKey("FlightId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.Season", "Season")
+                        .WithMany("Members")
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Flight");
+
+                    b.Navigation("Season");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.LeagueRound", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.Course", "Course")
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.Season", "Season")
+                        .WithMany("Rounds")
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Course");
+
+                    b.Navigation("Season");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.LeaguePairing", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.LeagueRound", "Round")
+                        .WithMany("Pairings")
+                        .HasForeignKey("RoundId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Round");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.LeagueScore", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.LeagueMember", "Member")
+                        .WithMany("Scores")
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.LeagueRound", "Round")
+                        .WithMany("Scores")
+                        .HasForeignKey("RoundId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Member");
+
+                    b.Navigation("Round");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.HandicapHistory", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.LeagueMember", "Member")
+                        .WithMany("HandicapHistories")
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.LeagueRound", "Round")
+                        .WithMany()
+                        .HasForeignKey("RoundId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Member");
+
+                    b.Navigation("Round");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Standing", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.Flight", "Flight")
+                        .WithMany()
+                        .HasForeignKey("FlightId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.LeagueMember", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.Season", "Season")
+                        .WithMany("Standings")
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Flight");
+
+                    b.Navigation("Member");
+
+                    b.Navigation("Season");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Skin", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.LeagueRound", "Round")
+                        .WithMany("Skins")
+                        .HasForeignKey("RoundId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.LeagueMember", "Winner")
+                        .WithMany()
+                        .HasForeignKey("WinnerMemberId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Round");
+
+                    b.Navigation("Winner");
+                });
+
             modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.AuctionItem", b =>
                 {
                     b.Navigation("Bids");
@@ -1575,6 +2192,43 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                     b.Navigation("Results");
                 });
 
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.League", b =>
+                {
+                    b.Navigation("Seasons");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Season", b =>
+                {
+                    b.Navigation("Flights");
+
+                    b.Navigation("Members");
+
+                    b.Navigation("Rounds");
+
+                    b.Navigation("Standings");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Flight", b =>
+                {
+                    b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.LeagueMember", b =>
+                {
+                    b.Navigation("HandicapHistories");
+
+                    b.Navigation("Scores");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.LeagueRound", b =>
+                {
+                    b.Navigation("Pairings");
+
+                    b.Navigation("Scores");
+
+                    b.Navigation("Skins");
+                });
+
             modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Organization", b =>
                 {
                     b.Navigation("Courses");
@@ -1582,6 +2236,8 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                     b.Navigation("EmailTemplates");
 
                     b.Navigation("Events");
+
+                    b.Navigation("Leagues");
                 });
 
             modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Team", b =>
