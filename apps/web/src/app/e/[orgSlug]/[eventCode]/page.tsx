@@ -29,7 +29,7 @@ export async function generateMetadata(
       title: event.name,
       description,
       type: 'website',
-      ...(event.orgLogoUrl ? { images: [event.orgLogoUrl] } : {}),
+      ...(event.resolvedLogoUrl ? { images: [event.resolvedLogoUrl] } : {}),
     },
   };
 }
@@ -78,17 +78,19 @@ export default async function EventPage(
     } : {}),
   };
 
+  const themeCss = buildThemeCss(event.resolvedThemeJson);
+
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <style>{gridCss}</style>
+      <style>{gridCss + (themeCss ? `\n:root{${themeCss}}` : '')}</style>
 
       <div style={s.page}>
         {/* ── HEADER ── */}
         <header style={s.header}>
           <div style={s.headerInner}>
-            {event.orgLogoUrl && (
-              <img src={event.orgLogoUrl} alt={event.orgName} style={s.orgLogo} />
+            {event.resolvedLogoUrl && (
+              <img src={event.resolvedLogoUrl} alt={event.orgName} style={s.orgLogo} />
             )}
             <div>
               <p style={s.orgName}>{event.orgName}</p>
@@ -123,6 +125,27 @@ export default async function EventPage(
                   )}
                 </div>
               </section>
+
+              {/* Mission Statement */}
+              {event.missionStatement && (
+                <section style={{ ...s.card, borderLeft: '4px solid var(--color-action)' }}>
+                  <p style={{ fontSize: '1rem', color: 'var(--color-primary)', lineHeight: 1.6, margin: 0 }}>
+                    {event.missionStatement}
+                  </p>
+                  {event.is501c3 && (
+                    <p style={{ fontSize: '0.8rem', color: 'var(--color-accent)', marginTop: '0.75rem', marginBottom: 0 }}>
+                      Donations to {event.orgName} may be tax-deductible as a charitable contribution under IRC § 501(c)(3). Consult your tax advisor.
+                    </p>
+                  )}
+                </section>
+              )}
+              {!event.missionStatement && event.is501c3 && (
+                <section style={{ ...s.card, borderLeft: '4px solid var(--color-action)' }}>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--color-accent)', margin: 0 }}>
+                    Donations to {event.orgName} may be tax-deductible as a charitable contribution under IRC § 501(c)(3). Consult your tax advisor.
+                  </p>
+                </section>
+              )}
 
               {/* Live Scores Banner */}
               {['active', 'scoring'].includes(event.status) && (
@@ -518,6 +541,20 @@ const s = {
   code:      { backgroundColor: '#e8f0e8', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace', fontSize: '0.875rem' },
   footer:    { textAlign: 'center' as const, padding: '1.5rem', fontSize: '0.8rem', color: 'var(--color-accent)', borderTop: '1px solid #eee' },
 } as const;
+
+// ── THEME CSS HELPER ──────────────────────────────────────────────────────────
+
+function buildThemeCss(themeJson: string | null): string {
+  if (!themeJson) return '';
+  try {
+    const t = JSON.parse(themeJson) as Record<string, string>;
+    const vars = Object.entries(t)
+      .filter(([, v]) => /^#[0-9a-fA-F]{6}$/.test(v))
+      .map(([k, v]) => `--color-${k}:${v}`)
+      .join(';');
+    return vars;
+  } catch { return ''; }
+}
 
 // ── WIDGET STYLES ─────────────────────────────────────────────────────────────
 

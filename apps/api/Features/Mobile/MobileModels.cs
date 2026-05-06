@@ -93,6 +93,12 @@ public record EventCacheDto
     public short     Holes     { get; init; }
     public string    Status    { get; init; } = string.Empty;
     public DateTime? StartAt   { get; init; }
+
+    /// <summary>Resolved branding: event value when set, otherwise org fallback.</summary>
+    public string? LogoUrl          { get; init; }
+    public string? ThemeJson        { get; init; }
+    public string? MissionStatement { get; init; }
+    public bool    Is501c3          { get; init; }
 }
 
 public record TeamCacheDto

@@ -18,6 +18,7 @@ const TABS = [
   { label: 'Email Builder', path: 'email-builder' },
   { label: 'Auction Items', path: 'auction'       },
   { label: 'Live Auction',  path: 'live-auction'  },
+  { label: 'Settings',     path: 'settings'      },
 ];
 
 export default function EventLayout() {

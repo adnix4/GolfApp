@@ -157,10 +157,11 @@ export default function ScoresPoller({
   const standings   = leaderboard?.standings ?? [];
 
   const st = tvMode ? tv : nm;
+  const themeCss = buildThemeCss(event.resolvedThemeJson);
 
   return (
     <>
-      <style>{cssKeyframes}</style>
+      <style>{cssKeyframes + (themeCss ? `\n:root{${themeCss}}` : '')}</style>
 
       {/* ── HOLE-IN-ONE BANNER ── */}
       {hioAlert && (
@@ -371,6 +372,19 @@ const nm = {
   footerError: { fontSize: '0.8rem', color: '#e74c3c', fontWeight: 600 },
   backLink:    { fontSize: '0.8rem', color: 'var(--color-action)', textDecoration: 'none', whiteSpace: 'nowrap' as const },
 } as const;
+
+// ── THEME CSS HELPER ──────────────────────────────────────────────────────────
+
+function buildThemeCss(themeJson: string | null | undefined): string {
+  if (!themeJson) return '';
+  try {
+    const t = JSON.parse(themeJson) as Record<string, string>;
+    return Object.entries(t)
+      .filter(([, v]) => /^#[0-9a-fA-F]{6}$/.test(v))
+      .map(([k, v]) => `--color-${k}:${v}`)
+      .join(';');
+  } catch { return ''; }
+}
 
 // ── TV MODE STYLES ────────────────────────────────────────────────────────────
 

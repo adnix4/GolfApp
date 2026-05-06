@@ -26,6 +26,8 @@ export interface EventCacheDto {
   id: string; name: string; eventCode: string;
   format: string; startType: string; holes: number;
   status: string; startAt: string | null;
+  logoUrl: string | null; themeJson: string | null;
+  missionStatement: string | null; is501c3: boolean;
 }
 
 export interface JoinEventResponse {

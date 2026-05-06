@@ -99,7 +99,9 @@
       "Bash(dotnet test *)",
       "Bash(xargs head *)",
       "Bash(grep -E \"\\\\.\\(cs|ts\\)$\")",
-      "Bash(xargs ls *)"
+      "Bash(xargs ls *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\GolfApp\\\\apps\\\\api\\\\Domain\\\\Entities\" -Filter \"*.cs\")",
+      "Bash(Select-Object -First 20)"
     ]
   }
 }

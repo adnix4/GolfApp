@@ -119,14 +119,18 @@ public class MobileService
         {
             Event = new EventCacheDto
             {
-                Id        = evt.Id,
-                Name      = evt.Name,
-                EventCode = evt.EventCode,
-                Format    = evt.Format.ToString(),
-                StartType = evt.StartType.ToString(),
-                Holes     = evt.Holes,
-                Status    = evt.Status.ToString(),
-                StartAt   = evt.StartAt,
+                Id               = evt.Id,
+                Name             = evt.Name,
+                EventCode        = evt.EventCode,
+                Format           = evt.Format.ToString(),
+                StartType        = evt.StartType.ToString(),
+                Holes            = evt.Holes,
+                Status           = evt.Status.ToString(),
+                StartAt          = evt.StartAt,
+                LogoUrl          = evt.LogoUrl  ?? evt.Organization.LogoUrl,
+                ThemeJson        = evt.ThemeJson ?? evt.Organization.ThemeJson,
+                MissionStatement = evt.MissionStatement ?? evt.Organization.MissionStatement,
+                Is501c3          = evt.Is501c3 || evt.Organization.Is501c3,
             },
             Team = new TeamCacheDto
             {

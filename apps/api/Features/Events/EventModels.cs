@@ -229,6 +229,27 @@ public class ThemeOverrideDto
 /// Includes course, team counts, and config — but NOT the full team roster
 /// (that's a separate endpoint to avoid over-fetching).
 /// </summary>
+/// <summary>
+/// PATCH /api/v1/events/{id}/branding
+/// Updates per-event logo, colors, mission statement, and 501(c)(3) flag.
+/// Null fields are left unchanged; empty string clears the value (reverts to org default).
+/// </summary>
+public record UpdateEventBrandingRequest
+{
+    /// <summary>Absolute URL or /uploads/… relative path. null = no change.</summary>
+    public string? LogoUrl { get; init; }
+
+    /// <summary>Serialized GFPTheme JSON. null = no change.</summary>
+    public string? ThemeJson { get; init; }
+
+    /// <summary>Event-specific mission statement. null = no change.</summary>
+    [MaxLength(1000)]
+    public string? MissionStatement { get; init; }
+
+    /// <summary>Whether this event uses 501(c)(3) tax-deductibility language.</summary>
+    public bool? Is501c3 { get; init; }
+}
+
 public record EventResponse
 {
     public Guid            Id          { get; init; }
@@ -245,6 +266,12 @@ public record EventResponse
 
     /// <summary>Quick counts for the Event Hub dashboard cards.</summary>
     public EventCountsDto  Counts      { get; init; } = new();
+
+    /// <summary>Per-event branding overrides (null = not set, inherits from org).</summary>
+    public string? LogoUrl          { get; init; }
+    public string? ThemeJson        { get; init; }
+    public string? MissionStatement { get; init; }
+    public bool    Is501c3          { get; init; }
 }
 
 /// <summary>Summary counts shown on the Event Hub dashboard.</summary>
@@ -361,7 +388,6 @@ public record PublicEventResponse
     public string    EventCode       { get; init; } = string.Empty;
     public string    OrgName         { get; init; } = string.Empty;
     public string    OrgSlug         { get; init; } = string.Empty;
-    public string?   OrgLogoUrl      { get; init; }
     public string    Format          { get; init; } = string.Empty;
     public string    Status          { get; init; } = string.Empty;
     public DateTime? StartAt         { get; init; }
@@ -380,6 +406,15 @@ public record PublicEventResponse
 
     /// <summary>Whether free agent registration is open.</summary>
     public bool FreeAgentEnabled { get; init; }
+
+    /// <summary>
+    /// Resolved branding: event value when set, otherwise org value.
+    /// Clients should use these instead of the old OrgLogoUrl field.
+    /// </summary>
+    public string? ResolvedLogoUrl      { get; init; }
+    public string? ResolvedThemeJson    { get; init; }
+    public string? MissionStatement     { get; init; }
+    public bool    Is501c3              { get; init; }
 }
 
 public record PublicCourseInfo
@@ -412,11 +447,16 @@ public record PublicFundraisingInfo
 /// </summary>
 public record PublicLeaderboardResponse
 {
-    public Guid    EventId   { get; init; }
-    public string  EventName { get; init; } = string.Empty;
-    public string  Format    { get; init; } = string.Empty;
-    public string  Status    { get; init; } = string.Empty;
+    public Guid    EventId            { get; init; }
+    public string  EventName          { get; init; } = string.Empty;
+    public string  Format             { get; init; } = string.Empty;
+    public string  Status             { get; init; } = string.Empty;
     public List<PublicLeaderboardEntry> Standings { get; init; } = new();
+
+    /// <summary>Resolved branding for the live leaderboard display page.</summary>
+    public string? ResolvedLogoUrl   { get; init; }
+    public string? ResolvedThemeJson { get; init; }
+    public string? OrgName           { get; init; }
 }
 
 public record PublicLeaderboardEntry
@@ -459,4 +499,13 @@ public record PublicChallengeResultDto
     public string? PlayerName { get; init; }
     public float? Value       { get; init; }
     public string? Notes      { get; init; }
+}
+
+// ── LOGO UPLOAD ───────────────────────────────────────────────────────────────
+
+/// <summary>Returned by POST /api/v1/events/{id}/branding/logo.</summary>
+public record LogoUploadResponse
+{
+    /// <summary>Relative URL stored on the event, e.g. /uploads/event-logos/abc.png</summary>
+    public string Url { get; init; } = string.Empty;
 }

@@ -150,6 +150,39 @@ export const eventsApi = {
     request<FundraisingTotals>(`/api/v1/events/${id}/fundraising`),
 };
 
+// ── EVENT BRANDING ────────────────────────────────────────────────────────────
+
+export interface UpdateEventBrandingPayload {
+  logoUrl?: string | null;
+  themeJson?: string | null;
+  missionStatement?: string | null;
+  is501c3?: boolean;
+}
+
+export const eventBrandingApi = {
+  update: (id: string, payload: UpdateEventBrandingPayload) =>
+    request<EventDetail>(`/api/v1/events/${id}/branding`, { method: 'PATCH', body: payload }),
+
+  uploadLogo: async (id: string, file: File): Promise<{ url: string }> => {
+    const token   = storage.getAccessToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const form = new FormData();
+    form.append('file', file);
+
+    const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
+    const res = await fetch(`${BASE_URL}/api/v1/events/${id}/branding/logo`, {
+      method: 'POST', headers, body: form,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(res.status, 'UPLOAD_FAILED', (err as any).detail ?? 'Logo upload failed.');
+    }
+    return res.json();
+  },
+};
+
 // ── TEAMS ─────────────────────────────────────────────────────────────────────
 
 export const teamsApi = {
@@ -304,6 +337,8 @@ export interface EventDetail extends EventSummary {
   config: Record<string, unknown>;
   course: Course | null;
   counts: { teamsRegistered: number; playersRegistered: number; teamsCheckedIn: number; holesScored: number };
+  logoUrl: string | null; themeJson: string | null;
+  missionStatement: string | null; is501c3: boolean;
 }
 
 export interface Course {

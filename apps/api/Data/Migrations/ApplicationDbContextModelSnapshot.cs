@@ -374,6 +374,24 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("status");
 
+                    b.Property<bool>("Is501c3")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_501c3");
+
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("logo_url");
+
+                    b.Property<string>("MissionStatement")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("mission_statement");
+
+                    b.Property<string>("ThemeJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("theme_json");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CourseId");

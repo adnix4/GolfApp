@@ -45,13 +45,19 @@ public class EmailBuilderService
         var registrationUrl = $"https://golffundraiser.pro/e/{org.Slug}/{evt.EventCode}";
         var qrCodeUrl       = $"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={Uri.EscapeDataString(registrationUrl)}";
 
-        // Extract primary color from org ThemeJson if present
+        // Resolve branding: event value overrides org default
+        var resolvedLogoUrl   = evt.LogoUrl          ?? org.LogoUrl;
+        var resolvedThemeJson = evt.ThemeJson         ?? org.ThemeJson;
+        var missionStatement  = evt.MissionStatement  ?? org.MissionStatement;
+        var is501c3           = evt.Is501c3 || org.Is501c3;
+
+        // Extract primary color from resolved ThemeJson if present
         var primaryColor = "#1a1a2e";
-        if (!string.IsNullOrEmpty(org.ThemeJson))
+        if (!string.IsNullOrEmpty(resolvedThemeJson))
         {
             try
             {
-                using var doc = JsonDocument.Parse(org.ThemeJson);
+                using var doc = JsonDocument.Parse(resolvedThemeJson);
                 if (doc.RootElement.TryGetProperty("primary", out var el))
                     primaryColor = el.GetString() ?? primaryColor;
             }
@@ -64,17 +70,18 @@ public class EmailBuilderService
 
         return new EmailBuilderDataResponse
         {
-            EventName       = evt.Name,
-            OrgName         = org.Name,
-            OrgLogoUrl      = org.LogoUrl,
-            EventDate       = evt.StartAt?.ToString("MMMM d, yyyy",
-                                 System.Globalization.CultureInfo.InvariantCulture)
-                             ?? "Date TBD",
-            EventLocation   = location,
-            RegistrationUrl = registrationUrl,
-            QrCodeUrl       = qrCodeUrl,
-            PrimaryColor    = primaryColor,
-            MissionStatement = org.MissionStatement,
+            EventName        = evt.Name,
+            OrgName          = org.Name,
+            OrgLogoUrl       = resolvedLogoUrl,
+            EventDate        = evt.StartAt?.ToString("MMMM d, yyyy",
+                                  System.Globalization.CultureInfo.InvariantCulture)
+                              ?? "Date TBD",
+            EventLocation    = location,
+            RegistrationUrl  = registrationUrl,
+            QrCodeUrl        = qrCodeUrl,
+            PrimaryColor     = primaryColor,
+            MissionStatement = missionStatement,
+            Is501c3          = is501c3,
             Sponsors        = evt.Sponsors
                 .Select(s => new EmailSponsorDto
                 {
@@ -151,6 +158,7 @@ public sealed record EmailBuilderDataResponse
     public string  QrCodeUrl        { get; init; } = string.Empty;
     public string  PrimaryColor     { get; init; } = "#1a1a2e";
     public string? MissionStatement { get; init; }
+    public bool    Is501c3          { get; init; }
     public List<EmailSponsorDto> Sponsors { get; init; } = [];
 }
 

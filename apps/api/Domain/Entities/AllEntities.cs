@@ -146,11 +146,27 @@ public class Event
 
     /// <summary>
     /// Flexible JSONB settings bag: allow_walk_ups, max_teams, tee_intervals,
-    /// free_agent_enabled, theme_override, etc.
+    /// free_agent_enabled, etc.
     /// Stored as JSON string, deserialized in the Events feature service.
     /// </summary>
     [Column("config", TypeName = "jsonb")]
     public string ConfigJson { get; set; } = "{}";
+
+    // ── Per-event branding overrides — null = inherit from Organization ─────────
+
+    [Column("logo_url")]
+    [MaxLength(500)]
+    public string? LogoUrl { get; set; }
+
+    [Column("theme_json", TypeName = "jsonb")]
+    public string? ThemeJson { get; set; }
+
+    [Column("mission_statement")]
+    [MaxLength(1000)]
+    public string? MissionStatement { get; set; }
+
+    [Column("is_501c3")]
+    public bool Is501c3 { get; set; }
 
     // Foreign key + navigation
     [ForeignKey(nameof(OrgId))]

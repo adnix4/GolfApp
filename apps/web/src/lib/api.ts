@@ -27,7 +27,6 @@ export interface PublicEventData {
   eventCode:        string;
   orgName:          string;
   orgSlug:          string;
-  orgLogoUrl:       string | null;
   format:           string;
   status:           string;
   startAt:          string | null;
@@ -36,6 +35,10 @@ export interface PublicEventData {
   sponsors:         PublicSponsorInfo[];
   fundraising:      PublicFundraisingInfo;
   freeAgentEnabled: boolean;
+  resolvedLogoUrl:   string | null;
+  resolvedThemeJson: string | null;
+  missionStatement:  string | null;
+  is501c3:           boolean;
 }
 
 export interface PublicLeaderboardEntry {
@@ -48,10 +51,13 @@ export interface PublicLeaderboardEntry {
 }
 
 export interface PublicLeaderboard {
-  eventId:   string;
-  eventName: string;
-  status:    string;
-  standings: PublicLeaderboardEntry[];
+  eventId:           string;
+  eventName:         string;
+  status:            string;
+  standings:         PublicLeaderboardEntry[];
+  resolvedLogoUrl:   string | null;
+  resolvedThemeJson: string | null;
+  orgName:           string | null;
 }
 
 export async function fetchPublicEvent(eventCode: string): Promise<PublicEventData | null> {

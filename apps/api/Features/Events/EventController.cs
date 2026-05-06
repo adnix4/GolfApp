@@ -12,6 +12,8 @@
 //   POST   /api/v1/events/{id}/tee-times            — assign tee times
 //   GET    /api/v1/events/{id}/leaderboard          — computed standings
 //   GET    /api/v1/events/{id}/fundraising          — revenue totals
+//   PATCH  /api/v1/events/{id}/branding             — update event branding
+//   POST   /api/v1/events/{id}/branding/logo        — upload event logo
 //   GET    /api/v1/pub/events/{eventCode}           — public landing page (no auth)
 //
 // ORG SCOPING:
@@ -25,6 +27,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using GolfFundraiserPro.Api.Common.Middleware;
 
@@ -34,12 +37,14 @@ namespace GolfFundraiserPro.Api.Features.Events;
 [Tags("Events")]
 public class EventController : ControllerBase
 {
-    private readonly EventService _eventService;
+    private readonly EventService       _eventService;
+    private readonly IWebHostEnvironment _env;
     private readonly ILogger<EventController> _logger;
 
-    public EventController(EventService eventService, ILogger<EventController> logger)
+    public EventController(EventService eventService, IWebHostEnvironment env, ILogger<EventController> logger)
     {
         _eventService = eventService;
+        _env          = env;
         _logger       = logger;
     }
 
@@ -221,6 +226,47 @@ public class EventController : ControllerBase
         var orgId    = GetOrgId();
         var response = await _eventService.GetFundraisingAsync(orgId, id, ct);
         return Ok(response);
+    }
+
+    // ── EVENT BRANDING ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Updates per-event logo URL, color theme, mission statement, and 501(c)(3) flag.
+    /// Null fields are left unchanged; empty string clears the override (reverts to org default).
+    /// </summary>
+    [HttpPatch("api/v1/events/{id:guid}/branding")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(typeof(EventResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<EventResponse>> UpdateBranding(
+        [FromRoute] Guid id,
+        [FromBody] UpdateEventBrandingRequest request,
+        CancellationToken ct)
+    {
+        var orgId    = GetOrgId();
+        var response = await _eventService.UpdateBrandingAsync(orgId, id, request, ct);
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Uploads an event logo image (PNG, JPEG, SVG, or WebP — max 2 MB).
+    /// The file is stored under wwwroot/uploads/event-logos/ and the event's
+    /// LogoUrl is updated to the relative path.
+    /// </summary>
+    [HttpPost("api/v1/events/{id:guid}/branding/logo")]
+    [Authorize(Policy = "OrgAdmin")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(LogoUploadResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<LogoUploadResponse>> UploadEventLogo(
+        [FromRoute] Guid id,
+        IFormFile file,
+        CancellationToken ct)
+    {
+        var orgId = GetOrgId();
+        var url   = await _eventService.UploadEventLogoAsync(orgId, id, file, _env, ct);
+        return Ok(new LogoUploadResponse { Url = url });
     }
 
     // ── PUBLIC LANDING PAGE (no auth) ─────────────────────────────────────────

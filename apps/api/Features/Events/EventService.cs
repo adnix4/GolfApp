@@ -31,6 +31,8 @@
 
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
@@ -528,6 +530,85 @@ public class EventService
         };
     }
 
+    // ── EVENT BRANDING ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Updates per-event logo, colors, mission statement, and 501(c)(3) flag.
+    /// Null fields in the request are left unchanged.
+    /// Empty string for string fields clears the override (reverts to org default).
+    /// </summary>
+    public async Task<EventResponse> UpdateBrandingAsync(
+        Guid orgId,
+        Guid eventId,
+        UpdateEventBrandingRequest request,
+        CancellationToken ct = default)
+    {
+        var evt = await _db.Events
+            .Include(e => e.Course).ThenInclude(c => c!.Holes)
+            .Include(e => e.Teams).ThenInclude(t => t.Players)
+            .Include(e => e.Scores)
+            .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct)
+            ?? throw new NotFoundException("Event", eventId);
+
+        if (request.LogoUrl is not null)
+            evt.LogoUrl = string.IsNullOrWhiteSpace(request.LogoUrl) ? null : request.LogoUrl.Trim();
+
+        if (request.ThemeJson is not null)
+            evt.ThemeJson = string.IsNullOrWhiteSpace(request.ThemeJson) ? null : request.ThemeJson;
+
+        if (request.MissionStatement is not null)
+            evt.MissionStatement = string.IsNullOrWhiteSpace(request.MissionStatement)
+                ? null : request.MissionStatement.Trim();
+
+        if (request.Is501c3.HasValue)
+            evt.Is501c3 = request.Is501c3.Value;
+
+        await _db.SaveChangesAsync(ct);
+        return MapToEventResponse(evt);
+    }
+
+    private static readonly long    MaxLogoBytes       = 2 * 1024 * 1024;
+    private static readonly string[] AllowedImageTypes = ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
+
+    /// <summary>
+    /// Saves an uploaded logo for an event under wwwroot/uploads/event-logos/.
+    /// Returns the public-relative URL (/uploads/event-logos/…).
+    /// </summary>
+    public async Task<string> UploadEventLogoAsync(
+        Guid orgId, Guid eventId, IFormFile file,
+        IWebHostEnvironment env, CancellationToken ct = default)
+    {
+        if (file.Length == 0)
+            throw new ValidationException("Uploaded file is empty.");
+        if (file.Length > MaxLogoBytes)
+            throw new ValidationException("Logo must be 2 MB or smaller.");
+        if (!AllowedImageTypes.Contains(file.ContentType.ToLowerInvariant()))
+            throw new ValidationException("Logo must be PNG, JPEG, SVG, or WebP.");
+
+        var evt = await _db.Events
+            .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct)
+            ?? throw new NotFoundException("Event", eventId);
+
+        if (evt.LogoUrl?.StartsWith("/uploads/") == true)
+        {
+            var oldPath = Path.Combine(env.WebRootPath, evt.LogoUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+            if (File.Exists(oldPath)) File.Delete(oldPath);
+        }
+
+        var ext      = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var filename = $"{eventId}{ext}";
+        var dir      = Path.Combine(env.WebRootPath, "uploads", "event-logos");
+        Directory.CreateDirectory(dir);
+
+        await using var stream = new FileStream(Path.Combine(dir, filename), FileMode.Create, FileAccess.Write);
+        await file.CopyToAsync(stream, ct);
+
+        var relativeUrl  = $"/uploads/event-logos/{filename}";
+        evt.LogoUrl = relativeUrl;
+        await _db.SaveChangesAsync(ct);
+        return relativeUrl;
+    }
+
     // ── PUBLIC LANDING PAGE ───────────────────────────────────────────────────
 
     /// <summary>
@@ -578,7 +659,6 @@ public class EventService
             EventCode  = evt.EventCode,
             OrgName    = evt.Organization.Name,
             OrgSlug    = evt.Organization.Slug,
-            OrgLogoUrl = evt.Organization.LogoUrl,
             Format     = evt.Format.ToString(),
             Status     = evt.Status.ToString(),
             StartAt    = evt.StartAt,
@@ -596,6 +676,11 @@ public class EventService
                 GrandTotalCents = evt.Donations.Sum(d => d.AmountCents),
             },
             FreeAgentEnabled = config.FreeAgentEnabled ?? false,
+            // Resolved branding: event value wins, org value as fallback
+            ResolvedLogoUrl   = evt.LogoUrl   ?? evt.Organization.LogoUrl,
+            ResolvedThemeJson = evt.ThemeJson  ?? evt.Organization.ThemeJson,
+            MissionStatement  = evt.MissionStatement ?? evt.Organization.MissionStatement,
+            Is501c3           = evt.Is501c3 || evt.Organization.Is501c3,
         };
     }
 
@@ -611,6 +696,7 @@ public class EventService
         CancellationToken ct = default)
     {
         var evt = await _db.Events
+            .Include(e => e.Organization)
             .Include(e => e.Teams)
             .Include(e => e.Scores)
             .Include(e => e.Course)
@@ -682,11 +768,14 @@ public class EventService
 
         return new PublicLeaderboardResponse
         {
-            EventId   = evt.Id,
-            EventName = evt.Name,
-            Format    = evt.Format.ToString(),
-            Status    = evt.Status.ToString(),
-            Standings = standings,
+            EventId          = evt.Id,
+            EventName        = evt.Name,
+            Format           = evt.Format.ToString(),
+            Status           = evt.Status.ToString(),
+            Standings        = standings,
+            ResolvedLogoUrl   = evt.LogoUrl  ?? evt.Organization.LogoUrl,
+            ResolvedThemeJson = evt.ThemeJson ?? evt.Organization.ThemeJson,
+            OrgName           = evt.Organization.Name,
         };
     }
 
@@ -876,16 +965,20 @@ public class EventService
 
         return new EventResponse
         {
-            Id        = evt.Id,
-            OrgId     = evt.OrgId,
-            Name      = evt.Name,
-            EventCode = evt.EventCode,
-            Format    = evt.Format.ToString(),
-            StartType = evt.StartType.ToString(),
-            Holes     = evt.Holes,
-            Status    = evt.Status.ToString(),
-            StartAt   = evt.StartAt,
-            Config    = config,
+            Id               = evt.Id,
+            OrgId            = evt.OrgId,
+            Name             = evt.Name,
+            EventCode        = evt.EventCode,
+            Format           = evt.Format.ToString(),
+            StartType        = evt.StartType.ToString(),
+            Holes            = evt.Holes,
+            Status           = evt.Status.ToString(),
+            StartAt          = evt.StartAt,
+            Config           = config,
+            LogoUrl          = evt.LogoUrl,
+            ThemeJson        = evt.ThemeJson,
+            MissionStatement = evt.MissionStatement,
+            Is501c3          = evt.Is501c3,
             Course    = evt.Course is null ? null : new CourseResponse
             {
                 Id      = evt.Course.Id,
