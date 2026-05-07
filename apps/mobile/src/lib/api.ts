@@ -63,6 +63,30 @@ export interface PendingScore {
   clientTimestampMs: number;
 }
 
+export interface ActiveEventSummary {
+  id:          string;
+  name:        string;
+  eventCode:   string;
+  format:      string;
+  status:      string;
+  startAt:     string | null;
+  orgName:     string;
+  courseName:  string | null;
+  courseCity:  string | null;
+  courseState: string | null;
+  logoUrl:     string | null;
+}
+
+export async function fetchActiveEvents(): Promise<ActiveEventSummary[]> {
+  try {
+    const res = await fetch(`${BASE}/api/v1/pub/events/active`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
 export async function joinEvent(
   eventCode: string,
   email: string,

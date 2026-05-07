@@ -71,6 +71,6 @@ public class AuctionSessionsController : ControllerBase
     }
 
     private Guid GetOrgId() =>
-        Guid.Parse(User.FindFirstValue("org_id")
-            ?? throw new UnauthorizedAccessException("No org_id claim in token."));
+        Guid.Parse(User.FindFirstValue("orgId")
+            ?? throw new UnauthorizedAccessException("No orgId claim in token."));
 }

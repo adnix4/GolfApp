@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as TaskManager  from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import {
@@ -75,6 +76,7 @@ export async function attemptSync(): Promise<boolean> {
  * runs synchronously during module initialisation.
  */
 export function defineBackgroundSyncTask(): void {
+  if (Platform.OS === 'web') return;
   TaskManager.defineTask(TASK_NAME, async () => {
     const synced = await attemptSync();
     return synced
@@ -89,6 +91,7 @@ export function defineBackgroundSyncTask(): void {
  * already registered.
  */
 export async function registerBackgroundSync(): Promise<void> {
+  if (Platform.OS === 'web') return;
   try {
     const registered = await TaskManager.isTaskRegisteredAsync(TASK_NAME);
     if (registered) return;

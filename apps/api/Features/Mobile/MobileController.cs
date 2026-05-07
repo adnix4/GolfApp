@@ -20,6 +20,21 @@ public class MobileController : ControllerBase
         _mobileService = mobileService;
     }
 
+    // ── ACTIVE EVENTS LIST ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns all tournaments currently open for golfers: Registration, Active, or Scoring.
+    /// Used by the mobile app event picker on the join screen.
+    /// League rounds are stored separately in league_rounds and are never returned here.
+    /// </summary>
+    [HttpGet("api/v1/pub/events/active")]
+    [ProducesResponseType(typeof(List<ActiveEventSummaryDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<ActiveEventSummaryDto>>> GetActiveEvents(CancellationToken ct)
+    {
+        var events = await _mobileService.ListActiveEventsAsync(ct);
+        return Ok(events);
+    }
+
     // ── JOIN EVENT ────────────────────────────────────────────────────────────
 
     /// <summary>

@@ -15,7 +15,7 @@ public class EmailBuilderController : ControllerBase
 
     public EmailBuilderController(EmailBuilderService svc) => _svc = svc;
 
-    private Guid OrgId => Guid.TryParse(User.FindFirstValue("org_id"), out var id)
+    private Guid OrgId => Guid.TryParse(User.FindFirstValue("orgId"), out var id)
         ? id
         : throw new ForbiddenException();
 

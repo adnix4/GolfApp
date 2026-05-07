@@ -101,7 +101,12 @@
       "Bash(grep -E \"\\\\.\\(cs|ts\\)$\")",
       "Bash(xargs ls *)",
       "Bash(Get-ChildItem -Path \"C:\\\\GolfApp\\\\apps\\\\api\\\\Domain\\\\Entities\" -Filter \"*.cs\")",
-      "Bash(Select-Object -First 20)"
+      "Bash(Select-Object -First 20)",
+      "Bash(docker exec *)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\GolfApp\\\\node_modules\\\\@expo\\\\metro-runtime\\\\src\" | ForEach-Object { $_.Name }; Get-ChildItem -Path \"C:\\\\GolfApp\\\\node_modules\\\\@expo\\\\metro-runtime\" -Depth 1 | ForEach-Object { $_.Name })",
+      "PowerShell(Select-String -Pattern \"import\\\\.meta\" \"C:\\\\GolfApp\\\\node_modules\\\\zustand\\\\esm\\\\index.mjs\" | Select-Object -First 5 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })",
+      "Bash(Get-ChildItem -Path \"C:\\\\GolfApp\\\\apps\\\\mobile\\\\app\" -Recurse -Force)",
+      "Bash(Select-Object FullName)"
     ]
   }
 }

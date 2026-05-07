@@ -43,6 +43,39 @@ public class MobileService
         _logger   = logger;
     }
 
+    // ── ACTIVE EVENTS LIST ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns all tournaments currently open for golfers (Registration, Active, or Scoring).
+    /// League rounds live in their own table and are never included here.
+    /// Used by the mobile event picker on the join screen.
+    /// </summary>
+    public async Task<List<ActiveEventSummaryDto>> ListActiveEventsAsync(CancellationToken ct = default)
+    {
+        var openStatuses = new[] { EventStatus.Registration, EventStatus.Active, EventStatus.Scoring };
+
+        return await _db.Events
+            .Include(e => e.Organization)
+            .Include(e => e.Course)
+            .Where(e => openStatuses.Contains(e.Status))
+            .OrderBy(e => e.StartAt)
+            .Select(e => new ActiveEventSummaryDto
+            {
+                Id          = e.Id,
+                Name        = e.Name,
+                EventCode   = e.EventCode,
+                Format      = e.Format.ToString(),
+                Status      = e.Status.ToString(),
+                StartAt     = e.StartAt,
+                OrgName     = e.Organization.Name,
+                CourseName  = e.Course != null ? e.Course.Name  : null,
+                CourseCity  = e.Course != null ? e.Course.City  : null,
+                CourseState = e.Course != null ? e.Course.State : null,
+                LogoUrl     = e.LogoUrl ?? e.Organization.LogoUrl,
+            })
+            .ToListAsync(ct);
+    }
+
     // ── JOIN ──────────────────────────────────────────────────────────────────
 
     /// <summary>

@@ -4,8 +4,8 @@
     "slug": "gfp-scorer",
     "version": "1.0.0",
     "scheme": "gfp",
-    "platforms": ["ios", "android"],
-    "plugins": ["expo-router", "expo-sqlite", "expo-battery", "expo-brightness"],
+    "platforms": ["ios", "android", "web"],
+    "plugins": ["expo-router", "expo-sqlite"],
     "ios": {
       "bundleIdentifier": "pro.golffundraiser.scorer",
       "supportsTablet": true

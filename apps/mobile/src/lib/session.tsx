@@ -33,14 +33,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function init() {
-      const [id, saved] = await Promise.all([getDeviceId(), loadSession()]);
-      setDeviceId(id);
-      if (saved) {
-        setSessionState(saved);
-        const scores = await loadPendingScores(saved.event.id, saved.team.id);
-        setPendingScores(scores);
+      try {
+        const [id, saved] = await Promise.all([getDeviceId(), loadSession()]);
+        setDeviceId(id);
+        if (saved) {
+          setSessionState(saved);
+          const scores = await loadPendingScores(saved.event.id, saved.team.id);
+          setPendingScores(scores);
+        }
+      } catch {
+        // Storage unavailable — start fresh with no session
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     init();
   }, []);

@@ -13,8 +13,8 @@ public class LeagueController : ControllerBase
 
     public LeagueController(LeagueService svc) => _svc = svc;
 
-    private Guid OrgId => Guid.Parse(User.FindFirst("org_id")?.Value
-        ?? throw new UnauthorizedAccessException("org_id claim missing."));
+    private Guid OrgId => Guid.Parse(User.FindFirst("orgId")?.Value
+        ?? throw new UnauthorizedAccessException("orgId claim missing."));
 
     // ── LEAGUES ───────────────────────────────────────────────────────────────
 

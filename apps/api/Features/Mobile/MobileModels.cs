@@ -164,6 +164,28 @@ public record SponsorCacheDto
     public List<int>    HoleNumbers { get; init; } = new();
 }
 
+// ── ACTIVE EVENTS LIST ────────────────────────────────────────────────────────
+
+/// <summary>
+/// Lightweight tournament summary for the mobile event picker.
+/// Returned by GET /api/v1/pub/events/active.
+/// League rounds live in their own table (league_rounds) and are never returned here.
+/// </summary>
+public record ActiveEventSummaryDto
+{
+    public Guid      Id          { get; init; }
+    public string    Name        { get; init; } = string.Empty;
+    public string    EventCode   { get; init; } = string.Empty;
+    public string    Format      { get; init; } = string.Empty;
+    public string    Status      { get; init; } = string.Empty;
+    public DateTime? StartAt     { get; init; }
+    public string    OrgName     { get; init; } = string.Empty;
+    public string?   CourseName  { get; init; }
+    public string?   CourseCity  { get; init; }
+    public string?   CourseState { get; init; }
+    public string?   LogoUrl     { get; init; }
+}
+
 /// <summary>Response to POST /api/v1/sync/scores.</summary>
 public record BatchSyncResponse
 {
