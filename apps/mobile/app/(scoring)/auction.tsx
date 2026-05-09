@@ -27,10 +27,12 @@ export default function AuctionScreen() {
   const [selectedItem, setSelectedItem] = useState<AuctionItemDto | null>(null);
   const [bidAmt, setBidAmt]       = useState('');
   const [bidding, setBidding]     = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!eventId) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const [itemsData, sessionData] = await Promise.all([
         fetchAuctionItems(eventId),
@@ -38,6 +40,8 @@ export default function AuctionScreen() {
       ]);
       setItems(itemsData);
       setLiveSession(sessionData);
+    } catch (e: unknown) {
+      setLoadError(e instanceof Error ? e.message : 'Could not load auction data. Pull down to retry.');
     } finally {
       setLoading(false);
     }
@@ -45,8 +49,12 @@ export default function AuctionScreen() {
 
   const loadHistory = useCallback(async () => {
     if (!player?.id) return;
-    const data = await fetchPlayerBidHistory(player.id);
-    setHistory(data);
+    try {
+      const data = await fetchPlayerBidHistory(player.id);
+      setHistory(data);
+    } catch {
+      Alert.alert('Could not load bid history', 'Check your connection and try again.');
+    }
   }, [player?.id]);
 
   useEffect(() => {
@@ -60,7 +68,7 @@ export default function AuctionScreen() {
   async function handleBid(item: AuctionItemDto) {
     if (!player?.id) return;
     const cents = parseInt(bidAmt) || 0;
-    if (cents <= 0) { Alert.alert('Enter a bid amount'); return; }
+    if (cents <= 0) { Alert.alert('Invalid Amount', 'Please enter an amount greater than zero.'); return; }
     setBidding(true);
     try {
       const isDonation = item.auctionType.includes('Donation');
@@ -74,7 +82,7 @@ export default function AuctionScreen() {
       setSelectedItem(null);
       await load();
     } catch (e: unknown) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Bid failed');
+      Alert.alert('Could not place bid', e instanceof Error ? e.message : 'Something went wrong. Please try again.');
     } finally {
       setBidding(false);
     }
@@ -102,6 +110,13 @@ export default function AuctionScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+      {/* Load error banner */}
+      {loadError && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>{loadError}</Text>
+        </View>
+      )}
+
       {/* Live auction banner */}
       {liveSession?.isActive && (
         <View style={[styles.liveBanner]}>
@@ -192,7 +207,7 @@ export default function AuctionScreen() {
                   value={bidAmt}
                   onChangeText={setBidAmt}
                   keyboardType="number-pad"
-                  placeholder="amount in cents"
+                  placeholder="Amount in cents (e.g. 500 = $5)"
                   placeholderTextColor="#aaa"
                 />
                 <Pressable
@@ -292,7 +307,7 @@ export default function AuctionScreen() {
                     value={bidAmt}
                     onChangeText={setBidAmt}
                     keyboardType="number-pad"
-                    placeholder="amount in cents"
+                    placeholder="Amount in cents (e.g. 500 = $5)"
                     placeholderTextColor="#aaa"
                   />
                   <Pressable
@@ -344,4 +359,6 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalCard:   { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
   cancelBtn:   { alignItems: 'center', marginTop: 16, paddingVertical: 10 },
+  errorBanner: { backgroundColor: '#fdf2f2', borderLeftWidth: 3, borderLeftColor: '#e74c3c', padding: 12 },
+  errorBannerText: { color: '#c0392b', fontSize: 13 },
 });

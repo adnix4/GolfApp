@@ -26,16 +26,22 @@ const STATUS_COLOR: Record<string, string> = {
   cancelled:    '#e74c3c',
 };
 
-const STATUS_TRANSITIONS: Record<string, string[]> = {
-  draft:        ['registration', 'cancelled'],
-  registration: ['active', 'cancelled'],
-  active:       ['scoring', 'cancelled'],
-  scoring:      ['completed', 'active'],
-  completed:    [],
-  cancelled:    [],
+const STATUS_LABEL: Record<string, string> = {
+  draft:        'Draft',
+  registration: 'Registration Open',
+  active:       'Active',
+  scoring:      'Scoring',
+  completed:    'Completed',
+  cancelled:    'Cancelled',
 };
 
-// ── Date/time helpers (same pattern as event create) ─────────────────────────
+const NEXT_TRANSITIONS: Record<string, { status: string; label: string; danger?: boolean }[]> = {
+  registration: [{ status: 'active',    label: 'Go Active (Day of Event)' }],
+  active:       [{ status: 'scoring',   label: 'Open Scoring' }],
+  scoring:      [{ status: 'completed', label: 'Mark Complete' }],
+};
+
+// ── Date/time helpers ─────────────────────────────────────────────────────────
 
 function formatDateInput(raw: string): string {
   const digits = raw.replace(/\D/g, '').slice(0, 8);
@@ -99,11 +105,7 @@ function parseStartAt(startAt: string | null): { date: string; time: string; amp
   const min = String(dt.getMinutes()).padStart(2, '0');
   const ampm: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM';
   h = h % 12 || 12;
-  return {
-    date: `${mo}/${day}/${yr}`,
-    time: `${String(h).padStart(2, '0')}:${min}`,
-    ampm,
-  };
+  return { date: `${mo}/${day}/${yr}`, time: `${String(h).padStart(2, '0')}:${min}`, ampm };
 }
 
 // ── Main screen ───────────────────────────────────────────────────────────────
@@ -111,7 +113,6 @@ function parseStartAt(startAt: string | null): { date: string; time: string; amp
 export default function EventOverviewScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
-
   const { isMobile, pagePadding } = useResponsive();
 
   const [event,    setEvent]    = useState<EventDetail | null>(null);
@@ -122,104 +123,87 @@ export default function EventOverviewScreen() {
   const [showEdit,   setShowEdit]   = useState(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await eventsApi.get(id);
-      setEvent(data);
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to load event.');
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true); setError(null);
+    try { setEvent(await eventsApi.get(id)); }
+    catch (e: any) { setError(e.message ?? 'Failed to load event.'); }
+    finally { setLoading(false); }
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
 
   async function handleStatusChange(newStatus: string) {
     if (!event) return;
-    setUpdating(true);
-    setError(null);
-    try {
-      const updated = await eventsApi.update(event.id, { status: newStatus });
-      setEvent(updated);
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to update status.');
-    } finally {
-      setUpdating(false);
-    }
+    setUpdating(true); setError(null);
+    try { setEvent(await eventsApi.update(event.id, { status: newStatus })); }
+    catch (e: any) { setError(e.message ?? 'Failed to update status.'); }
+    finally { setUpdating(false); }
   }
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
 
   if (error && !event) {
     return (
       <View style={styles.center}>
         <Text style={styles.errorText}>{error}</Text>
-        <Pressable onPress={load}>
-          <Text style={{ color: theme.colors.action, marginTop: 8 }}>Retry</Text>
-        </Pressable>
+        <Pressable onPress={load}><Text style={{ color: theme.colors.action, marginTop: 8 }}>Retry</Text></Pressable>
       </View>
     );
   }
 
   if (!event) return null;
 
-  const transitions = STATUS_TRANSITIONS[event.status] ?? [];
+  const isDraft = event.status === 'draft';
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={[styles.pageContent, { padding: pagePadding }]}>
-      {/* Page-level error (status change failures) */}
       {error && (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
 
-      {/* Event header */}
+      {/* Header */}
       <View style={styles.pageHeader}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.eventName, { color: theme.colors.primary }]}>{event.name}</Text>
           <Text style={[styles.eventCode, { color: theme.colors.accent }]}>Code: {event.eventCode}</Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[event.status] }]}>
-          <Text style={styles.statusText}>{event.status}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[event.status] ?? '#999' }]}>
+          <Text style={styles.statusBadgeText}>{STATUS_LABEL[event.status] ?? event.status}</Text>
         </View>
       </View>
+
+      {/* Draft setup checklist — shown instead of the plain "Advance Status" section */}
+      {isDraft && (
+        <DraftSetupSection
+          event={event}
+          updating={updating}
+          onOpenEdit={() => setShowEdit(true)}
+          onOpenCourse={() => setShowCourse(true)}
+          onAdvance={handleStatusChange}
+        />
+      )}
 
       {/* Quick stats */}
       <View style={[styles.statsRow, isMobile && styles.statsRowWrap]}>
         {[
-          { label: 'Teams',        value: event.counts.teamsRegistered  },
-          { label: 'Players',      value: event.counts.playersRegistered },
-          { label: 'Checked In',   value: event.counts.teamsCheckedIn   },
-          { label: 'Holes Scored', value: event.counts.holesScored      },
+          { label: 'Teams',        value: event.counts.teamsRegistered   },
+          { label: 'Players',      value: event.counts.playersRegistered  },
+          { label: 'Checked In',   value: event.counts.teamsCheckedIn    },
+          { label: 'Holes Scored', value: event.counts.holesScored       },
         ].map(stat => (
-          <View key={stat.label} style={[
-            styles.statCard,
-            { borderColor: '#e8e8e8' },
-            isMobile && styles.statCardMobile,
-          ]}>
+          <View key={stat.label} style={[styles.statCard, isMobile && styles.statCardMobile]}>
             <Text style={[styles.statValue, { color: theme.colors.primary }]}>{stat.value}</Text>
             <Text style={[styles.statLabel, { color: theme.colors.accent }]}>{stat.label}</Text>
           </View>
         ))}
       </View>
 
-      {/* Event details — editable */}
-      <View style={[styles.section, { backgroundColor: '#fff', borderColor: '#e8e8e8' }]}>
+      {/* Details */}
+      <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.primary, marginBottom: 0 }]}>Details</Text>
-          <Pressable
-            style={[styles.smallBtn, { backgroundColor: theme.colors.action }]}
-            onPress={() => setShowEdit(true)}
-          >
+          <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Details</Text>
+          <Pressable style={[styles.smallBtn, { backgroundColor: theme.colors.action }]} onPress={() => setShowEdit(true)}>
             <Text style={styles.smallBtnText}>Edit</Text>
           </Pressable>
         </View>
@@ -229,21 +213,17 @@ export default function EventOverviewScreen() {
         <DetailRow label="Holes"      value={`${event.holes} holes`} />
         {event.startAt && (
           <DetailRow label="Start Date" value={new Date(event.startAt).toLocaleString([], {
-            month: 'short', day: 'numeric', year: 'numeric',
-            hour: '2-digit', minute: '2-digit',
+            month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
           })} />
         )}
       </View>
 
       {/* Course */}
-      <View style={[styles.section, { backgroundColor: '#fff', borderColor: '#e8e8e8' }]}>
+      <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.primary, marginBottom: 0 }]}>Course</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Course</Text>
           {!event.course && (
-            <Pressable
-              style={[styles.smallBtn, { backgroundColor: theme.colors.action }]}
-              onPress={() => setShowCourse(true)}
-            >
+            <Pressable style={[styles.smallBtn, { backgroundColor: theme.colors.action }]} onPress={() => setShowCourse(true)}>
               <Text style={styles.smallBtnText}>Attach Course</Text>
             </Pressable>
           )}
@@ -255,39 +235,45 @@ export default function EventOverviewScreen() {
             <DetailRow label="Holes" value={String(event.course.holes.length)} />
           </>
         ) : (
-          <Text style={[styles.placeholder, { color: theme.colors.accent }]}>
-            No course attached yet.
-          </Text>
+          <Text style={[styles.placeholder, { color: theme.colors.accent }]}>No course attached yet.</Text>
         )}
       </View>
 
-      {/* Status transitions */}
-      {transitions.length > 0 && (
-        <View style={[styles.section, { backgroundColor: '#fff', borderColor: '#e8e8e8' }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Advance Status</Text>
-          <View style={styles.transitionRow}>
-            {transitions.map(next => (
-              <Pressable
-                key={next}
-                style={[
-                  styles.transitionBtn,
-                  { backgroundColor: next === 'cancelled' ? '#e74c3c' : theme.colors.primary },
-                  updating && { opacity: 0.6 },
-                ]}
-                onPress={() => handleStatusChange(next)}
-                disabled={updating}
-              >
-                {updating
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.transitionBtnText}>
-                      {next === 'cancelled' ? 'Cancel Event' : `→ ${next}`}
-                    </Text>
-                }
-              </Pressable>
-            ))}
+      {/* Advance status for non-draft events */}
+      {!isDraft && (() => {
+        const nexts = NEXT_TRANSITIONS[event.status] ?? [];
+        if (nexts.length === 0 && !['active', 'scoring', 'registration'].includes(event.status)) return null;
+
+        return (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Event Status</Text>
+            <StatusDescription status={event.status} event={event} />
+            {nexts.length > 0 && (
+              <View style={[styles.transitionRow, { marginTop: 14 }]}>
+                {nexts.map(t => (
+                  <Pressable
+                    key={t.status}
+                    style={[styles.advanceBtn, { backgroundColor: theme.colors.primary }, updating && { opacity: 0.6 }]}
+                    onPress={() => handleStatusChange(t.status)}
+                    disabled={updating}
+                  >
+                    {updating
+                      ? <ActivityIndicator color="#fff" size="small" />
+                      : <Text style={styles.advanceBtnText}>{t.label}</Text>}
+                  </Pressable>
+                ))}
+                <Pressable
+                  style={[styles.cancelBtn, updating && { opacity: 0.6 }]}
+                  onPress={() => handleStatusChange('cancelled')}
+                  disabled={updating}
+                >
+                  <Text style={styles.cancelBtnText}>Cancel Event</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
-        </View>
-      )}
+        );
+      })()}
 
       <EditEventModal
         visible={showEdit}
@@ -295,7 +281,6 @@ export default function EventOverviewScreen() {
         onClose={() => setShowEdit(false)}
         onSaved={updated => { setEvent(updated); setShowEdit(false); }}
       />
-
       <AttachCourseModal
         visible={showCourse}
         eventId={event.id}
@@ -306,18 +291,174 @@ export default function EventOverviewScreen() {
   );
 }
 
+// ── Draft setup checklist ─────────────────────────────────────────────────────
+
+interface DraftSetupProps {
+  event:       EventDetail;
+  updating:    boolean;
+  onOpenEdit:  () => void;
+  onOpenCourse: () => void;
+  onAdvance:   (status: string) => void;
+}
+
+function DraftSetupSection({ event, updating, onOpenEdit, onOpenCourse, onAdvance }: DraftSetupProps) {
+  const theme = useTheme();
+  const hasDate   = !!event.startAt;
+  const hasCourse = !!event.course;
+  const canOpen   = hasDate; // API requires StartAt before Registration
+
+  return (
+    <View style={[styles.section, styles.setupSection]}>
+      <Text style={[styles.setupTitle, { color: theme.colors.primary }]}>Event Setup</Text>
+      <Text style={[styles.setupSubtitle, { color: theme.colors.accent }]}>
+        Complete the required steps below, then open registration so golfers can find and join your tournament.
+      </Text>
+
+      <View style={styles.checklistContainer}>
+        {/* Start date */}
+        <ChecklistItem
+          done={hasDate}
+          required
+          label="Start date & time"
+          doneDetail={event.startAt ? new Date(event.startAt).toLocaleString([], {
+            weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+          }) : undefined}
+          missingDetail="Required before golfers can register."
+          action={!hasDate ? { label: 'Set Date', onPress: onOpenEdit } : undefined}
+        />
+
+        {/* Course */}
+        <ChecklistItem
+          done={hasCourse}
+          required={false}
+          label="Course attached"
+          doneDetail={event.course ? `${event.course.name} · ${event.course.city}, ${event.course.state}` : undefined}
+          missingDetail="Required before going Active on the day of the event."
+          action={!hasCourse ? { label: 'Add Course', onPress: onOpenCourse } : undefined}
+        />
+
+        {/* Teams info — always OK */}
+        <ChecklistItem
+          done
+          required={false}
+          label="Add teams & players"
+          doneDetail="Admins can add teams any time. Golfers can register once registration is open."
+        />
+      </View>
+
+      <View style={styles.setupDivider} />
+
+      {!canOpen && (
+        <View style={[styles.blockingNote, { backgroundColor: '#fff8e1', borderColor: '#f39c12' }]}>
+          <Text style={[styles.blockingNoteText, { color: '#856404' }]}>
+            Set a start date & time before opening registration.
+          </Text>
+        </View>
+      )}
+
+      <Pressable
+        style={[
+          styles.openRegBtn,
+          { backgroundColor: canOpen ? theme.colors.primary : '#bdbdbd' },
+          updating && { opacity: 0.6 },
+        ]}
+        onPress={() => canOpen && onAdvance('registration')}
+        disabled={!canOpen || updating}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !canOpen }}
+      >
+        {updating
+          ? <ActivityIndicator color="#fff" />
+          : (
+            <>
+              <Text style={styles.openRegBtnText}>Open Registration</Text>
+              <Text style={styles.openRegBtnSub}>
+                {canOpen
+                  ? 'Golfers will see this tournament in the mobile app'
+                  : 'Complete required steps above first'}
+              </Text>
+            </>
+          )}
+      </Pressable>
+
+      <Pressable
+        style={[styles.dangerLink, updating && { opacity: 0.4 }]}
+        onPress={() => onAdvance('cancelled')}
+        disabled={updating}
+      >
+        <Text style={styles.dangerLinkText}>Cancel this event</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ── Checklist item ────────────────────────────────────────────────────────────
+
+interface ChecklistItemProps {
+  done:          boolean;
+  required:      boolean;
+  label:         string;
+  doneDetail?:   string;
+  missingDetail?: string;
+  action?:       { label: string; onPress: () => void };
+}
+
+function ChecklistItem({ done, required, label, doneDetail, missingDetail, action }: ChecklistItemProps) {
+  const theme = useTheme();
+  return (
+    <View style={styles.checklistItem}>
+      <View style={[styles.checkDot, { backgroundColor: done ? '#2ecc71' : required ? '#e74c3c' : '#f39c12' }]}>
+        <Text style={styles.checkDotText}>{done ? '✓' : required ? '✕' : '!'}</Text>
+      </View>
+      <View style={styles.checkContent}>
+        <View style={styles.checkLabelRow}>
+          <Text style={[styles.checkLabel, { color: theme.colors.primary }]}>{label}</Text>
+          {required && !done && (
+            <View style={styles.requiredPill}>
+              <Text style={styles.requiredPillText}>Required</Text>
+            </View>
+          )}
+        </View>
+        <Text style={[styles.checkDetail, { color: theme.colors.accent }]}>
+          {done ? doneDetail : missingDetail}
+        </Text>
+      </View>
+      {action && (
+        <Pressable
+          style={[styles.checkAction, { borderColor: theme.colors.action }]}
+          onPress={action.onPress}
+        >
+          <Text style={[styles.checkActionText, { color: theme.colors.action }]}>{action.label}</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+// ── Status description for non-draft states ───────────────────────────────────
+
+function StatusDescription({ status, event }: { status: string; event: EventDetail }) {
+  const theme = useTheme();
+  const descriptions: Record<string, string> = {
+    registration: `Registration is open. Golfers can find and join this tournament in the mobile app. ${event.counts.teamsRegistered} team(s) registered so far.`,
+    active:       'Day of event — check-in is open. Move to Scoring when play begins.',
+    scoring:      'Round is in progress. Score entry is open on the mobile app.',
+    completed:    'This event is complete. Final results are published.',
+    cancelled:    'This event has been cancelled.',
+  };
+  const text = descriptions[status];
+  if (!text) return null;
+  return <Text style={[styles.statusDesc, { color: theme.colors.accent }]}>{text}</Text>;
+}
+
 // ── Edit Event Modal ──────────────────────────────────────────────────────────
 
 interface EditEventModalProps {
-  visible:  boolean;
-  event:    EventDetail;
-  onClose:  () => void;
-  onSaved:  (updated: EventDetail) => void;
+  visible: boolean; event: EventDetail; onClose: () => void; onSaved: (u: EventDetail) => void;
 }
 
 function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProps) {
   const theme = useTheme();
-
   const parsed = parseStartAt(event.startAt);
 
   const [name,      setName]      = useState(event.name);
@@ -331,19 +472,12 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
   const [error,     setError]     = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; startDate?: string; startTime?: string }>({});
 
-  // Re-seed when event prop changes
   useEffect(() => {
     if (!visible) return;
     const p = parseStartAt(event.startAt);
-    setName(event.name);
-    setFormat(event.format);
-    setStartType(event.startType);
-    setHoles(event.holes);
-    setStartDate(p.date);
-    setStartTime(p.time);
-    setAmpm(p.ampm);
-    setError(null);
-    setFieldErrors({});
+    setName(event.name); setFormat(event.format); setStartType(event.startType); setHoles(event.holes);
+    setStartDate(p.date); setStartTime(p.time); setAmpm(p.ampm);
+    setError(null); setFieldErrors({});
   }, [visible, event]);
 
   function validate(): boolean {
@@ -360,23 +494,15 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
 
   async function handleSave() {
     if (!validate()) return;
-    setError(null);
-    setLoading(true);
+    setError(null); setLoading(true);
     try {
-      const payload: Partial<UpdateEventPayload> = {
-        name:      name.trim(),
-        format,
-        startType,
-        holes,
+      const updated = await eventsApi.update(event.id, {
+        name: name.trim(), format, startType, holes,
         ...(startDate ? { startAt: buildStartAt(startDate, startTime, ampm) } : {}),
-      };
-      const updated = await eventsApi.update(event.id, payload);
+      });
       onSaved(updated);
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to save event details.');
-    } finally {
-      setLoading(false);
-    }
+    } catch (e: any) { setError(e.message ?? 'Failed to save event details.'); }
+    finally { setLoading(false); }
   }
 
   return (
@@ -386,19 +512,11 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
           <View style={styles.modal}>
             <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Edit Event Details</Text>
 
-            {error && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
+            {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
 
-            {/* Name */}
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Event Name *</Text>
             <TextInput
-              style={[
-                styles.input,
-                { borderColor: fieldErrors.name ? '#e74c3c' : theme.colors.accent },
-              ]}
+              style={[styles.input, { borderColor: fieldErrors.name ? '#e74c3c' : theme.colors.accent }]}
               value={name}
               onChangeText={v => { setName(v); if (fieldErrors.name) setFieldErrors(p => ({ ...p, name: undefined })); }}
               placeholder="Annual Charity Golf Classic"
@@ -408,68 +526,39 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
             />
             {fieldErrors.name && <Text style={styles.fieldError}>{fieldErrors.name}</Text>}
 
-            {/* Format */}
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Format</Text>
             <View style={styles.pillRow}>
               {FORMAT_OPTIONS.map(f => (
-                <Pressable
-                  key={f}
-                  style={[styles.pill, format === f && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]}
-                  onPress={() => setFormat(f)}
-                >
-                  <Text style={[styles.pillText, format === f && { color: '#fff' }]}>
-                    {FORMAT_LABELS[f]}
-                  </Text>
+                <Pressable key={f} style={[styles.pill, format === f && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]} onPress={() => setFormat(f)}>
+                  <Text style={[styles.pillText, format === f && { color: '#fff' }]}>{FORMAT_LABELS[f]}</Text>
                 </Pressable>
               ))}
             </View>
 
-            {/* Start Type */}
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Start Type</Text>
             <View style={styles.pillRow}>
               {START_OPTIONS.map(s => (
-                <Pressable
-                  key={s}
-                  style={[styles.pill, startType === s && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]}
-                  onPress={() => setStartType(s)}
-                >
-                  <Text style={[styles.pillText, startType === s && { color: '#fff' }]}>
-                    {START_LABELS[s]}
-                  </Text>
+                <Pressable key={s} style={[styles.pill, startType === s && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]} onPress={() => setStartType(s)}>
+                  <Text style={[styles.pillText, startType === s && { color: '#fff' }]}>{START_LABELS[s]}</Text>
                 </Pressable>
               ))}
             </View>
 
-            {/* Holes */}
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Holes</Text>
             <View style={styles.pillRow}>
               {HOLES_OPTIONS.map(h => (
-                <Pressable
-                  key={h}
-                  style={[styles.pill, holes === h && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]}
-                  onPress={() => setHoles(h)}
-                >
+                <Pressable key={h} style={[styles.pill, holes === h && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]} onPress={() => setHoles(h)}>
                   <Text style={[styles.pillText, holes === h && { color: '#fff' }]}>{h} holes</Text>
                 </Pressable>
               ))}
             </View>
 
-            {/* Start Date */}
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Start Date (optional)</Text>
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Start Date *</Text>
             <TextInput
-              style={[
-                styles.input,
-                { borderColor: fieldErrors.startDate ? '#e74c3c' : theme.colors.accent },
-              ]}
+              style={[styles.input, { borderColor: fieldErrors.startDate ? '#e74c3c' : theme.colors.accent }]}
               value={startDate}
-              onChangeText={v => {
-                setStartDate(formatDateInput(v));
-                if (fieldErrors.startDate) setFieldErrors(p => ({ ...p, startDate: undefined }));
-              }}
-              onBlur={() => {
-                const err = validateDateField(startDate);
-                if (err) setFieldErrors(p => ({ ...p, startDate: err }));
-              }}
+              onChangeText={v => { setStartDate(formatDateInput(v)); if (fieldErrors.startDate) setFieldErrors(p => ({ ...p, startDate: undefined })); }}
+              onBlur={() => { const err = validateDateField(startDate); if (err) setFieldErrors(p => ({ ...p, startDate: err })); }}
               placeholder="MM/DD/YYYY"
               placeholderTextColor="#999"
               keyboardType="numeric"
@@ -477,53 +566,30 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
             />
             {fieldErrors.startDate && <Text style={styles.fieldError}>{fieldErrors.startDate}</Text>}
 
-            {/* Start Time + AM/PM */}
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Start Time (optional)</Text>
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Start Time</Text>
             <View style={styles.timeRow}>
               <TextInput
-                style={[
-                  styles.input,
-                  styles.timeInput,
-                  { borderColor: fieldErrors.startTime ? '#e74c3c' : theme.colors.accent },
-                ]}
+                style={[styles.input, styles.timeInput, { borderColor: fieldErrors.startTime ? '#e74c3c' : theme.colors.accent }]}
                 value={startTime}
-                onChangeText={v => {
-                  setStartTime(formatTimeInput(v));
-                  if (fieldErrors.startTime) setFieldErrors(p => ({ ...p, startTime: undefined }));
-                }}
-                onBlur={() => {
-                  const err = validateTimeField(startTime);
-                  if (err) setFieldErrors(p => ({ ...p, startTime: err }));
-                }}
+                onChangeText={v => { setStartTime(formatTimeInput(v)); if (fieldErrors.startTime) setFieldErrors(p => ({ ...p, startTime: undefined })); }}
+                onBlur={() => { const err = validateTimeField(startTime); if (err) setFieldErrors(p => ({ ...p, startTime: err })); }}
                 placeholder="HH:MM"
                 placeholderTextColor="#999"
                 keyboardType="numeric"
                 editable={!loading}
               />
-              <Pressable
-                style={[styles.ampmBtn, { borderColor: theme.colors.primary }]}
-                onPress={() => setAmpm(a => a === 'AM' ? 'PM' : 'AM')}
-              >
+              <Pressable style={[styles.ampmBtn, { borderColor: theme.colors.primary }]} onPress={() => setAmpm(a => a === 'AM' ? 'PM' : 'AM')}>
                 <Text style={[styles.ampmText, { color: theme.colors.primary }]}>{ampm}</Text>
               </Pressable>
             </View>
             {fieldErrors.startTime && <Text style={styles.fieldError}>{fieldErrors.startTime}</Text>}
 
             <View style={styles.modalActions}>
-              <Pressable
-                style={[styles.cancelBtn, { borderColor: theme.colors.accent }]}
-                onPress={onClose}
-              >
-                <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
+              <Pressable style={[styles.modalCancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
+                <Text style={[styles.modalCancelText, { color: theme.colors.accent }]}>Cancel</Text>
               </Pressable>
-              <Pressable
-                style={[styles.submitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
-                onPress={handleSave}
-                disabled={loading}
-              >
-                {loading
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.submitText}>Save Changes</Text>}
+              <Pressable style={[styles.modalSubmitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]} onPress={handleSave} disabled={loading}>
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalSubmitText}>Save Changes</Text>}
               </Pressable>
             </View>
           </View>
@@ -536,44 +602,33 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
 // ── Attach Course Modal ───────────────────────────────────────────────────────
 
 interface AttachCourseModalProps {
-  visible:    boolean;
-  eventId:    string;
-  onClose:    () => void;
-  onAttached: (event: EventDetail) => void;
+  visible: boolean; eventId: string; onClose: () => void; onAttached: (e: EventDetail) => void;
 }
 
 function AttachCourseModal({ visible, eventId, onClose, onAttached }: AttachCourseModalProps) {
   const theme = useTheme();
-  const [name,    setName]    = useState('');
+  const [name, setName] = useState('');
   const [address, setAddress] = useState('');
-  const [city,    setCity]    = useState('');
-  const [state,   setState]   = useState('');
-  const [zip,     setZip]     = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [zip, setZip] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  function reset() {
-    setName(''); setAddress(''); setCity(''); setState(''); setZip(''); setError(null);
-  }
+  function reset() { setName(''); setAddress(''); setCity(''); setState(''); setZip(''); setError(null); }
 
   async function handleSubmit() {
     if (!name.trim())  { setError('Course name is required.'); return; }
     if (!city.trim())  { setError('City is required.'); return; }
     if (!state.trim()) { setError('State is required.'); return; }
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
       const updated = await eventsApi.attachCourse(eventId, {
-        name: name.trim(), address: address.trim(),
-        city: city.trim(), state: state.trim(), zip: zip.trim(),
+        name: name.trim(), address: address.trim(), city: city.trim(), state: state.trim(), zip: zip.trim(),
       });
-      reset();
-      onAttached(updated);
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to attach course. Check the details and try again.');
-    } finally {
-      setLoading(false);
-    }
+      reset(); onAttached(updated);
+    } catch (e: any) { setError(e.message ?? 'Failed to attach course.'); }
+    finally { setLoading(false); }
   }
 
   return (
@@ -582,37 +637,28 @@ function AttachCourseModal({ visible, eventId, onClose, onAttached }: AttachCour
         <View style={styles.modal}>
           <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Attach Course</Text>
           {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
-          {[
+          {([
             { label: 'Course Name *', value: name,    setter: setName,    placeholder: 'Pebble Beach Golf Links' },
             { label: 'Address',       value: address, setter: setAddress, placeholder: '17 Mile Dr' },
             { label: 'City *',        value: city,    setter: setCity,    placeholder: 'Pebble Beach' },
             { label: 'State *',       value: state,   setter: setState,   placeholder: 'CA' },
             { label: 'Zip',           value: zip,     setter: setZip,     placeholder: '93953' },
-          ].map(f => (
+          ] as const).map(f => (
             <View key={f.label}>
               <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>{f.label}</Text>
               <TextInput
                 style={[styles.input, { borderColor: theme.colors.accent }]}
-                value={f.value}
-                onChangeText={f.setter}
-                placeholder={f.placeholder}
-                placeholderTextColor="#999"
-                editable={!loading}
+                value={f.value} onChangeText={f.setter as any}
+                placeholder={f.placeholder} placeholderTextColor="#999" editable={!loading}
               />
             </View>
           ))}
           <View style={styles.modalActions}>
-            <Pressable style={[styles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={() => { reset(); onClose(); }}>
-              <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
+            <Pressable style={[styles.modalCancelBtn, { borderColor: theme.colors.accent }]} onPress={() => { reset(); onClose(); }}>
+              <Text style={[styles.modalCancelText, { color: theme.colors.accent }]}>Cancel</Text>
             </Pressable>
-            <Pressable
-              style={[styles.submitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.submitText}>Attach</Text>}
+            <Pressable style={[styles.modalSubmitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalSubmitText}>Attach</Text>}
             </Pressable>
           </View>
         </View>
@@ -639,134 +685,92 @@ const styles = StyleSheet.create({
   page:        { flex: 1 },
   pageContent: { gap: 16 },
   center:      { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  pageHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginBottom: 4,
+
+  pageHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 4 },
+  eventName:  { fontSize: 22, fontWeight: '800' },
+  eventCode:  { fontSize: 13, marginTop: 2 },
+  statusBadge: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14 },
+  statusBadgeText: { fontSize: 12, fontWeight: '700', color: '#fff', textTransform: 'uppercase' },
+
+  section: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e8e8e8', borderRadius: 12, padding: 16 },
+
+  // ── Setup section ────────────────────────────────────────────────────────────
+  setupSection:    { borderColor: '#d0e8ff', backgroundColor: '#f0f7ff' },
+  setupTitle:      { fontSize: 17, fontWeight: '800', marginBottom: 4 },
+  setupSubtitle:   { fontSize: 13, lineHeight: 18, marginBottom: 16 },
+  checklistContainer: { gap: 14 },
+  checklistItem:   { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  checkDot: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
+  checkDotText:    { fontSize: 12, fontWeight: '800', color: '#fff' },
+  checkContent:    { flex: 1 },
+  checkLabelRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  checkLabel:      { fontSize: 14, fontWeight: '600' },
+  checkDetail:     { fontSize: 12, marginTop: 2, lineHeight: 16 },
+  checkAction: {
+    borderWidth: 1.5, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 5, flexShrink: 0,
   },
-  eventName: { fontSize: 22, fontWeight: '800' },
-  eventCode: { fontSize: 13, marginTop: 2 },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 14,
+  checkActionText: { fontSize: 12, fontWeight: '700' },
+  requiredPill:    { backgroundColor: '#fde8e8', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  requiredPillText: { fontSize: 10, fontWeight: '700', color: '#c0392b' },
+  setupDivider:    { height: 1, backgroundColor: '#c8dff5', marginVertical: 16 },
+  blockingNote: {
+    borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 12,
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-    textTransform: 'uppercase',
+  blockingNoteText: { fontSize: 13, fontWeight: '500' },
+  openRegBtn: {
+    borderRadius: 10, paddingVertical: 14, paddingHorizontal: 20, alignItems: 'center',
   },
-  statsRow:     { flexDirection: 'row', gap: 12 },
-  statsRowWrap: { flexWrap: 'wrap' },
-  statCard: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 14,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-  },
+  openRegBtnText:  { fontSize: 16, fontWeight: '800', color: '#fff' },
+  openRegBtnSub:   { fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 3 },
+  dangerLink:      { alignItems: 'center', paddingTop: 14 },
+  dangerLinkText:  { fontSize: 13, color: '#e74c3c', fontWeight: '500' },
+
+  // ── Stats ────────────────────────────────────────────────────────────────────
+  statsRow:       { flexDirection: 'row', gap: 12 },
+  statsRowWrap:   { flexWrap: 'wrap' },
+  statCard:       { flex: 1, borderWidth: 1, borderColor: '#e8e8e8', borderRadius: 10, padding: 14, backgroundColor: '#fff', alignItems: 'center' },
   statCardMobile: { flex: 0, width: '47%' },
-  statValue: { fontSize: 28, fontWeight: '800' },
-  statLabel: { fontSize: 12, fontWeight: '500', marginTop: 2 },
-  section: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#eee',
-  },
-  detailLabel: { fontSize: 13, fontWeight: '500' },
-  detailValue: { fontSize: 13, fontWeight: '600' },
-  placeholder: { fontSize: 14, fontStyle: 'italic' },
-  smallBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  smallBtnText: { fontSize: 13, fontWeight: '600', color: '#fff' },
-  transitionRow: { flexDirection: 'row', gap: 10 },
-  transitionBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  transitionBtnText: { fontSize: 14, fontWeight: '700', color: '#fff', textTransform: 'capitalize' },
-  errorBox: {
-    backgroundColor: '#fdf2f2',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#e74c3c',
-  },
-  errorText:  { color: '#c0392b', fontSize: 14 },
-  fieldError: { color: '#e74c3c', fontSize: 12, marginTop: 4, marginBottom: 4 },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalScroll: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modal: {
-    width: '100%',
-    maxWidth: 480,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 28,
-  },
-  modalTitle:   { fontSize: 20, fontWeight: '800', marginBottom: 16 },
-  fieldLabel:   { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    backgroundColor: '#fafafa',
-  },
-  pillRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-  pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: '#ddd',
-    backgroundColor: '#fafafa',
-  },
-  pillText:     { fontSize: 13, fontWeight: '600', color: '#555' },
-  timeRow:      { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  timeInput:    { flex: 1 },
-  ampmBtn:      { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1.5 },
-  ampmText:     { fontSize: 15, fontWeight: '700' },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 20 },
-  cancelBtn:    { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-  cancelText:   { fontSize: 15, fontWeight: '600' },
-  submitBtn:    { flex: 2, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-  submitText:   { fontSize: 15, fontWeight: '700', color: '#fff' },
+  statValue:      { fontSize: 28, fontWeight: '800' },
+  statLabel:      { fontSize: 12, fontWeight: '500', marginTop: 2 },
+
+  // ── Section shared ───────────────────────────────────────────────────────────
+  sectionHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitle:   { fontSize: 15, fontWeight: '700' },
+  detailRow:      { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#eee' },
+  detailLabel:    { fontSize: 13, fontWeight: '500' },
+  detailValue:    { fontSize: 13, fontWeight: '600' },
+  placeholder:    { fontSize: 14, fontStyle: 'italic' },
+  smallBtn:       { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
+  smallBtnText:   { fontSize: 13, fontWeight: '600', color: '#fff' },
+
+  // ── Status advance ───────────────────────────────────────────────────────────
+  statusDesc:     { fontSize: 13, lineHeight: 18 },
+  transitionRow:  { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  advanceBtn:     { flex: 1, minWidth: 140, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
+  advanceBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  cancelBtn:      { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1.5, borderColor: '#e74c3c', alignItems: 'center' },
+  cancelBtnText:  { fontSize: 14, fontWeight: '600', color: '#e74c3c' },
+
+  // ── Modals ───────────────────────────────────────────────────────────────────
+  errorBox:       { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
+  errorText:      { color: '#c0392b', fontSize: 14 },
+  fieldError:     { color: '#e74c3c', fontSize: 12, marginTop: 4, marginBottom: 4 },
+  overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  modalScroll:    { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modal:          { width: '100%', maxWidth: 480, backgroundColor: '#fff', borderRadius: 16, padding: 28 },
+  modalTitle:     { fontSize: 20, fontWeight: '800', marginBottom: 16 },
+  fieldLabel:     { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
+  input:          { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, backgroundColor: '#fafafa' },
+  pillRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  pill:           { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: '#ddd', backgroundColor: '#fafafa' },
+  pillText:       { fontSize: 13, fontWeight: '600', color: '#555' },
+  timeRow:        { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  timeInput:      { flex: 1 },
+  ampmBtn:        { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1.5 },
+  ampmText:       { fontSize: 15, fontWeight: '700' },
+  modalActions:   { flexDirection: 'row', gap: 12, marginTop: 20 },
+  modalCancelBtn: { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  modalCancelText: { fontSize: 15, fontWeight: '600' },
+  modalSubmitBtn: { flex: 2, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  modalSubmitText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });

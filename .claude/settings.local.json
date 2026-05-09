@@ -106,7 +106,17 @@
       "PowerShell(Get-ChildItem -Path \"C:\\\\GolfApp\\\\node_modules\\\\@expo\\\\metro-runtime\\\\src\" | ForEach-Object { $_.Name }; Get-ChildItem -Path \"C:\\\\GolfApp\\\\node_modules\\\\@expo\\\\metro-runtime\" -Depth 1 | ForEach-Object { $_.Name })",
       "PowerShell(Select-String -Pattern \"import\\\\.meta\" \"C:\\\\GolfApp\\\\node_modules\\\\zustand\\\\esm\\\\index.mjs\" | Select-Object -First 5 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })",
       "Bash(Get-ChildItem -Path \"C:\\\\GolfApp\\\\apps\\\\mobile\\\\app\" -Recurse -Force)",
-      "Bash(Select-Object FullName)"
+      "Bash(Select-Object FullName)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(find C:\\\\\\\\GolfApp\\\\\\\\apps\\\\\\\\admin\\\\\\\\src\\\\\\\\app -type f -o -type d)",
+      "Bash(Get-ChildItem -Path \"C:\\\\GolfApp\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Get-ChildItem *)",
+      "PowerShell(& \"C:\\\\GolfApp\\\\apps\\\\admin\\\\node_modules\\\\.bin\\\\tsc.cmd\" --noEmit --project \"C:\\\\GolfApp\\\\apps\\\\admin\\\\tsconfig.json\" 2>&1 | Select-Object -First 40)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(dir /s /b \"C:\\\\GolfApp\\\\apps\\\\admin\\\\src\\\\app\\\\*challenges*\")",
+      "PowerShell(Get-Process *)",
+      "PowerShell(psql *)"
     ]
   }
 }

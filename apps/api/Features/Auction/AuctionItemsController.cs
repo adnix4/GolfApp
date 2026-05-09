@@ -50,6 +50,20 @@ public class AuctionItemsController : ControllerBase
         return Ok(item);
     }
 
+    [HttpPost("api/v1/events/{eventId:guid}/auction/items/{itemId:guid}/photos")]
+    [Authorize(Policy = "EventStaff")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadPhoto(
+        [FromRoute] Guid eventId,
+        [FromRoute] Guid itemId,
+        IFormFile file,
+        CancellationToken ct)
+    {
+        var orgId  = GetOrgId();
+        var result = await _auction.UploadItemPhotoAsync(orgId, eventId, itemId, file, ct);
+        return Ok(result);
+    }
+
     [HttpDelete("api/v1/events/{eventId:guid}/auction/items/{itemId:guid}")]
     [Authorize(Policy = "EventStaff")]
     public async Task<IActionResult> DeleteItem(

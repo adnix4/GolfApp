@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, FlatList, Modal, TextInput,
   StyleSheet, ActivityIndicator, ScrollView, Image, Alert,
@@ -119,6 +119,11 @@ export default function SponsorsScreen() {
                 {s.websiteUrl && (
                   <Text style={[styles.url, { color: theme.colors.action }]} numberOfLines={1}>{s.websiteUrl}</Text>
                 )}
+                {s.donationAmountCents != null && s.donationAmountCents > 0 && (
+                  <Text style={[styles.donationAmt, { color: '#16a085' }]}>
+                    ${(s.donationAmountCents / 100).toFixed(2)} donation
+                  </Text>
+                )}
               </View>
               <View style={styles.cardRight}>
                 <View style={[styles.tierBadge, { backgroundColor: TIER_COLOR[s.tier] ?? '#999' }]}>
@@ -164,30 +169,50 @@ interface SponsorFormModalProps {
 }
 
 function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: SponsorFormModalProps) {
-  const theme = useTheme();
+  const theme  = useTheme();
   const isEdit = initialData != null;
 
-  const [name,       setName]       = useState(initialData?.name ?? '');
-  const [logoUrl,    setLogoUrl]    = useState(initialData?.logoUrl ?? '');
-  const [tier,       setTier]       = useState<string>(initialData?.tier ?? 'gold');
-  const [websiteUrl, setWebsiteUrl] = useState(initialData?.websiteUrl ?? '');
-  const [tagline,    setTagline]    = useState(initialData?.tagline ?? '');
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState<string | null>(null);
+  const [name,            setName]            = useState('');
+  const [logoUrl,         setLogoUrl]         = useState('');
+  const [tier,            setTier]            = useState<string>('gold');
+  const [websiteUrl,      setWebsiteUrl]      = useState('');
+  const [tagline,         setTagline]         = useState('');
+  const [donationAmt,     setDonationAmt]     = useState('');
+  const [loading,         setLoading]         = useState(false);
+  const [error,           setError]           = useState<string | null>(null);
+  const [pendingFile,     setPendingFile]      = useState<File | null>(null);
+  const [localPreview,    setLocalPreview]    = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setName(initialData?.name ?? '');
-    setLogoUrl(initialData?.logoUrl ?? '');
-    setTier(initialData?.tier ?? 'gold');
-    setWebsiteUrl(initialData?.websiteUrl ?? '');
-    setTagline(initialData?.tagline ?? '');
-    setError(null);
+    if (visible) {
+      setName(initialData?.name ?? '');
+      setLogoUrl(initialData?.logoUrl ?? '');
+      setTier(initialData?.tier ?? 'gold');
+      setWebsiteUrl(initialData?.websiteUrl ?? '');
+      setTagline(initialData?.tagline ?? '');
+      setDonationAmt(
+        initialData?.donationAmountCents ? String(initialData.donationAmountCents / 100) : ''
+      );
+      setError(null);
+      setPendingFile(null);
+      setLocalPreview(null);
+    }
   }, [initialData, visible]);
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPendingFile(file);
+    setLogoUrl('');
+    setLocalPreview(URL.createObjectURL(file));
+    e.target.value = '';
+  }
+
   async function handleSubmit() {
-    if (!name.trim())    { setError('Sponsor name is required.'); return; }
-    if (!logoUrl.trim()) { setError('Logo URL is required.'); return; }
-    if (!/^https?:\/\/.+/.test(logoUrl.trim())) {
+    if (!name.trim()) { setError('Sponsor name is required.'); return; }
+    if (!pendingFile && logoUrl.trim() && !/^https?:\/\/.+/.test(logoUrl.trim())) {
       setError('Logo URL must start with http:// or https://');
       return;
     }
@@ -198,16 +223,25 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
     setError(null);
     setLoading(true);
     try {
+      const donationCents = donationAmt.trim()
+        ? Math.round(parseFloat(donationAmt) * 100)
+        : undefined;
+
       const payload: CreateSponsorPayload = {
         name: name.trim(),
-        logoUrl: logoUrl.trim(),
+        ...(logoUrl.trim() ? { logoUrl: logoUrl.trim() } : {}),
         tier,
         ...(websiteUrl.trim() ? { websiteUrl: websiteUrl.trim() } : {}),
         ...(tagline.trim() ? { tagline: tagline.trim() } : {}),
+        ...(donationCents !== undefined ? { donationAmountCents: donationCents } : {}),
       };
-      const result = isEdit
+      let result = isEdit
         ? await sponsorsApi.update(eventId, initialData!.id, payload)
         : await sponsorsApi.create(eventId, payload);
+
+      if (pendingFile) {
+        result = await sponsorsApi.uploadLogo(eventId, result.id, pendingFile);
+      }
       onSaved(result);
     } catch (e: any) {
       setError(e.message ?? 'Failed to save sponsor.');
@@ -215,6 +249,8 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
       setLoading(false);
     }
   }
+
+  const previewUri = localPreview ?? (logoUrl || initialData?.logoUrl) ?? null;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -225,24 +261,71 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
           </Text>
           {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
 
-          {[
-            { label: 'Sponsor Name', value: name,       setter: setName,       placeholder: 'Acme Corp' },
-            { label: 'Logo URL',     value: logoUrl,    setter: setLogoUrl,    placeholder: 'https://...' },
-            { label: 'Website URL',  value: websiteUrl, setter: setWebsiteUrl, placeholder: 'https://acme.com (optional)' },
-            { label: 'Tagline',      value: tagline,    setter: setTagline,    placeholder: 'Powering your round (optional)' },
-          ].map(f => (
-            <View key={f.label}>
-              <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>{f.label}</Text>
-              <TextInput
-                style={[styles.input, { borderColor: theme.colors.accent }]}
-                value={f.value}
-                onChangeText={f.setter}
-                placeholder={f.placeholder}
-                placeholderTextColor="#999"
-                editable={!loading}
-              />
-            </View>
-          ))}
+          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Sponsor Name</Text>
+          <TextInput
+            style={[styles.input, { borderColor: theme.colors.accent }]}
+            value={name} onChangeText={setName}
+            placeholder="Acme Corp" placeholderTextColor="#999" editable={!loading}
+          />
+
+          {/* Logo section */}
+          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Logo</Text>
+          {previewUri ? (
+            <Image source={{ uri: previewUri }} style={styles.logoPreview} resizeMode="contain" />
+          ) : null}
+          <View style={styles.logoRow}>
+            {/* Hidden file input — web only */}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              style={{ display: 'none' }}
+              ref={fileInputRef as any}
+              onChange={handleFileChange as any}
+            />
+            <Pressable
+              style={[styles.uploadBtn, { borderColor: theme.colors.primary }]}
+              onPress={() => (fileInputRef.current as any)?.click()}
+              disabled={loading}
+            >
+              <Text style={[styles.uploadBtnText, { color: theme.colors.primary }]}>
+                {pendingFile ? 'Change Image' : 'Upload Image'}
+              </Text>
+            </Pressable>
+            {pendingFile && (
+              <Text style={styles.fileNameText} numberOfLines={1}>{pendingFile.name}</Text>
+            )}
+          </View>
+          <Text style={styles.orText}>— or paste a URL —</Text>
+          <TextInput
+            style={[styles.input, { borderColor: theme.colors.accent }]}
+            value={logoUrl}
+            onChangeText={v => { setLogoUrl(v); setPendingFile(null); setLocalPreview(null); }}
+            placeholder="https://example.com/logo.png"
+            placeholderTextColor="#999"
+            editable={!loading}
+          />
+
+          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Website URL</Text>
+          <TextInput
+            style={[styles.input, { borderColor: theme.colors.accent }]}
+            value={websiteUrl} onChangeText={setWebsiteUrl}
+            placeholder="https://acme.com (optional)" placeholderTextColor="#999" editable={!loading}
+          />
+
+          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Tagline</Text>
+          <TextInput
+            style={[styles.input, { borderColor: theme.colors.accent }]}
+            value={tagline} onChangeText={setTagline}
+            placeholder="Powering your round (optional)" placeholderTextColor="#999" editable={!loading}
+          />
+
+          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Donation Amount</Text>
+          <TextInput
+            style={[styles.input, { borderColor: theme.colors.accent }]}
+            value={donationAmt} onChangeText={setDonationAmt}
+            placeholder="0.00 (optional)" placeholderTextColor="#999"
+            keyboardType="decimal-pad" editable={!loading}
+          />
 
           <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Tier</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
@@ -304,6 +387,7 @@ const styles = StyleSheet.create({
   sponsorName: { fontSize: 16, fontWeight: '700' },
   tagline: { fontSize: 13, marginTop: 2 },
   url: { fontSize: 12, marginTop: 2 },
+  donationAmt: { fontSize: 12, marginTop: 2, fontWeight: '600' },
   cardRight: { alignItems: 'flex-end', gap: 6 },
   tierBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   tierText: { fontSize: 11, fontWeight: '700', color: '#fff', textTransform: 'capitalize' },
@@ -329,4 +413,10 @@ const styles = StyleSheet.create({
   cancelText: { fontSize: 15, fontWeight: '600' },
   submitBtn: { flex: 2, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   submitText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  logoPreview: { width: '100%', height: 80, borderRadius: 8, backgroundColor: '#f0f0f0', marginBottom: 8 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
+  uploadBtn: { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
+  uploadBtnText: { fontSize: 13, fontWeight: '700' },
+  fileNameText: { flex: 1, fontSize: 12, color: '#555' },
+  orText: { textAlign: 'center', color: '#aaa', fontSize: 12, marginVertical: 6 },
 });

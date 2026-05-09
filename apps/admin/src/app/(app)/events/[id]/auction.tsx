@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, FlatList, TextInput,
-  Modal, ScrollView, ActivityIndicator, Alert,
+  Modal, ScrollView, ActivityIndicator, Alert, Image,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
@@ -124,9 +124,12 @@ export default function AuctionScreen() {
   const [showModal, setShowModal] = useState(false);
   const [editItem,  setEditItem]  = useState<AuctionItem | null>(null);
   const [form,      setForm]      = useState<AuctionForm>(emptyForm());
-  const [saving,    setSaving]    = useState(false);
-  const [modalError, setModalError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [saving,       setSaving]       = useState(false);
+  const [modalError,   setModalError]   = useState<string | null>(null);
+  const [fieldErrors,  setFieldErrors]  = useState<Record<string, string>>({});
+  const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -147,6 +150,7 @@ export default function AuctionScreen() {
     setForm(emptyForm());
     setModalError(null);
     setFieldErrors({});
+    setPendingPhotos([]);
     setShowModal(true);
   }
 
@@ -155,6 +159,7 @@ export default function AuctionScreen() {
     setForm(itemToForm(item));
     setModalError(null);
     setFieldErrors({});
+    setPendingPhotos([]);
     setShowModal(true);
   }
 
@@ -189,11 +194,16 @@ export default function AuctionScreen() {
           ? { closesAt: buildClosesAt(form.closeDate, form.closeTime, form.closeAmpm) }
           : {}),
       };
+      let saved: AuctionItem;
       if (editItem) {
-        await auctionApi.updateItem(eventId, editItem.id, payload);
+        saved = await auctionApi.updateItem(eventId, editItem.id, payload);
       } else {
-        await auctionApi.createItem(eventId, payload);
+        saved = await auctionApi.createItem(eventId, payload);
       }
+      for (const file of pendingPhotos) {
+        saved = await auctionApi.uploadPhoto(eventId, saved.id, file);
+      }
+      setPendingPhotos([]);
       setShowModal(false);
       await load();
     } catch (e: any) {
@@ -222,6 +232,37 @@ export default function AuctionScreen() {
         },
       ],
     );
+  }
+
+  async function handlePhotoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    if (editItem) {
+      setUploadingPhoto(true);
+      setModalError(null);
+      try {
+        const updated = await auctionApi.uploadPhoto(eventId, editItem.id, file);
+        setEditItem(updated);
+      } catch (err: any) {
+        setModalError(err.message ?? 'Failed to upload photo.');
+      } finally {
+        setUploadingPhoto(false);
+      }
+    } else {
+      setPendingPhotos(prev => [...prev, file]);
+    }
+  }
+
+  async function handlePhotoRemove(url: string) {
+    if (!editItem) {
+      // For new items, remove from pending local previews (not yet uploaded)
+      return;
+    }
+    const updated = await auctionApi.updateItem(eventId, editItem.id, {
+      photoUrls: editItem.photoUrls.filter(u => u !== url),
+    });
+    setEditItem(updated);
   }
 
   const fmt = (cents: number) => `$${(cents / 100).toFixed(2)}`;
@@ -275,6 +316,11 @@ export default function AuctionScreen() {
                 {item.closesAt && (
                   <Text style={{ color: '#888', fontSize: 12, marginTop: 2 }}>
                     Closes: {new Date(item.closesAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                )}
+                {item.photoUrls.length > 0 && (
+                  <Text style={{ color: '#888', fontSize: 12, marginTop: 2 }}>
+                    {item.photoUrls.length} photo{item.photoUrls.length !== 1 ? 's' : ''}
                   </Text>
                 )}
               </View>
@@ -469,6 +515,49 @@ export default function AuctionScreen() {
             placeholderTextColor="#999"
           />
 
+          {/* Photos */}
+          <Text style={styles.label}>Photos</Text>
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            style={{ display: 'none' }}
+            ref={photoInputRef as any}
+            onChange={handlePhotoFileChange as any}
+          />
+          <View style={styles.photoGrid}>
+            {(editItem?.photoUrls ?? []).map(url => (
+              <View key={url} style={styles.photoThumbWrap}>
+                <Image source={{ uri: url }} style={styles.photoThumb} resizeMode="cover" />
+                <Pressable
+                  style={styles.photoRemoveBtn}
+                  onPress={() => handlePhotoRemove(url)}
+                >
+                  <Text style={styles.photoRemoveText}>✕</Text>
+                </Pressable>
+              </View>
+            ))}
+            {pendingPhotos.map((f, i) => (
+              <View key={i} style={[styles.photoThumbWrap, styles.photoPending]}>
+                <Text style={styles.photoPendingText} numberOfLines={2}>{f.name}</Text>
+                <Pressable
+                  style={styles.photoRemoveBtn}
+                  onPress={() => setPendingPhotos(prev => prev.filter((_, j) => j !== i))}
+                >
+                  <Text style={styles.photoRemoveText}>✕</Text>
+                </Pressable>
+              </View>
+            ))}
+            <Pressable
+              style={[styles.photoAddBtn, { borderColor: theme.colors.accent }]}
+              onPress={() => (photoInputRef.current as any)?.click()}
+              disabled={uploadingPhoto || saving}
+            >
+              {uploadingPhoto
+                ? <ActivityIndicator size="small" color={theme.colors.accent} />
+                : <Text style={[styles.photoAddText, { color: theme.colors.accent }]}>+ Add Photo</Text>}
+            </Pressable>
+          </View>
+
           <View style={styles.modalBtnRow}>
             <Pressable
               onPress={() => setShowModal(false)}
@@ -529,4 +618,20 @@ const styles = StyleSheet.create({
   modalContent: { padding: 24, paddingBottom: 60 },
   modalTitle:   { fontSize: 20, fontWeight: '800', marginBottom: 16 },
   modalBtnRow:  { flexDirection: 'row', marginTop: 28 },
+  photoGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  photoThumbWrap: { width: 72, height: 72, borderRadius: 8, overflow: 'hidden', position: 'relative' },
+  photoThumb:    { width: 72, height: 72 },
+  photoPending:  { backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', padding: 4 },
+  photoPendingText: { fontSize: 10, color: '#555', textAlign: 'center' },
+  photoRemoveBtn: {
+    position: 'absolute', top: 2, right: 2,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10,
+    width: 18, height: 18, justifyContent: 'center', alignItems: 'center',
+  },
+  photoRemoveText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  photoAddBtn:  {
+    width: 72, height: 72, borderRadius: 8, borderWidth: 1.5, borderStyle: 'dashed',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  photoAddText: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
 });

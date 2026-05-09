@@ -699,8 +699,9 @@ public class TeamService
 
     /// <summary>
     /// Loads the event and verifies it is open for registration.
-    /// Registration is allowed in: Registration and Active status.
-    /// Walk-up registration is also allowed when event.config.allowWalkUps = true.
+    /// Draft     — organizer pre-loading the roster before opening registration.
+    /// Registration — public registration is live.
+    /// Active + allowWalkUps — day-of walk-up additions.
     /// </summary>
     private async Task<Event> GetOpenEventAsync(
         Guid orgId, Guid eventId, CancellationToken ct)
@@ -711,16 +712,18 @@ public class TeamService
         if (evt is null)
             throw new NotFoundException("Event", eventId);
 
-        var config     = DeserializeConfig(evt.ConfigJson);
+        var config      = DeserializeConfig(evt.ConfigJson);
         var allowWalkUp = config.AllowWalkUps ?? false;
 
-        var isOpen = evt.Status == EventStatus.Registration
+        var isOpen = evt.Status == EventStatus.Draft
+            || evt.Status == EventStatus.Registration
             || evt.Status == EventStatus.Active && allowWalkUp;
 
         if (!isOpen)
             throw new ValidationException(
-                $"Registration is not open for this event (status: {evt.Status}). " +
-                "Walk-up registration must be enabled in event settings for Active events.");
+                evt.Status == EventStatus.Active
+                    ? "Walk-up registration must be enabled in event settings to add teams to an Active event."
+                    : $"Teams cannot be added to a {evt.Status.ToString().ToLower()} event.");
 
         return evt;
     }

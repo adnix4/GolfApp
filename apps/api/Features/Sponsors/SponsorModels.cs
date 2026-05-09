@@ -11,8 +11,8 @@ public record CreateSponsorRequest
     [Required, MaxLength(200)]
     public string Name { get; init; } = string.Empty;
 
-    [Required, MaxLength(500)]
-    public string LogoUrl { get; init; } = string.Empty;
+    [MaxLength(500)]
+    public string? LogoUrl { get; init; }
 
     [MaxLength(500)]
     public string? WebsiteUrl { get; init; }
@@ -22,6 +22,10 @@ public record CreateSponsorRequest
 
     [Required]
     public SponsorTier Tier { get; init; }
+
+    /// <summary>Sponsor's committed donation to the event, in US cents.</summary>
+    [Range(0, 10_000_000)]
+    public int? DonationAmountCents { get; init; }
 
     /// <summary>
     /// Controls where this sponsor's logo appears.
@@ -37,6 +41,7 @@ public record UpdateSponsorRequest
     [MaxLength(500)] public string? WebsiteUrl { get; init; }
     [MaxLength(200)] public string? Tagline    { get; init; }
     public SponsorTier?         Tier       { get; init; }
+    [Range(0, 10_000_000)] public int? DonationAmountCents { get; init; }
     public SponsorPlacementsDto? Placements { get; init; }
 }
 
@@ -57,6 +62,7 @@ public record SponsorResponse
     public string? WebsiteUrl { get; init; }
     public string? Tagline   { get; init; }
     public string Tier       { get; init; } = string.Empty;
+    public int?   DonationAmountCents { get; init; }
     public SponsorPlacementsDto Placements { get; init; } = new();
 }
 
@@ -79,6 +85,9 @@ public record CreateChallengeRequest
 
     /// <summary>Optional sponsor funding this challenge's prize.</summary>
     public Guid? SponsorId { get; init; }
+
+    [Range(0, 10_000_000)]
+    public int? DonationAmountCents { get; init; }
 }
 
 public record UpdateChallengeRequest
@@ -89,6 +98,22 @@ public record UpdateChallengeRequest
     [MaxLength(500)] public string? Description      { get; init; }
     [MaxLength(500)] public string? PrizeDescription { get; init; }
     public Guid? SponsorId { get; init; }
+    [Range(0, 10_000_000)] public int? DonationAmountCents { get; init; }
+}
+
+/// <summary>Used by the admin PUT /challenges/{holeNumber} upsert endpoint.</summary>
+public record UpsertChallengeByHoleRequest
+{
+    [Required, MaxLength(500)]
+    public string Description { get; init; } = string.Empty;
+
+    /// <summary>Resolved to SponsorId by name match; null clears any existing sponsor link.</summary>
+    [MaxLength(200)]
+    public string? SponsorName { get; init; }
+
+    /// <summary>Prize or donation amount for this challenge, in US cents.</summary>
+    [Range(0, 10_000_000)]
+    public int? DonationAmountCents { get; init; }
 }
 
 public record ChallengeResponse
@@ -101,6 +126,8 @@ public record ChallengeResponse
     public string? PrizeDescription { get; init; }
     public Guid?   SponsorId        { get; init; }
     public string? SponsorName      { get; init; }
+    public string? SponsorLogoUrl   { get; init; }
+    public int?    DonationAmountCents { get; init; }
     public List<ChallengeResultResponse> Results { get; init; } = new();
 }
 

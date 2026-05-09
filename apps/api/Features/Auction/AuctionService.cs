@@ -14,17 +14,24 @@ public class AuctionService
     private readonly ApplicationDbContext _db;
     private readonly IRealTimeService _realTime;
     private readonly PaymentsService _payments;
+    private readonly IWebHostEnvironment _env;
     private readonly ILogger<AuctionService> _logger;
+
+    private static readonly string[] AllowedImageTypes =
+        ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
+    private const long MaxPhotoBytes = 5 * 1024 * 1024;
 
     public AuctionService(
         ApplicationDbContext db,
         IRealTimeService realTime,
         PaymentsService payments,
+        IWebHostEnvironment env,
         ILogger<AuctionService> logger)
     {
         _db       = db;
         _realTime = realTime;
         _payments = payments;
+        _env      = env;
         _logger   = logger;
     }
 
@@ -123,6 +130,38 @@ public class AuctionService
             throw new ValidationException("Cannot delete a closed auction item.");
         item.Status = AuctionItemStatus.Cancelled;
         await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<AuctionItemResponse> UploadItemPhotoAsync(
+        Guid orgId, Guid eventId, Guid itemId, IFormFile file, CancellationToken ct)
+    {
+        if (file.Length == 0)
+            throw new ValidationException("Uploaded file is empty.");
+        if (file.Length > MaxPhotoBytes)
+            throw new ValidationException("Photo must be 5 MB or smaller.");
+        if (!AllowedImageTypes.Contains(file.ContentType.ToLowerInvariant()))
+            throw new ValidationException("Photo must be PNG, JPEG, SVG, or WebP.");
+
+        await VerifyEventOwnershipAsync(orgId, eventId, ct);
+        var item = await GetItemOrThrowAsync(itemId, eventId, ct);
+
+        var ext      = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var filename = $"{itemId}-{Guid.NewGuid()}{ext}";
+        var dir      = Path.Combine(_env.WebRootPath, "uploads", "auction-photos");
+        Directory.CreateDirectory(dir);
+        await using var stream = new FileStream(Path.Combine(dir, filename), FileMode.Create, FileAccess.Write);
+        await file.CopyToAsync(stream, ct);
+
+        var url      = $"/uploads/auction-photos/{filename}";
+        var existing = JsonSerializer.Deserialize<List<string>>(
+                           string.IsNullOrEmpty(item.PhotoUrlsJson) ? "[]" : item.PhotoUrlsJson)
+                       ?? new List<string>();
+        existing.Add(url);
+        item.PhotoUrlsJson = JsonSerializer.Serialize(existing);
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Photo uploaded for auction item {ItemId}: {Url}", itemId, url);
+        return MapItem(item);
     }
 
     // ── BIDDING ────────────────────────────────────────────────────────────────

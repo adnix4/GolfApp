@@ -591,6 +591,10 @@ public class Sponsor
     [Column("tier")]
     public SponsorTier Tier { get; set; }
 
+    /// <summary>Sponsor's committed donation to the event, in US cents. Rolls into fundraising totals.</summary>
+    [Column("donation_amount_cents")]
+    public int? DonationAmountCents { get; set; }
+
     /// <summary>
     /// JSONB placement configuration. e.g.:
     /// { "leaderboard": true, "landingPage": true, "holeNumbers": [7, 14] }
@@ -637,6 +641,10 @@ public class HoleChallenge
     /// <summary>Optional: the sponsor funding this challenge's prize.</summary>
     [Column("sponsor_id")]
     public Guid? SponsorId { get; set; }
+
+    /// <summary>Prize or donation amount for this challenge, in US cents. Rolls into fundraising totals.</summary>
+    [Column("donation_amount_cents")]
+    public int? DonationAmountCents { get; set; }
 
     [ForeignKey(nameof(EventId))]
     public Event Event { get; set; } = null!;

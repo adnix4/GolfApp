@@ -410,6 +410,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<int?>("DonationAmountCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("donation_amount_cents");
+
                     b.Property<string>("ChallengeType")
                         .IsRequired()
                         .HasColumnType("text")
@@ -713,6 +717,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<int?>("DonationAmountCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("donation_amount_cents");
 
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid")

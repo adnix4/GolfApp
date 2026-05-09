@@ -512,21 +512,30 @@ public class EventService
         if (evt is null)
             throw new NotFoundException("Event", eventId);
 
-        // Read entry fee from config
         var config       = DeserializeConfig(evt.ConfigJson);
         var feeCents     = config.EntryFeeCents ?? 0;
         var teamsPaid    = evt.Teams.Count(t => t.EntryFeePaid);
         var entryTotal   = teamsPaid * feeCents;
         var donationTotal = evt.Donations.Sum(d => d.AmountCents);
 
+        var sponsorTotal = await _db.Sponsors
+            .Where(s => s.EventId == eventId)
+            .SumAsync(s => (int)(s.DonationAmountCents ?? 0), ct);
+
+        var challengeTotal = await _db.HoleChallenges
+            .Where(c => c.EventId == eventId)
+            .SumAsync(c => (int)(c.DonationAmountCents ?? 0), ct);
+
         return new FundraisingResponse
         {
-            EntryFeesCents  = entryTotal,
-            DonationsCents  = donationTotal,
-            GrandTotalCents = entryTotal + donationTotal,
-            TeamsPaid       = teamsPaid,
-            TeamsTotal      = evt.Teams.Count,
-            DonationCount   = evt.Donations.Count,
+            EntryFeesCents       = entryTotal,
+            DonationsCents       = donationTotal,
+            SponsorAmountCents   = sponsorTotal,
+            ChallengeAmountCents = challengeTotal,
+            GrandTotalCents      = entryTotal + donationTotal + sponsorTotal + challengeTotal,
+            TeamsPaid            = teamsPaid,
+            TeamsTotal           = evt.Teams.Count,
+            DonationCount        = evt.Donations.Count,
         };
     }
 

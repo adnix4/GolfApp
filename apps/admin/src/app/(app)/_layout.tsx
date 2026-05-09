@@ -5,13 +5,15 @@ import { useAuth } from '@/lib/auth';
 import { useResponsive } from '@/lib/responsive';
 
 const ORG_ADMIN_NAV = [
-  { label: 'Events',  segment: 'events',  href: '/(app)/events'  as const },
-  { label: 'Leagues', segment: 'leagues', href: '/(app)/leagues' as const },
+  { label: 'Events',   segment: 'events',   href: '/(app)/events'   as const },
+  { label: 'Leagues',  segment: 'leagues',  href: '/(app)/leagues'  as const },
   { label: 'Settings', segment: 'settings', href: '/(app)/settings' as const },
+  { label: 'Help',     segment: 'help',     href: '/(app)/help'     as const },
 ];
 
 const SUPER_ADMIN_NAV = [
   { label: 'Organizations', segment: 'admin', href: '/(app)/admin' as const },
+  { label: 'Help',          segment: 'help',  href: '/(app)/help'  as const },
 ];
 
 export default function AppLayout() {

@@ -32,6 +32,7 @@ export default function ScoringLayout() {
         <Tabs.Screen name="team"        options={{ title: 'Team',      tabBarLabel: 'Team'      }} />
         <Tabs.Screen name="auction"     options={{ title: 'Auction',   tabBarLabel: 'Auction'   }} />
         <Tabs.Screen name="league"      options={{ title: 'League',    tabBarLabel: 'League'    }} />
+        <Tabs.Screen name="help"        options={{ title: 'Help',      tabBarLabel: 'Help'      }} />
       </Tabs>
     </View>
   );

@@ -58,6 +58,22 @@ public class SponsorController : ControllerBase
         return Ok(response);
     }
 
+    [HttpPost("api/v1/events/{eventId:guid}/sponsors/{sponsorId:guid}/logo")]
+    [Authorize(Policy = "OrgAdmin")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(SponsorResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<SponsorResponse>> UploadSponsorLogo(
+        [FromRoute] Guid eventId,
+        [FromRoute] Guid sponsorId,
+        IFormFile file,
+        CancellationToken ct)
+    {
+        var orgId    = GetOrgId();
+        var response = await _sponsorService.UploadSponsorLogoAsync(orgId, eventId, sponsorId, file, ct);
+        return Ok(response);
+    }
+
     [HttpDelete("api/v1/events/{eventId:guid}/sponsors/{sponsorId:guid}")]
     [Authorize(Policy = "OrgAdmin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -126,6 +142,35 @@ public class SponsorController : ControllerBase
     {
         var orgId = GetOrgId();
         await _sponsorService.DeleteChallengeAsync(orgId, eventId, challengeId, ct);
+        return NoContent();
+    }
+
+    [HttpPut("api/v1/events/{eventId:guid}/challenges/{holeNumber:int}")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(typeof(ChallengeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ChallengeResponse>> UpsertChallengeByHole(
+        [FromRoute] Guid eventId,
+        [FromRoute] int holeNumber,
+        [FromBody] UpsertChallengeByHoleRequest request,
+        CancellationToken ct)
+    {
+        var orgId    = GetOrgId();
+        var response = await _sponsorService.UpsertChallengeByHoleAsync(orgId, eventId, (short)holeNumber, request, ct);
+        return Ok(response);
+    }
+
+    [HttpDelete("api/v1/events/{eventId:guid}/challenges/{holeNumber:int}")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteChallengeByHole(
+        [FromRoute] Guid eventId,
+        [FromRoute] int holeNumber,
+        CancellationToken ct)
+    {
+        var orgId = GetOrgId();
+        await _sponsorService.DeleteChallengeByHoleAsync(orgId, eventId, (short)holeNumber, ct);
         return NoContent();
     }
 

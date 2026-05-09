@@ -363,17 +363,23 @@ public record LeaderboardEntryResponse
 public record FundraisingResponse
 {
     /// <summary>Sum of entry fees for teams that have paid (in cents).</summary>
-    public int EntryFeesCents   { get; init; }
+    public int EntryFeesCents       { get; init; }
 
-    /// <summary>Sum of all recorded donations (in cents).</summary>
-    public int DonationsCents   { get; init; }
+    /// <summary>Sum of all recorded one-off donations (in cents).</summary>
+    public int DonationsCents       { get; init; }
+
+    /// <summary>Sum of committed donation amounts across all sponsors (in cents).</summary>
+    public int SponsorAmountCents   { get; init; }
+
+    /// <summary>Sum of committed donation amounts across all hole challenges (in cents).</summary>
+    public int ChallengeAmountCents { get; init; }
 
     /// <summary>Total of all revenue streams (in cents).</summary>
-    public int GrandTotalCents  { get; init; }
+    public int GrandTotalCents      { get; init; }
 
-    public int TeamsPaid        { get; init; }
-    public int TeamsTotal       { get; init; }
-    public int DonationCount    { get; init; }
+    public int TeamsPaid            { get; init; }
+    public int TeamsTotal           { get; init; }
+    public int DonationCount        { get; init; }
 }
 
 /// <summary>

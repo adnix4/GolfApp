@@ -45,6 +45,10 @@ const GROUPS: Group[] = [
       { label: 'Settings',     path: 'settings'      },
     ],
   },
+  {
+    label: 'Help',
+    tabs: [{ label: 'Help', path: 'help' }],
+  },
 ];
 
 export default function EventLayout() {

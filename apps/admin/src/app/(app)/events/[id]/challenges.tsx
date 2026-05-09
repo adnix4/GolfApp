@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Pressable, FlatList, Modal, TextInput,
-  StyleSheet, ActivityIndicator,
+  StyleSheet, ActivityIndicator, Image,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
@@ -127,6 +127,19 @@ export default function ChallengesScreen() {
                     Sponsored by {ch.sponsorName}
                   </Text>
                 )}
+                {ch.sponsorLogoUrl && (
+                  <Image
+                    source={{ uri: ch.sponsorLogoUrl }}
+                    style={styles.sponsorLogo}
+                    resizeMode="contain"
+                    accessibilityLabel={ch.sponsorName ? `${ch.sponsorName} logo` : 'Sponsor logo'}
+                  />
+                )}
+                {ch.donationAmountCents != null && ch.donationAmountCents > 0 && (
+                  <Text style={[styles.donationLine, { color: '#16a085' }]}>
+                    ${(ch.donationAmountCents / 100).toFixed(2)} donation
+                  </Text>
+                )}
                 {ch.winnerName && (
                   <Text style={[styles.winnerLine, { color: '#27ae60' }]}>
                     🏆 Winner: {ch.winnerName}
@@ -177,6 +190,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
   const [holeNumber,   setHoleNumber]   = useState('');
   const [description,  setDescription]  = useState('');
   const [sponsorName,  setSponsorName]  = useState('');
+  const [donationAmt,  setDonationAmt]  = useState('');
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState<string | null>(null);
 
@@ -185,6 +199,9 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
       setHoleNumber(initial ? String(initial.holeNumber) : '');
       setDescription(initial?.description ?? '');
       setSponsorName(initial?.sponsorName ?? '');
+      setDonationAmt(
+        initial?.donationAmountCents ? String(initial.donationAmountCents / 100) : ''
+      );
       setError(null);
     }
   }, [visible, initial]);
@@ -202,9 +219,13 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
     }
     setError(null); setLoading(true);
     try {
+      const donationCents = donationAmt.trim()
+        ? Math.round(parseFloat(donationAmt) * 100)
+        : undefined;
       const result = await challengesApi.upsert(eventId, num, {
         description: description.trim(),
         sponsorName: sponsorName.trim() || undefined,
+        ...(donationCents !== undefined ? { donationAmountCents: donationCents } : {}),
       });
       onSaved(result);
     } catch (e: any) {
@@ -278,6 +299,17 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
             editable={!loading}
           />
 
+          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Donation Amount (optional)</Text>
+          <TextInput
+            style={[styles.input, { borderColor: theme.colors.accent }]}
+            value={donationAmt}
+            onChangeText={setDonationAmt}
+            placeholder="0.00"
+            placeholderTextColor="#999"
+            keyboardType="decimal-pad"
+            editable={!loading}
+          />
+
           <View style={styles.modalActions}>
             <Pressable style={[styles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
               <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
@@ -317,6 +349,8 @@ const styles = StyleSheet.create({
   holeTagText: { fontSize: 12, fontWeight: '800', color: '#fff', textAlign: 'center' },
   challengeName: { fontSize: 15, fontWeight: '700' },
   sponsorLine: { fontSize: 13, marginTop: 2 },
+  sponsorLogo: { width: 80, height: 32, marginTop: 6 },
+  donationLine: { fontSize: 13, marginTop: 2 },
   winnerLine: { fontSize: 13, fontWeight: '600', marginTop: 4 },
   cardActions: { gap: 8 },
   editBtn: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: '#3498db' },

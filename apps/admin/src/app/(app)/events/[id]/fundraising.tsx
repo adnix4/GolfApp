@@ -59,7 +59,12 @@ export default function FundraisingScreen() {
       </View>
 
       {error && (
-        <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable onPress={() => load()} style={{ marginTop: 8 }}>
+            <Text style={{ color: '#c0392b', fontSize: 13, fontWeight: '600' }}>Retry</Text>
+          </Pressable>
+        </View>
       )}
 
       {totals && (
@@ -84,6 +89,20 @@ export default function FundraisingScreen() {
               <Text style={[styles.breakdownLabel, { color: theme.colors.accent }]}>Donations</Text>
               <Text style={[styles.breakdownAmount, { color: theme.colors.primary }]}>
                 {formatCurrency(totals.donationsCents)}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.breakdown}>
+            <View style={[styles.breakdownCard, { borderColor: '#e8e8e8' }]}>
+              <Text style={[styles.breakdownLabel, { color: theme.colors.accent }]}>Sponsors</Text>
+              <Text style={[styles.breakdownAmount, { color: theme.colors.primary }]}>
+                {formatCurrency(totals.sponsorAmountCents)}
+              </Text>
+            </View>
+            <View style={[styles.breakdownCard, { borderColor: '#e8e8e8' }]}>
+              <Text style={[styles.breakdownLabel, { color: theme.colors.accent }]}>Hole Challenges</Text>
+              <Text style={[styles.breakdownAmount, { color: theme.colors.primary }]}>
+                {formatCurrency(totals.challengeAmountCents)}
               </Text>
             </View>
           </View>

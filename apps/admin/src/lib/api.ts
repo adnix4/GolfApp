@@ -285,6 +285,22 @@ export const sponsorsApi = {
 
   delete: (eventId: string, sponsorId: string) =>
     request<void>(`/api/v1/events/${eventId}/sponsors/${sponsorId}`, { method: 'DELETE' }),
+
+  uploadLogo: async (eventId: string, sponsorId: string, file: File): Promise<Sponsor> => {
+    const token = storage.getAccessToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${BASE}/api/v1/events/${eventId}/sponsors/${sponsorId}/logo`, {
+      method: 'POST', headers, body: form,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(res.status, 'UPLOAD_FAILED', (err as any).error ?? 'Logo upload failed.');
+    }
+    return res.json();
+  },
 };
 
 export const emailBuilderApi = {
@@ -386,12 +402,14 @@ export interface LeaderboardEntry {
 
 export interface FundraisingTotals {
   entryFeesCents: number; donationsCents: number; grandTotalCents: number;
+  sponsorAmountCents: number; challengeAmountCents: number;
   teamsPaid: number; teamsTotal: number; donationCount: number;
 }
 
 export interface Sponsor {
   id: string; eventId: string; name: string; logoUrl: string;
   websiteUrl: string | null; tagline: string | null; tier: string;
+  donationAmountCents: number | null;
 }
 
 export interface QrCollectResult {
@@ -401,11 +419,13 @@ export interface QrCollectResult {
 }
 
 export interface HoleChallenge {
-  holeNumber:   number;
-  description:  string;
-  sponsorName:  string | null;
-  winnerId:     string | null;
-  winnerName:   string | null;
+  holeNumber:          number;
+  description:         string;
+  sponsorName:         string | null;
+  sponsorLogoUrl:      string | null;
+  donationAmountCents: number | null;
+  winnerId:            string | null;
+  winnerName:          string | null;
 }
 
 // Payload types
@@ -431,10 +451,12 @@ export interface SubmitScorePayload {
 export interface UpsertChallengePayload {
   description: string;
   sponsorName?: string;
+  donationAmountCents?: number;
 }
 
 export interface CreateSponsorPayload {
-  name: string; logoUrl: string; tier: string; websiteUrl?: string; tagline?: string;
+  name: string; logoUrl?: string; tier: string; websiteUrl?: string; tagline?: string;
+  donationAmountCents?: number;
   placements?: Record<string, unknown>;
 }
 
@@ -476,6 +498,22 @@ export const auctionApi = {
     request<{ awarded: boolean }>(`/api/v1/auction/items/${itemId}/award`, {
       method: 'POST', body: { playerId, amountCents },
     }),
+
+  uploadPhoto: async (eventId: string, itemId: string, file: File): Promise<AuctionItem> => {
+    const token = storage.getAccessToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${BASE}/api/v1/events/${eventId}/auction/items/${itemId}/photos`, {
+      method: 'POST', headers, body: form,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(res.status, 'UPLOAD_FAILED', (err as any).error ?? 'Photo upload failed.');
+    }
+    return res.json();
+  },
 };
 
 export interface AuctionItem {
