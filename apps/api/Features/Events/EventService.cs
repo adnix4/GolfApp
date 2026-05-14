@@ -149,9 +149,7 @@ public class EventService
         if (evt is null)
             throw new NotFoundException("Event", eventId);
 
-        var summary = evt.IsTestMode
-            ? await _testData.GetSummaryAsync(orgId, eventId, ct)
-            : new TestDataSummaryResponse();
+        var summary = await _testData.GetSummaryAsync(orgId, eventId, ct);
 
         return MapToEventResponse(evt, summary);
     }
@@ -216,9 +214,7 @@ public class EventService
         }
 
         await _db.SaveChangesAsync(ct);
-        var updateSummary = evt.IsTestMode
-            ? await _testData.GetSummaryAsync(orgId, eventId, ct)
-            : new TestDataSummaryResponse();
+        var updateSummary = await _testData.GetSummaryAsync(orgId, eventId, ct);
         return MapToEventResponse(evt, updateSummary);
     }
 
