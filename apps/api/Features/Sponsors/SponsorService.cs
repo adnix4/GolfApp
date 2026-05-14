@@ -231,10 +231,15 @@ public class SponsorService
         var existing = await _db.HoleChallenges
             .FirstOrDefaultAsync(c => c.EventId == eventId && c.HoleNumber == holeNumber, ct);
 
+        var sponsorName    = NullIfBlank(request.SponsorName);
+        var sponsorLogoUrl = NullIfBlank(request.SponsorLogoUrl);
+
         if (existing is not null)
         {
-            existing.Description        = request.Description;
-            existing.SponsorId          = sponsorId;
+            existing.Description         = request.Description;
+            existing.SponsorId           = sponsorId;
+            existing.SponsorName         = sponsorName;
+            existing.SponsorLogoUrl      = sponsorLogoUrl;
             existing.DonationAmountCents = request.DonationAmountCents;
             await _db.SaveChangesAsync(ct);
             return await LoadChallengeResponseAsync(existing.Id, ct);
@@ -248,6 +253,8 @@ public class SponsorService
             ChallengeType       = ChallengeType.ClosestToPin,
             Description         = request.Description,
             SponsorId           = sponsorId,
+            SponsorName         = sponsorName,
+            SponsorLogoUrl      = sponsorLogoUrl,
             DonationAmountCents = request.DonationAmountCents,
         };
 
@@ -454,6 +461,9 @@ public class SponsorService
         return MapToChallengeResponse(challenge);
     }
 
+    private static string? NullIfBlank(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
     private static SponsorResponse MapToSponsorResponse(Sponsor s)
     {
         var placements = new SponsorPlacementsDto();
@@ -488,8 +498,8 @@ public class SponsorService
         Description         = c.Description,
         PrizeDescription    = c.PrizeDescription,
         SponsorId           = c.SponsorId,
-        SponsorName         = c.Sponsor?.Name,
-        SponsorLogoUrl      = c.Sponsor?.LogoUrl,
+        SponsorName         = c.SponsorName ?? c.Sponsor?.Name,
+        SponsorLogoUrl      = c.SponsorLogoUrl ?? c.Sponsor?.LogoUrl,
         DonationAmountCents = c.DonationAmountCents,
         Results             = c.Results.Select(r =>
             MapToChallengeResultResponse(r, r.Team.Name, null)).ToList(),

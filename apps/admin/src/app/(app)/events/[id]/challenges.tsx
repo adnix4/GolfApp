@@ -187,18 +187,20 @@ interface FormProps {
 function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHoles, onClose, onSaved }: FormProps) {
   const theme = useTheme();
 
-  const [holeNumber,   setHoleNumber]   = useState('');
-  const [description,  setDescription]  = useState('');
-  const [sponsorName,  setSponsorName]  = useState('');
-  const [donationAmt,  setDonationAmt]  = useState('');
-  const [loading,      setLoading]      = useState(false);
-  const [error,        setError]        = useState<string | null>(null);
+  const [holeNumber,    setHoleNumber]    = useState('');
+  const [description,   setDescription]   = useState('');
+  const [sponsorName,   setSponsorName]   = useState('');
+  const [sponsorLogoUrl, setSponsorLogoUrl] = useState('');
+  const [donationAmt,   setDonationAmt]   = useState('');
+  const [loading,       setLoading]       = useState(false);
+  const [error,         setError]         = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) {
       setHoleNumber(initial ? String(initial.holeNumber) : '');
       setDescription(initial?.description ?? '');
       setSponsorName(initial?.sponsorName ?? '');
+      setSponsorLogoUrl(initial?.sponsorLogoUrl ?? '');
       setDonationAmt(
         initial?.donationAmountCents ? String(initial.donationAmountCents / 100) : ''
       );
@@ -225,6 +227,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
       const result = await challengesApi.upsert(eventId, num, {
         description: description.trim(),
         sponsorName: sponsorName.trim() || undefined,
+        sponsorLogoUrl: sponsorLogoUrl.trim() || undefined,
         ...(donationCents !== undefined ? { donationAmountCents: donationCents } : {}),
       });
       onSaved(result);
@@ -299,6 +302,26 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
             editable={!loading}
           />
 
+          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Sponsor Logo URL (optional)</Text>
+          <TextInput
+            style={[styles.input, { borderColor: theme.colors.accent }]}
+            value={sponsorLogoUrl}
+            onChangeText={setSponsorLogoUrl}
+            placeholder="https://example.com/logo.png"
+            placeholderTextColor="#999"
+            autoCapitalize="none"
+            keyboardType="url"
+            editable={!loading}
+          />
+          {sponsorLogoUrl.trim().length > 0 && (
+            <Image
+              source={{ uri: sponsorLogoUrl.trim() }}
+              style={styles.logoPreview}
+              resizeMode="contain"
+              accessibilityLabel="Sponsor logo preview"
+            />
+          )}
+
           <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Donation Amount (optional)</Text>
           <TextInput
             style={[styles.input, { borderColor: theme.colors.accent }]}
@@ -350,6 +373,7 @@ const styles = StyleSheet.create({
   challengeName: { fontSize: 15, fontWeight: '700' },
   sponsorLine: { fontSize: 13, marginTop: 2 },
   sponsorLogo: { width: 80, height: 32, marginTop: 6 },
+  logoPreview: { width: 120, height: 48, marginTop: 8, borderRadius: 4, backgroundColor: '#f0f0f0' },
   donationLine: { fontSize: 13, marginTop: 2 },
   winnerLine: { fontSize: 13, fontWeight: '600', marginTop: 4 },
   cardActions: { gap: 8 },

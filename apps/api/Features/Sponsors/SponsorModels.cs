@@ -111,6 +111,10 @@ public record UpsertChallengeByHoleRequest
     [MaxLength(200)]
     public string? SponsorName { get; init; }
 
+    /// <summary>Direct logo URL for this challenge. Takes precedence over the linked sponsor's logo.</summary>
+    [MaxLength(500)]
+    public string? SponsorLogoUrl { get; init; }
+
     /// <summary>Prize or donation amount for this challenge, in US cents.</summary>
     [Range(0, 10_000_000)]
     public int? DonationAmountCents { get; init; }

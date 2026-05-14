@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Pressable, StyleSheet, FlatList,
-  TextInput, Modal, ScrollView, ActivityIndicator, Alert,
+  TextInput, Modal, ScrollView, ActivityIndicator, Alert, Image,
 } from 'react-native';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import {
   fetchAuctionItems, placeBid, pledge,
   fetchPlayerBidHistory, fetchActiveAuctionSession,
+  resolveUrl,
   AuctionItemDto, AuctionSessionDto, PlayerBidHistoryItem,
 } from '@/lib/api';
 
@@ -154,6 +155,13 @@ export default function AuctionScreen() {
                 style={[styles.card, { backgroundColor: theme.colors.surface }]}
                 onPress={() => { setSelectedItem(item); setBidAmt(''); }}
               >
+                {item.photoUrls.length > 0 && (
+                  <Image
+                    source={{ uri: resolveUrl(item.photoUrls[0]) }}
+                    style={styles.cardPhoto}
+                    resizeMode="cover"
+                  />
+                )}
                 <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Text>
                 <Text style={{ color: theme.colors.accent, fontSize: 12 }}>
                   {item.auctionType}
@@ -270,6 +278,18 @@ export default function AuctionScreen() {
                 <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>
                   {selectedItem.title}
                 </Text>
+                {selectedItem.photoUrls.length > 0 && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoStrip}>
+                    {selectedItem.photoUrls.map(url => (
+                      <Image
+                        key={url}
+                        source={{ uri: resolveUrl(url) }}
+                        style={styles.modalPhoto}
+                        resizeMode="cover"
+                      />
+                    ))}
+                  </ScrollView>
+                )}
                 <Text style={{ color: '#555', marginBottom: 12 }}>{selectedItem.description}</Text>
 
                 {selectedItem.auctionType.includes('Donation') ? (
@@ -347,6 +367,9 @@ const styles = StyleSheet.create({
   tabBtn:      { flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 3, borderBottomColor: 'transparent' },
   tabLabel:    { fontSize: 13, fontWeight: '700' },
   card:        { borderRadius: 12, padding: 14, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2 },
+  cardPhoto:   { width: '100%', height: 160, borderRadius: 8, marginBottom: 10 },
+  photoStrip:  { marginBottom: 12 },
+  modalPhoto:  { width: 200, height: 140, borderRadius: 8, marginRight: 8 },
   itemTitle:   { fontSize: 15, fontWeight: '800', marginBottom: 2 },
   sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: 8 },
   bidRow:      { flexDirection: 'row', gap: 8, marginTop: 12 },

@@ -2,6 +2,10 @@ import { storage } from './storage';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
 
+export function resolveUrl(url: string): string {
+  return url.startsWith('/') ? `${BASE}${url}` : url;
+}
+
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
 interface RequestOptions {
@@ -55,7 +59,15 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       if (retry.status !== 401) {
         let code = 'UNKNOWN_ERROR';
         let msg  = `HTTP ${retry.status}`;
-        try { const e = await retry.json(); code = e.code ?? code; msg = e.error ?? msg; } catch { /* not JSON */ }
+        try {
+          const e = await retry.json();
+          code = e.code ?? code;
+          if (e.error) { msg = e.error; }
+          else if (e.title) {
+            const fe = e.errors ? Object.entries(e.errors as Record<string, string[]>).map(([f, m]) => `${f}: ${(m as string[]).join(', ')}`).join('; ') : null;
+            msg = fe ? `${e.title} — ${fe}` : e.title;
+          }
+        } catch { /* not JSON */ }
         throw new ApiError(retry.status, code, msg);
       }
     }
@@ -69,8 +81,18 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     let message = `HTTP ${res.status}`;
     try {
       const err = await res.json();
-      code    = err.code    ?? code;
-      message = err.error   ?? message;
+      code = err.code ?? code;
+      if (err.error) {
+        message = err.error;
+      } else if (err.title) {
+        // ASP.NET Core ValidationProblemDetails format
+        const fieldErrors = err.errors
+          ? Object.entries(err.errors as Record<string, string[]>)
+              .map(([f, msgs]) => `${f}: ${(msgs as string[]).join(', ')}`)
+              .join('; ')
+          : null;
+        message = fieldErrors ? `${err.title} — ${fieldErrors}` : err.title;
+      }
     } catch { /* non-JSON error body */ }
     throw new ApiError(res.status, code, message);
   }
@@ -148,6 +170,25 @@ export const eventsApi = {
 
   getFundraising: (id: string) =>
     request<FundraisingTotals>(`/api/v1/events/${id}/fundraising`),
+};
+
+// ── TEST DATA ─────────────────────────────────────────────────────────────────
+
+export const testDataApi = {
+  seed: (eventId: string) =>
+    request<TestDataSummary>(`/api/v1/events/${eventId}/test-data/seed`, { method: 'POST' }),
+
+  getSummary: (eventId: string) =>
+    request<TestDataSummary>(`/api/v1/events/${eventId}/test-data/summary`),
+
+  clearAll: (eventId: string) =>
+    request<TestDataSummary>(`/api/v1/events/${eventId}/test-data`, { method: 'DELETE' }),
+
+  clearRegistration: (eventId: string) =>
+    request<TestDataSummary>(`/api/v1/events/${eventId}/test-data/registration`, { method: 'DELETE' }),
+
+  setTestMode: (eventId: string, enabled: boolean) =>
+    request<EventDetail>(`/api/v1/events/${eventId}/test-mode`, { method: 'PATCH', body: { enabled } }),
 };
 
 // ── EVENT BRANDING ────────────────────────────────────────────────────────────
@@ -348,6 +389,18 @@ export interface EventSummary {
   format: string; status: string; startAt: string | null; teamCount: number;
 }
 
+export interface TestDataSummary {
+  teamsCount: number;
+  playersCount: number;
+  scoresCount: number;
+  donationsCount: number;
+  challengeResultsCount: number;
+  bidsCount: number;
+  auctionItemsCount: number;
+  auctionWinnersCount: number;
+  totalCount: number;
+}
+
 export interface EventDetail extends EventSummary {
   orgId: string; startType: string; holes: number;
   config: Record<string, unknown>;
@@ -355,6 +408,8 @@ export interface EventDetail extends EventSummary {
   counts: { teamsRegistered: number; playersRegistered: number; teamsCheckedIn: number; holesScored: number };
   logoUrl: string | null; themeJson: string | null;
   missionStatement: string | null; is501c3: boolean;
+  isTestMode: boolean;
+  testDataSummary: TestDataSummary;
 }
 
 export interface Course {
@@ -451,6 +506,7 @@ export interface SubmitScorePayload {
 export interface UpsertChallengePayload {
   description: string;
   sponsorName?: string;
+  sponsorLogoUrl?: string;
   donationAmountCents?: number;
 }
 

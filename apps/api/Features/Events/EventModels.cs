@@ -272,6 +272,30 @@ public record EventResponse
     public string? ThemeJson        { get; init; }
     public string? MissionStatement { get; init; }
     public bool    Is501c3          { get; init; }
+
+    /// <summary>True when test mode is active — shows a warning bar in the admin UI.</summary>
+    public bool IsTestMode { get; init; }
+
+    /// <summary>Counts of test data rows across all event-scoped tables.</summary>
+    public TestDataSummaryResponse TestDataSummary { get; init; } = new();
+}
+
+public record TestDataSummaryResponse
+{
+    public int TeamsCount           { get; init; }
+    public int PlayersCount         { get; init; }
+    public int ScoresCount          { get; init; }
+    public int DonationsCount       { get; init; }
+    public int ChallengeResultsCount { get; init; }
+    public int BidsCount            { get; init; }
+    public int AuctionItemsCount    { get; init; }
+    public int AuctionWinnersCount  { get; init; }
+    public int TotalCount           { get; init; }
+}
+
+public record ToggleTestModeRequest
+{
+    public bool Enabled { get; init; }
 }
 
 /// <summary>Summary counts shown on the Event Hub dashboard.</summary>

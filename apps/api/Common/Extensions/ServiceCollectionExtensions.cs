@@ -134,6 +134,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Features.Auth.TokenService>();
         services.AddScoped<Features.Auth.AuthService>();
         services.AddScoped<Features.Events.EventService>();
+        services.AddScoped<Features.Events.TestDataService>();
         services.AddScoped<Features.Teams.TeamService>();
         services.AddScoped<Features.Players.PlayerService>();
         services.AddScoped<Features.Scores.ScoreService>();

@@ -4,41 +4,42 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { eventsApi, type EventDetail, type UpdateEventPayload } from '@/lib/api';
+import { eventsApi, testDataApi, type EventDetail, type UpdateEventPayload } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
+import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 
-const FORMAT_OPTIONS  = ['scramble', 'stroke', 'stableford', 'best_ball'] as const;
-const START_OPTIONS   = ['shotgun', 'tee_times'] as const;
+const FORMAT_OPTIONS  = ['Scramble', 'Stroke', 'Stableford', 'BestBall'] as const;
+const START_OPTIONS   = ['Shotgun', 'TeeTimes'] as const;
 const HOLES_OPTIONS   = [9, 18] as const;
 const FORMAT_LABELS: Record<string, string> = {
-  scramble: 'Scramble', stroke: 'Stroke Play', stableford: 'Stableford', best_ball: 'Best Ball',
+  Scramble: 'Scramble', Stroke: 'Stroke Play', Stableford: 'Stableford', BestBall: 'Best Ball',
 };
 const START_LABELS: Record<string, string> = {
-  shotgun: 'Shotgun Start', tee_times: 'Tee Times',
+  Shotgun: 'Shotgun Start', TeeTimes: 'Tee Times',
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  draft:        '#95a5a6',
-  registration: '#3498db',
-  active:       '#2ecc71',
-  scoring:      '#f39c12',
-  completed:    '#27ae60',
-  cancelled:    '#e74c3c',
+  Draft:        '#95a5a6',
+  Registration: '#3498db',
+  Active:       '#2ecc71',
+  Scoring:      '#f39c12',
+  Completed:    '#27ae60',
+  Cancelled:    '#e74c3c',
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  draft:        'Draft',
-  registration: 'Registration Open',
-  active:       'Active',
-  scoring:      'Scoring',
-  completed:    'Completed',
-  cancelled:    'Cancelled',
+  Draft:        'Draft',
+  Registration: 'Registration Open',
+  Active:       'Active',
+  Scoring:      'Scoring',
+  Completed:    'Completed',
+  Cancelled:    'Cancelled',
 };
 
 const NEXT_TRANSITIONS: Record<string, { status: string; label: string; danger?: boolean }[]> = {
-  registration: [{ status: 'active',    label: 'Go Active (Day of Event)' }],
-  active:       [{ status: 'scoring',   label: 'Open Scoring' }],
-  scoring:      [{ status: 'completed', label: 'Mark Complete' }],
+  Registration: [{ status: 'Active',    label: 'Go Active (Day of Event)' }],
+  Active:       [{ status: 'Scoring',   label: 'Open Scoring' }],
+  Scoring:      [{ status: 'Completed', label: 'Mark Complete' }],
 };
 
 // ── Date/time helpers ─────────────────────────────────────────────────────────
@@ -121,6 +122,9 @@ export default function EventOverviewScreen() {
   const [updating, setUpdating] = useState(false);
   const [showCourse, setShowCourse] = useState(false);
   const [showEdit,   setShowEdit]   = useState(false);
+  const [seeding,    setSeeding]    = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [showTestWarning, setShowTestWarning] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -133,10 +137,47 @@ export default function EventOverviewScreen() {
 
   async function handleStatusChange(newStatus: string) {
     if (!event) return;
+
+    // If moving to Registration and test data exists → warn first
+    if (newStatus === 'Registration' && (event.testDataSummary?.totalCount ?? 0) > 0) {
+      setPendingStatus(newStatus);
+      setShowTestWarning(true);
+      return;
+    }
+
+    // If moving to Active and test data still present → hard block with warning
+    if (newStatus === 'Active' && (event.testDataSummary?.totalCount ?? 0) > 0) {
+      setPendingStatus(newStatus);
+      setShowTestWarning(true);
+      return;
+    }
+
+    await doStatusChange(newStatus);
+  }
+
+  async function doStatusChange(newStatus: string) {
+    if (!event) return;
     setUpdating(true); setError(null);
     try { setEvent(await eventsApi.update(event.id, { status: newStatus })); }
     catch (e: any) { setError(e.message ?? 'Failed to update status.'); }
     finally { setUpdating(false); }
+  }
+
+  async function handleSeedTestData() {
+    if (!event) return;
+    setSeeding(true); setError(null);
+    try {
+      await testDataApi.seed(event.id);
+      setEvent(await eventsApi.get(event.id));
+    } catch (e: any) { setError(e.message ?? 'Failed to seed test data.'); }
+    finally { setSeeding(false); }
+  }
+
+  async function handleConfirmTestWarning() {
+    if (!event || !pendingStatus) return;
+    setShowTestWarning(false);
+    await doStatusChange(pendingStatus);
+    setPendingStatus(null);
   }
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
@@ -152,7 +193,7 @@ export default function EventOverviewScreen() {
 
   if (!event) return null;
 
-  const isDraft = event.status === 'draft';
+  const isDraft = event.status === 'Draft';
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={[styles.pageContent, { padding: pagePadding }]}>
@@ -178,9 +219,11 @@ export default function EventOverviewScreen() {
         <DraftSetupSection
           event={event}
           updating={updating}
+          seeding={seeding}
           onOpenEdit={() => setShowEdit(true)}
           onOpenCourse={() => setShowCourse(true)}
           onAdvance={handleStatusChange}
+          onSeedTestData={handleSeedTestData}
         />
       )}
 
@@ -242,7 +285,7 @@ export default function EventOverviewScreen() {
       {/* Advance status for non-draft events */}
       {!isDraft && (() => {
         const nexts = NEXT_TRANSITIONS[event.status] ?? [];
-        if (nexts.length === 0 && !['active', 'scoring', 'registration'].includes(event.status)) return null;
+        if (nexts.length === 0 && !['Active', 'Scoring', 'Registration'].includes(event.status)) return null;
 
         return (
           <View style={styles.section}>
@@ -264,7 +307,7 @@ export default function EventOverviewScreen() {
                 ))}
                 <Pressable
                   style={[styles.cancelBtn, updating && { opacity: 0.6 }]}
-                  onPress={() => handleStatusChange('cancelled')}
+                  onPress={() => handleStatusChange('Cancelled')}
                   disabled={updating}
                 >
                   <Text style={styles.cancelBtnText}>Cancel Event</Text>
@@ -287,6 +330,23 @@ export default function EventOverviewScreen() {
         onClose={() => setShowCourse(false)}
         onAttached={updated => { setEvent(updated); setShowCourse(false); }}
       />
+      <TestDataWarningModal
+        visible={showTestWarning}
+        title={
+          pendingStatus === 'Registration'
+            ? 'Clear Test Data Before Opening Registration?'
+            : 'Test Data Detected — Cannot Go Active'
+        }
+        description={
+          pendingStatus === 'Registration'
+            ? `This event has ${event.testDataSummary?.totalCount ?? 0} test record(s). Proceeding to Registration will automatically remove all test registration and scoring data. Real registrations can then begin.`
+            : `This event still has ${event.testDataSummary?.totalCount ?? 0} test record(s). Please clear all test data from the Fundraising tab before activating the event.`
+        }
+        confirmLabel={pendingStatus === 'Registration' ? 'Clear & Open Registration' : 'OK'}
+        loading={updating}
+        onConfirm={pendingStatus === 'Registration' ? handleConfirmTestWarning : () => setShowTestWarning(false)}
+        onCancel={() => { setShowTestWarning(false); setPendingStatus(null); }}
+      />
     </ScrollView>
   );
 }
@@ -294,14 +354,16 @@ export default function EventOverviewScreen() {
 // ── Draft setup checklist ─────────────────────────────────────────────────────
 
 interface DraftSetupProps {
-  event:       EventDetail;
-  updating:    boolean;
-  onOpenEdit:  () => void;
-  onOpenCourse: () => void;
-  onAdvance:   (status: string) => void;
+  event:          EventDetail;
+  updating:       boolean;
+  seeding:        boolean;
+  onOpenEdit:     () => void;
+  onOpenCourse:   () => void;
+  onAdvance:      (status: string) => void;
+  onSeedTestData: () => void;
 }
 
-function DraftSetupSection({ event, updating, onOpenEdit, onOpenCourse, onAdvance }: DraftSetupProps) {
+function DraftSetupSection({ event, updating, seeding, onOpenEdit, onOpenCourse, onAdvance, onSeedTestData }: DraftSetupProps) {
   const theme = useTheme();
   const hasDate   = !!event.startAt;
   const hasCourse = !!event.course;
@@ -348,6 +410,26 @@ function DraftSetupSection({ event, updating, onOpenEdit, onOpenCourse, onAdvanc
 
       <View style={styles.setupDivider} />
 
+      {/* Test data seeding — only visible in Draft */}
+      <View style={[styles.testDataSection, { backgroundColor: '#fff8e1', borderColor: '#f39c12' }]}>
+        <Text style={[styles.testDataTitle, { color: '#856404' }]}>Testing Mode</Text>
+        <Text style={[styles.testDataDesc, { color: '#856404' }]}>
+          Populate realistic test teams, scores, and donations to preview the event flow.
+          {event.testDataSummary?.totalCount > 0
+            ? ` ${event.testDataSummary.totalCount} test records active.`
+            : ' No test data yet.'}
+        </Text>
+        <Pressable
+          style={[styles.seedBtn, seeding && { opacity: 0.6 }]}
+          onPress={onSeedTestData}
+          disabled={seeding || updating}
+        >
+          {seeding
+            ? <ActivityIndicator color="#856404" size="small" />
+            : <Text style={styles.seedBtnText}>Seed Test Data</Text>}
+        </Pressable>
+      </View>
+
       {!canOpen && (
         <View style={[styles.blockingNote, { backgroundColor: '#fff8e1', borderColor: '#f39c12' }]}>
           <Text style={[styles.blockingNoteText, { color: '#856404' }]}>
@@ -362,7 +444,7 @@ function DraftSetupSection({ event, updating, onOpenEdit, onOpenCourse, onAdvanc
           { backgroundColor: canOpen ? theme.colors.primary : '#bdbdbd' },
           updating && { opacity: 0.6 },
         ]}
-        onPress={() => canOpen && onAdvance('registration')}
+        onPress={() => canOpen && onAdvance('Registration')}
         disabled={!canOpen || updating}
         accessibilityRole="button"
         accessibilityState={{ disabled: !canOpen }}
@@ -383,7 +465,7 @@ function DraftSetupSection({ event, updating, onOpenEdit, onOpenCourse, onAdvanc
 
       <Pressable
         style={[styles.dangerLink, updating && { opacity: 0.4 }]}
-        onPress={() => onAdvance('cancelled')}
+        onPress={() => onAdvance('Cancelled')}
         disabled={updating}
       >
         <Text style={styles.dangerLinkText}>Cancel this event</Text>
@@ -440,11 +522,11 @@ function ChecklistItem({ done, required, label, doneDetail, missingDetail, actio
 function StatusDescription({ status, event }: { status: string; event: EventDetail }) {
   const theme = useTheme();
   const descriptions: Record<string, string> = {
-    registration: `Registration is open. Golfers can find and join this tournament in the mobile app. ${event.counts.teamsRegistered} team(s) registered so far.`,
-    active:       'Day of event — check-in is open. Move to Scoring when play begins.',
-    scoring:      'Round is in progress. Score entry is open on the mobile app.',
-    completed:    'This event is complete. Final results are published.',
-    cancelled:    'This event has been cancelled.',
+    Registration: `Registration is open. Golfers can find and join this tournament in the mobile app. ${event.counts.teamsRegistered} team(s) registered so far.`,
+    Active:       'Day of event — check-in is open. Move to Scoring when play begins.',
+    Scoring:      'Round is in progress. Score entry is open on the mobile app.',
+    Completed:    'This event is complete. Final results are published.',
+    Cancelled:    'This event has been cancelled.',
   };
   const text = descriptions[status];
   if (!text) return null;
@@ -724,6 +806,11 @@ const styles = StyleSheet.create({
   openRegBtnSub:   { fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 3 },
   dangerLink:      { alignItems: 'center', paddingTop: 14 },
   dangerLinkText:  { fontSize: 13, color: '#e74c3c', fontWeight: '500' },
+  testDataSection: { borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 4, gap: 6 },
+  testDataTitle:   { fontSize: 13, fontWeight: '700' },
+  testDataDesc:    { fontSize: 12, lineHeight: 16 },
+  seedBtn:         { alignSelf: 'flex-start', backgroundColor: '#f39c12', borderRadius: 6, paddingHorizontal: 14, paddingVertical: 8, marginTop: 4 },
+  seedBtnText:     { fontSize: 13, fontWeight: '700', color: '#fff' },
 
   // ── Stats ────────────────────────────────────────────────────────────────────
   statsRow:       { flexDirection: 'row', gap: 12 },

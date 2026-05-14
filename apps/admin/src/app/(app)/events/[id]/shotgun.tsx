@@ -81,7 +81,7 @@ export default function ShotgunScreen() {
 
   // ── Not a shotgun event ───────────────────────────────────────────────────
 
-  if (!loading && event && event.startType !== 'shotgun') {
+  if (!loading && event && event.startType !== 'Shotgun') {
     return (
       <View style={styles.center}>
         <Text style={styles.notApplicableIcon}>🕐</Text>

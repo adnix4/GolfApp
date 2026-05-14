@@ -2,6 +2,10 @@ import { useAuthStore } from './authStore';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
 
+export function resolveUrl(url: string): string {
+  return url.startsWith('/') ? `${BASE}${url}` : url;
+}
+
 // Reads the in-memory access token and returns an Authorization header when
 // one is present. Safe to call from non-React contexts (Zustand .getState()).
 function authHeader(): Record<string, string> {

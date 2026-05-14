@@ -4,7 +4,8 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { eventsApi, type FundraisingTotals } from '@/lib/api';
+import { eventsApi, testDataApi, type FundraisingTotals, type EventDetail } from '@/lib/api';
+import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 
 function formatCurrency(cents: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -15,16 +16,21 @@ export default function FundraisingScreen() {
   const theme    = useTheme();
 
   const [totals,   setTotals]   = useState<FundraisingTotals | null>(null);
+  const [event,    setEvent]    = useState<EventDetail | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [clearing,   setClearing]   = useState(false);
+  const [showClearWarning, setShowClearWarning] = useState(false);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     setError(null);
     try {
-      setTotals(await eventsApi.getFundraising(id));
+      const [t, e] = await Promise.all([eventsApi.getFundraising(id), eventsApi.get(id)]);
+      setTotals(t);
+      setEvent(e);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load fundraising data.');
     } finally {
@@ -34,6 +40,19 @@ export default function FundraisingScreen() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  async function handleClearTestData() {
+    setShowClearWarning(false);
+    setClearing(true); setError(null);
+    try {
+      await testDataApi.clearAll(id);
+      await load(true);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to clear test data.');
+    } finally {
+      setClearing(false);
+    }
+  }
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
@@ -47,16 +66,39 @@ export default function FundraisingScreen() {
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.colors.primary }]}>Fundraising</Text>
-        <Pressable
-          style={[styles.refreshBtn, { borderColor: theme.colors.action }]}
-          onPress={() => load(true)}
-          disabled={refreshing}
-        >
-          {refreshing
-            ? <ActivityIndicator size="small" color={theme.colors.action} />
-            : <Text style={[styles.refreshText, { color: theme.colors.action }]}>Refresh</Text>}
-        </Pressable>
+        <View style={styles.headerActions}>
+          {(event?.isTestMode || (event?.testDataSummary?.totalCount ?? 0) > 0) && (
+            <Pressable
+              style={[styles.clearTestBtn, clearing && { opacity: 0.6 }]}
+              onPress={() => setShowClearWarning(true)}
+              disabled={clearing || refreshing}
+            >
+              {clearing
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={styles.clearTestText}>Clear Test Data</Text>}
+            </Pressable>
+          )}
+          <Pressable
+            style={[styles.refreshBtn, { borderColor: theme.colors.action }]}
+            onPress={() => load(true)}
+            disabled={refreshing || clearing}
+          >
+            {refreshing
+              ? <ActivityIndicator size="small" color={theme.colors.action} />
+              : <Text style={[styles.refreshText, { color: theme.colors.action }]}>Refresh</Text>}
+          </Pressable>
+        </View>
       </View>
+
+      <TestDataWarningModal
+        visible={showClearWarning}
+        title="Clear All Test Data?"
+        description={`This will permanently delete all ${event?.testDataSummary?.totalCount ?? 0} test record(s) including test teams, players, scores, donations, and auction bids. This cannot be undone.`}
+        confirmLabel="Clear Test Data"
+        loading={clearing}
+        onConfirm={handleClearTestData}
+        onCancel={() => setShowClearWarning(false)}
+      />
 
       {error && (
         <View style={styles.errorBox}>
@@ -161,8 +203,11 @@ const styles = StyleSheet.create({
   page:    { flex: 1 },
   content: { padding: 28, gap: 16 },
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title:   { fontSize: 22, fontWeight: '800' },
+  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  title:         { fontSize: 22, fontWeight: '800' },
+  clearTestBtn:  { backgroundColor: '#e74c3c', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, alignItems: 'center' },
+  clearTestText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   refreshBtn: {
     borderWidth: 1,
     borderRadius: 8,

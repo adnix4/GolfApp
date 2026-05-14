@@ -137,6 +137,10 @@ public class Event
     [Column("status")]
     public EventStatus Status { get; set; } = EventStatus.Draft;
 
+    /// <summary>When true, a warning bar is shown across all admin event tabs.</summary>
+    [Column("is_test_mode")]
+    public bool IsTestMode { get; set; } = false;
+
     /// <summary>
     /// Scheduled round start time in UTC. Used to trigger the 24-hour reminder email.
     /// Nullable because Draft events may not have a confirmed start time yet.
@@ -354,6 +358,10 @@ public class Team
     [Column("check_in_status")]
     public CheckInStatus CheckInStatus { get; set; } = CheckInStatus.Pending;
 
+    /// <summary>True for admin-generated test data; cleared when moving to Active.</summary>
+    [Column("is_test")]
+    public bool IsTest { get; set; } = false;
+
     [ForeignKey(nameof(EventId))]
     public Event Event { get; set; } = null!;
 
@@ -437,6 +445,10 @@ public class Player
 
     [Column("check_in_at")]
     public DateTime? CheckInAt { get; set; }
+
+    /// <summary>True for admin-generated test data; cleared when moving to Active.</summary>
+    [Column("is_test")]
+    public bool IsTest { get; set; } = false;
 
     // ── Phase 4 columns ──────────────────────────────────────────────────────
     // These columns exist in the schema from Phase 1 (nullable) but are only
@@ -543,6 +555,10 @@ public class Score
     [Column("is_conflicted")]
     public bool IsConflicted { get; set; } = false;
 
+    /// <summary>True for admin-generated test data; cleared when moving to Active.</summary>
+    [Column("is_test")]
+    public bool IsTest { get; set; } = false;
+
     // ── Phase 6 GPS columns ──────────────────────────────────────────────────
     /// <summary>Phase 6: GPS location where the team's drive landed.</summary>
     [Column("drive_location", TypeName = "geography (point)")]
@@ -642,6 +658,14 @@ public class HoleChallenge
     [Column("sponsor_id")]
     public Guid? SponsorId { get; set; }
 
+    [Column("sponsor_name")]
+    [MaxLength(200)]
+    public string? SponsorName { get; set; }
+
+    [Column("sponsor_logo_url")]
+    [MaxLength(500)]
+    public string? SponsorLogoUrl { get; set; }
+
     /// <summary>Prize or donation amount for this challenge, in US cents. Rolls into fundraising totals.</summary>
     [Column("donation_amount_cents")]
     public int? DonationAmountCents { get; set; }
@@ -691,6 +715,10 @@ public class ChallengeResult
     [Column("recorded_at")]
     public DateTime RecordedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>True for admin-generated test data; cleared when moving to Active.</summary>
+    [Column("is_test")]
+    public bool IsTest { get; set; } = false;
+
     [ForeignKey(nameof(ChallengeId))]
     public HoleChallenge Challenge { get; set; } = null!;
 
@@ -738,6 +766,10 @@ public class Donation
     [Column("stripe_payment_intent_id")]
     [MaxLength(100)]
     public string? StripePaymentIntentId { get; set; }
+
+    /// <summary>True for admin-generated test data; cleared when moving to Active.</summary>
+    [Column("is_test")]
+    public bool IsTest { get; set; } = false;
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -910,6 +942,10 @@ public class AuctionItem
     [Column("goal_cents")]
     public int? GoalCents { get; set; }
 
+    /// <summary>True for admin-generated test data; cleared when moving to Active.</summary>
+    [Column("is_test")]
+    public bool IsTest { get; set; } = false;
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -941,6 +977,10 @@ public class Bid
 
     [Column("placed_at")]
     public DateTime PlacedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>True for admin-generated test data; cleared when moving to Active.</summary>
+    [Column("is_test")]
+    public bool IsTest { get; set; } = false;
 
     [ForeignKey(nameof(AuctionItemId))]
     public AuctionItem AuctionItem { get; set; } = null!;
@@ -979,6 +1019,10 @@ public class AuctionWinner
 
     [Column("receipt_sent")]
     public bool ReceiptSent { get; set; } = false;
+
+    /// <summary>True for admin-generated test data; cleared when moving to Active.</summary>
+    [Column("is_test")]
+    public bool IsTest { get; set; } = false;
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

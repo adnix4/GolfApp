@@ -1,6 +1,9 @@
+import { useState, useEffect } from 'react';
 import { Slot, useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useTheme } from '@gfp/ui';
+import { eventsApi, type EventDetail } from '@/lib/api';
+import { TestingWarningBar } from '@/components/TestingWarningBar';
 
 type SubTab = { label: string; path: string };
 type Group  = { label: string; tabs: SubTab[] };
@@ -57,6 +60,13 @@ export default function EventLayout() {
   const router   = useRouter();
   const theme    = useTheme();
 
+  const [event, setEvent] = useState<EventDetail | null>(null);
+
+  // Refresh test-mode status on each tab navigation so the bar reflects changes
+  useEffect(() => {
+    eventsApi.get(id).then(setEvent).catch(() => {});
+  }, [id, pathname]);
+
   const pathSuffix = pathname.replace(/.*\/events\/[^/]+\/?/, '');
 
   const activeGroup = GROUPS.find(g => g.tabs.some(t => t.path === pathSuffix)) ?? GROUPS[0];
@@ -66,8 +76,16 @@ export default function EventLayout() {
     return `/(app)/events/${id}${path ? `/${path}` : ''}` as const;
   }
 
+  const showWarning = event?.isTestMode === true &&
+    !['Active', 'Scoring', 'Completed', 'Cancelled'].includes(event?.status ?? '');
+
   return (
     <View style={styles.container}>
+
+      {/* ── Test mode warning bar ────────────────────────────────────────── */}
+      {showWarning && (
+        <TestingWarningBar totalTestRecords={event?.testDataSummary?.totalCount ?? 0} />
+      )}
 
       {/* ── Primary group row ───────────────────────────────────────────── */}
       <View style={[

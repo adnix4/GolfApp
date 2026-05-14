@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator,
+  View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator, Switch,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { ScoreCard, useTheme } from '@gfp/ui';
-import { teamsApi, scoresApi, eventsApi, type Team, type Scorecard, type EventDetail } from '@/lib/api';
+import { teamsApi, scoresApi, eventsApi, testDataApi, type Team, type Scorecard, type EventDetail } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
+import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 
 export default function ScoringScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
@@ -19,8 +20,11 @@ export default function ScoringScreen() {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [scorecard,    setScorecard]    = useState<Scorecard | null>(null);
   const [loading,      setLoading]      = useState(true);
-  const [saving,       setSaving]       = useState<number | null>(null); // hole being saved
+  const [saving,       setSaving]       = useState<number | null>(null);
   const [error,        setError]        = useState<string | null>(null);
+  const [togglingTest, setTogglingTest] = useState(false);
+  const [showToggleWarning, setShowToggleWarning] = useState(false);
+  const [pendingToggle, setPendingToggle] = useState<boolean>(false);
 
   useEffect(() => {
     async function init() {
@@ -87,6 +91,29 @@ export default function ScoringScreen() {
     }
   }
 
+  function handleTestModeToggle(value: boolean) {
+    if (!value && (event?.testDataSummary?.totalCount ?? 0) > 0) {
+      // Turning off while data exists — warn first
+      setPendingToggle(false);
+      setShowToggleWarning(true);
+    } else {
+      doToggleTestMode(value);
+    }
+  }
+
+  async function doToggleTestMode(enabled: boolean) {
+    setShowToggleWarning(false);
+    setTogglingTest(true);
+    try {
+      const updated = await testDataApi.setTestMode(id, enabled);
+      setEvent(updated);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to toggle test mode.');
+    } finally {
+      setTogglingTest(false);
+    }
+  }
+
   const holes = event?.course?.holes ?? [];
   const holesCount = event?.holes ?? 18;
   const holeNumbers = holes.length > 0
@@ -99,6 +126,41 @@ export default function ScoringScreen() {
 
   return (
     <View style={styles.page}>
+
+      {/* Test mode toggle — Registration phase only */}
+      {event?.status === 'Registration' && (
+        <View style={[styles.testModeBar, { backgroundColor: '#fff8e1', borderBottomColor: '#f39c12' }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.testModeLabel}>Testing Mode</Text>
+            <Text style={styles.testModeDesc}>
+              {event.isTestMode
+                ? `Active — ${event.testDataSummary?.totalCount ?? 0} test records. Seed from Overview tab.`
+                : 'Enable to add test data and preview scoring flow.'}
+            </Text>
+          </View>
+          {togglingTest
+            ? <ActivityIndicator size="small" color="#f39c12" />
+            : (
+              <Switch
+                value={event.isTestMode}
+                onValueChange={handleTestModeToggle}
+                trackColor={{ false: '#ccc', true: '#f39c12' }}
+                thumbColor="#fff"
+              />
+            )}
+        </View>
+      )}
+
+      <TestDataWarningModal
+        visible={showToggleWarning}
+        title="Disable Testing Mode?"
+        description={`This event has ${event?.testDataSummary?.totalCount ?? 0} test record(s). Turning off test mode hides the warning bar but does not remove test data. Clear test data separately from the Fundraising tab.`}
+        confirmLabel="Disable Test Mode"
+        loading={togglingTest}
+        onConfirm={() => doToggleTestMode(false)}
+        onCancel={() => setShowToggleWarning(false)}
+      />
+
       {/* Team selector */}
       <View style={styles.teamBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.teamScroll}>
@@ -191,6 +253,13 @@ export default function ScoringScreen() {
 const styles = StyleSheet.create({
   page:    { flex: 1 },
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  testModeBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  testModeLabel: { fontSize: 13, fontWeight: '700', color: '#856404' },
+  testModeDesc:  { fontSize: 12, color: '#856404', marginTop: 1 },
   teamBar: { paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e0e0e0' },
   teamScroll: { gap: 8 },
   teamChip: {

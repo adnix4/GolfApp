@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { auctionApi, type AuctionItem, type CreateAuctionItemPayload } from '@/lib/api';
+import { auctionApi, resolveUrl, type AuctionItem, type CreateAuctionItemPayload } from '@/lib/api';
 
 const AUCTION_TYPES = ['Silent', 'Live', 'DonationSilent', 'DonationLive'] as const;
 const TYPE_LABELS: Record<string, string> = {
@@ -305,6 +305,17 @@ export default function AuctionScreen() {
         renderItem={({ item }) => (
           <View style={[styles.card, { backgroundColor: '#fff' }]}>
             <View style={styles.cardRow}>
+              {item.photoUrls.length > 0 ? (
+                <Image
+                  source={{ uri: resolveUrl(item.photoUrls[0]) }}
+                  style={styles.listThumb}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.listThumbPlaceholder}>
+                  <Text style={styles.listThumbIcon}>🖼</Text>
+                </View>
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Text>
                 <Text style={{ color: theme.colors.accent, fontSize: 12, marginTop: 2 }}>
@@ -316,11 +327,6 @@ export default function AuctionScreen() {
                 {item.closesAt && (
                   <Text style={{ color: '#888', fontSize: 12, marginTop: 2 }}>
                     Closes: {new Date(item.closesAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                )}
-                {item.photoUrls.length > 0 && (
-                  <Text style={{ color: '#888', fontSize: 12, marginTop: 2 }}>
-                    {item.photoUrls.length} photo{item.photoUrls.length !== 1 ? 's' : ''}
                   </Text>
                 )}
               </View>
@@ -527,7 +533,7 @@ export default function AuctionScreen() {
           <View style={styles.photoGrid}>
             {(editItem?.photoUrls ?? []).map(url => (
               <View key={url} style={styles.photoThumbWrap}>
-                <Image source={{ uri: url }} style={styles.photoThumb} resizeMode="cover" />
+                <Image source={{ uri: resolveUrl(url) }} style={styles.photoThumb} resizeMode="cover" />
                 <Pressable
                   style={styles.photoRemoveBtn}
                   onPress={() => handlePhotoRemove(url)}
@@ -586,7 +592,10 @@ const styles = StyleSheet.create({
   title:   { fontSize: 18, fontWeight: '800' },
   list:    { paddingHorizontal: 16, paddingBottom: 40 },
   card:    { borderRadius: 12, padding: 14, marginBottom: 10, elevation: 1, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
-  cardRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  listThumb: { width: 64, height: 64, borderRadius: 8 },
+  listThumbPlaceholder: { width: 64, height: 64, borderRadius: 8, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' },
+  listThumbIcon: { fontSize: 24 },
   cardActions: { flexDirection: 'column', marginLeft: 12, alignItems: 'flex-end' },
   itemTitle: { fontSize: 15, fontWeight: '700' },
   btn:     { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },

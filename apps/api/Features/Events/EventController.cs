@@ -38,14 +38,20 @@ namespace GolfFundraiserPro.Api.Features.Events;
 public class EventController : ControllerBase
 {
     private readonly EventService       _eventService;
+    private readonly TestDataService    _testDataService;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<EventController> _logger;
 
-    public EventController(EventService eventService, IWebHostEnvironment env, ILogger<EventController> logger)
+    public EventController(
+        EventService eventService,
+        TestDataService testDataService,
+        IWebHostEnvironment env,
+        ILogger<EventController> logger)
     {
-        _eventService = eventService;
-        _env          = env;
-        _logger       = logger;
+        _eventService    = eventService;
+        _testDataService = testDataService;
+        _env             = env;
+        _logger          = logger;
     }
 
     // ── CREATE ────────────────────────────────────────────────────────────────
@@ -345,6 +351,86 @@ public class EventController : ControllerBase
     {
         var response = await _eventService.GetPublicFundraisingAsync(eventCode, ct);
         return Ok(response);
+    }
+
+    // ── TEST DATA ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Seeds realistic test teams, players, scores, donations, and challenge results.
+    /// Tags all rows with is_test=true. Only allowed in Draft or Registration status.
+    /// Also enables test mode (shows warning bar across all tabs).
+    /// </summary>
+    [HttpPost("api/v1/events/{id:guid}/test-data/seed")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(typeof(TestDataSummaryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<TestDataSummaryResponse>> SeedTestData(
+        [FromRoute] Guid id, CancellationToken ct)
+    {
+        var orgId  = GetOrgId();
+        var result = await _testDataService.SeedTestDataAsync(orgId, id, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Returns counts of test data rows for this event.
+    /// </summary>
+    [HttpGet("api/v1/events/{id:guid}/test-data/summary")]
+    [Authorize(Policy = "EventStaff")]
+    [ProducesResponseType(typeof(TestDataSummaryResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TestDataSummaryResponse>> GetTestDataSummary(
+        [FromRoute] Guid id, CancellationToken ct)
+    {
+        var orgId  = GetOrgId();
+        var result = await _testDataService.GetSummaryAsync(orgId, id, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Deletes all test rows (teams, players, scores, donations, bids, challenge results).
+    /// Disables test mode automatically.
+    /// </summary>
+    [HttpDelete("api/v1/events/{id:guid}/test-data")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(typeof(TestDataSummaryResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TestDataSummaryResponse>> ClearAllTestData(
+        [FromRoute] Guid id, CancellationToken ct)
+    {
+        var orgId  = GetOrgId();
+        var result = await _testDataService.ClearAllTestDataAsync(orgId, id, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Deletes only test registration and scoring data (teams, players, scores).
+    /// Used automatically when advancing Draft → Registration.
+    /// </summary>
+    [HttpDelete("api/v1/events/{id:guid}/test-data/registration")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(typeof(TestDataSummaryResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TestDataSummaryResponse>> ClearRegistrationTestData(
+        [FromRoute] Guid id, CancellationToken ct)
+    {
+        var orgId  = GetOrgId();
+        var result = await _testDataService.ClearRegistrationAndScoringAsync(orgId, id, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Toggles test mode on or off. When on, a warning bar is shown across all event tabs.
+    /// </summary>
+    [HttpPatch("api/v1/events/{id:guid}/test-mode")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(typeof(EventResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<EventResponse>> SetTestMode(
+        [FromRoute] Guid id,
+        [FromBody] ToggleTestModeRequest request,
+        CancellationToken ct)
+    {
+        var orgId = GetOrgId();
+        await _testDataService.ToggleTestModeAsync(orgId, id, request.Enabled, ct);
+        var evt = await _eventService.GetByIdAsync(orgId, id, ct);
+        return Ok(evt);
     }
 
     // ── PRIVATE HELPERS ───────────────────────────────────────────────────────

@@ -48,10 +48,13 @@ public class EventService
 
     // State machine and code format are now in EventStatusRules / EventCodeRules (pure, testable).
 
-    public EventService(ApplicationDbContext db, ILogger<EventService> logger)
+    private readonly TestDataService _testData;
+
+    public EventService(ApplicationDbContext db, ILogger<EventService> logger, TestDataService testData)
     {
-        _db     = db;
-        _logger = logger;
+        _db       = db;
+        _logger   = logger;
+        _testData = testData;
     }
 
     // ── CREATE ────────────────────────────────────────────────────────────────
@@ -139,13 +142,18 @@ public class EventService
             .Include(e => e.Course)
                 .ThenInclude(c => c!.Holes.OrderBy(h => h.HoleNumber))
             .Include(e => e.Teams)
+                .ThenInclude(t => t.Players)
             .Include(e => e.Scores)
             .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
 
         if (evt is null)
             throw new NotFoundException("Event", eventId);
 
-        return MapToEventResponse(evt);
+        var summary = evt.IsTestMode
+            ? await _testData.GetSummaryAsync(orgId, eventId, ct)
+            : new TestDataSummaryResponse();
+
+        return MapToEventResponse(evt, summary);
     }
 
     // ── UPDATE ────────────────────────────────────────────────────────────────
@@ -165,6 +173,7 @@ public class EventService
             .Include(e => e.Course)
                 .ThenInclude(c => c!.Holes)
             .Include(e => e.Teams)
+                .ThenInclude(t => t.Players)
             .Include(e => e.Scores)
             .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
 
@@ -182,6 +191,16 @@ public class EventService
         if (request.Status is not null && request.Status != evt.Status)
         {
             ValidateStatusTransition(evt.Status, request.Status.Value, evt);
+
+            // Draft → Registration: auto-clear test registration + scoring data
+            if (request.Status.Value == EventStatus.Registration)
+            {
+                await _testData.ClearRegistrationAndScoringAsync(orgId, eventId, ct);
+                // Re-load teams and scores after clearing
+                await _db.Entry(evt).Collection(e => e.Teams).LoadAsync(ct);
+                await _db.Entry(evt).Collection(e => e.Scores).LoadAsync(ct);
+            }
+
             evt.Status = request.Status.Value;
             _logger.LogInformation(
                 "Event {Id} transitioned to {Status}", eventId, request.Status);
@@ -197,7 +216,10 @@ public class EventService
         }
 
         await _db.SaveChangesAsync(ct);
-        return MapToEventResponse(evt);
+        var updateSummary = evt.IsTestMode
+            ? await _testData.GetSummaryAsync(orgId, eventId, ct)
+            : new TestDataSummaryResponse();
+        return MapToEventResponse(evt, updateSummary);
     }
 
     // ── ATTACH COURSE ─────────────────────────────────────────────────────────
@@ -217,6 +239,7 @@ public class EventService
             .Include(e => e.Course)
                 .ThenInclude(c => c!.Holes)
             .Include(e => e.Teams)
+                .ThenInclude(t => t.Players)
             .Include(e => e.Scores)
             .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
 
@@ -573,7 +596,7 @@ public class EventService
             evt.Is501c3 = request.Is501c3.Value;
 
         await _db.SaveChangesAsync(ct);
-        return MapToEventResponse(evt);
+        return MapToEventResponse(evt, null);
     }
 
     private static readonly long    MaxLogoBytes       = 2 * 1024 * 1024;
@@ -968,7 +991,7 @@ public class EventService
     }
 
     /// <summary>Maps a loaded Event entity to the EventResponse DTO.</summary>
-    private static EventResponse MapToEventResponse(Event evt)
+    private static EventResponse MapToEventResponse(Event evt, TestDataSummaryResponse? summary = null)
     {
         var config = DeserializeConfig(evt.ConfigJson);
 
@@ -988,6 +1011,8 @@ public class EventService
             ThemeJson        = evt.ThemeJson,
             MissionStatement = evt.MissionStatement,
             Is501c3          = evt.Is501c3,
+            IsTestMode       = evt.IsTestMode,
+            TestDataSummary  = summary ?? new TestDataSummaryResponse(),
             Course    = evt.Course is null ? null : new CourseResponse
             {
                 Id      = evt.Course.Id,

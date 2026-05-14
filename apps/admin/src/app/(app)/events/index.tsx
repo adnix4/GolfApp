@@ -7,48 +7,49 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { eventsApi, type EventSummary, type CreateEventPayload } from '@/lib/api';
 
-const FORMAT_OPTIONS  = ['scramble', 'stroke', 'stableford', 'best_ball'] as const;
-const START_OPTIONS   = ['shotgun', 'tee_times'] as const;
+const FORMAT_OPTIONS  = ['Scramble', 'Stroke', 'Stableford', 'BestBall'] as const;
+const START_OPTIONS   = ['Shotgun', 'TeeTimes'] as const;
 const HOLES_OPTIONS   = [9, 18] as const;
 
 const FORMAT_LABELS: Record<string, string> = {
-  scramble:   'Scramble',
-  stroke:     'Stroke Play',
-  stableford: 'Stableford',
-  best_ball:  'Best Ball',
+  Scramble:   'Scramble',
+  Stroke:     'Stroke Play',
+  Stableford: 'Stableford',
+  BestBall:   'Best Ball',
 };
 const FORMAT_HINTS: Record<string, string> = {
-  scramble:   'Team plays the best shot each stroke',
-  stroke:     'Total strokes counted per player',
-  stableford: 'Points awarded based on score vs par',
-  best_ball:  'Best individual score counts per hole',
+  Scramble:   'Team plays the best shot each stroke',
+  Stroke:     'Total strokes counted per player',
+  Stableford: 'Points awarded based on score vs par',
+  BestBall:   'Best individual score counts per hole',
 };
 const START_LABELS: Record<string, string> = {
-  shotgun:   'Shotgun Start',
-  tee_times: 'Tee Times',
+  Shotgun:   'Shotgun Start',
+  TeeTimes:  'Tee Times',
 };
 const START_HINTS: Record<string, string> = {
-  shotgun:   'All teams begin simultaneously from different holes',
-  tee_times: 'Teams are assigned scheduled tee times',
+  Shotgun:   'All teams begin simultaneously from different holes',
+  TeeTimes:  'Teams are assigned scheduled tee times',
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  draft:        '#95a5a6',
-  registration: '#3498db',
-  active:       '#2ecc71',
-  scoring:      '#f39c12',
-  completed:    '#27ae60',
-  cancelled:    '#e74c3c',
+  Draft:        '#95a5a6',
+  Registration: '#3498db',
+  Active:       '#2ecc71',
+  Scoring:      '#f39c12',
+  Completed:    '#27ae60',
+  Cancelled:    '#e74c3c',
 };
 
 export default function EventsScreen() {
   const theme  = useTheme();
   const router = useRouter();
 
-  const [events,  setEvents]  = useState<EventSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
+  const [events,     setEvents]     = useState<EventSummary[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [openingReg, setOpeningReg] = useState<string | null>(null); // eventId being advanced
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,6 +70,23 @@ export default function EventsScreen() {
     setShowCreate(false);
     setEvents(prev => [event as EventSummary, ...prev]);
     router.push(`/(app)/events/${event.id}` as any);
+  }
+
+  async function handleOpenRegistration(item: EventSummary) {
+    if (!item.startAt) {
+      // No start date — send them to the Overview tab to set one first
+      router.push(`/(app)/events/${item.id}` as any);
+      return;
+    }
+    setOpeningReg(item.id);
+    try {
+      const updated = await eventsApi.update(item.id, { status: 'Registration' });
+      setEvents(prev => prev.map(e => e.id === item.id ? { ...e, status: updated.status } : e));
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to open registration.');
+    } finally {
+      setOpeningReg(null);
+    }
   }
 
   return (
@@ -129,7 +147,7 @@ export default function EventsScreen() {
               </View>
               <View style={styles.cardMeta}>
                 <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
-                  {item.format.replace('_', ' ')}
+                  {FORMAT_LABELS[item.format] ?? item.format}
                 </Text>
                 <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
                   Code: {item.eventCode}
@@ -143,6 +161,29 @@ export default function EventsScreen() {
                   </Text>
                 )}
               </View>
+              {item.status === 'Draft' && (
+                <View style={styles.cardActions}>
+                  <Pressable
+                    style={[
+                      styles.openRegBtn,
+                      { backgroundColor: item.startAt ? theme.colors.primary : '#bdbdbd' },
+                      openingReg === item.id && { opacity: 0.6 },
+                    ]}
+                    onPress={e => { e.stopPropagation?.(); handleOpenRegistration(item); }}
+                    disabled={openingReg === item.id}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open registration for this event"
+                  >
+                    {openingReg === item.id
+                      ? <ActivityIndicator color="#fff" size="small" />
+                      : (
+                        <Text style={styles.openRegBtnText}>
+                          {item.startAt ? 'Open Registration' : 'Set Start Date to Open Registration'}
+                        </Text>
+                      )}
+                  </Pressable>
+                </View>
+              )}
             </Pressable>
           )}
         />
@@ -252,8 +293,8 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
   const theme = useTheme();
 
   const [name,        setName]        = useState('');
-  const [format,      setFormat]      = useState<string>('scramble');
-  const [startType,   setStartType]   = useState<string>('shotgun');
+  const [format,      setFormat]      = useState<string>('Scramble');
+  const [startType,   setStartType]   = useState<string>('Shotgun');
   const [holes,       setHoles]       = useState<9 | 18>(18);
   const [startDate,   setStartDate]   = useState('');   // MM/DD/YYYY
   const [startTime,   setStartTime]   = useState('');   // HH:MM
@@ -264,7 +305,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
   const [touched,     setTouched]     = useState<Record<string, boolean>>({});
 
   function reset() {
-    setName(''); setFormat('scramble'); setStartType('shotgun'); setHoles(18);
+    setName(''); setFormat('Scramble'); setStartType('Shotgun'); setHoles(18);
     setStartDate(''); setStartTime(''); setStartAmPm('AM');
     setSubmitError(null); setFieldErrors({}); setTouched({});
   }
@@ -645,6 +686,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+  },
+  cardActions: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: 10,
+  },
+  openRegBtn: {
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 40,
+  },
+  openRegBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   metaItem: {
     fontSize: 13,

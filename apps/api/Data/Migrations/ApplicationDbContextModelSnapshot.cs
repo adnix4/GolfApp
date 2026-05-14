@@ -128,6 +128,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("team_id");
 
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_test");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ChallengeId");
@@ -276,6 +280,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("stripe_payment_intent_id");
 
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_test");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EventId");
@@ -392,6 +400,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("theme_json");
 
+                    b.Property<bool>("IsTestMode")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_test_mode");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CourseId");
@@ -441,6 +453,16 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                     b.Property<Guid?>("SponsorId")
                         .HasColumnType("uuid")
                         .HasColumnName("sponsor_id");
+
+                    b.Property<string>("SponsorName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("sponsor_name");
+
+                    b.Property<string>("SponsorLogoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("sponsor_logo_url");
 
                     b.HasKey("Id");
 
@@ -592,6 +614,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("team_id");
 
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_test");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TeamId");
@@ -700,6 +726,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                     b.Property<Guid>("TeamId")
                         .HasColumnType("uuid")
                         .HasColumnName("team_id");
+
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_test");
 
                     b.HasKey("Id");
 
@@ -815,6 +845,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("tee_time");
 
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_test");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EventId");
@@ -911,6 +945,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("title");
 
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_test");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EventId")
@@ -995,6 +1033,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("stripe_payment_intent_id");
 
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_test");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AuctionItemId")
@@ -1026,6 +1068,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                     b.Property<Guid>("PlayerId")
                         .HasColumnType("uuid")
                         .HasColumnName("player_id");
+
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_test");
 
                     b.HasKey("Id");
 
