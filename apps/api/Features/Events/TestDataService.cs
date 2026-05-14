@@ -96,6 +96,7 @@ public class TestDataService
 
         var rng       = new Random(42); // deterministic seed for reproducibility
         var nameIndex = 0;
+        var runTag    = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); // unique per seed run
         var teams     = new List<Team>();
         var players   = new List<Player>();
         var scores    = new List<Score>();
@@ -124,7 +125,7 @@ public class TestDataService
                     EventId          = eventId,
                     FirstName        = first,
                     LastName         = last,
-                    Email            = $"test.{first.ToLower()}.{last.ToLower()}.{nameIndex}@example.com",
+                    Email            = $"test.{nameIndex}.{runTag}@example.com",
                     RegistrationType = RegistrationType.FullTeam,
                     CheckInStatus    = CheckInStatus.Pending,
                     IsTest           = true,
