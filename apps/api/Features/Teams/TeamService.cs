@@ -336,6 +336,7 @@ public class TeamService
     {
         var team = await _db.Teams
             .Include(t => t.Players)
+            .Include(t => t.Event)
             .FirstOrDefaultAsync(t =>
                 t.Id == teamId &&
                 t.EventId == eventId &&
@@ -343,6 +344,10 @@ public class TeamService
 
         if (team is null)
             throw new NotFoundException("Team", teamId);
+
+        if (team.Event.Status != EventStatus.Active)
+            throw new ValidationException(
+                $"Check-in is only available when the event is Active. Current status: {team.Event.Status}.");
 
         team.CheckInStatus = CheckInStatus.CheckedIn;
         await _db.SaveChangesAsync(ct);

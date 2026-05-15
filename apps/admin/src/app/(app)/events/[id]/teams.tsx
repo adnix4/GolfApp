@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { teamsApi, type Team, type RegisterTeamPayload } from '@/lib/api';
+import { teamsApi, eventsApi, type Team, type RegisterTeamPayload } from '@/lib/api';
 
 const STATUS_COLOR: Record<string, string> = {
   pending:    '#f39c12',
@@ -17,18 +17,24 @@ export default function TeamsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
 
-  const [teams,    setTeams]    = useState<Team[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState<string | null>(null);
-  const [showAdd,  setShowAdd]  = useState(false);
-  const [editing,  setEditing]  = useState<Team | null>(null);
+  const [teams,       setTeams]       = useState<Team[]>([]);
+  const [eventStatus, setEventStatus] = useState<string | null>(null);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState<string | null>(null);
+  const [showAdd,     setShowAdd]     = useState(false);
+  const [editing,     setEditing]     = useState<Team | null>(null);
   const [inviteResult, setInviteResult] = useState<{ teamName: string; url: string | null } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setTeams(await teamsApi.list(id));
+      const [teamList, event] = await Promise.all([
+        teamsApi.list(id),
+        eventsApi.get(id),
+      ]);
+      setTeams(teamList);
+      setEventStatus(event.status);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load teams. Check your connection and try again.');
     } finally {
@@ -137,7 +143,7 @@ export default function TeamsScreen() {
                     >
                       <Text style={[styles.editBtnText, { color: theme.colors.accent }]}>Edit</Text>
                     </Pressable>
-                    {team.checkInStatus === 'pending' && (
+                    {team.checkInStatus === 'pending' && eventStatus === 'Active' && (
                       <Pressable
                         style={[styles.checkInBtn, { backgroundColor: theme.colors.action }]}
                         onPress={() => handleCheckIn(team.id)}
