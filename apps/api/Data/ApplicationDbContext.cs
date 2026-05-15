@@ -133,6 +133,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<HandicapHistory> HandicapHistories => Set<HandicapHistory>();
     public DbSet<Standing> Standings => Set<Standing>();
     public DbSet<Skin> Skins => Set<Skin>();
+    public DbSet<RoundAbsence> RoundAbsences => Set<RoundAbsence>();
 
     // ── MODEL CONFIGURATION ────────────────────────────────────────────────
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -659,6 +660,31 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                 .HasForeignKey(s => s.WinnerMemberId)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<RoundAbsence>(absence =>
+        {
+            absence.Property(a => a.Id).ValueGeneratedNever();
+
+            absence.HasIndex(a => new { a.RoundId, a.MemberId })
+                   .IsUnique()
+                   .HasDatabaseName("IX_round_absences_round_member_unique");
+
+            absence.HasOne(a => a.Round)
+                   .WithMany(r => r.Absences)
+                   .HasForeignKey(a => a.RoundId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            absence.HasOne(a => a.Member)
+                   .WithMany()
+                   .HasForeignKey(a => a.MemberId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            absence.HasOne(a => a.Sub)
+                   .WithMany()
+                   .HasForeignKey(a => a.SubMemberId)
+                   .IsRequired(false)
+                   .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── APPLICATION USER (additional config) ──────────────────────────

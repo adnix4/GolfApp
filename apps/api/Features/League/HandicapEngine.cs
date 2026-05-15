@@ -9,6 +9,7 @@ namespace GolfFundraiserPro.Api.Features.League;
 /// <summary>
 /// Recalculates handicap indexes for all active members in a season after a round closes.
 /// Called synchronously inside LeagueService.CloseRoundAsync — no separate job needed.
+/// Returns a list of updated member notices so the caller can send emails.
 /// </summary>
 public class HandicapEngine
 {
@@ -21,7 +22,15 @@ public class HandicapEngine
         _logger = logger;
     }
 
-    public async Task RecalculateAsync(Guid seasonId, Guid roundId, CancellationToken ct)
+    public record HandicapUpdateNotice(
+        Guid   MemberId,
+        string Email,
+        string Name,
+        double OldIndex,
+        double NewIndex);
+
+    public async Task<List<HandicapUpdateNotice>> RecalculateAsync(
+        Guid seasonId, Guid roundId, CancellationToken ct)
     {
         var season = await _db.Seasons
             .Include(s => s.League)
@@ -34,76 +43,68 @@ public class HandicapEngine
 
         var formula = ParseFormula(season.League.HandicapFormulaJson);
         double cap   = season.League.HandicapCap;
+        bool isUsga  = season.League.HandicapSystem == HandicapSystem.USGA;
+
+        var notices = new List<HandicapUpdateNotice>();
 
         foreach (var member in members)
         {
-            await RecalculateMemberAsync(member, roundId, formula, cap, ct);
+            var notice = await RecalculateMemberAsync(member, roundId, formula, cap, isUsga, ct);
+            if (notice is not null) notices.Add(notice);
         }
 
         await _db.SaveChangesAsync(ct);
-        _logger.LogInformation("Handicaps recalculated for {Count} members in season {SeasonId}",
-            members.Count, seasonId);
+
+        // If season.SyncHandicapToPlayer, push updated indexes to players.handicap_index
+        if (season.SyncHandicapToPlayer)
+            await SyncToPlayersAsync(members.Where(m => notices.Any(n => n.MemberId == m.Id)).ToList(), ct);
+
+        _logger.LogInformation(
+            "Handicaps recalculated for {Count} members in season {SeasonId}; {Updated} updated.",
+            members.Count, seasonId, notices.Count);
+
+        return notices;
     }
 
-    private async Task RecalculateMemberAsync(
-        LeagueMember member, Guid roundId,
-        HandicapFormula formula, double cap, CancellationToken ct)
+    private async Task SyncToPlayersAsync(List<LeagueMember> updatedMembers, CancellationToken ct)
     {
-        // Fetch all closed rounds with scores for this member
-        var roundScores = await _db.LeagueScores
-            .Include(s => s.Round)
-            .Where(s => s.MemberId == member.Id && s.Round.Status == RoundStatus.Closed)
-            .GroupBy(s => s.RoundId)
-            .Select(g => new
-            {
-                RoundId    = g.Key,
-                RoundDate  = g.First().Round.RoundDate,
-                GrossTotal = (int)g.Sum(s => s.GrossScore),
-                // Simple differential: adjusted gross - par (no slope/rating in Phase 5a)
-                Differential = (double)g.Sum(s => s.GrossScore) - g.First().Round.Season.League.HandicapCap
-            })
-            .OrderByDescending(r => r.RoundDate)
-            .ToListAsync(ct);
-
-        // Compute differentials from gross - course par (simplified: using holes count × avg par 4 = 72 for 18h)
-        // For Phase 5a the differential = AdjustedGross - CoursePar (admin should set par via course holes)
-        var differentials = await _db.LeagueScores
-            .Include(s => s.Round)
-            .ThenInclude(r => r.Course)
-            .ThenInclude(c => c!.Holes)
-            .Where(s => s.MemberId == member.Id && s.Round.Status == RoundStatus.Closed)
-            .GroupBy(s => s.RoundId)
-            .Select(g => new
-            {
-                RoundId      = g.Key,
-                RoundDate    = g.First().Round.RoundDate,
-                GrossTotal   = (int)g.Sum(s => s.GrossScore),
-                CoursePar    = g.First().Round.Course != null
-                                   ? g.First().Round.Course!.Holes.Sum(h => (int)h.Par)
-                                   : 72
-            })
-            .OrderByDescending(r => r.RoundDate)
-            .ToListAsync(ct);
-
-        if (differentials.Count == 0) return;
-
-        var diffs = differentials
-            .Select(d => (double)(d.GrossTotal - d.CoursePar))
-            .ToList();
-
-        double newIndex = formula.Type switch
+        foreach (var m in updatedMembers.Where(m => m.PlayerId.HasValue))
         {
-            "BestNofM" => ComputeBestNofM(diffs, formula.N, formula.M),
-            "Rolling"  => ComputeRolling(diffs, formula.N),
-            "Percent"  => ComputePercent(diffs, formula.N, formula.Pct),
-            _          => ComputeBestNofM(diffs, 5, 10)
-        };
+            var player = await _db.Players.FindAsync(new object?[] { m.PlayerId!.Value }, ct);
+            if (player is not null) player.HandicapIndex = m.HandicapIndex;
+        }
+        await _db.SaveChangesAsync(ct);
+    }
+
+    private async Task<HandicapUpdateNotice?> RecalculateMemberAsync(
+        LeagueMember member, Guid roundId,
+        HandicapFormula formula, double cap, bool isUsga, CancellationToken ct)
+    {
+        var differentials = await ComputeDifferentialsAsync(member.Id, isUsga, ct);
+        if (differentials.Count == 0) return null;
+
+        double newIndex;
+        if (isUsga)
+        {
+            // USGA: best 8 of last 20 differentials
+            newIndex = ComputeBestNofM(differentials, 8, 20);
+        }
+        else
+        {
+            newIndex = formula.Type switch
+            {
+                "BestNofM" => ComputeBestNofM(differentials, formula.N, formula.M),
+                "Rolling"  => ComputeRolling(differentials, formula.N),
+                "Percent"  => ComputePercent(differentials, formula.N, formula.Pct),
+                _          => ComputeBestNofM(differentials, 5, 10)
+            };
+        }
 
         newIndex = Math.Round(Math.Min(newIndex, cap), 1);
 
-        if (Math.Abs(newIndex - member.HandicapIndex) < 0.05) return;
+        if (Math.Abs(newIndex - member.HandicapIndex) < 0.05) return null;
 
-        var latestDiff = diffs[0];
+        var latestDiff = differentials[0];
         _db.HandicapHistories.Add(new HandicapHistory
         {
             Id            = Guid.NewGuid(),
@@ -116,7 +117,47 @@ public class HandicapEngine
             CreatedAt     = DateTime.UtcNow
         });
 
+        var oldIndex = member.HandicapIndex;
         member.HandicapIndex = newIndex;
+
+        return new HandicapUpdateNotice(
+            member.Id, member.Email,
+            $"{member.FirstName} {member.LastName}",
+            oldIndex, newIndex);
+    }
+
+    private async Task<List<double>> ComputeDifferentialsAsync(
+        Guid memberId, bool isUsga, CancellationToken ct)
+    {
+        var rounds = await _db.LeagueScores
+            .Include(s => s.Round)
+            .ThenInclude(r => r.Course)
+            .ThenInclude(c => c!.Holes)
+            .Where(s => s.MemberId == memberId && s.Round.Status == RoundStatus.Closed)
+            .GroupBy(s => s.RoundId)
+            .Select(g => new
+            {
+                RoundDate    = g.First().Round.RoundDate,
+                GrossTotal   = (int)g.Sum(s => s.GrossScore),
+                CoursePar    = g.First().Round.Course != null
+                                   ? g.First().Round.Course!.Holes.Sum(h => (int)h.Par)
+                                   : 72,
+                CourseRating = g.First().Round.Course != null
+                                   ? g.First().Round.Course!.CourseRating
+                                   : null,
+                SlopeRating  = g.First().Round.Course != null
+                                   ? g.First().Round.Course!.SlopeRating
+                                   : null
+            })
+            .OrderByDescending(r => r.RoundDate)
+            .ToListAsync(ct);
+
+        return rounds.Select(r =>
+        {
+            if (isUsga && r.CourseRating.HasValue && r.SlopeRating is > 0)
+                return (r.GrossTotal - r.CourseRating.Value) * 113.0 / r.SlopeRating.Value;
+            return (double)(r.GrossTotal - r.CoursePar);
+        }).ToList();
     }
 
     private static double ComputeBestNofM(List<double> diffs, int n, int m)
@@ -192,7 +233,6 @@ public class HandicapEngine
 
             if (recentNets.Count < 5) continue;
 
-            // Net score relative to par (expected to be ~0 for a player playing to handicap)
             var allBetter = recentNets.All(r => (r.NetTotal - r.CoursePar) <= -3);
             if (allBetter) sandbagged.Add(member.Id);
         }

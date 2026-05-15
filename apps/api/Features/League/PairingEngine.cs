@@ -26,8 +26,16 @@ public class PairingEngine
             .FirstOrDefaultAsync(r => r.Id == roundId, ct)
             ?? throw new InvalidOperationException("Round not found.");
 
+        // Exclude members who have reported absence for this round
+        var absentMemberIds = await _db.RoundAbsences
+            .Where(a => a.RoundId == roundId)
+            .Select(a => a.MemberId)
+            .ToListAsync(ct);
+
         var members = await _db.LeagueMembers
-            .Where(m => m.SeasonId == round.SeasonId && m.Status == MemberStatus.Active)
+            .Where(m => m.SeasonId == round.SeasonId
+                     && m.Status == MemberStatus.Active
+                     && !absentMemberIds.Contains(m.Id))
             .Include(m => m.Flight)
             .OrderBy(m => m.Flight != null ? m.Flight.Name : "ZZZ")
             .ThenBy(m => m.HandicapIndex)

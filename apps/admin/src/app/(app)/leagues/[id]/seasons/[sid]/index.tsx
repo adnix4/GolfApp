@@ -7,7 +7,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import {
   leagueApi, SeasonDashboard, LeagueMember, LeagueRound,
-  StandingRow, SkinRow, PairingGroup, HandicapHistoryRow,
+  StandingRow, SkinRow, PairingGroup, HandicapHistoryRow, RoundAbsence,
 } from '@/lib/api';
 
 type Tab = 'overview' | 'roster' | 'rounds' | 'handicaps' | 'standings' | 'skins';
@@ -47,6 +47,22 @@ export default function SeasonDashboardScreen() {
   const [rDate, setRDate]   = useState('');
   const [rNotes, setRNotes] = useState('');
   const [rSaving, setRSaving] = useState(false);
+
+  const [showAbsenceModal, setShowAbsenceModal]       = useState(false);
+  const [absenceRound, setAbsenceRound]               = useState<LeagueRound | null>(null);
+  const [absences, setAbsences]                       = useState<RoundAbsence[]>([]);
+  const [selAbsenceMemberId, setSelAbsenceMemberId]   = useState('');
+  const [absenceLoading, setAbsenceLoading]           = useState(false);
+
+  const [showSubModal, setShowSubModal]     = useState(false);
+  const [subAbsentMemberId, setSubAbsentMemberId] = useState('');
+  const [subFirst, setSubFirst]             = useState('');
+  const [subLast, setSubLast]               = useState('');
+  const [subEmail, setSubEmail]             = useState('');
+  const [subHC, setSubHC]                   = useState('0');
+  const [subSaving, setSubSaving]           = useState(false);
+
+  const [syncSaving, setSyncSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!id || !sid) return;
@@ -144,6 +160,77 @@ export default function SeasonDashboardScreen() {
     finally { setMSaving(false); }
   }
 
+  async function handleOpenAbsences(round: LeagueRound) {
+    if (!id || !sid) return;
+    setAbsenceRound(round);
+    setAbsenceLoading(true);
+    try {
+      const list = await leagueApi.getAbsences(id, sid, round.id);
+      setAbsences(list);
+      setShowAbsenceModal(true);
+    } catch (e: unknown) { setError((e as Error).message); }
+    finally { setAbsenceLoading(false); }
+  }
+
+  async function handleReportAbsence() {
+    if (!id || !sid || !absenceRound || !selAbsenceMemberId) return;
+    setAbsenceLoading(true);
+    try {
+      const a = await leagueApi.reportAbsence(id, sid, absenceRound.id, selAbsenceMemberId);
+      setAbsences(prev => [...prev, a]);
+      setSelAbsenceMemberId('');
+      await load();
+    } catch (e: unknown) { setError((e as Error).message); }
+    finally { setAbsenceLoading(false); }
+  }
+
+  async function handleAddSub() {
+    if (!id || !sid || !absenceRound || !subAbsentMemberId || !subFirst || !subLast || !subEmail) return;
+    setSubSaving(true);
+    try {
+      await leagueApi.addSubstitute(id, sid, absenceRound.id, {
+        absentMemberId: subAbsentMemberId,
+        firstName: subFirst, lastName: subLast, email: subEmail,
+        handicapIndex: parseFloat(subHC) || 0,
+      });
+      const updated = await leagueApi.getAbsences(id, sid, absenceRound.id);
+      setAbsences(updated);
+      setShowSubModal(false);
+      setSubFirst(''); setSubLast(''); setSubEmail(''); setSubHC('0');
+    } catch (e: unknown) { setError((e as Error).message); }
+    finally { setSubSaving(false); }
+  }
+
+  async function handleToggleSync() {
+    if (!id || !sid || !dashboard) return;
+    setSyncSaving(true);
+    try {
+      await leagueApi.updateSeasonSync(id, sid, !dashboard.season.syncHandicapToPlayer);
+      await load();
+    } catch (e: unknown) { setError((e as Error).message); }
+    finally { setSyncSaving(false); }
+  }
+
+  async function handleDownloadPairingsPdf(round: LeagueRound) {
+    if (!id || !sid) return;
+    try {
+      await leagueApi.downloadPdf(
+        leagueApi.getPairingsPdfPath(id, sid, round.id),
+        `pairings-${round.roundDate}.pdf`,
+      );
+    } catch (e: unknown) { setError((e as Error).message); }
+  }
+
+  async function handleDownloadStandingsPdf() {
+    if (!id || !sid) return;
+    try {
+      await leagueApi.downloadPdf(
+        leagueApi.getStandingsPdfPath(id, sid),
+        `standings-${sid}.pdf`,
+      );
+    } catch (e: unknown) { setError((e as Error).message); }
+  }
+
   if (loading) return (
     <View style={styles.center}>
       <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -212,6 +299,27 @@ export default function SeasonDashboardScreen() {
                   <Text style={[styles.statLabel, { color: theme.colors.accent }]}>{s.label}</Text>
                 </View>
               ))}
+            </View>
+            <View style={[styles.syncRow, { borderColor: theme.colors.accent }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.memberName, { color: theme.colors.primary }]}>Sync HC → Player Profile</Text>
+                <Text style={[styles.memberMeta, { color: theme.colors.accent }]}>
+                  When on, handicap updates write back to the player's event record.
+                </Text>
+              </View>
+              <Pressable
+                style={[styles.syncToggle, {
+                  backgroundColor: dashboard.season.syncHandicapToPlayer
+                    ? theme.colors.primary : theme.colors.accent + '33',
+                  opacity: syncSaving ? 0.5 : 1,
+                }]}
+                onPress={handleToggleSync}
+                disabled={syncSaving}
+              >
+                <Text style={{ color: dashboard.season.syncHandicapToPlayer ? theme.colors.surface : theme.colors.accent, fontSize: 12, fontWeight: '600' }}>
+                  {dashboard.season.syncHandicapToPlayer ? 'ON' : 'OFF'}
+                </Text>
+              </Pressable>
             </View>
             <Text style={[styles.subTitle, { color: theme.colors.primary }]}>Recent Rounds</Text>
             {dashboard.rounds.slice(0, 5).map(r => (
@@ -284,6 +392,7 @@ export default function SeasonDashboardScreen() {
                     <Text style={[styles.roundDate, { color: theme.colors.primary }]}>{r.roundDate}</Text>
                     <Text style={[styles.roundMeta, { color: theme.colors.accent }]}>
                       {r.courseName ?? 'No course'} · {r.pairingCount} groups · {r.scoredCount} scored
+                      {r.absenceCount > 0 ? ` · ${r.absenceCount} absent` : ''}
                     </Text>
                   </View>
                   <Text style={[styles.roundStatus, { color: roundStatusColor(r.status) }]}>{r.status}</Text>
@@ -312,6 +421,20 @@ export default function SeasonDashboardScreen() {
                       <Pressable style={[styles.actionBtn, { backgroundColor: '#6366f122' }]}
                         onPress={() => handleLoadSkins(r)}>
                         <Text style={{ color: '#6366f1', fontSize: 12 }}>View Skins</Text>
+                      </Pressable>
+                    )}
+                    {(r.status === 'Scheduled' || r.status === 'Open') && (
+                      <Pressable style={[styles.actionBtn, { backgroundColor: '#ef444422' }]}
+                        onPress={() => handleOpenAbsences(r)}>
+                        <Text style={{ color: '#ef4444', fontSize: 12 }}>
+                          Absences{r.absenceCount > 0 ? ` (${r.absenceCount})` : ''}
+                        </Text>
+                      </Pressable>
+                    )}
+                    {r.pairingCount > 0 && (
+                      <Pressable style={[styles.actionBtn, { backgroundColor: '#0ea5e922' }]}
+                        onPress={() => handleDownloadPairingsPdf(r)}>
+                        <Text style={{ color: '#0ea5e9', fontSize: 12 }}>Print Pairings</Text>
                       </Pressable>
                     )}
                   </View>
@@ -354,7 +477,15 @@ export default function SeasonDashboardScreen() {
         {/* STANDINGS */}
         {tab === 'standings' && dashboard && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Standings Board</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Standings Board</Text>
+              {dashboard.standings.length > 0 && (
+                <Pressable style={[styles.smallBtn, { backgroundColor: '#0ea5e9' }]}
+                  onPress={handleDownloadStandingsPdf}>
+                  <Text style={{ color: '#fff', fontSize: 13 }}>Export PDF</Text>
+                </Pressable>
+              )}
+            </View>
             {dashboard.standings.length === 0 ? (
               <Text style={[styles.emptyText, { color: theme.colors.accent }]}>
                 Standings appear after the first round closes.
@@ -554,6 +685,104 @@ export default function SeasonDashboardScreen() {
         </View>
       </Modal>
 
+      {/* Absences Modal */}
+      <Modal visible={showAbsenceModal} transparent animationType="slide">
+        <View style={styles.overlay}>
+          <View style={[styles.modal, { backgroundColor: theme.colors.surface, maxHeight: '80%' as unknown as number }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
+              Absences — {absenceRound?.roundDate}
+            </Text>
+            <ScrollView style={{ maxHeight: 260 }}>
+              {absences.length === 0
+                ? <Text style={{ color: theme.colors.accent, fontSize: 13 }}>No absences reported yet.</Text>
+                : absences.map(a => (
+                  <View key={a.id} style={[styles.absenceRow, { borderColor: theme.colors.accent }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '600' }}>{a.memberName}</Text>
+                      {a.subMemberName
+                        ? <Text style={{ color: '#16a34a', fontSize: 12 }}>Sub: {a.subMemberName}</Text>
+                        : <Text style={{ color: theme.colors.accent, fontSize: 12 }}>No sub assigned</Text>}
+                    </View>
+                    {!a.subMemberId && (
+                      <Pressable style={[styles.iconBtn, { borderColor: theme.colors.accent }]}
+                        onPress={() => { setSubAbsentMemberId(a.memberId); setShowSubModal(true); }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.action }}>Add Sub</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                ))
+              }
+            </ScrollView>
+            <Text style={[styles.label, { color: theme.colors.accent }]}>Report New Absence</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.colors.accent, fontSize: 11, marginBottom: 4 }}>Select Member</Text>
+                <ScrollView style={{ maxHeight: 100, borderWidth: 1, borderColor: theme.colors.accent, borderRadius: 8 }}>
+                  {(dashboard?.roster ?? []).filter(m => m.status === 'Active').map(m => (
+                    <Pressable key={m.id}
+                      style={{ padding: 8, backgroundColor: selAbsenceMemberId === m.id ? theme.colors.primary + '22' : 'transparent' }}
+                      onPress={() => setSelAbsenceMemberId(m.id)}>
+                      <Text style={{ color: theme.colors.primary, fontSize: 12 }}>
+                        {m.lastName}, {m.firstName}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+            <View style={styles.modalActions}>
+              <Pressable style={styles.cancelBtn} onPress={() => { setShowAbsenceModal(false); setSelAbsenceMemberId(''); }}>
+                <Text style={{ color: theme.colors.accent }}>Close</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.btn, { backgroundColor: '#ef4444', opacity: (!selAbsenceMemberId || absenceLoading) ? 0.5 : 1 }]}
+                onPress={handleReportAbsence}
+                disabled={!selAbsenceMemberId || absenceLoading}>
+                <Text style={{ color: '#fff' }}>{absenceLoading ? 'Saving…' : 'Report Absent'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Sub Modal */}
+      <Modal visible={showSubModal} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <View style={[styles.modal, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Add Substitute</Text>
+            <View style={styles.row}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={[styles.label, { color: theme.colors.accent }]}>First Name</Text>
+                <TextInput style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
+                  value={subFirst} onChangeText={setSubFirst} placeholderTextColor={theme.colors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.label, { color: theme.colors.accent }]}>Last Name</Text>
+                <TextInput style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
+                  value={subLast} onChangeText={setSubLast} placeholderTextColor={theme.colors.accent} />
+              </View>
+            </View>
+            <Text style={[styles.label, { color: theme.colors.accent }]}>Email</Text>
+            <TextInput style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
+              value={subEmail} onChangeText={setSubEmail} keyboardType="email-address"
+              placeholderTextColor={theme.colors.accent} />
+            <Text style={[styles.label, { color: theme.colors.accent }]}>Handicap Index</Text>
+            <TextInput style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
+              value={subHC} onChangeText={setSubHC} keyboardType="numeric" placeholder="0"
+              placeholderTextColor={theme.colors.accent} />
+            <View style={styles.modalActions}>
+              <Pressable style={styles.cancelBtn} onPress={() => setShowSubModal(false)}>
+                <Text style={{ color: theme.colors.accent }}>Cancel</Text>
+              </Pressable>
+              <Pressable style={[styles.btn, { backgroundColor: theme.colors.primary, opacity: subSaving ? 0.6 : 1 }]}
+                onPress={handleAddSub} disabled={subSaving}>
+                <Text style={{ color: theme.colors.surface }}>{subSaving ? 'Adding…' : 'Add Sub'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Add Round Modal */}
       <Modal visible={showAddRound} transparent animationType="fade">
         <View style={styles.overlay}>
@@ -648,4 +877,7 @@ const styles = StyleSheet.create({
   histDate:      { fontSize: 12, flex: 1 },
   histChg:       { fontSize: 14, fontWeight: '600' },
   histDiff:      { fontSize: 12, width: 60, textAlign: 'right' },
+  syncRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, marginBottom: 8 },
+  syncToggle:    { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, minWidth: 48, alignItems: 'center' },
+  absenceRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
 });

@@ -389,8 +389,11 @@ public enum LeagueFormat
     /// <summary>Stroke play net score. Lower season total or average wins.</summary>
     Stroke,
 
-    /// <summary>Match play head-to-head. Holes won per round.</summary>
-    Match
+    /// <summary>Match play head-to-head. Holes won per round; season record = total W/L/H.</summary>
+    Match,
+
+    /// <summary>Points above quota. Quota = 36 − course handicap; score = Stableford − quota.</summary>
+    Quota
 }
 
 /// <summary>Handicap calculation formula used by a league.</summary>

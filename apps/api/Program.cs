@@ -67,6 +67,9 @@ if (string.Equals(aspnetEnv, "Development", StringComparison.OrdinalIgnoreCase))
     }
 }
 
+// QuestPDF community license (free for non-commercial / small commercial use)
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ── ADD SERVICES ──────────────────────────────────────────────────────────────

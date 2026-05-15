@@ -44,18 +44,19 @@ public record UpdateLeagueRequest
 
 public record SeasonResponse
 {
-    public Guid     Id             { get; init; }
-    public Guid     LeagueId       { get; init; }
-    public string   Name           { get; init; } = string.Empty;
-    public short    TotalRounds    { get; init; }
-    public DateOnly StartDate      { get; init; }
-    public DateOnly EndDate        { get; init; }
-    public string   Status         { get; init; } = string.Empty;
-    public short    RoundsCounted  { get; init; }
-    public string   StandingMethod { get; init; } = string.Empty;
-    public int      MemberCount    { get; init; }
-    public int      RoundCount     { get; init; }
-    public DateTime CreatedAt      { get; init; }
+    public Guid     Id                    { get; init; }
+    public Guid     LeagueId              { get; init; }
+    public string   Name                  { get; init; } = string.Empty;
+    public short    TotalRounds           { get; init; }
+    public DateOnly StartDate             { get; init; }
+    public DateOnly EndDate               { get; init; }
+    public string   Status                { get; init; } = string.Empty;
+    public short    RoundsCounted         { get; init; }
+    public string   StandingMethod        { get; init; } = string.Empty;
+    public bool     SyncHandicapToPlayer  { get; init; }
+    public int      MemberCount           { get; init; }
+    public int      RoundCount            { get; init; }
+    public DateTime CreatedAt             { get; init; }
 }
 
 public record CreateSeasonRequest
@@ -146,15 +147,50 @@ public record OverrideHandicapRequest
 
 public record LeagueRoundResponse
 {
-    public Guid     Id           { get; init; }
-    public Guid     SeasonId     { get; init; }
-    public Guid?    CourseId     { get; init; }
-    public string?  CourseName   { get; init; }
-    public DateOnly RoundDate    { get; init; }
-    public string   Status       { get; init; } = string.Empty;
-    public string?  Notes        { get; init; }
-    public int      PairingCount { get; init; }
-    public int      ScoredCount  { get; init; }
+    public Guid     Id            { get; init; }
+    public Guid     SeasonId      { get; init; }
+    public Guid?    CourseId      { get; init; }
+    public string?  CourseName    { get; init; }
+    public DateOnly RoundDate     { get; init; }
+    public string   Status        { get; init; } = string.Empty;
+    public string?  Notes         { get; init; }
+    public int      PairingCount  { get; init; }
+    public int      ScoredCount   { get; init; }
+    public int      AbsenceCount  { get; init; }
+}
+
+// ── ABSENCE ────────────────────────────────────────────────────────────────────
+
+public record ReportAbsenceRequest
+{
+    [Required]
+    public Guid MemberId { get; init; }
+}
+
+public record RoundAbsenceResponse
+{
+    public Guid     Id             { get; init; }
+    public Guid     RoundId        { get; init; }
+    public Guid     MemberId       { get; init; }
+    public string   MemberName     { get; init; } = string.Empty;
+    public Guid?    SubMemberId    { get; init; }
+    public string?  SubMemberName  { get; init; }
+    public DateTime ReportedAt     { get; init; }
+}
+
+// ── SUBSTITUTE ─────────────────────────────────────────────────────────────────
+
+public record AddSubstituteRequest
+{
+    [Required]
+    public Guid AbsentMemberId { get; init; }
+    [Required, MaxLength(100)]
+    public string FirstName    { get; init; } = string.Empty;
+    [Required, MaxLength(100)]
+    public string LastName     { get; init; } = string.Empty;
+    [Required, MaxLength(254)]
+    public string Email        { get; init; } = string.Empty;
+    public double HandicapIndex { get; init; }
 }
 
 public record CreateRoundRequest
@@ -238,6 +274,20 @@ public record StandingRow
     public int    NetStrokes     { get; init; }
     public double SeasonAvgNet   { get; init; }
     public short  RoundsPlayed   { get; init; }
+    public int    MatchWins      { get; init; }
+    public int    MatchLosses    { get; init; }
+    public int    MatchHalves    { get; init; }
+}
+
+// ── HEAD-TO-HEAD ───────────────────────────────────────────────────────────────
+
+public record HeadToHeadRow
+{
+    public Guid   OpponentId    { get; init; }
+    public string OpponentName  { get; init; } = string.Empty;
+    public int    Wins          { get; init; }
+    public int    Losses        { get; init; }
+    public int    Ties          { get; init; }
 }
 
 // ── HANDICAP HISTORY ──────────────────────────────────────────────────────────
@@ -291,6 +341,14 @@ public record MemberSeasonSummary
     public short   RoundsPlayed  { get; init; }
     public List<HandicapHistoryRow> HandicapTrend { get; init; } = new();
     public List<RoundResultRow>     RoundHistory  { get; init; } = new();
+    public List<HeadToHeadRow>      HeadToHead    { get; init; } = new();
+}
+
+// ── HANDICAP SYNC ──────────────────────────────────────────────────────────────
+
+public record UpdateSeasonSyncRequest
+{
+    public bool SyncHandicapToPlayer { get; init; }
 }
 
 public record RoundResultRow

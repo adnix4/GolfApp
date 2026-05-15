@@ -235,6 +235,14 @@ public class Course
     [Column("location", TypeName = "geography (point)")]
     public Point? Location { get; set; }
 
+    /// <summary>Phase 5b: USGA course rating for the default tees. Required for USGA handicap differential.</summary>
+    [Column("course_rating")]
+    public double? CourseRating { get; set; }
+
+    /// <summary>Phase 5b: USGA slope rating for the default tees. Required for USGA handicap differential.</summary>
+    [Column("slope_rating")]
+    public int? SlopeRating { get; set; }
+
     [ForeignKey(nameof(OrgId))]
     public Organization Organization { get; set; } = null!;
 
@@ -1169,6 +1177,13 @@ public class Season
     [MaxLength(50)]
     public string StandingMethod { get; set; } = "TotalNet";
 
+    /// <summary>
+    /// Phase 5b: when true, league handicap recalculation writes the updated index
+    /// back to players.handicap_index (tournament handicap). Admin-controlled toggle.
+    /// </summary>
+    [Column("sync_handicap_to_player")]
+    public bool SyncHandicapToPlayer { get; set; } = false;
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -1298,6 +1313,7 @@ public class LeagueRound
     public ICollection<LeaguePairing> Pairings { get; set; } = new List<LeaguePairing>();
     public ICollection<LeagueScore> Scores { get; set; } = new List<LeagueScore>();
     public ICollection<Skin> Skins { get; set; } = new List<Skin>();
+    public ICollection<RoundAbsence> Absences { get; set; } = new List<RoundAbsence>();
 }
 
 // ── LEAGUE PAIRING ────────────────────────────────────────────────────────────
@@ -1442,6 +1458,18 @@ public class Standing
     [Column("rank")]
     public short Rank { get; set; }
 
+    /// <summary>Phase 5b: total match play rounds won (match format only).</summary>
+    [Column("match_wins")]
+    public int MatchWins { get; set; }
+
+    /// <summary>Phase 5b: total match play rounds lost (match format only).</summary>
+    [Column("match_losses")]
+    public int MatchLosses { get; set; }
+
+    /// <summary>Phase 5b: total match play rounds halved (match format only).</summary>
+    [Column("match_halves")]
+    public int MatchHalves { get; set; }
+
     [Column("updated_at")]
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -1484,6 +1512,37 @@ public class Skin
 
     [ForeignKey(nameof(WinnerMemberId))]
     public LeagueMember? Winner { get; set; }
+}
+
+// ── ROUND ABSENCE ─────────────────────────────────────────────────────────────
+[Table("round_absences")]
+public class RoundAbsence
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("round_id")]
+    public Guid RoundId { get; set; }
+
+    /// <summary>The member who is absent from this round.</summary>
+    [Column("member_id")]
+    public Guid MemberId { get; set; }
+
+    /// <summary>The substitute member assigned to fill in, if any.</summary>
+    [Column("sub_member_id")]
+    public Guid? SubMemberId { get; set; }
+
+    [Column("reported_at")]
+    public DateTime ReportedAt { get; set; } = DateTime.UtcNow;
+
+    [ForeignKey(nameof(RoundId))]
+    public LeagueRound Round { get; set; } = null!;
+
+    [ForeignKey(nameof(MemberId))]
+    public LeagueMember Member { get; set; } = null!;
+
+    [ForeignKey(nameof(SubMemberId))]
+    public LeagueMember? Sub { get; set; }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -722,6 +722,7 @@ export interface SeasonSummary {
   id: string; leagueId: string; name: string;
   totalRounds: number; startDate: string; endDate: string;
   status: string; roundsCounted: number; standingMethod: string;
+  syncHandicapToPlayer: boolean;
   memberCount: number; roundCount: number; createdAt: string;
 }
 
@@ -740,7 +741,17 @@ export interface LeagueMember {
 export interface LeagueRound {
   id: string; seasonId: string; courseId: string | null; courseName: string | null;
   roundDate: string; status: string; notes: string | null;
-  pairingCount: number; scoredCount: number;
+  pairingCount: number; scoredCount: number; absenceCount: number;
+}
+
+export interface RoundAbsence {
+  id: string; roundId: string; memberId: string; memberName: string;
+  subMemberId: string | null; subMemberName: string | null; reportedAt: string;
+}
+
+export interface HeadToHeadRow {
+  opponentId: string; opponentName: string;
+  wins: number; losses: number; ties: number;
 }
 
 export interface PairingGroup {
@@ -752,6 +763,7 @@ export interface StandingRow {
   rank: number; memberId: string; memberName: string; flightName: string;
   handicapIndex: number; totalPoints: number; netStrokes: number;
   seasonAvgNet: number; roundsPlayed: number;
+  matchWins: number; matchLosses: number; matchHalves: number;
 }
 
 export interface SkinRow {
@@ -839,6 +851,51 @@ export const leagueApi = {
 
   getScorecards: (leagueId: string, seasonId: string, roundId: string) =>
     request<unknown[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/scorecards`),
+
+  reportAbsence: (leagueId: string, seasonId: string, roundId: string, memberId: string) =>
+    request<RoundAbsence>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/absence`, {
+      method: 'POST', body: { memberId },
+    }),
+
+  getAbsences: (leagueId: string, seasonId: string, roundId: string) =>
+    request<RoundAbsence[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/absences`),
+
+  addSubstitute: (leagueId: string, seasonId: string, roundId: string, payload: { absentMemberId: string; firstName: string; lastName: string; email: string; handicapIndex?: number }) =>
+    request<LeagueMember>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/substitutes`, {
+      method: 'POST', body: payload,
+    }),
+
+  getHeadToHead: (leagueId: string, seasonId: string, memberId: string) =>
+    request<HeadToHeadRow[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/members/${memberId}/head-to-head`),
+
+  updateSeasonSync: (leagueId: string, seasonId: string, syncHandicapToPlayer: boolean) =>
+    request<void>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/sync-handicap`, {
+      method: 'PATCH', body: { syncHandicapToPlayer },
+    }),
+
+  downloadPdf: async (path: string, filename: string) => {
+    const token = storage.getAccessToken();
+    const res = await fetch(`${BASE}${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new ApiError(res.status, 'DOWNLOAD_FAILED', 'Download failed');
+    const blob = await res.blob();
+    if (typeof window !== 'undefined') {
+      const url = URL.createObjectURL(blob);
+      const a = window.document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  },
+
+  getPairingsPdfPath: (leagueId: string, seasonId: string, roundId: string) =>
+    `/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/pairings/pdf`,
+
+  getStandingsPdfPath: (leagueId: string, seasonId: string) =>
+    `/api/v1/leagues/${leagueId}/seasons/${seasonId}/standings/pdf`,
 };
 
 export { ApiError };

@@ -184,6 +184,70 @@ public class LeagueController : ControllerBase
         Guid leagueId, Guid seasonId, Guid roundId, CancellationToken ct) =>
         Ok(await _svc.GetSkinsAsync(OrgId, leagueId, seasonId, roundId, ct));
 
+    // ── ABSENCES ──────────────────────────────────────────────────────────────
+
+    [HttpPost("{leagueId:guid}/seasons/{seasonId:guid}/rounds/{roundId:guid}/absence")]
+    public async Task<IActionResult> ReportAbsence(
+        Guid leagueId, Guid seasonId, Guid roundId,
+        [FromBody] ReportAbsenceRequest req, CancellationToken ct)
+    {
+        var result = await _svc.ReportAbsenceAsync(OrgId, leagueId, seasonId, roundId, req, ct);
+        return CreatedAtAction(nameof(GetAbsences), new { leagueId, seasonId, roundId }, result);
+    }
+
+    [HttpGet("{leagueId:guid}/seasons/{seasonId:guid}/rounds/{roundId:guid}/absences")]
+    public async Task<IActionResult> GetAbsences(
+        Guid leagueId, Guid seasonId, Guid roundId, CancellationToken ct) =>
+        Ok(await _svc.GetRoundAbsencesAsync(OrgId, leagueId, seasonId, roundId, ct));
+
+    // ── SUBSTITUTES ───────────────────────────────────────────────────────────
+
+    [HttpPost("{leagueId:guid}/seasons/{seasonId:guid}/rounds/{roundId:guid}/substitutes")]
+    public async Task<IActionResult> AddSubstitute(
+        Guid leagueId, Guid seasonId, Guid roundId,
+        [FromBody] AddSubstituteRequest req, CancellationToken ct)
+    {
+        var result = await _svc.AddSubstituteAsync(OrgId, leagueId, seasonId, roundId, req, ct);
+        return CreatedAtAction(nameof(GetAbsences), new { leagueId, seasonId, roundId }, result);
+    }
+
+    // ── HEAD-TO-HEAD ──────────────────────────────────────────────────────────
+
+    [HttpGet("{leagueId:guid}/seasons/{seasonId:guid}/members/{memberId:guid}/head-to-head")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetHeadToHead(
+        Guid leagueId, Guid seasonId, Guid memberId, CancellationToken ct) =>
+        Ok(await _svc.GetHeadToHeadAsync(seasonId, memberId, ct));
+
+    // ── HANDICAP SYNC TOGGLE ─────────────────────────────────────────────────
+
+    [HttpPatch("{leagueId:guid}/seasons/{seasonId:guid}/sync-handicap")]
+    public async Task<IActionResult> UpdateSeasonSync(
+        Guid leagueId, Guid seasonId,
+        [FromBody] UpdateSeasonSyncRequest req, CancellationToken ct)
+    {
+        await _svc.UpdateSeasonSyncAsync(OrgId, leagueId, seasonId, req, ct);
+        return NoContent();
+    }
+
+    // ── PDF EXPORTS ───────────────────────────────────────────────────────────
+
+    [HttpGet("{leagueId:guid}/seasons/{seasonId:guid}/rounds/{roundId:guid}/pairings/pdf")]
+    public async Task<IActionResult> GetPairingsPdf(
+        Guid leagueId, Guid seasonId, Guid roundId, CancellationToken ct)
+    {
+        var bytes = await _svc.GetPairingsPdfBytesAsync(OrgId, leagueId, seasonId, roundId, ct);
+        return File(bytes, "application/pdf", $"pairings-{roundId}.pdf");
+    }
+
+    [HttpGet("{leagueId:guid}/seasons/{seasonId:guid}/standings/pdf")]
+    public async Task<IActionResult> GetStandingsPdf(
+        Guid leagueId, Guid seasonId, CancellationToken ct)
+    {
+        var bytes = await _svc.GetStandingsPdfBytesAsync(OrgId, leagueId, seasonId, ct);
+        return File(bytes, "application/pdf", $"standings-{seasonId}.pdf");
+    }
+
     // ── MOBILE: MEMBER SUMMARY ────────────────────────────────────────────────
 
     [HttpGet("{leagueId:guid}/seasons/{seasonId:guid}/members/{memberId:guid}/summary")]
