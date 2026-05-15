@@ -9,16 +9,17 @@ import { attemptSync } from './backgroundSync';
 import { useNetworkTier, POLL_INTERVAL_MS, type NetworkTier } from './useNetworkTier';
 
 interface SessionContextValue {
-  session:       JoinEventResponse | null;
-  deviceId:      string;
-  loading:       boolean;
-  pendingScores: PendingScore[];
-  syncStatus:    'idle' | 'syncing' | 'error' | 'synced';
-  networkTier:   NetworkTier;
-  setSession:    (data: JoinEventResponse) => Promise<void>;
-  clearSession:  () => Promise<void>;
-  upsertScore:   (score: PendingScore) => Promise<void>;
-  syncScores:    () => Promise<BatchSyncResponse | null>;
+  session:            JoinEventResponse | null;
+  deviceId:           string;
+  loading:            boolean;
+  pendingScores:      PendingScore[];
+  syncStatus:         'idle' | 'syncing' | 'error' | 'synced';
+  networkTier:        NetworkTier;
+  setSession:         (data: JoinEventResponse) => Promise<void>;
+  clearSession:       () => Promise<void>;
+  upsertScore:        (score: PendingScore) => Promise<void>;
+  syncScores:         () => Promise<BatchSyncResponse | null>;
+  updateEventStatus:  (status: string) => void;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -110,6 +111,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [session, pendingScores]);
 
+  const updateEventStatus = useCallback((status: string) => {
+    setSessionState(prev => prev ? { ...prev, event: { ...prev.event, status } } : null);
+  }, []);
+
   const syncScores = useCallback(async (): Promise<BatchSyncResponse | null> => {
     if (!session) return null;
     setSyncStatus('syncing');
@@ -129,7 +134,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   return (
     <SessionContext.Provider value={{
       session, deviceId, loading, pendingScores, syncStatus, networkTier,
-      setSession, clearSession: clear, upsertScore, syncScores,
+      setSession, clearSession: clear, upsertScore, syncScores, updateEventStatus,
     }}>
       {children}
     </SessionContext.Provider>

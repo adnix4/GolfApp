@@ -117,7 +117,12 @@ export default function ScorecardScreen() {
 
   const playerShots: Record<string, number> = currentScore?.playerShots ?? {};
 
+  // Scoring input is only active during a live round (Scoring) or test mode (Draft).
+  const scoringEnabled =
+    session.event.status === 'Scoring' || session.event.status === 'Draft';
+
   function handleScoreChange(grossScore: number) {
+    if (!scoringEnabled) return;
     upsertScore({
       holeNumber:        currentHoleNumber,
       grossScore,
@@ -128,6 +133,7 @@ export default function ScorecardScreen() {
   }
 
   function changePutts(delta: number) {
+    if (!scoringEnabled) return;
     const curr = currentScore?.putts ?? 0;
     const next = Math.max(0, Math.min(10, curr + delta));
     upsertScore({
@@ -140,6 +146,7 @@ export default function ScorecardScreen() {
   }
 
   function changePlayerShots(playerId: string, delta: number) {
+    if (!scoringEnabled) return;
     const curr = playerShots[playerId] ?? 0;
     const next = Math.max(0, curr + delta);
     const updated = { ...playerShots };
@@ -215,6 +222,15 @@ export default function ScorecardScreen() {
             {hole.yardageWhite != null && <HoleInfoChip label="White" value={`${hole.yardageWhite}y`} />}
             {hole.yardageBlue  != null && <HoleInfoChip label="Blue"  value={`${hole.yardageBlue}y`} />}
             {hole.yardageRed   != null && <HoleInfoChip label="Red"   value={`${hole.yardageRed}y`} />}
+          </View>
+        )}
+
+        {/* ── READ-ONLY NOTICE ── */}
+        {!scoringEnabled && (
+          <View style={[styles.readOnlyNotice, { backgroundColor: theme.colors.surface, borderColor: theme.colors.accent + '55' }]}>
+            <Text style={[styles.readOnlyText, { color: theme.colors.accent }]}>
+              Scorecard is read-only — scoring opens when the organizer starts the round
+            </Text>
           </View>
         )}
 
@@ -378,6 +394,12 @@ const styles = StyleSheet.create({
   page:   { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { padding: 16, paddingBottom: 32 },
+
+  readOnlyNotice: {
+    borderWidth: 1, borderRadius: 10,
+    padding: 12, marginBottom: 12, alignItems: 'center',
+  },
+  readOnlyText: { fontSize: 13, textAlign: 'center', lineHeight: 18 },
 
   header: {
     paddingTop:    Platform.OS === 'android' ? 12 : 0,

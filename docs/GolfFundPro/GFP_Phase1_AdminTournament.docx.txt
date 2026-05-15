@@ -1,0 +1,327 @@
+﻿Golf Fundraiser Pro  ·  Phase 1: Admin-Run TournamentImplementation Design
+
+
+①
+GOLF FUNDRAISER PRO
+Phase 1
+Admin-Run Tournament
+
+
+Registration · Check-In · Score Entry · Leaderboard · Emails · Landing Page
+Golf Scramble Made Easy  ·  Implementation Design Series  ·  v1.0
+
+
+________________
+
+
+1. Phase 1 Goal & Scope
+Phase 1 delivers a complete tournament management system the organizer can use at a real event. Golfers register online and check in via QR code. The organizer enters scores manually from a tablet. There is no mobile scoring app yet — that is Phase 2. An admin-only leaderboard shows standings. A branded public landing page accepts registrations and donations.
+
+
+Deliverable:  An organizer can run the CLHS 4th Annual Golf & Give end-to-end using Phase 1 alone. Every subsequent phase adds capability without replacing any Phase 1 work.
+
+
+Timeline
+	8–10 weeks (2-week infra sprint + 8-week feature sprint)
+	New Apps
+	apps/admin (Expo Router web), apps/web (Next.js), apps/api (ASP.NET)
+	New Packages
+	packages/ui, packages/shared-types, packages/theme
+	Database
+	Full schema created (see Foundation §4). All future-phase tables exist as empty.
+	Mobile App
+	NOT in Phase 1. Admin scores from tablet via admin web app.
+	Public Leaderboard
+	Admin-only in Phase 1. Public launch in Phase 2.
+	
+
+2. Sprint 1–2: Infrastructure (2 Weeks)
+2.1  Monorepo Bootstrap
+* npx create-turbo@latest golf-fundraiser-pro — select npm workspaces
+* Create apps/api (dotnet new webapi), apps/admin (npx create-expo-app --template tabs), apps/web (npx create-next-app)
+* Create packages/ui, packages/shared-types, packages/theme with package.json and tsconfig.json
+* Configure turbo.json pipeline: build depends on ^build; lint and type-check run in parallel
+* Add .github/workflows/ci.yml — runs turbo lint, type-check, test on every PR
+
+
+2.2  Database Setup
+* Add Docker Compose (see Foundation §8) and confirm postgis/postgis:16-3.4 starts
+* Install EF Core: dotnet add package Microsoft.EntityFrameworkCore.Design Npgsql.EntityFrameworkCore.PostgreSQL NetTopologySuite
+* Create ApplicationDbContext with all entities (full schema — Foundation §4)
+* dotnet ef migrations add Phase1_InitialSchema
+* Run: CREATE EXTENSION IF NOT EXISTS postgis; in migration's Up() raw SQL
+* Seed: Eco Green default theme, one demo organization, one demo event
+
+
+2.3  API Project Structure
+
+apps/api/
+ Program.cs              # Minimal hosting, service registration
+ appsettings.json        # DB, JWT, SendGrid, Stripe (empty Phase 1)
+ Data/
+   ApplicationDbContext.cs
+   Migrations/
+ Features/               # Vertical slice per feature area
+   Auth/
+   Events/
+   Teams/
+   Players/
+   Scores/
+   Sponsors/
+   Emails/
+   QR/
+ Common/
+   Middleware/            # Exception handler, JWT validation    Extensions/            # IServiceCollection, IApplicationBuilder
+
+
+3. Organization & Event Setup
+3.1  Organization Management
+* POST /api/v1/auth/register — creates user + organization in one call. Returns JWT pair.
+* GET/PATCH /api/v1/orgs/{id} — org name, slug, logo upload, mission statement, is_501c3, theme tokens
+* Logo upload: POST /api/v1/orgs/{id}/logo — multipart/form-data. API resizes to 200px height, stores on CDN, returns URL.
+* Theme save: validateContrast(primary, surface) from packages/theme runs server-side before saving. Returns 422 if contrast < 4.5:1.
+
+
+3.2  Event Creation
+* POST /api/v1/events — creates event under org. Returns event_code (8-char random alphanumeric).
+* Format: scramble | stroke | stableford | best_ball
+* Start type: shotgun (all teams start simultaneously on different holes) | tee_times (sequential)
+* Holes: 9 or 18. All downstream calculations adapt.
+* Shotgun setup: POST /api/v1/events/{id}/shotgun-assignments — auto-assigns teams to holes, validates no duplicates.
+* Tee time setup: POST /api/v1/events/{id}/tee-times — start time + interval in minutes. Returns full schedule.
+* Course setup: POST /api/v1/events/{id}/course — attach course record, set par and handicap_index per hole.
+
+
+3.3  Hole Challenge Configuration
+* POST /api/v1/events/{id}/challenges — create challenge: type, hole_number (null = all-day challenge), description, prize, sponsor_id
+* PATCH /api/v1/challenges/{id}/result — admin enters result manually (distance in yards, player name). Phase 6 upgrades to GPS measurement.
+
+
+4. Three-Mode Registration System
+All three registration modes are built and enabled in Phase 1. Each mode can be independently toggled per event via events.config.
+
+
+4.1  Mode 1 — Full Team Registration
+* POST /api/v1/events/{id}/register/team — captain provides team name, all player details, and entry fee method
+* Invite links (optional): POST /api/v1/teams/{id}/invite — generates a signed invite_token (HMAC, 48hr expiry). Sends email with registration link.
+* Teammate self-registers via /e/{orgSlug}/{eventCode}/join?token={invite_token}
+* Slot tracking: teams.max_players (default 4). When all slots filled, team.is_complete flips to true automatically.
+
+
+4.2  Mode 2 — Join an Existing Team
+* GET /api/v1/events/{id}/teams?q={search} — fuzzy name search returns open teams with available slots
+* POST /api/v1/events/{id}/register/join — { team_id, player details }. Validates slot availability with optimistic lock.
+* Captain receives email notification when a new player joins their team.
+
+
+4.3  Mode 3 — Free Agent Pool
+* POST /api/v1/events/{id}/register/free-agent — player details + preferences: skill_level (beginner|intermediate|advanced|competitive), age_group (under30|30to50|over50), gender, pairing_note
+* GET /api/v1/events/{id}/free-agents — admin view: all unassigned players with preference cards
+* POST /api/v1/events/{id}/free-agents/assign — { player_id, team_id }. Admin drag-and-drop. Triggers team assignment email.
+* POST /api/v1/events/{id}/free-agents/auto-pair — handicap snake draft algorithm. Returns proposed pairings for admin review before committing.
+* Auto-pair algorithm: sort free agents by handicap, snake-draft into groups of max_players. Soft preference matching (same age group) applied as tiebreaker.
+
+
+5. Admin Dashboard (Expo Router Web)
+The admin dashboard is a web app built with Expo Router. It shares ScoreCard, TeamCard, and other components from packages/ui with the Phase 2 mobile app. Organizers access it from any browser on a tablet, laptop, or phone.
+
+
+5.1  Dashboard Screens — Phase 1
+* Event Hub (/admin/events/{id}) — Central screen: quick stats (teams checked in, scores complete, $ raised), nav to all panels below
+* Registration Panel — Tabs: Complete Teams | Partial Teams | Free Agents | Pending Invites. Each team card shows players, payment status, and check-in status.
+* Free Agent Board — Kanban-style: Unassigned pool on left, team cards on right. Drag-and-drop assignment. Auto-pair button with preview modal.
+* Check-In Screen — Full-screen QR scanner (device camera) or name search. Individual and team check-in. Live counter widget.
+* Score Entry — Select team → enter hole-by-hole gross scores. Running to-par displayed. Save auto-triggers leaderboard recalculation.
+* Leaderboard (Admin) — Sortable standings table: rank, team, to-par, gross, thru. Not publicly accessible in Phase 1.
+* Hole Challenges — Manual result entry per challenge. Closest-to-pin: enter distance. Longest drive: enter distance. Puts result on challenge leaderboard.
+* Sponsors Panel — Upload logos, set tier and placements. Preview how sponsor appears on landing page and (in Phase 2) leaderboard.
+* Fundraising Panel — Entry fees collected vs. expected. Donation log. Grand total counter.
+* Print Kit — Button: Generate QR Kit PDF. Button: Generate Paper Scorecards PDF (one per team, pre-filled with hole, par, handicap_index).
+
+
+6. QR Check-In
+* Every registered player receives a unique QR code in their confirmation email. The QR encodes a signed token: { type: player_checkin, player_id, event_id, signature }
+* Admin check-in screen: camera streams to QR decoder. On successful scan, PATCH /api/v1/players/{id}/checkin called. Player card flips to checked-in state with timestamp.
+* Team check-in shortcut: if all players in a team are checked in, team.check_in_status flips to complete automatically.
+* Walk-up registration: from check-in screen, admin taps 'Add Walk-Up'. Abbreviated form (name, email, team assignment). Generates and displays QR on screen for player to screenshot.
+* Live counter component subscribes to check-in events (polling in Phase 1; SignalR in Phase 3). Shows 'X of N teams checked in'.
+
+
+7. Automated Emails
+SendGrid is configured in Phase 1. All email templates live in the email_templates table, are org-branded, and are sent by the Email feature in apps/api.
+
+
+Trigger
+	Recipient
+	Content
+	Registration confirmation
+	All players on team
+	Event details, team name, unique QR check-in code, entry fee receipt, event date/location
+	Invite link
+	Invited teammate
+	Captain's name, team name, registration link with token, deadline
+	Team assignment
+	Free agent
+	Team name, captain name, starting hole or tee time, teammate roster
+	Event reminder
+	All checked-in players
+	24 hours before: tee time, starting hole, course address link, weather check suggestion
+	Thank-you
+	All players
+	Final score, leaderboard position, total funds raised, sponsor acknowledgments, donation CTA
+	Donation receipt
+	Donor
+	Amount, event name, org name, 501c3 note if is_501c3=true, tax year
+	
+
+Email Timing:  Confirmation sends immediately on registration. Reminder sends via a scheduled job at event.start_at - 24 hours. Thank-you sends when admin marks event status = completed. Use Hangfire (background jobs library for .NET) for scheduled sends.
+
+
+8. Public Landing Page (Next.js)
+* Route: /e/{orgSlug}/{eventCode} — SSR rendered. Available in Phase 1 as a registration page. Leaderboard link appears in Phase 2.
+* Above fold: org logo, event name, date, course name. Org theme colors applied via CSS custom properties.
+* Registration CTAs: three buttons — Register a Team, Join a Team, I Need a Team. Each links to the relevant registration form.
+* Donation widget: DonationForm component with amount presets and custom amount. POST /api/v1/events/{id}/donations. Thermometer bar shows progress toward goal.
+* Sponsor showcase: logos displayed in tier order (Title → Gold → Hole → Silver → Bronze).
+* Remaining slots counter: 'X team spots remaining' updated server-side on each page load (ISR, 60-second revalidate).
+* JSON-LD Event structured data in <head> for Google Search rich results.
+* Open Graph meta tags: event name, date, org logo — for social media sharing.
+* 'Leaderboard Coming Soon' placeholder shown in Phase 1. Replaced with live leaderboard link in Phase 2.
+
+
+9. Phase 1 API Endpoints
+Method
+	Endpoint
+	Description
+	POST
+	/auth/register
+	Create organizer account + organization. Returns JWT pair.
+	POST
+	/auth/login
+	Validate credentials. Returns JWT pair.
+	POST
+	/auth/refresh
+	Exchange refresh token. Returns new JWT pair.
+	GET
+	/orgs/{id}
+	Get org details including theme and branding
+	PATCH
+	/orgs/{id}
+	Update org name, mission, theme, 501c3 flag
+	POST
+	/orgs/{id}/logo
+	Upload org logo (multipart). Returns CDN URL.
+	POST
+	/events
+	Create event under org. Returns event with generated event_code.
+	GET
+	/events/{id}
+	Full event config including course, holes, challenges
+	PATCH
+	/events/{id}
+	Update event settings, format, status
+	POST
+	/events/{id}/shotgun-assignments
+	Auto-assign teams to holes for shotgun start
+	POST
+	/events/{id}/tee-times
+	Generate tee time schedule from start time + interval
+	POST
+	/events/{id}/course
+	Attach course, set par and handicap_index per hole
+	POST
+	/events/{id}/register/team
+	Mode 1: full team registration
+	POST
+	/events/{id}/register/join
+	Mode 2: individual joins existing team
+	POST
+	/events/{id}/register/free-agent
+	Mode 3: solo player enters free agent pool
+	GET
+	/events/{id}/free-agents
+	Admin: list unassigned free agents with preferences
+	POST
+	/events/{id}/free-agents/assign
+	Admin: assign free agent to team. Triggers email.
+	POST
+	/events/{id}/free-agents/auto-pair
+	Admin: run handicap snake draft. Returns proposed pairings.
+	POST
+	/teams/{id}/invite
+	Generate signed invite token. Sends invite email.
+	PATCH
+	/players/{id}/checkin
+	Mark player as checked in. Updates team status.
+	PATCH
+	/scores/{teamId}/{holeNumber}
+	Admin score entry. Triggers leaderboard recalculation.
+	GET
+	/events/{id}/leaderboard
+	Admin-only standings (auth required in Phase 1)
+	CRUD
+	/events/{id}/sponsors
+	Sponsor management: logo, tier, placements
+	CRUD
+	/events/{id}/challenges
+	Hole challenge setup
+	PATCH
+	/challenges/{id}/result
+	Admin enters challenge result manually
+	GET
+	/events/{id}/fundraising
+	Totals: fees collected, donations, grand total
+	POST
+	/events/{id}/donations
+	Record a donation (manual or form submit)
+	GET
+	/events/{id}/qr/kit
+	Generate QR print kit (all event QR codes as ZIP)
+	GET
+	/events/{id}/scorecards/pdf
+	Paper backup scorecards PDF for all teams
+	GET
+	/pub/events/{eventCode}
+	Public: landing page data (no auth required)
+	
+
+10. What Phase 1 Deliberately Excludes
+Not a gap:  These are intentional deferrals. The database schema, API structure, and component library are designed for all of them. They're enabled in later phases, not retrofitted.
+
+
+Excluded Feature
+	Added In
+	Why Deferred
+	Mobile scoring app (iOS/Android)
+	Phase 2
+	Admin scores manually. No mobile app yet.
+	Public leaderboard
+	Phase 2
+	Admin-only leaderboard ships Phase 1. Public launches with mobile app.
+	Offline scoring (SQLite)
+	Phase 2
+	No mobile app means no offline device.
+	QR scorecard transfer
+	Phase 2
+	Requires the mobile app.
+	Live SignalR updates
+	Phase 3
+	Admin dashboard uses polling in Phase 1. <2s push waits for Phase 3.
+	Email ad builder
+	Phase 3
+	Transactional emails ship Phase 1. Ad builder is a Phase 3 feature.
+	Stripe payments
+	Phase 4
+	Manual payment tracking in Phase 1. Online payment processing in Phase 4.
+	Auction (all formats)
+	Phase 4
+	Requires Stripe card-on-file.
+	League / handicap engine
+	Phase 5
+	Season tables exist in DB, populated Phase 5.
+	GPS / Mapbox
+	Phase 6
+	cup_location column exists, is null until Phase 6.
+	
+
+Golf Fundraiser Pro — ConfidentialPage

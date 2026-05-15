@@ -218,6 +218,32 @@ export default function JoinScreen() {
                 : <Text style={styles.joinBtnText}>Join Event</Text>}
             </Pressable>
           </View>
+
+          {selected?.status === 'Registration' && (
+            <View style={styles.registerSection}>
+              <View style={styles.orDivider}>
+                <View style={[styles.orLine, { backgroundColor: theme.colors.accent + '55' }]} />
+                <Text style={[styles.orText, { color: theme.colors.accent }]}>or</Text>
+                <View style={[styles.orLine, { backgroundColor: theme.colors.accent + '55' }]} />
+              </View>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.registerBtn,
+                  { borderColor: theme.colors.primary, opacity: pressed ? 0.7 : 1 },
+                ]}
+                onPress={() => router.push({
+                  pathname: '/(auth)/register',
+                  params: { eventId: selected.id, eventName: selected.name },
+                })}
+                accessibilityRole="button"
+                accessibilityLabel="Register for this event"
+              >
+                <Text style={[styles.registerBtnText, { color: theme.colors.primary }]}>
+                  Not registered yet? Sign up →
+                </Text>
+              </Pressable>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     );
@@ -432,4 +458,14 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3, borderLeftColor: '#e74c3c',
   },
   errorText: { color: '#c0392b', fontSize: 14 },
+
+  registerSection: { marginTop: 4 },
+  orDivider: { flexDirection: 'row', alignItems: 'center', marginVertical: 16, gap: 10 },
+  orLine:    { flex: 1, height: 1 },
+  orText:    { fontSize: 13, fontWeight: '500' },
+  registerBtn: {
+    borderWidth: 1.5, borderRadius: 12,
+    paddingVertical: 14, alignItems: 'center',
+  },
+  registerBtnText: { fontSize: 15, fontWeight: '600' },
 });

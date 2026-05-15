@@ -121,7 +121,8 @@
       "Bash(netstat -ano)",
       "Bash(kill 21252)",
       "Bash(echo \"Started PID $!\")",
-      "Bash(echo \"PID $!\")"
+      "Bash(echo \"PID $!\")",
+      "Bash(Select-Object Name)"
     ]
   }
 }

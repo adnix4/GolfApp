@@ -133,6 +133,13 @@ export async function fetchLeaderboard(eventCode: string): Promise<PublicLeaderb
   return res.json();
 }
 
+export async function fetchEventStatus(eventCode: string): Promise<string> {
+  const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}`);
+  if (!res.ok) throw new Error(`Status check failed (${res.status})`);
+  const data = await res.json();
+  return data.status as string;
+}
+
 // Returns true if the API server is reachable within 5 s.
 export async function checkConnectivity(): Promise<boolean> {
   return Promise.race<boolean>([
@@ -335,6 +342,52 @@ export async function fetchMemberSeasonSummary(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? `Summary fetch failed (${res.status})`);
+  }
+  return res.json();
+}
+
+// ── REGISTRATION ─────────────────────────────────────────────────────────────
+
+export interface PlayerInput {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  handicapIndex?: number;
+}
+
+export interface RegistrationConfirmResponse {
+  team: {
+    id: string;
+    name: string;
+    captainPlayerId: string | null;
+    maxPlayers: number;
+    inviteToken: string | null;
+    inviteExpiresAt: string | null;
+  };
+  player: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    registrationType: string;
+  };
+  inviteLink: string | null;
+}
+
+export async function registerTeam(
+  eventId: string,
+  teamName: string,
+  players: PlayerInput[],
+): Promise<RegistrationConfirmResponse> {
+  const res = await fetch(`${BASE}/api/v1/events/${eventId}/register/team`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ teamName, players }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `Registration failed (${res.status})`);
   }
   return res.json();
 }

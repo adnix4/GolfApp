@@ -1,0 +1,159 @@
+﻿Golf Fundraiser Pro  ·  Phase 6: GPS & MappingImplementation Design
+
+
+⑥
+GOLF FUNDRAISER PRO
+Phase 6
+GPS & Mapping
+
+
+Distance to Pin · Elevation · Mapbox Satellite · Offline Tiles · Drive Tracking
+Golf Scramble Made Easy  ·  Implementation Design Series  ·  v1.0
+
+
+________________
+
+
+1. Phase 6 Goal & Scope
+Phase 6 adds GPS-based distance to pin, elevation change display, and Mapbox satellite hole view to the mobile scoring app. It also enables GPS-based drive distance tracking for longest drive contests. Phase 6 is kept separate because it introduces genuinely different technical requirements: PostGIS spatial queries, Mapbox GL integration, DEM terrain elevation APIs, and on-course device GPS behavior.
+
+
+Timeline
+	6–8 weeks
+	New Libraries
+	@rnmapbox/maps (mobile), mapbox-gl-js (web), @turf/turf (client-side geospatial)
+	New Infra
+	Mapbox account (free tier: 50k loads/month). DEM elevation API (Open-Elevation or Mapbox Terrain API).
+	DB Changes
+	Populate cup_location and cup_elevation_m columns (exist since Phase 1, null until now). Add course_rating and slope_rating to course_holes.
+	Prerequisite
+	Phase 2 complete. Mobile app and offline SQLite architecture in place.
+	
+
+League Value:  GPS is especially valuable for league play (Phase 5). League members return to the same course every week — once the course is set up, tiles are cached on device and GPS distances are available at zero cost for every subsequent round on that course.
+
+
+2. Cup Location Setup
+2.1  Admin Course Setup Tool
+* New screen in mobile app: Course Setup (admin role only). Lists all 18 holes.
+* Admin taps a hole → 'Set Pin Location' button. App takes current GPS reading.
+* Device GPS averages 5 readings over 5 seconds to reduce error. Shows uncertainty radius (± N meters).
+* Admin confirms. PATCH /api/v1/courses/{id}/holes/{holeNumber}/cup → saves to course_holes.cup_location.
+* DEM elevation fetched server-side after save: GET https://api.opentopodata.org/v1/srtm30m?locations={lat},{lng}. Saved to cup_elevation_m.
+* One-time setup per course. Admin can update pin position day-of (pin moved for the round).
+* PostGIS index: CREATE INDEX ON course_holes USING GIST (cup_location) — already in Phase 1 migration, now matters.
+
+
+3. Distance to Pin
+3.1  Offline-First Calculation
+* Cup coordinates downloaded to SQLite at event/round join as part of event_cache. < 5 KB for all 18 holes.
+* Online mode: GET /api/v1/holes/{id}/distance?lat={lat}&lng={lng} → server uses ST_Distance(cup_location, ST_SetSRID(ST_MakePoint(lng,lat),4326)) in meters, converted to yards.
+* Offline mode (primary): client-side Haversine formula. < 1ms. No network required.
+
+// Haversine in TypeScript (packages/ui/utils/geo.ts)
+export function distanceYards(lat1: number, lng1: number,
+                             lat2: number, lng2: number): number {
+ const R = 6371000; // Earth radius in meters
+ const dLat = toRad(lat2 - lat1);
+ const dLng = toRad(lng2 - lng1);
+ const a = Math.sin(dLat/2)**2
+         + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2))
+         * Math.sin(dLng/2)**2;
+ const meters = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+ return meters * 1.09361; // meters to yards}
+
+
+3.2  Elevation Change
+* Player elevation: fetched from DEM API at player's current GPS coordinates. Cached for 60 seconds (player doesn't move that fast).
+* Elevation change = cup_elevation_m − player_elevation_m. Positive = uphill, negative = downhill.
+* Display: '+12 ft uphill' or '−8 ft downhill' below the yardage number.
+Never use device GPS altitude:  Device barometric/GPS altitude has ±10–30 ft accuracy — useless for golf elevation. Always use DEM terrain data fetched from a tile server or API.
+
+
+3.3  GPS Polling
+* expo-location watchPositionAsync: accuracy = HIGH, timeInterval = 15000 (15 seconds), distanceInterval = 5 (5 meters).
+* Polling paused automatically when score entry modal is open (saves battery, player isn't moving).
+* Polling paused when app goes to background.
+* Uncertainty indicator: if GPS accuracy > 10 meters, show ± ring around player dot on map.
+
+
+4. Mapbox Satellite Hole View
+4.1  Map Setup
+
+// apps/mobile/screens/HoleMap.tsx
+import MapboxGL from '@rnmapbox/maps';
+
+// Initialize with public token (safe to expose)
+MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN);
+
+// Satellite tile layer
+<MapboxGL.MapView styleURL={MapboxGL.StyleURL.Satellite}>
+ <MapboxGL.Camera
+   centerCoordinate={[cupLng, cupLat]}
+   zoomLevel={17}
+   heading={courseOfTravelBearing}  // auto-rotate to face play direction
+ />
+ <CupMarker coordinate={[cupLng, cupLat]} />
+ <PlayerDot coordinate={[playerLng, playerLat]} accuracy={gpsAccuracy} />
+ <DistanceLine from={[playerLng, playerLat]} to={[cupLng, cupLat]} />
+ <YardageRings center={[cupLng, cupLat]} radii={[91, 137, 183]} /> {/* 100/150/200 yds */}</MapboxGL.MapView>
+
+
+4.2  Offline Tile Cache
+* Before round starts: mandatory pre-flight item — 'Course map downloaded'
+* MapboxGL.offlineManager.createPack({ name: courseId, styleURL: Satellite, bounds: courseBounds, minZoom: 14, maxZoom: 18 })
+* courseBounds: bounding box of all 18 holes' cup locations + 500m padding. Calculated from cup_location data in event_cache.
+* Estimated download size: ~150–250 MB for an 18-hole course at zoom 14–18. Download on WiFi before leaving for course.
+* Pack stored in device filesystem. Persists across app restarts. Re-download only if cup locations change.
+
+
+5. GPS Drive Distance Tracking
+* 'Mark Drive' button appears on hole screen after tee shot is expected (hole 1 tee, etc.).
+* Scorekeeper taps 'Mark Drive' when team selects a drive. GPS coordinates recorded and stored in pending_scores as drive_location.
+* Scorekeeper taps 'Mark Ball' on arrival at ball. GPS coordinates stored as ball_location.
+* Distance calculated: distanceYards(driveLat, driveLng, ballLat, ballLng). Displayed with ± disclaimer.
+* Manual entry always available: if GPS is unreliable (wooded hole), scorekeeper enters drive distance in yards via text input.
+* Per-hole config: wooded_hole flag in course setup disables GPS drive distance for that hole and defaults to manual.
+* Challenge leaderboard: longest drive_location-to-ball_location distance per hole surfaced in hole challenge tab.
+
+
+6. Phase 6 API Endpoints
+Method
+	Endpoint
+	Description
+	PATCH
+	/courses/{id}/holes/{n}/cup
+	Save cup GPS coordinates and trigger DEM elevation fetch.
+	GET
+	/holes/{id}/distance
+	Server-side distance calculation. ?lat=&lng=. Returns yards + elevation change.
+	GET
+	/events/{id}/course-cache
+	Download full course GPS data for SQLite: all cup locations, hole metadata, course bounds for tile download.
+	PATCH
+	/scores/{teamId}/{holeNumber}/drive
+	Save drive_location and ball_location from GPS. Returns calculated drive distance.
+	
+
+7. Accuracy Guidance for Organizers
+Condition
+	Expected Accuracy
+	Recommendation
+	Open fairway
+	3–5 meters
+	Display distance. Reliable for yardage guidance.
+	Light tree cover
+	5–10 meters
+	Display with ± indicator. Acceptable for guidance.
+	Dense tree canopy
+	10–30 meters
+	Show uncertainty ring. Warn golfer. Disable GPS drive distance.
+	Elevation (device)
+	±10–30 ft
+	Never use device GPS altitude. Use DEM terrain API.
+	Cup setup accuracy
+	3–5 meters
+	Walk within 1 meter of cup for setup. Average 5 readings.
+	
+
+Golf Fundraiser Pro — ConfidentialPage

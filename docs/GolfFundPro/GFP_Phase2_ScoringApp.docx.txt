@@ -1,0 +1,199 @@
+﻿Golf Fundraiser Pro  ·  Phase 2: Golfer Scoring App + QR TransferImplementation Design
+
+
+②
+GOLF FUNDRAISER PRO
+Phase 2
+Golfer Scoring App + QR Transfer
+
+
+Expo Mobile App · Offline SQLite · QR Scorecard · Public Leaderboard
+Golf Scramble Made Easy  ·  Implementation Design Series  ·  v1.0
+
+
+________________
+
+
+1. Phase 2 Goal & Scope
+Phase 2 gives golfers their own iOS and Android scoring app. Score entry moves from the organizer's tablet to each team's phone. The public leaderboard goes live on the web. QR Scorecard Transfer allows zero-internet score collection at round end. All Phase 1 admin capabilities remain and are enhanced.
+
+
+Timeline
+	8–10 weeks
+	New App
+	apps/mobile (Expo SDK 55)
+	Updated Apps
+	apps/web (Next.js public leaderboard), apps/api (new endpoints)
+	Key Libraries
+	expo-sqlite v14, expo-camera, expo-background-task, @react-navigation/native
+	Prerequisite
+	Phase 1 complete. All API endpoints from Phase 1 are used by the mobile app.
+	
+
+2. Expo Mobile App Setup
+2.1  Project Bootstrap
+
+cd apps/mobile
+npx create-expo-app --template tabs
+# In app.json:
+# "newArchEnabled": true   ← mandatory
+# "plugins": ["expo-sqlite", "expo-camera", "expo-secure-store",#              "expo-background-fetch", "expo-notifications"]
+
+
+2.2  App Screen Structure
+
+app/
+ (auth)/
+   join.tsx          # Scan event QR or enter event code manually
+ (scoring)/
+   _layout.tsx       # Tab navigator: Scorecard | Leaderboard | Team
+   scorecard.tsx     # Hole-by-hole score entry
+   leaderboard.tsx   # Live standings (polls /leaderboard/public)
+   team.tsx          # Team card: roster, tee time, hole assignment
+ (round-end)/
+   sync.tsx          # Aggressive sync screen at round end    qr-transfer.tsx   # Generate QR for admin scan
+
+
+3. Score Entry UI
+3.1  Scorecard Screen
+* Hole navigator: swipe left/right or tap hole number. Current hole large and centered.
+* Gross score entry: two large ± buttons (minimum 56pt touch targets — golf glove requirement). Score displayed as large centered number.
+* To-par running total: displayed at top at all times. E.g. '-3 thru 9'. Updates instantly on each score change.
+* Player shot tracking (optional): below the gross score, a row of player avatar buttons. Scorekeeper taps which player's drive was used each hole. Stored in scores.player_shots JSONB.
+* Additional fields (collapsible): putts count. Shown/hidden per event config.
+* Previous hole edit: swipe right from hole 1 brings back the last entry. Tap any hole number in the hole bar to jump.
+* Hole sponsor: if the hole has a sponsor, show sponsor logo at top of hole screen with name. Guaranteed impression.
+
+
+3.2  Score Submission Flow
+1. Scorekeeper changes gross score for hole N.
+2. Score immediately written to SQLite pending_scores table (< 1ms, never fails).
+3. Background sync task picks it up and POSTs to PATCH /api/v1/scores/{teamId}/{holeNumber}.
+4. On success: record marked synced_at in SQLite. On failure: retry with exponential backoff.
+5. API recalculates leaderboard standings. Public leaderboard reflects change on next poll (Phase 2) or immediately via SignalR push (Phase 3).
+
+
+4. Offline-First Architecture
+4.1  SQLite Schema (expo-sqlite v14, WAL mode)
+
+-- Event cache (downloaded at join, never changes during round)
+CREATE TABLE event_cache (key TEXT PRIMARY KEY, value TEXT);
+-- Stores: event config, course pars, hole handicap_index, team roster, cup_location (Phase 6)
+
+-- Pending scores (written immediately, synced when connected)
+CREATE TABLE pending_scores (
+ id TEXT PRIMARY KEY,
+ team_id TEXT NOT NULL,
+ hole_number INTEGER NOT NULL,
+ gross_score INTEGER NOT NULL,
+ putts INTEGER,
+ player_shots TEXT,  -- JSON
+ created_at TEXT NOT NULL,
+ synced_at TEXT,     -- NULL = not yet synced
+ sync_attempts INTEGER DEFAULT 0
+);
+
+-- Leaderboard cache (refreshed on successful sync)CREATE TABLE leaderboard_cache (key TEXT PRIMARY KEY, value TEXT, cached_at TEXT);
+
+
+4.2  Connectivity Tier Detection
+* Full (LTE/5G WiFi): sync immediately on score write. Real-time leaderboard polling active.
+* Degraded (3G): sync on write, but accept higher latency. Leaderboard polling interval extended to 60s.
+* Offline: scores queue in SQLite. Leaderboard shows cached data with 'Last updated X min ago' banner.
+* Intermittent: aggressive retry — background task runs every 30s. On reconnect, drains the full pending_scores queue.
+
+
+4.3  Pre-Flight Checklist
+Before the round starts, the app displays a pre-flight checklist that must be completed. The scorecard is locked until all items are green.
+* ✓ Event joined and event_cache populated
+* ✓ Team roster confirmed (all players visible on team screen)
+* ✓ Tee time / starting hole confirmed
+* ✓ Network connectivity check passed OR 'Start in Offline Mode' explicitly confirmed
+* ✓ Battery level > 30% (warning only, not blocking)
+
+
+5. QR Scorecard Transfer
+At round end, if internet sync is incomplete, the admin opens a QR collection screen and each team's scorekeeper generates a QR code from their phone. Admin scans each team in sequence. No internet required for either device during the transfer.
+
+
+5.1  Scorekeeper Side
+* Scorekeeper taps 'Round Complete' → 'Generate Scorecard QR'
+* App compresses 18-hole scorecard to JSON, signs with HMAC-SHA256 (key = event_code + team_id), Base64-encodes, renders as QR code
+* Standard 18-hole payload ~900 bytes — fits single QR at error correction level M (≤ 1,273 bytes)
+* If payload > 1,273 bytes: app auto-splits into Part 1 of 2 and Part 2 of 2 QR codes
+* Screen brightness maximized automatically. QR stays on screen until admin confirms receipt.
+
+
+5.2  QR Payload Structure
+
+{
+ "v": 1,                    // schema version
+ "ec": "GLFGIVE4",          // event_code
+ "tid": "team-uuid",        // team_id
+ "tn": "Team Birdie",       // team_name
+ "did": "device-uuid",      // scorekeeper device ID
+ "ts": 1710000000,          // Unix timestamp of generation
+ "sig": "abc123...",        // HMAC-SHA256 signature
+ "scores": [                // 18 elements, null if hole not played
+   { "h": 1, "g": 5, "p": 2 },
+   { "h": 2, "g": 4, "p": 1 },
+   ...
+ ]}
+
+
+5.3  Admin Collection Side
+* Admin opens 'Collect QR Scores' on their device (tablet/phone). Camera activates.
+* Camera stays open continuously — chime on each successful scan. Running counter: 'Collected: 18 of 25 teams'.
+* POST /api/v1/events/{id}/scores/qr-collect — validates HMAC signature, imports scores, marks source = qr_transfer.
+* Tampered payload (invalid signature): rejected with error toast. Admin manually enters scores for that team.
+* Admin dashboard shows 'Pending Sync' counter. Blocks final leaderboard publish until all teams confirmed or explicitly waived.
+
+
+6. Public Leaderboard (Next.js)
+* Route: /e/{orgSlug}/{eventCode}/scores — public, no login required. Phase 1 landing page updated with 'Watch Live Scores' button linking here.
+* SSR initial load: page renders with current standings server-side for fast first paint and search engine indexing.
+* Client-side polling: after hydration, polls GET /api/v1/pub/events/{eventCode}/leaderboard every 15 seconds. Updates standings in place without full reload.
+* Upgrade in Phase 3: polling replaced by SignalR push subscription.
+* TV mode: /e/{orgSlug}/{eventCode}/scores?tv=1 — large font, auto-scrolling, reduced UI chrome. Designed for 55"+ clubhouse displays.
+* Hole challenge tab: shows current leaders per challenge (closest to pin distance, longest drive distance). Updates on each poll.
+* Donation thermometer: total raised shown in sidebar. Updates on poll.
+* Sponsor banner: Title sponsor in header. Gold sponsors in rotating banner. Hole sponsor shown when viewing per-hole breakdown.
+
+
+7. Phase 2 New API Endpoints
+Method
+	Endpoint
+	Description
+	POST
+	/events/{id}/join
+	Golfer joins event via QR token or event_code. Returns team card + full event_cache payload for SQLite download.
+	POST
+	/sync/scores
+	Batch offline score sync. Body: array of pending_scores. Returns conflict list.
+	POST
+	/events/{id}/scores/qr-collect
+	Admin submits QR-scanned scorecard payload. Validates HMAC. Imports scores.
+	GET
+	/pub/events/{code}/leaderboard
+	Public leaderboard: standings, thru, to-par, sponsor data. No auth.
+	GET
+	/pub/events/{code}/challenges
+	Public challenge leaderboard. No auth.
+	GET
+	/pub/events/{code}/fundraising
+	Public fundraising total. No auth.
+	
+
+8. Phase 2 End-to-End Flow Summary
+6. Organizer creates event (Phase 1). Golfers register online (Phase 1).
+7. Morning of event: organizer opens admin dashboard. Checks pre-flight. Generates QR print kit and paper backups.
+8. Golfers arrive. Admin scans QR codes for check-in.
+9. Shotgun start. Each team's scorekeeper opens mobile app, scans event join QR.
+10. Pre-flight checklist runs. Scorecard unlocked when all green.
+11. Golfers play. Scorekeeper enters hole-by-hole scores. Scores sync to server when connected.
+12. Public leaderboard polls for updates every 15 seconds. Friends, family, donors watch standings from anywhere.
+13. Round ends. Admin opens 'Collect QR Scores'. Walks from team to team at 18th green. Each team generates scorecard QR. Admin scans. 25 teams collected in ~10 minutes.
+14. Admin reviews any conflicts. Confirms final standings. Marks event complete. Thank-you emails fire automatically.
+
+
+Golf Fundraiser Pro — ConfidentialPage

@@ -1,0 +1,581 @@
+﻿Golf Fundraiser Pro  ·  Pricing Strategy & Competitive Analysisv1.0  ·  April 2026
+
+
+⛳
+GOLF FUNDRAISER PRO
+Golf Scramble Made Easy
+Pricing Strategy & Competitive Analysis
+
+
+Version 1.0  ·  April 2026
+Confidential — Internal Strategy Document
+
+
+________________
+
+
+1. Executive Summary
+This document establishes the pricing model for Golf Fundraiser Pro based on competitive analysis of the existing golf tournament software market. The recommended model uses a four-tier structure — Free, Event ($249), Pro ($499), and Organization ($999/year) — with a GPS add-on and an optional nonprofit sponsorship program to drive early adoption.
+
+
+Bottom Line:  The $299/event price point is the market anchor set by GolfStatus, Event Caddy Pro, and BirdEase. Golf Fundraiser Pro enters at $249 to acknowledge early-stage positioning, with a clear path to $299–$349 as the product matures. Premium tiers are justified by the mobile-first scoring app and integrated auction — capabilities not bundled together anywhere else in this market.
+
+
+1.1  Recommended Tier Summary
+Tier
+	Price
+	Best For
+	Key Differentiator
+	Starter
+	Free
+	Test / tiny events
+	Removes barrier to entry. Competes with GolfStatus free tier and Event Caddy Free.
+	Event
+	$249 per event
+	Single annual fundraiser
+	Mobile scoring app + offline capability at $50 less than any comparable competitor.
+	Pro
+	$499 per event
+	Tournament with auction
+	Full auction suite (silent, live, donation items) + Stripe card-on-file in one platform.
+	Organization
+	$999 / year
+	2+ events/year
+	Unlimited events, all features. Cheaper than 2x Pro ($998 vs $999). Drives subscription conversion.
+	League
+	$1,499 / year
+	Season play + handicaps
+	Weekly leagues, automated handicaps, standings, flights, skins, pairing engine. Includes all Organization features.
+	GPS Add-on
+	+$99 per event
+	Courses wanting yardage
+	Distance to pin, elevation change, Mapbox satellite view. No competitor offers this at any price.
+	
+
+2. Competitive Analysis
+Four competitors were analyzed in depth: GolfStatus, Event Caddy, GolfSoftware.com, and BirdEase. All four are primarily web-based admin tools with varying degrees of mobile support — none offers a native iOS/Android scoring app with offline capability, GPS distance to pin, or a fully integrated payment+auction system in a single platform.
+
+
+2.1  GolfStatus
+Model: Free for nonprofits via Technology Sponsorship. $299/event + transaction fees without sponsorship.
+Positioning: Built specifically for nonprofit golf fundraisers. Strong brand recognition in the charity golf market. Emphasizes 'Golf for Good' mission alignment.
+Strengths: The Technology Sponsorship model is clever — nonprofits get free software in exchange for logo placement, lowering cost-of-sale dramatically. 10,000+ tournaments run on the platform gives strong social proof. Dedicated nonprofit focus means features are well-matched to the target buyer.
+Weaknesses: The 'free' offer requires giving GolfStatus prominent placement on your event site — some organizations find this off-brand. No live auction feature. Mobile scoring exists but is not a native app with offline capability. Customer reviews note the Technology Sponsorship is expensive if valued as a paid ad slot.
+Pricing Insight:  GolfStatus's free tier with Technology Sponsorship is their primary acquisition channel for nonprofits. Consider a similar 'Powered by Golf Fundraiser Pro' program for early market entry — detailed in Section 5.
+
+
+2.2  Event Caddy
+Model: Free / $299 / $999 / Enterprise per event. 2.5% fee on all auction purchases across all paid tiers.
+Positioning: Full-featured platform for charitable and corporate golf tournaments. 10,000+ tournaments since 2015. Trusted by Rotary, Big Brothers Big Sisters, United Way.
+Strengths: The free tier is genuinely functional — it includes live scoring, leaderboard, unlimited players, and online registration. The $299 Pro tier adds professional services (contact import, template setup). The Elite and Enterprise tiers target recurring high-volume customers with support and volume discounts.
+Weaknesses: The 2.5% auction fee on top of the per-event fee is a meaningful cost for high-value auction events. Mobile scoring is via mobile browser, not a native app. No offline capability documented. No GPS features. No native auction + payment card-on-file integration — auction winners are charged manually or through a separate flow.
+
+
+Auction Pricing Opportunity:  Event Caddy charges 2.5% on auction sales on top of the event fee. For a tournament that raises $20,000 in auction proceeds, that's $500 in fees on top of $299 = $799 effective cost. Golf Fundraiser Pro's Pro tier at $499 flat (no auction percentage fee) becomes cheaper for any auction event exceeding ~$8,000 in bids.
+
+
+2.3  GolfSoftware.com
+Model: $8 per golfer per year. Minimum 12 golfers. Annual subscription covering Club Manager (tournaments + handicaps) or League Manager (season-long leagues).
+Positioning: Time-tested, no-frills tool for golf clubs and leagues. Focus on handicap tracking and season scheduling rather than fundraising.
+Strengths: Extremely predictable cost model. Full money-back guarantee builds trust. Per-golfer pricing scales naturally with group size. Good for organizations running 10+ events per year where per-event fees would add up quickly.
+Weaknesses: Not purpose-built for fundraising. No auction features. No donation tracking. No sponsor tier management. No mobile scoring app. Targets golf clubs and leagues, not nonprofits running a single annual charity event.
+Segment Insight:  GolfSoftware.com is not a direct competitor for the charity golf fundraiser market. Its per-golfer annual model targets a different buyer (club administrators) with different needs (handicap tracking, season scheduling). The pricing comparison is useful context but not a direct competitive threat.
+
+
+2.4  BirdEase (Additional Competitor)
+Model: $299/event for full feature suite. $498/event with custom site-building service. No per-registrant fees, no per-transaction markup.
+Positioning: Full-featured charity golf tournament platform since 2009. Emphasizes simplicity ('no hidden fees, no limitations, no gimmicks'). Includes auction and unlimited texting.
+Strengths: Clean, transparent pricing. The $498 with setup service is a smart upsell for volunteer coordinators who want turnkey setup. Includes online auction in the base $299 tier. 'No fees' positioning is a clear differentiator against Event Caddy's 2.5% auction charge.
+Weaknesses: Web-based only — no native mobile app. Auction is a silent-auction-only system, not live auction or donation items. No offline scoring capability. No GPS features.
+
+
+
+
+
+
+
+
+2.5  Competitive Feature Comparison
+Feature
+	GolfStatus
+	Event Caddy
+	Golf Software
+	Bird Ease
+	GFP Pro
+	Online registration
+	✓
+	✓
+	✓
+	✓
+	✓
+	Branded event website
+	✓
+	✓
+	Limited
+	✓
+	✓
+	Sponsor management
+	✓
+	✓
+	—
+	✓
+	✓
+	Live mobile scoring
+	✓
+	✓
+	✓
+	✓
+	✓
+	Native iOS/Android app
+	✓
+	—
+	—
+	—
+	✓
+	Offline scoring (no internet)
+	—
+	—
+	—
+	—
+	✓
+	QR scorecard transfer
+	—
+	—
+	—
+	—
+	✓
+	Silent auction
+	—
+	✓ +2.5%
+	—
+	✓
+	✓
+	Live auction
+	—
+	—
+	—
+	—
+	✓
+	Donation items (Fund-a-Need)
+	—
+	—
+	—
+	—
+	✓
+	Stripe card-on-file for bidding
+	—
+	—
+	—
+	—
+	✓
+	GPS distance to pin
+	—
+	—
+	—
+	—
+	✓ add-on
+	30-second auction extension
+	—
+	—
+	—
+	—
+	✓
+	No auction transaction fee
+	n/a
+	— (2.5% fee)
+	n/a
+	✓
+	✓
+	
+
+Note: ✓ = feature included at the platform's standard paid tier. GFP Pro features reflect Phase 2–4 capabilities. GPS add-on reflects Phase 5.
+
+
+
+
+
+
+3. Market Insights & Pricing Strategy Foundation
+3.1  The $299 Anchor
+Three of the four primary competitors charge $299 per event for their standard paid tier. This price has become the market anchor — the number that buyers subconsciously use to evaluate all alternatives. Any price above $299 requires clear justification. Any price below $299 implies either a discount to gain market share or a stripped feature set.
+Golf Fundraiser Pro launches at $249 per event (Event tier) to signal competitive awareness and acknowledge early-stage positioning. The $50 discount is not a permanent concession — it is a market entry strategy. As the product builds reputation and reference customers, pricing moves toward $299.
+Positioning Note:  The goal is not to win on price. Event Caddy offers a free tier that beats $249 for unsophisticated buyers. The goal is to win on mobile-first capability and integrated auction — both of which are genuinely absent from every competitor. Price the confidence, not the discount.
+
+
+3.2  The Two Buyer Types
+The golf tournament software market has two meaningfully different buyer profiles that require different pricing logic:
+* The Single-Event Nonprofit — A school, church, service club, or small foundation running one annual golf fundraiser. Typically managed by a volunteer coordinator. Budget sensitivity is high — every dollar spent on software is a dollar not raised for the cause. This buyer needs per-event pricing with low commitment. CLHS fits this profile exactly.
+* The Multi-Event Organization — A community foundation, corporate golf program, or regional nonprofit running two to six golf events per year. Budget is higher, sophistication is higher, and the cost of switching between per-event licenses every event becomes annoying. This buyer is ready for an annual subscription at the right price.
+The four-tier model serves both: per-event tiers (Event and Pro) for single-event buyers, the Organization annual tier for multi-event buyers. The key pricing design requirement is that upgrading from per-event to annual must feel like an obvious financial win — which is why Organization at $999/year is priced just $1 more than two Pro events.
+
+
+3.3  The Auction Fee Question
+Event Caddy charges 2.5% on all auction purchases in addition to the per-event fee. For a $20,000 auction, that is $500 in additional fees on top of $299 = $799 effective event cost. For a $50,000 auction at a larger event, the fee reaches $1,549.
+Golf Fundraiser Pro's Pro tier charges a flat $499 with no auction percentage fee. This is a deliberate and important differentiator. The math works in our favor for any auction event generating more than $8,000 in proceeds ($199 cost difference / 2.5% = $7,960 breakeven).
+Sales Point:  For any organization expecting $10,000+ in auction proceeds, Pro at $499 is cheaper than Event Caddy Pro at $299 + 2.5%. Lead with this comparison in sales conversations with experienced auction runners. For first-time auction organizers, the math is less compelling — emphasize the integrated Stripe card-on-file and live auction host screen instead.
+
+
+3.4  The Mobile Gap
+Every competitor in this market is primarily a web application with mobile browser support. None has a native iOS and Android scoring app with offline SQLite storage and QR scorecard transfer. GolfStatus has mobile apps, but they are primarily for golfer leaderboard viewing and sponsor interaction — not score entry with offline-first architecture.
+This gap is significant for rural Wisconsin golf courses and similar venues with poor cellular coverage. A browser-based scoring tool fails silently when connectivity drops. A native app with offline-first architecture simply keeps working. This is a genuine capability gap, not a marketing claim — and it is the primary justification for Golf Fundraiser Pro's premium positioning relative to Event Caddy.
+
+
+4. Detailed Tier Specifications
+4.1  Starter — Free
+$0  forever
+Purpose: Eliminate the barrier to trying the product. Compete with GolfStatus's free tier and Event Caddy Free. Build top-of-funnel awareness.
+Limits: 1 event per year · Up to 20 teams (80 golfers) · Admin score entry only (no mobile app)
+
+
+What's Included
+* Online event registration — all 3 modes (full team, join team, free agent)
+* Admin score entry from tablet or laptop
+* Admin-only leaderboard — not public
+* Basic branded landing page with org logo and colors
+* Email confirmation, reminder, and thank-you (up to 100 emails/month)
+* Paper backup scorecard PDF
+* QR check-in
+* Up to 3 sponsor logo placements
+
+
+What's Excluded
+* Mobile scoring app (iOS/Android)
+* Public leaderboard and TV mode
+* Live SignalR real-time scoring
+* Auction (all formats)
+* Stripe payments
+* GPS/mapping features
+* Hole challenge live leaderboards
+* Email ad builder
+
+
+Intentional Design:  The Starter tier is useful enough to replace a spreadsheet — but not useful enough to run a serious fundraiser. Organizers who care about the public leaderboard, the mobile app, or live auction will upgrade. Organizations with 20+ teams hit the limit immediately.
+
+
+4.2  Event — $249 per event
+$249  per event · billed at purchase · no subscription
+Purpose: Primary entry point for single-event nonprofit fundraisers. Competitive with the $299 market anchor while demonstrating better mobile capability.
+Best for: Organizations running one annual golf fundraiser. Volunteer coordinators who need full tournament management without a mobile scoring upgrade.
+
+
+What's Included (all Starter features plus)
+* Mobile scoring app — iOS and Android
+* Offline-first scoring with SQLite — scores save instantly, sync when signal returns
+* QR scorecard transfer — zero-internet score collection at round end
+* Public web leaderboard — shareable URL, no login required
+* TV mode — large-font auto-scrolling for clubhouse display
+* Live leaderboard polling (15-second refresh — upgrades to SignalR push in Phase 3)
+* Hole challenges — closest to pin, longest drive, putting contest, beat the pro
+* Fundraising total — entry fees + sponsorships + direct donations combined live
+* Full sponsor tier system — Title, Gold, Hole, Silver, Bronze with logo placements
+* Full automated email suite — confirmation with QR, reminder, thank-you with final score
+* QR print kit PDF — all event QR codes print-ready
+* Unlimited teams and golfers
+* Unlimited sponsor placements
+
+
+Payment Processing
+* Stripe pass-through: 2.9% + $0.30 per transaction — no Golf Fundraiser Pro markup
+* Entry fee collection online or manually tracked
+* Donation widget on landing page — year-of-event only
+
+
+What's Excluded
+* Auction features (all formats) — upgrade to Pro
+* Stripe card-on-file — upgrade to Pro
+* GPS/mapping features — add GPS add-on
+* Email advertisement builder — available in Phase 3
+
+
+4.3  Pro — $499 per event
+$499  per event · billed at purchase · no subscription
+Purpose: Full-featured single-event pricing including the complete auction suite and Stripe card-on-file. The right tier for organizations like CLHS running a meaningful auction alongside the tournament.
+Best for: Any organization running a silent auction, live auction, or Fund-a-Need campaign alongside their golf tournament.
+
+
+What's Included (all Event features plus)
+* Stripe card-on-file — Setup Intent saves card without charging; required for bidding
+* Online entry fee payment via Stripe — no more manual payment tracking
+* Silent auction — with 30-second anti-snipe extension and configurable extension cap
+* Live auction — admin host control screen, verbal bidding, admin assigns winner and amount
+* Donation items (Fund-a-Need / Paddle Raise) — fixed denominations or open amount
+* Automatic winner charging — Stripe charges winning bidder at auction close
+* Outbid push notifications and email alerts
+* Auction item photo gallery — up to 6 photos per item
+* Auction public web page — /e/{eventCode}/auction — SSR, shareable item links
+* Pledge thermometer for donation items — live running total
+* My Bids screen in mobile app — Winning / Outbid / Won / Lost status
+* Auction proceeds added to fundraising grand total in real time
+* Auction receipt emails with tax deductibility note for 501(c)3 organizations
+
+
+Payment Processing
+* Stripe pass-through: 2.9% + $0.30 per transaction — no Golf Fundraiser Pro markup on entry fees
+* Auction proceeds: Stripe pass-through only — no additional percentage fee from Golf Fundraiser Pro
+* Contrast: Event Caddy charges 2.5% on auction purchases on top of event fee. Pro at $499 is cheaper for any auction exceeding ~$8,000 in proceeds.
+
+
+Key Selling Point:  Pro at $499 flat with no auction percentage fee vs. Event Caddy Pro at $299 + 2.5%. For a $20,000 auction: Event Caddy costs $799 effective vs. Golf Fundraiser Pro Pro at $499 — a $300 savings. For a $50,000 auction: $1,549 vs. $499 — a $1,050 savings.
+
+
+4.4  Organization — $999/year
+$999  per year · billed annually · renews automatically
+Purpose: Annual subscription for organizations running multiple events. Clearly cheaper than two Pro events, driving conversion from per-event to subscription.
+Best for: Community foundations, school districts, service club chapters, corporate golf programs, and regional nonprofits running 2+ events per year.
+
+
+What's Included (all Pro features plus)
+* Unlimited events per year — run as many tournaments and fundraisers as needed
+* Year-round donation page — /give/{orgSlug} remains active between events
+* Organization-level reporting — donor history, total raised across all events, sponsor relationships
+* White-label organization domain — org.golffundraiser.pro (e.g., clhs.golffundraiser.pro)
+* Priority support — email responses within 4 business hours
+* Event cloning — duplicate a past event setup to start next year in minutes
+* GPS add-on included — one GPS-enabled event per year (Organization) or one course (League); additional GPS events +$49
+
+
+The Math
+* 1 event/year: $999 vs. $499 Pro — $500 more. Questionable value unless year-round donation page matters.
+* 2 events/year: $999 vs. $998 Pro x2 — $1 savings. Essentially the same, with year-round features and priority support included.
+* 3 events/year: $999 vs. $1,497 Pro x3 — $498 savings. Clear win.
+* 4+ events/year: $999 vs. $1,996+ — compelling. Sells itself.
+Conversion Design:  The Organization tier is priced at exactly $1 more than two Pro events by design. This means any organization running two events is essentially choosing between two separate purchases and a single annual subscription with unlimited events. The friction of per-event checkout twice a year plus year-round features tips most two-event buyers toward the subscription.
+
+
+4.5  League — $1,499/year
+$1,499  per year · billed annually · renews automatically
+Purpose: Annual subscription for golf clubs, courses, and membership organizations running week-to-week season leagues with persistent standings, handicaps, and scheduled rounds.
+Best for: Golf clubs with men's nights or ladies' leagues, country clubs running season-long competitions, corporate golf programs with recurring weekly play.
+
+
+What's Included (all Organization features plus)
+* Unlimited leagues and seasons per year
+* Automated handicap engine — configurable club formula or USGA formula
+* Full handicap history with audit trail and admin override capability
+* Sandbagger detection flags in the admin dashboard
+* Stableford and stroke play standings at launch; match play and quota in Phase 5b
+* Flight management — up to 6 flights per league with auto-assignment by handicap range
+* Weekly pairing engine — balanced schedule minimizing repeat matchups
+* Pairings tee sheet PDF — printable for the first tee
+* Player absence reporting — triggers substitute workflow
+* Skins game tracking per round — gross or net, configurable
+* Player season dashboard — handicap trend chart, round history, standings, head-to-head
+* Season dues collection via Stripe — included (no separate payment integration needed)
+* Round result emails — scorecard summary, handicap update notification, standings reminder
+* GPS add-on included for one course — league members return to the same course weekly
+
+
+The Math vs. Other Tiers
+* Organization at $999/year covers unlimited tournament events — no league features
+* League at $1,499/year adds the full Phase 5 league suite on top of everything in Organization
+* $500 premium over Organization for the handicap engine, pairing engine, standings, and all season infrastructure — justified for any club running even one regular league
+
+
+Competitive Context:  GolfSoftware.com's League Manager is $8/golfer/year — $96/year for a 12-person league, $480/year for 60 members. Golf Fundraiser Pro League at $1,499 is more expensive for small groups but includes the full mobile app, offline scoring, auction, payments, and tournament management in one platform. Position as an all-in-one upgrade.
+
+
+4.6  GPS Add-on — $99 per event
+$99  per event · added at checkout · requires Event or Pro tier
+Purpose: Keep GPS features as an optional add-on rather than baking them into tier pricing. Most fundraiser organizers don't know to ask for GPS and don't want to pay for it. Those who do find it genuinely valuable and will add $99 without hesitation.
+
+
+What's Included
+* Distance to pin — displayed in real time in the mobile app, works offline via Haversine calculation
+* Elevation change display — '+12 ft uphill' or '-8 ft downhill' from DEM terrain data
+* Mapbox satellite hole view — with pin marker, player dot, yardage rings, distance line
+* GPS drive distance tracking — mark drive and ball locations for longest drive contest
+* Offline tile pre-download — course satellite tiles cached before the round begins
+
+
+GPS Add-on with Organization and League Tiers
+* One GPS event per year included with Organization tier at no extra charge
+* Additional GPS events: $49 each (vs. $99 standalone) — rewards subscription loyalty
+
+
+5. Early Adoption & Nonprofit Sponsorship Program
+5.1  The 'Powered by Golf Fundraiser Pro' Program
+Modeled on GolfStatus's successful Technology Sponsorship approach, this program offers qualifying nonprofits a free or discounted event license in exchange for platform acknowledgment. The goal is to build reference customers, collect testimonials, and generate public-facing event pages that demonstrate the product.
+
+
+How It Works
+* Qualifying nonprofit (501(c)3 status verified) applies for the program
+* Organization receives Event tier at no charge for their first qualifying event
+* In exchange, organization displays 'Powered by Golf Fundraiser Pro' badge in the landing page footer and acknowledgment in the post-event thank-you email
+* Badge links to golffundraiser.pro — passive SEO and awareness benefit
+* After the event, organization is invited to provide a testimonial and case study participation
+
+
+What Golf Fundraiser Pro Gets
+* Live reference event pages — publicly accessible leaderboards and landing pages demonstrating the product
+* Testimonials and case studies for the marketing website
+* Word-of-mouth in the nonprofit community — golf fundraiser coordinators talk to each other
+* Real-world stress testing of the platform at live events before charging premium prices
+
+
+Qualifying Criteria
+* Must be a registered 501(c)3 organization
+* Event must have at least 10 registered teams
+* Organization must agree to provide a testimonial within 30 days of the event
+* Limit: 1 free event per organization per year
+* Program capacity: limited to 20 events per calendar year during the initial launch phase
+
+
+CLHS Application:  Cornerstone Lutheran High School qualifies immediately as a 501(c)3 school. Their Golf & Give event with 25+ teams is exactly the profile this program is designed for. Recommend offering CLHS the program for their 4th Annual Golf & Give as the anchor reference case study.
+
+
+5.2  Early Adopter Pricing (Launch Period)
+For the first 12 months after public launch, all tiers are offered at launch pricing. This creates urgency and rewards early customers who take a risk on a newer platform.
+
+
+Tier
+	Launch Price
+	Future Price
+	Early Adopter Benefit
+	Event
+	$249
+	$299
+	$50 savings. Early adopters locked in at $249 for first 3 events even after price increase.
+	Pro
+	$499
+	$599
+	$100 savings. Locked in at $499 for first 3 Pro events.
+	Organization
+	$999/year
+	$1,199/year
+	$200/year savings. Locked in at $999 for 2 renewal years.
+	League
+	$1,499/year
+	$1,799/year
+	$300/year savings. Locked in at $1,499 for 2 renewal years.
+	
+
+6. Payment Processing Transparency
+A key differentiator in the Golf Fundraiser Pro pricing model is transparent, pass-through Stripe fees with no markup. This is in contrast to Event Caddy's 2.5% auction surcharge and some competitors' custom convenience fee models.
+
+
+6.1  What Organizers Actually Pay
+Transaction Type
+	Fee
+	Who Pays / Notes
+	Player entry fee (credit card)
+	2.9% + $0.30
+	Stripe pass-through. Can be passed to the player as a convenience fee at organizer's option.
+	Direct donation
+	2.9% + $0.30
+	Stripe pass-through. Donor can be prompted to cover fee (common in nonprofit fundraising).
+	Auction winning bid
+	2.9% + $0.30
+	Stripe pass-through only. No Golf Fundraiser Pro percentage fee. Charged to winner's card-on-file automatically.
+	Donation item pledge
+	2.9% + $0.30
+	Stripe pass-through. All pledgers charged simultaneously at item close.
+	Stripe card-on-file (Setup Intent)
+	$0
+	Free to save a card. Charge only applies when a payment is collected.
+	
+
+Note: Stripe's standard rate of 2.9% + $0.30 applies. Golf Fundraiser Pro does not add any markup or convenience fee on top of Stripe processing. Organizers may choose to pass the Stripe fee to participants as a convenience fee — this is controlled in the event settings.
+
+
+6.2  Real-World Cost Comparison for a Typical Event
+Example: 25 teams × 4 players × $125/player entry fee = $12,500 in registration revenue. $15,000 in auction proceeds. $2,000 in direct donations. Total transactions: $29,500.
+
+
+Platform
+	Software Fee
+	Auction Fee
+	Total Platform Cost
+	Event Caddy Pro
+	$299
+	$375 (2.5% of $15K)
+	$674 — plus Stripe processing on all transactions
+	BirdEase Standard
+	$299
+	$0
+	$299 — no auction fee, but web-only / no mobile app
+	GolfStatus (with sponsor)
+	$0 (sponsor req.)
+	n/a (no auction)
+	$0 — but no auction, brand must promote GolfStatus
+	GFP Event tier
+	$249
+	n/a (no auction)
+	$249 — mobile app + offline, but no auction
+	GFP Pro tier
+	$499
+	$0
+	$499 — full auction + mobile app + no auction fee = $175 less than Event Caddy for this event
+	GFP League tier
+	$1,499/yr (÷12 rounds = $125)
+	$0
+	Best value for clubs running this event as part of a season — includes all league features + unlimited tournament events year-round.
+	
+
+7. Price Evolution Roadmap
+The pricing model is designed to evolve as the product matures, the customer base grows, and differentiation becomes better established. The following roadmap outlines when and why to move prices.
+
+
+7.1  Phase 1: Market Entry (Launch → 12 Months)
+* Event tier: $249/event (launch pricing)
+* Pro tier: $499/event (launch pricing)
+* Organization: $999/year (launch pricing)
+* GPS add-on: $99/event
+* Nonprofit Sponsorship Program: active, limit 20 free events
+* Goal: Acquire 20–30 paying customers, collect 10+ testimonials, build 5 case studies
+
+
+7.2  Phase 2: Validation (Months 12–24)
+* Raise Event tier to $299/event when 20+ paying customers have successfully completed events
+* Raise Pro tier to $599/event when the auction feature has been used in 10+ live events
+* Maintain Organization at $999/year — annual subscription pricing is stickier and less urgency to raise
+* GPS add-on: evaluate raising to $149 if GPS usage data shows high satisfaction
+* Nonprofit Sponsorship Program: continue but narrow qualifying criteria
+* Goal: Establish price parity with market while delivering clearly superior mobile and auction experience
+
+
+7.3  Phase 3: Premium Positioning (Months 24+)
+* League tier ($1,499/year) already introduced in Phase 2 of pricing. Evaluate raising to $1,799 once 10+ league customers have completed a full season.
+* Introduce a White Label tier: $2,500+/year for golf management companies and regional foundations that want fully branded experiences with custom domains
+* GPS add-on potentially folded into Pro tier as standard when Phase 5 is mature
+* Enterprise pricing (custom contract) for regional foundations running 10+ events/year
+
+
+Key Principle:  Never raise prices on existing customers without notice and grandfathering. Customers who signed up at launch pricing should be given at least 90 days notice and the option to lock in current pricing for one additional year before the increase takes effect.
+
+
+
+
+
+
+
+
+
+
+8. Open Questions & Decisions
+#
+	Question
+	Recommendation
+	1
+	Should the convenience fee (passing Stripe cost to participant) be on by default or off?
+	Default OFF — organizer opts in. Many nonprofits prefer to absorb the fee as it looks cleaner to donors. Consider pre-setting it ON for entry fees and OFF for donations.
+	2
+	Should the Nonprofit Sponsorship Program badge be removable for a fee?
+	Yes — $49 badge removal fee per event. This converts the free tier into a micro-revenue stream and gives nonprofits an easy upgrade path without committing to the full Event tier.
+	3
+	Should early adopter price locks apply to future renewals?
+	Lock for first 3 events or 2 renewal years (whichever comes first). This is meaningful enough to drive early purchase decisions without permanently capping revenue.
+	4
+	Should the Organization tier include a free first event as a trial?
+	Consider a 30-day free trial with full Organization access and 1 live event before billing. Reduces commitment anxiety for multi-event buyers who haven't used the platform before.
+	5
+	How to handle refunds if an event is cancelled after purchase?
+	Full refund within 7 days of purchase if event has not yet accepted any registrations. 50% refund within 30 days. No refund after 30 days or once registrations are live. Align with BirdEase's approach.
+	6
+	Should entry fee payment (Stripe) be available on the Event tier or Pro only?
+	Include Stripe entry fee collection on the Event tier — it's a basic expectation and removing it would feel punitive. Reserve card-on-file (Setup Intent without charge) for Pro since it's auction-specific.
+	7
+	How should referrals and affiliates be handled?
+	Consider a referral credit: organizers who refer a paying customer receive $50 credit toward their next event. Affiliate commissions (golf tournament consultants, course managers) at 15% of first event fee.
+	
+
+Confidential — Internal Use OnlyPage

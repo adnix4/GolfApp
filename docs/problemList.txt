@@ -1,0 +1,4 @@
+Event colors display
+teams should not show as checked in until a worker checks them in the day of the event after the event moves from the registration to the active state
+add payment type in mobile app
+add ability to pay for registration in mobile app.

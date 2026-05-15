@@ -101,9 +101,10 @@ public class MobileService
         if (evt is null)
             throw new NotFoundException($"No event found with code '{eventCode}'.");
 
-        // Only allow joining events that are accepting golfers
-        if (evt.Status is EventStatus.Draft or EventStatus.Cancelled)
-            throw new ValidationException("This event is not currently open for golfers.");
+        // Draft events are joinable by event code only (test/preview mode).
+        // They never appear in the public active-events list, so the code acts as the gate.
+        if (evt.Status is EventStatus.Cancelled)
+            throw new ValidationException("This event has been cancelled.");
 
         if (evt.Status is EventStatus.Completed)
             throw new ValidationException("This event has already completed.");
@@ -237,9 +238,9 @@ public class MobileService
         if (evt is null)
             throw new NotFoundException("Event", request.EventId);
 
-        if (evt.Status is not (EventStatus.Active or EventStatus.Scoring))
+        if (evt.Status is not (EventStatus.Draft or EventStatus.Active or EventStatus.Scoring))
             throw new ValidationException(
-                "Score sync is only available when the event is Active or Scoring.");
+                "Score sync is only available when the event is active or in scoring.");
 
         var team = await _db.Teams
             .FirstOrDefaultAsync(t =>

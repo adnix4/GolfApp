@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { Stack } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, type GFPTheme } from '@gfp/theme';
 import { SessionProvider, useSession } from '@/lib/session';
@@ -26,10 +27,12 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <SessionProvider>
-      <SessionThemeProvider>
-        <Stack screenOptions={{ headerShown: false }} />
-      </SessionThemeProvider>
-    </SessionProvider>
+    <SafeAreaProvider>
+      <SessionProvider>
+        <SessionThemeProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </SessionThemeProvider>
+      </SessionProvider>
+    </SafeAreaProvider>
   );
 }
