@@ -162,4 +162,50 @@ public class PaymentsService
 
         return pi.Id;
     }
+
+    /// <summary>
+    /// Creates a Stripe PaymentIntent for an event entry fee, ensuring a Stripe Customer exists.
+    /// Returns the PaymentIntent client_secret so the mobile app can confirm it with Stripe Elements.
+    /// </summary>
+    public async Task<string> CreateEntryFeePaymentIntentAsync(
+        Guid playerId, int amountCents, string eventName, CancellationToken ct = default)
+    {
+        var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId, ct)
+            ?? throw new Common.Middleware.NotFoundException("Player", playerId);
+
+        StripeConfiguration.ApiKey = _config["STRIPE_SECRET_KEY"]
+            ?? throw new InvalidOperationException("STRIPE_SECRET_KEY not configured");
+
+        // Ensure Stripe customer exists
+        if (string.IsNullOrEmpty(player.StripeCustomerId))
+        {
+            var customerService = new CustomerService();
+            var customer = await customerService.CreateAsync(new CustomerCreateOptions
+            {
+                Email    = player.Email,
+                Name     = $"{player.FirstName} {player.LastName}",
+                Metadata = new Dictionary<string, string> { ["player_id"] = player.Id.ToString() }
+            });
+            player.StripeCustomerId = customer.Id;
+            await _db.SaveChangesAsync(ct);
+        }
+
+        var piService = new PaymentIntentService();
+        var pi = await piService.CreateAsync(new PaymentIntentCreateOptions
+        {
+            Amount             = amountCents,
+            Currency           = "usd",
+            Customer           = player.StripeCustomerId,
+            PaymentMethodTypes = new List<string> { "card" },
+            Metadata           = new Dictionary<string, string>
+            {
+                ["player_id"]  = playerId.ToString(),
+                ["entry_fee"]  = "true",
+                ["event_name"] = eventName,
+            },
+            Description        = $"Entry fee — {eventName}",
+        });
+
+        return pi.ClientSecret!;
+    }
 }

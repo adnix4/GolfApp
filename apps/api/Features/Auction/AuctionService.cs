@@ -4,6 +4,8 @@ using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
 using GolfFundraiserPro.Api.Domain.Enums;
+using GolfFundraiserPro.Api.Features.Emails;
+using GolfFundraiserPro.Api.Features.Notifications;
 using GolfFundraiserPro.Api.Features.Payments;
 using GolfFundraiserPro.Api.Features.RealTime;
 
@@ -14,6 +16,8 @@ public class AuctionService
     private readonly ApplicationDbContext _db;
     private readonly IRealTimeService _realTime;
     private readonly PaymentsService _payments;
+    private readonly EmailService _email;
+    private readonly PushNotificationService _push;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<AuctionService> _logger;
 
@@ -25,12 +29,16 @@ public class AuctionService
         ApplicationDbContext db,
         IRealTimeService realTime,
         PaymentsService payments,
+        EmailService email,
+        PushNotificationService push,
         IWebHostEnvironment env,
         ILogger<AuctionService> logger)
     {
         _db       = db;
         _realTime = realTime;
         _payments = payments;
+        _email    = email;
+        _push     = push;
         _env      = env;
         _logger   = logger;
     }
@@ -52,7 +60,8 @@ public class AuctionService
         Guid eventId, CancellationToken ct)
     {
         var items = await _db.AuctionItems
-            .Where(i => i.EventId == eventId && i.Status == AuctionItemStatus.Open)
+            .Where(i => i.EventId == eventId
+                     && (i.Status == AuctionItemStatus.Open || i.Status == AuctionItemStatus.Extended))
             .OrderBy(i => i.DisplayOrder).ThenBy(i => i.CreatedAt)
             .ToListAsync(ct);
         return items.Select(MapItem).ToList();
@@ -126,8 +135,8 @@ public class AuctionService
     {
         await VerifyEventOwnershipAsync(orgId, eventId, ct);
         var item = await GetItemOrThrowAsync(itemId, eventId, ct);
-        if (item.Status == AuctionItemStatus.Closed)
-            throw new ValidationException("Cannot delete a closed auction item.");
+        if (item.Status is AuctionItemStatus.Closed or AuctionItemStatus.Awarded)
+            throw new ValidationException("Cannot delete a closed or awarded auction item.");
         item.Status = AuctionItemStatus.Cancelled;
         await _db.SaveChangesAsync(ct);
     }
@@ -200,6 +209,20 @@ public class AuctionService
         if (req.AmountCents < minRequired)
             throw new ValidationException($"BID_TOO_LOW:{minRequired}");
 
+        // Capture outgoing high bidder before we overwrite (for outbid notification)
+        Guid? previousHighBidderId = null;
+        if (!isDonation && item.CurrentHighBidCents > 0 && req.AmountCents > item.CurrentHighBidCents)
+        {
+            previousHighBidderId = await _db.Bids
+                .Where(b => b.AuctionItemId == itemId && b.AmountCents == item.CurrentHighBidCents)
+                .OrderByDescending(b => b.PlacedAt)
+                .Select(b => (Guid?)b.PlayerId)
+                .FirstOrDefaultAsync(ct);
+            // Don't notify the same player who is placing the new bid
+            if (previousHighBidderId == req.PlayerId)
+                previousHighBidderId = null;
+        }
+
         // Buy-now check
         bool closedByBuyNow = AuctionBidRules.IsBuyNow(item.BuyNowPriceCents, req.AmountCents);
         if (closedByBuyNow)
@@ -225,8 +248,9 @@ public class AuctionService
                 item.ClosesAt, item.OriginalClosesAt, item.MaxExtensionMin, now0);
             if (ext.HasValue)
             {
-                item.ClosesAt = ext.Value;
-                newClosesAt   = ext.Value;
+                item.ClosesAt   = ext.Value;
+                newClosesAt     = ext.Value;
+                item.Status     = AuctionItemStatus.Extended;
             }
         }
 
@@ -254,6 +278,11 @@ public class AuctionService
             if (closedByBuyNow)
                 await _realTime.SendItemClosedAsync(evt.EventCode, itemId, req.PlayerId, req.AmountCents, ct);
         }
+
+        // Send outbid notification to the previous high bidder (fire-and-forget)
+        if (previousHighBidderId.HasValue)
+            _ = Task.Run(() => SendOutbidNotificationAsync(
+                previousHighBidderId.Value, item.Title, req.AmountCents, CancellationToken.None));
 
         if (closedByBuyNow)
             await CloseItemInternalAsync(item, ct);
@@ -284,10 +313,10 @@ public class AuctionService
             .FirstOrDefaultAsync(i => i.Id == itemId, ct)
             ?? throw new NotFoundException("AuctionItem", itemId);
 
-        if (item.Status == AuctionItemStatus.Closed)
+        if (item.Status is AuctionItemStatus.Closed or AuctionItemStatus.Awarded)
             throw new ValidationException("Item is already closed.");
 
-        item.Status = AuctionItemStatus.Closed;
+        item.Status = AuctionItemStatus.Awarded;
 
         var winner = new AuctionWinner
         {
@@ -312,7 +341,7 @@ public class AuctionService
     {
         var expired = await _db.AuctionItems
             .Include(i => i.Event)
-            .Where(i => i.Status == AuctionItemStatus.Open
+            .Where(i => (i.Status == AuctionItemStatus.Open || i.Status == AuctionItemStatus.Extended)
                      && i.ClosesAt != null
                      && i.ClosesAt <= DateTime.UtcNow)
             .ToListAsync(ct);
@@ -456,13 +485,14 @@ public class AuctionService
         var nextItem = await _db.AuctionItems
             .Where(i => i.EventId == eventId
                      && (i.AuctionType == AuctionType.Live || i.AuctionType == AuctionType.DonationLive)
-                     && i.Status == AuctionItemStatus.Open
+                     && (i.Status == AuctionItemStatus.Open || i.Status == AuctionItemStatus.Extended)
                      && i.DisplayOrder > currentOrder)
             .OrderBy(i => i.DisplayOrder)
             .FirstOrDefaultAsync(ct);
 
         session.CurrentItemId            = nextItem?.Id;
         session.CurrentCalledAmountCents = nextItem?.StartingBidCents ?? 0;
+        session.CurrentBidderCount       = 0;
         await _db.SaveChangesAsync(ct);
 
         var evt = await _db.Events.FirstOrDefaultAsync(e => e.Id == eventId, ct);
@@ -515,9 +545,10 @@ public class AuctionService
             string status;
             if (isDonation)
             {
-                status = b.AuctionItem.Status == AuctionItemStatus.Open ? "Pledged" : "Charged";
+                status = (b.AuctionItem.Status == AuctionItemStatus.Open || b.AuctionItem.Status == AuctionItemStatus.Extended)
+                    ? "Pledged" : "Charged";
             }
-            else if (b.AuctionItem.Status == AuctionItemStatus.Open)
+            else if (b.AuctionItem.Status == AuctionItemStatus.Open || b.AuctionItem.Status == AuctionItemStatus.Extended)
             {
                 status = b.AmountCents >= b.AuctionItem.CurrentHighBidCents ? "Winning" : "Outbid";
             }
@@ -537,6 +568,84 @@ public class AuctionService
                 PlacedAt      = b.PlacedAt,
             };
         }).ToList();
+    }
+
+    // ── RAISE HAND (soft paddle) ───────────────────────────────────────────────
+
+    public async Task<int> RaiseHandAsync(Guid eventId, CancellationToken ct)
+    {
+        var session = await _db.AuctionSessions
+            .FirstOrDefaultAsync(s => s.EventId == eventId && s.IsActive, ct)
+            ?? throw new NotFoundException("Active AuctionSession for event", eventId);
+
+        session.CurrentBidderCount++;
+        await _db.SaveChangesAsync(ct);
+
+        var evt = await _db.Events.FirstOrDefaultAsync(e => e.Id == eventId, ct);
+        if (evt is not null)
+            await _realTime.SendBidderCountUpdatedAsync(evt.EventCode, session.CurrentBidderCount, ct);
+
+        return session.CurrentBidderCount;
+    }
+
+    // ── FAILED CHARGE RESOLUTION ───────────────────────────────────────────────
+
+    public async Task<List<FailedChargeResponse>> GetFailedChargesAsync(
+        Guid orgId, Guid eventId, CancellationToken ct)
+    {
+        await VerifyEventOwnershipAsync(orgId, eventId, ct);
+
+        var rows = await _db.AuctionWinners
+            .Include(w => w.AuctionItem)
+            .Include(w => w.Player)
+            .Where(w => w.AuctionItem.EventId == eventId && w.ChargeStatus == ChargeStatus.Failed)
+            .ToListAsync(ct);
+
+        return rows.Select(w => new FailedChargeResponse
+        {
+            WinnerId              = w.Id,
+            AuctionItemId         = w.AuctionItemId,
+            ItemTitle             = w.AuctionItem.Title,
+            PlayerName            = $"{w.Player.FirstName} {w.Player.LastName}",
+            PlayerEmail           = w.Player.Email,
+            AmountCents           = w.AmountCents,
+            StripePaymentIntentId = w.StripePaymentIntentId ?? string.Empty,
+            FailedAt              = w.CreatedAt,
+        }).ToList();
+    }
+
+    public async Task RechargeWinnerAsync(Guid orgId, Guid winnerId, CancellationToken ct)
+    {
+        var winner = await _db.AuctionWinners
+            .Include(w => w.AuctionItem).ThenInclude(i => i.Event)
+            .FirstOrDefaultAsync(w => w.Id == winnerId, ct)
+            ?? throw new NotFoundException("AuctionWinner", winnerId);
+
+        await VerifyEventOwnershipAsync(orgId, winner.AuctionItem.EventId, ct);
+
+        if (winner.ChargeStatus != ChargeStatus.Failed)
+            throw new ValidationException("Only failed charges can be re-attempted.");
+
+        winner.ChargeStatus = ChargeStatus.Pending;
+        await _db.SaveChangesAsync(ct);
+
+        await _payments.ChargeWinnerAsync(winnerId, ct);
+    }
+
+    public async Task WaiveChargeAsync(Guid orgId, Guid winnerId, CancellationToken ct)
+    {
+        var winner = await _db.AuctionWinners
+            .Include(w => w.AuctionItem)
+            .FirstOrDefaultAsync(w => w.Id == winnerId, ct)
+            ?? throw new NotFoundException("AuctionWinner", winnerId);
+
+        await VerifyEventOwnershipAsync(orgId, winner.AuctionItem.EventId, ct);
+
+        if (winner.ChargeStatus is ChargeStatus.Succeeded or ChargeStatus.Waived)
+            throw new ValidationException("Charge is already resolved.");
+
+        winner.ChargeStatus = ChargeStatus.Waived;
+        await _db.SaveChangesAsync(ct);
     }
 
     // ── PRIVATE HELPERS ────────────────────────────────────────────────────────
@@ -597,7 +706,45 @@ public class AuctionService
         IsActive                 = s.IsActive,
         CurrentItemId            = s.CurrentItemId,
         CurrentCalledAmountCents = s.CurrentCalledAmountCents,
+        CurrentBidderCount       = s.CurrentBidderCount,
         StartedAt                = s.StartedAt,
         EndedAt                  = s.EndedAt,
     };
+
+    private async Task SendOutbidNotificationAsync(
+        Guid playerId, string itemTitle, int newBidCents, CancellationToken ct)
+    {
+        try
+        {
+            var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId, ct);
+            if (player is null) return;
+
+            if (!string.IsNullOrEmpty(player.ExpoPushToken))
+            {
+                await _push.SendAsync(
+                    new[] { player.ExpoPushToken },
+                    "You've been outbid!",
+                    $"Someone bid ${newBidCents / 100.0:F2} on \"{itemTitle}\". Bid again to stay in the lead.",
+                    new Dictionary<string, string> { ["type"] = "outbid", ["itemTitle"] = itemTitle },
+                    ct);
+            }
+
+            var amountFormatted = $"${newBidCents / 100.0:F2}";
+            var html = $"""
+                <p>Hi {player.FirstName},</p>
+                <p>You've been outbid on <strong>{itemTitle}</strong>. The new high bid is <strong>{amountFormatted}</strong>.</p>
+                <p>Log back into the app to place a new bid and stay in the lead!</p>
+                """;
+            await _email.SendTransactionalAsync(
+                player.Email,
+                $"{player.FirstName} {player.LastName}",
+                $"You've been outbid on \"{itemTitle}\"",
+                html,
+                ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Outbid notification failed for player {PlayerId}", playerId);
+        }
+    }
 }

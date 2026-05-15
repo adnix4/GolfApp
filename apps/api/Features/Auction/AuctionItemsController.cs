@@ -86,6 +86,35 @@ public class AuctionItemsController : ControllerBase
         return Ok(items);
     }
 
+    // ── FAILED CHARGE RESOLUTION ──────────────────────────────────────────────
+
+    [HttpGet("api/v1/events/{eventId:guid}/auction/failed-charges")]
+    [Authorize(Policy = "OrgAdmin")]
+    public async Task<IActionResult> GetFailedCharges([FromRoute] Guid eventId, CancellationToken ct)
+    {
+        var orgId = GetOrgId();
+        var list  = await _auction.GetFailedChargesAsync(orgId, eventId, ct);
+        return Ok(list);
+    }
+
+    [HttpPost("api/v1/auction/winners/{winnerId:guid}/recharge")]
+    [Authorize(Policy = "OrgAdmin")]
+    public async Task<IActionResult> RechargeWinner([FromRoute] Guid winnerId, CancellationToken ct)
+    {
+        var orgId = GetOrgId();
+        await _auction.RechargeWinnerAsync(orgId, winnerId, ct);
+        return Ok();
+    }
+
+    [HttpPost("api/v1/auction/winners/{winnerId:guid}/waive")]
+    [Authorize(Policy = "OrgAdmin")]
+    public async Task<IActionResult> WaiveWinner([FromRoute] Guid winnerId, CancellationToken ct)
+    {
+        var orgId = GetOrgId();
+        await _auction.WaiveChargeAsync(orgId, winnerId, ct);
+        return Ok();
+    }
+
     private Guid GetOrgId() =>
         Guid.Parse(User.FindFirstValue("orgId")
             ?? throw new UnauthorizedAccessException("No orgId claim in token."));

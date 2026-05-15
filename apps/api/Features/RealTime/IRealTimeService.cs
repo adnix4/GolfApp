@@ -37,4 +37,7 @@ public interface IRealTimeService
 
     Task SendAuctionAmountUpdatedAsync(
         string eventCode, Guid? itemId, int amountCents, CancellationToken ct = default);
+
+    Task SendBidderCountUpdatedAsync(
+        string eventCode, int count, CancellationToken ct = default);
 }

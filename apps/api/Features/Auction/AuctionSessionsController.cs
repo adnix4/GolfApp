@@ -70,6 +70,20 @@ public class AuctionSessionsController : ControllerBase
         return Ok(session);
     }
 
+    /// <summary>
+    /// POST /api/v1/events/{id}/auction/sessions/raise-hand
+    /// Anonymous "I'm Bidding" soft paddle-raise. Increments the visible bidder count
+    /// on the admin host screen via SignalR. No formal bid is placed.
+    /// </summary>
+    [HttpPost("api/v1/events/{eventId:guid}/auction/sessions/raise-hand")]
+    [AllowAnonymous]
+    public async Task<IActionResult> RaiseHand(
+        [FromRoute] Guid eventId, CancellationToken ct)
+    {
+        var count = await _auction.RaiseHandAsync(eventId, ct);
+        return Ok(new { count });
+    }
+
     private Guid GetOrgId() =>
         Guid.Parse(User.FindFirstValue("orgId")
             ?? throw new UnauthorizedAccessException("No orgId claim in token."));

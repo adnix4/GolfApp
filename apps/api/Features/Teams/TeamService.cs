@@ -34,6 +34,7 @@ using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
 using GolfFundraiserPro.Api.Domain.Enums;
+using GolfFundraiserPro.Api.Features.Payments;
 
 namespace GolfFundraiserPro.Api.Features.Teams;
 
@@ -41,6 +42,7 @@ public class TeamService
 {
     private readonly ApplicationDbContext _db;
     private readonly IConfiguration _config;
+    private readonly PaymentsService _payments;
     private readonly ILogger<TeamService> _logger;
 
     /// <summary>Invite tokens expire after 48 hours.</summary>
@@ -49,11 +51,13 @@ public class TeamService
     public TeamService(
         ApplicationDbContext db,
         IConfiguration config,
+        PaymentsService payments,
         ILogger<TeamService> logger)
     {
-        _db     = db;
-        _config = config;
-        _logger = logger;
+        _db       = db;
+        _config   = config;
+        _payments = payments;
+        _logger   = logger;
     }
 
     // ── MODE 1: REGISTER FULL TEAM ────────────────────────────────────────────
@@ -135,14 +139,27 @@ public class TeamService
         var inviteUrl = BuildInviteUrl(evt, team);
         var teamResp  = await GetTeamByIdInternalAsync(team.Id, ct);
 
+        // Create entry fee PaymentIntent for the captain if event has a fee
+        string? entryFeeClientSecret = null;
+        int?    entryFeeCents        = null;
+        var fee = ReadEntryFeeFromConfig(evt.ConfigJson);
+        if (fee is > 0)
+        {
+            entryFeeCents        = fee;
+            entryFeeClientSecret = await _payments.CreateEntryFeePaymentIntentAsync(
+                players[0].Id, fee.Value, evt.Name, ct);
+        }
+
         return new RegistrationConfirmResponse
         {
-            Team      = teamResp,
-            InviteUrl = team.InviteToken is not null ? inviteUrl : null,
-            Message   = $"Team '{team.Name}' registered successfully! " +
-                        (team.InviteToken is not null
-                            ? "Share the invite link to fill remaining spots."
-                            : "Your team is full."),
+            Team                 = teamResp,
+            InviteUrl            = team.InviteToken is not null ? inviteUrl : null,
+            EntryFeeClientSecret = entryFeeClientSecret,
+            EntryFeeCents        = entryFeeCents,
+            Message              = $"Team '{team.Name}' registered successfully! " +
+                                   (team.InviteToken is not null
+                                       ? "Share the invite link to fill remaining spots."
+                                       : "Your team is full."),
         };
     }
 
@@ -811,6 +828,19 @@ public class TeamService
             if (string.IsNullOrWhiteSpace(json)) return null;
             var doc = JsonDocument.Parse(json);
             return doc.RootElement.TryGetProperty("maxPlayers", out var v)
+                ? v.GetInt32()
+                : null;
+        }
+        catch { return null; }
+    }
+
+    private static int? ReadEntryFeeFromConfig(string? json)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            var doc = JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty("entryFeeCents", out var v) && v.ValueKind == JsonValueKind.Number
                 ? v.GetInt32()
                 : null;
         }

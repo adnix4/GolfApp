@@ -8,7 +8,8 @@ namespace GolfFundraiserPro.Api.Features.Auction;
 public static class AuctionBidRules
 {
     public static bool IsItemClosed(AuctionItemStatus status, DateTime? closesAt, DateTime now)
-        => status != AuctionItemStatus.Open || (closesAt.HasValue && closesAt.Value <= now);
+        => (status != AuctionItemStatus.Open && status != AuctionItemStatus.Extended)
+           || (closesAt.HasValue && closesAt.Value <= now);
 
     public static bool NeedsPaymentMethod(bool hasPaymentMethod, CheckInStatus checkInStatus)
         => !hasPaymentMethod && checkInStatus != CheckInStatus.CheckedIn;

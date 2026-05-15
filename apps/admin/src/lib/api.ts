@@ -555,6 +555,20 @@ export const auctionApi = {
       method: 'POST', body: { playerId, amountCents },
     }),
 
+  getFailedCharges: (eventId: string) =>
+    request<FailedCharge[]>(`/api/v1/events/${eventId}/auction/failed-charges`),
+
+  rechargeWinner: (winnerId: string) =>
+    request<void>(`/api/v1/auction/winners/${winnerId}/recharge`, { method: 'POST', body: {} }),
+
+  waiveWinner: (winnerId: string) =>
+    request<void>(`/api/v1/auction/winners/${winnerId}/waive`, { method: 'POST', body: {} }),
+
+  raiseHand: (eventId: string) =>
+    request<{ count: number }>(`/api/v1/events/${eventId}/auction/sessions/raise-hand`, {
+      method: 'POST', body: {}, public: true,
+    }),
+
   uploadPhoto: async (eventId: string, itemId: string, file: File): Promise<AuctionItem> => {
     const token = storage.getAccessToken();
     const headers: Record<string, string> = {};
@@ -600,8 +614,20 @@ export interface AuctionSession {
   isActive: boolean;
   currentItemId: string | null;
   currentCalledAmountCents: number;
+  currentBidderCount: number;
   startedAt: string;
   endedAt: string | null;
+}
+
+export interface FailedCharge {
+  winnerId: string;
+  auctionItemId: string;
+  itemTitle: string;
+  playerName: string;
+  playerEmail: string;
+  amountCents: number;
+  stripePaymentIntentId: string;
+  failedAt: string;
 }
 
 // ── ORG SETTINGS ─────────────────────────────────────────────────────────────

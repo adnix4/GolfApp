@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { eventsApi, testDataApi, type FundraisingTotals, type EventDetail } from '@/lib/api';
+import { eventsApi, testDataApi, auctionApi, type FundraisingTotals, type EventDetail, type FailedCharge } from '@/lib/api';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 
 function formatCurrency(cents: number): string {
@@ -15,12 +15,14 @@ export default function FundraisingScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
 
-  const [totals,   setTotals]   = useState<FundraisingTotals | null>(null);
-  const [event,    setEvent]    = useState<EventDetail | null>(null);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [clearing,   setClearing]   = useState(false);
+  const [totals,        setTotals]        = useState<FundraisingTotals | null>(null);
+  const [event,         setEvent]         = useState<EventDetail | null>(null);
+  const [failedCharges, setFailedCharges] = useState<FailedCharge[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState<string | null>(null);
+  const [chargeWorking, setChargeWorking] = useState<string | null>(null);
+  const [refreshing,    setRefreshing]    = useState(false);
+  const [clearing,      setClearing]      = useState(false);
   const [showClearWarning, setShowClearWarning] = useState(false);
 
   const load = useCallback(async (silent = false) => {
@@ -28,9 +30,14 @@ export default function FundraisingScreen() {
     else setRefreshing(true);
     setError(null);
     try {
-      const [t, e] = await Promise.all([eventsApi.getFundraising(id), eventsApi.get(id)]);
+      const [t, e, fc] = await Promise.all([
+        eventsApi.getFundraising(id),
+        eventsApi.get(id),
+        auctionApi.getFailedCharges(id).catch(() => [] as FailedCharge[]),
+      ]);
       setTotals(t);
       setEvent(e);
+      setFailedCharges(fc);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load fundraising data.');
     } finally {
@@ -38,6 +45,30 @@ export default function FundraisingScreen() {
       setRefreshing(false);
     }
   }, [id]);
+
+  async function recharge(winnerId: string) {
+    setChargeWorking(winnerId);
+    try {
+      await auctionApi.rechargeWinner(winnerId);
+      await load(true);
+    } catch (e: any) {
+      setError(e.message ?? 'Recharge failed.');
+    } finally {
+      setChargeWorking(null);
+    }
+  }
+
+  async function waive(winnerId: string) {
+    setChargeWorking(winnerId);
+    try {
+      await auctionApi.waiveWinner(winnerId);
+      await load(true);
+    } catch (e: any) {
+      setError(e.message ?? 'Waive failed.');
+    } finally {
+      setChargeWorking(null);
+    }
+  }
 
   useEffect(() => { load(); }, [load]);
 
@@ -193,6 +224,49 @@ export default function FundraisingScreen() {
               </Text>
             )}
           </View>
+
+          {/* Failed auction charges */}
+          {failedCharges.length > 0 && (
+            <View style={[styles.section, { borderColor: '#e74c3c', borderWidth: 2 }]}>
+              <Text style={[styles.sectionTitle, { color: '#e74c3c' }]}>
+                Failed Charges ({failedCharges.length})
+              </Text>
+              <Text style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>
+                These auction winners were not charged successfully. Re-charge or waive each below.
+              </Text>
+              {failedCharges.map(fc => (
+                <View key={fc.winnerId} style={styles.failedChargeRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: '700', fontSize: 14, color: '#333' }}>{fc.itemTitle}</Text>
+                    <Text style={{ fontSize: 13, color: '#666' }}>
+                      {fc.playerName} · {fc.playerEmail}
+                    </Text>
+                    <Text style={{ fontSize: 13, color: '#e74c3c', fontWeight: '600' }}>
+                      {formatCurrency(fc.amountCents)}
+                    </Text>
+                  </View>
+                  <View style={{ gap: 6 }}>
+                    <Pressable
+                      style={[styles.chargeBtn, { backgroundColor: theme.colors.primary }]}
+                      onPress={() => recharge(fc.winnerId)}
+                      disabled={chargeWorking === fc.winnerId}
+                    >
+                      {chargeWorking === fc.winnerId
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={styles.chargeBtnText}>Re-charge</Text>}
+                    </Pressable>
+                    <Pressable
+                      style={[styles.chargeBtn, { backgroundColor: '#95a5a6' }]}
+                      onPress={() => waive(fc.winnerId)}
+                      disabled={chargeWorking === fc.winnerId}
+                    >
+                      <Text style={styles.chargeBtnText}>Waive</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
         </>
       )}
     </ScrollView>
@@ -268,4 +342,14 @@ const styles = StyleSheet.create({
   donationCount: { fontSize: 36, fontWeight: '800' },
   donationLabel: { fontSize: 16 },
   avgDonation:   { fontSize: 13 },
+  failedChargeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1, borderTopColor: '#f5e0e0',
+  },
+  chargeBtn: {
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 8, alignItems: 'center', minWidth: 90,
+  },
+  chargeBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 });

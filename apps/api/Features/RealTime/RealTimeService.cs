@@ -179,6 +179,11 @@ public class RealTimeService : IRealTimeService
         await TrySendAsync("AuctionAmountUpdated", eventCode,
             new { itemId, amountCents }, ct);
 
+    public async Task SendBidderCountUpdatedAsync(
+        string eventCode, int count, CancellationToken ct = default) =>
+        await TrySendAsync("BidderCountUpdated", eventCode,
+            new { count }, ct);
+
     // ── HELPERS ────────────────────────────────────────────────────────────────
 
     private async Task TrySendAsync(string method, string eventCode, object payload, CancellationToken ct)

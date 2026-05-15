@@ -1060,6 +1060,10 @@ public class AuctionSession
     [Column("current_called_amount_cents")]
     public int CurrentCalledAmountCents { get; set; }
 
+    /// <summary>Live count of attendees who pressed "I'm Bidding" for the current item. Resets to 0 when the item advances.</summary>
+    [Column("current_bidder_count")]
+    public int CurrentBidderCount { get; set; }
+
     [Column("started_at")]
     public DateTime StartedAt { get; set; } = DateTime.UtcNow;
 

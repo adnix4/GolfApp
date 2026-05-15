@@ -169,6 +169,19 @@ export default function LiveAuctionScreen() {
             <Text style={styles.bannerText}>🔴  LIVE SESSION IN PROGRESS</Text>
           </View>
 
+          {/* Bidder count */}
+          <View style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }]}>
+            <Text style={{ fontSize: 32 }}>🙋</Text>
+            <View>
+              <Text style={{ fontSize: 28, fontWeight: '800', color: theme.colors.primary }}>
+                {session.currentBidderCount}
+              </Text>
+              <Text style={{ fontSize: 12, color: '#666' }}>
+                {session.currentBidderCount === 1 ? 'attendee is bidding' : 'attendees are bidding'}
+              </Text>
+            </View>
+          </View>
+
           {/* Current item */}
           {currentItem ? (
             <View style={styles.card}>
@@ -234,9 +247,9 @@ export default function LiveAuctionScreen() {
 
           {/* Queue */}
           <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
-            Remaining Items ({items.filter(i => i.status === 'Open').length})
+            Remaining Items ({items.filter(i => i.status === 'Open' || i.status === 'Extended').length})
           </Text>
-          {items.filter(i => i.status === 'Open').map(item => (
+          {items.filter(i => i.status === 'Open' || i.status === 'Extended').map(item => (
             <View
               key={item.id}
               style={[

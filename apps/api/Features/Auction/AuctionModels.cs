@@ -123,6 +123,7 @@ public record AuctionSessionResponse
     public bool   IsActive                 { get; init; }
     public Guid?  CurrentItemId            { get; init; }
     public int    CurrentCalledAmountCents { get; init; }
+    public int    CurrentBidderCount       { get; init; }
     public DateTime StartedAt              { get; init; }
     public DateTime? EndedAt              { get; init; }
 }
@@ -131,4 +132,18 @@ public record UpdateCalledAmountRequest
 {
     [Required]
     public int AmountCents { get; init; }
+}
+
+// ── FAILED CHARGES ─────────────────────────────────────────────────────────────
+
+public record FailedChargeResponse
+{
+    public Guid   WinnerId             { get; init; }
+    public Guid   AuctionItemId        { get; init; }
+    public string ItemTitle            { get; init; } = string.Empty;
+    public string PlayerName           { get; init; } = string.Empty;
+    public string PlayerEmail          { get; init; } = string.Empty;
+    public int    AmountCents          { get; init; }
+    public string StripePaymentIntentId { get; init; } = string.Empty;
+    public DateTime FailedAt           { get; init; }
 }

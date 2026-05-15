@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Stripe;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Enums;
+using GolfFundraiserPro.Api.Features.Emails;
 
 namespace GolfFundraiserPro.Api.Features.Webhooks;
 
@@ -14,15 +15,18 @@ public class StripeWebhookController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
     private readonly IConfiguration _config;
+    private readonly EmailService _email;
     private readonly ILogger<StripeWebhookController> _logger;
 
     public StripeWebhookController(
         ApplicationDbContext db,
         IConfiguration config,
+        EmailService email,
         ILogger<StripeWebhookController> logger)
     {
         _db     = db;
         _config = config;
+        _email  = email;
         _logger = logger;
     }
 
@@ -89,7 +93,10 @@ public class StripeWebhookController : ControllerBase
             return;
         }
 
-        var winner = await _db.AuctionWinners.FirstOrDefaultAsync(w => w.Id == winnerId, ct);
+        var winner = await _db.AuctionWinners
+            .Include(w => w.AuctionItem).ThenInclude(i => i.Event)
+            .Include(w => w.Player)
+            .FirstOrDefaultAsync(w => w.Id == winnerId, ct);
         if (winner is null) return;
 
         winner.ChargeStatus = ChargeStatus.Succeeded;
@@ -98,6 +105,8 @@ public class StripeWebhookController : ControllerBase
 
         _logger.LogInformation(
             "Auction winner {WinnerId} charged successfully (pi={Pi})", winnerId, pi.Id);
+
+        await SendAuctionReceiptAsync(winner, ct);
     }
 
     private async Task HandlePaymentFailedAsync(Event stripeEvent, CancellationToken ct)
@@ -118,5 +127,61 @@ public class StripeWebhookController : ControllerBase
         _logger.LogWarning(
             "Auction winner {WinnerId} charge FAILED (pi={Pi}). Manual resolution required.",
             winnerId, pi.Id);
+    }
+
+    private async Task SendAuctionReceiptAsync(
+        Domain.Entities.AuctionWinner winner, CancellationToken ct)
+    {
+        try
+        {
+            var player = winner.Player;
+            var item   = winner.AuctionItem;
+            if (player is null || item is null) return;
+
+            var amount    = $"${winner.AmountCents / 100.0:F2}";
+            var fmv       = item.FairMarketValueCents > 0
+                ? $"${item.FairMarketValueCents / 100.0:F2}"
+                : "N/A";
+            var deductible = winner.AmountCents > item.FairMarketValueCents
+                ? $"${(winner.AmountCents - item.FairMarketValueCents) / 100.0:F2}"
+                : "$0.00";
+
+            var org = await _db.Organizations
+                .FirstOrDefaultAsync(o => o.Id == winner.AuctionItem.Event.OrgId, ct);
+            var is501c3 = org?.Is501c3 ?? false;
+
+            var deductibilitySection = is501c3
+                ? $"""
+                   <p><strong>Tax Deductibility (501(c)(3)):</strong><br/>
+                   Fair Market Value of item: {fmv}<br/>
+                   Potentially deductible portion: {deductible}<br/>
+                   <em>Please consult your tax advisor. No goods or services were provided in exchange
+                   beyond the item received.</em></p>
+                   """
+                : string.Empty;
+
+            var html = $"""
+                <p>Hi {player.FirstName},</p>
+                <p>Thank you for your winning bid! Here is your receipt:</p>
+                <table style="border-collapse:collapse;width:100%;max-width:480px">
+                  <tr><td style="padding:6px 12px;font-weight:600">Item</td><td style="padding:6px 12px">{item.Title}</td></tr>
+                  <tr style="background:#f5f5f5"><td style="padding:6px 12px;font-weight:600">Amount Paid</td><td style="padding:6px 12px">{amount}</td></tr>
+                  <tr><td style="padding:6px 12px;font-weight:600">Fair Market Value</td><td style="padding:6px 12px">{fmv}</td></tr>
+                </table>
+                {deductibilitySection}
+                <p>Thank you for supporting our fundraiser!</p>
+                """;
+
+            await _email.SendTransactionalAsync(
+                player.Email,
+                $"{player.FirstName} {player.LastName}",
+                $"Your auction receipt — {item.Title}",
+                html,
+                ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send auction receipt for winner {WinnerId}", winner.Id);
+        }
     }
 }

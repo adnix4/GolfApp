@@ -307,6 +307,10 @@ public record RegistrationConfirmResponse
     /// <summary>Invite URL to share with teammates (Mode 1 only).</summary>
     public string? InviteUrl         { get; init; }
     public string  Message           { get; init; } = string.Empty;
+    /// <summary>Stripe PaymentIntent client_secret for entry fee collection. Null when event has no entry fee.</summary>
+    public string? EntryFeeClientSecret { get; init; }
+    /// <summary>Entry fee in cents. Null when event has no entry fee.</summary>
+    public int?    EntryFeeCents        { get; init; }
 }
 
 /// <summary>

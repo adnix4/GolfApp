@@ -174,6 +174,20 @@ public class EmailService
         }
     }
 
+    /// <summary>
+    /// Sends a transactional email with a hardcoded subject and HTML body.
+    /// Used for outbid notices and auction receipts where no DB template exists.
+    /// </summary>
+    public async Task SendTransactionalAsync(
+        string toEmail,
+        string toName,
+        string subject,
+        string htmlBody,
+        CancellationToken ct = default)
+    {
+        await SendRawAsync(toEmail, toName, subject, htmlBody, ct);
+    }
+
     // ── PRIVATE ────────────────────────────────────────────────────────────────
 
     private async Task SendRawAsync(

@@ -347,7 +347,13 @@ public enum AuctionItemStatus
     Closed,
 
     /// <summary>Item was cancelled. No winner charged.</summary>
-    Cancelled
+    Cancelled,
+
+    /// <summary>Active with extended timer — a bid arrived in the final 30 seconds, extending the close window. Still accepting bids.</summary>
+    Extended,
+
+    /// <summary>Live auction item manually awarded by host. Winner assigned; charges pending or complete.</summary>
+    Awarded
 }
 
 /// <summary>
@@ -470,5 +476,11 @@ public enum EmailTriggerType
     RoundResult,
 
     /// <summary>Phase 5: sent when a player's handicap index is recalculated after a round.</summary>
-    HandicapUpdate
+    HandicapUpdate,
+
+    /// <summary>Sent to the previous high bidder when they are outbid on a silent auction item.</summary>
+    OutbidNotice,
+
+    /// <summary>Sent to the auction winner after their charge succeeds — includes item, amount, FMV for 501c3 deductibility.</summary>
+    AuctionReceipt
 }

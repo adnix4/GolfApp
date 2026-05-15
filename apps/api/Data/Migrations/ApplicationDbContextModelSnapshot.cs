@@ -967,6 +967,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("current_called_amount_cents");
 
+                    b.Property<int>("CurrentBidderCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("current_bidder_count");
+
                     b.Property<Guid?>("CurrentItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("current_item_id");
