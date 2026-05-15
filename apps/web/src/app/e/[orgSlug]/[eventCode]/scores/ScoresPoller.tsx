@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import * as signalR from '@microsoft/signalr';
 import type { PublicEventData, PublicLeaderboard, PublicLeaderboardEntry } from '@/lib/api';
 
@@ -242,6 +242,11 @@ export default function ScoresPoller({
           </footer>
         )}
 
+        {/* ── TV SPONSOR TICKER ── */}
+        {tvMode && event.sponsors.length > 0 && (
+          <SponsorTicker sponsors={event.sponsors} />
+        )}
+
         {/* ── TV STATUS BAR ── */}
         {tvMode && (
           <div style={tv.statusBar}>
@@ -255,6 +260,47 @@ export default function ScoresPoller({
 
       </div>
     </>
+  );
+}
+
+// ── SPONSOR TICKER (TV mode only) ────────────────────────────────────────────
+
+const TICKER_INTERVAL_MS = 5_000;
+
+function SponsorTicker({ sponsors }: { sponsors: PublicEventData['sponsors'] }) {
+  const [idx,     setIdx]     = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (sponsors.length < 2) return;
+    const id = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIdx(i => (i + 1) % sponsors.length);
+        setVisible(true);
+      }, 400);
+    }, TICKER_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [sponsors.length]);
+
+  const sp = sponsors[idx];
+  if (!sp) return null;
+
+  return (
+    <div style={tv.ticker}>
+      <span style={tv.tickerLabel}>SPONSORED BY</span>
+      <div style={{ ...tv.tickerContent, opacity: visible ? 1 : 0, transition: 'opacity 0.35s ease' }}>
+        {sp.logoUrl && (
+          <img
+            src={sp.logoUrl}
+            alt={sp.name}
+            style={tv.tickerLogo}
+          />
+        )}
+        <span style={tv.tickerName}>{sp.name}</span>
+        {sp.tagline && <span style={tv.tickerTagline}>— {sp.tagline}</span>}
+      </div>
+    </div>
   );
 }
 
@@ -414,4 +460,12 @@ const tv = {
   statusBar:   { padding: '0.625rem 2.5rem', backgroundColor: '#161b22', borderTop: '1px solid #30363d' },
   statusMeta:  { fontSize: '0.85rem', color: '#484f58' },
   statusError: { fontSize: '0.85rem', color: '#f85149', fontWeight: 600 },
+
+  // Sponsor ticker
+  ticker:        { padding: '0.875rem 2.5rem', backgroundColor: '#161b22', borderTop: '1px solid #30363d', display: 'flex', alignItems: 'center', gap: '1.25rem' },
+  tickerLabel:   { fontSize: '0.65rem', fontWeight: 800, color: '#484f58', textTransform: 'uppercase' as const, letterSpacing: 2, flexShrink: 0 },
+  tickerContent: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
+  tickerLogo:    { height: 28, width: 'auto', objectFit: 'contain' as const, borderRadius: 4, backgroundColor: '#fff', padding: '2px 6px' },
+  tickerName:    { fontSize: '1rem', fontWeight: 700, color: '#e6edf3' },
+  tickerTagline: { fontSize: '0.85rem', color: '#8b949e' },
 } as const;

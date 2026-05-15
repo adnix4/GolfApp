@@ -1009,6 +1009,7 @@ public class EventService
         if (update.FreeAgentEnabled.HasValue)  existing.FreeAgentEnabled  = update.FreeAgentEnabled;
         if (update.EntryFeeCents.HasValue)     existing.EntryFeeCents     = update.EntryFeeCents;
         if (update.ThemeOverride is not null)  existing.ThemeOverride     = update.ThemeOverride;
+        if (update.OfflineMode.HasValue)       existing.OfflineMode       = update.OfflineMode;
     }
 
     /// <summary>

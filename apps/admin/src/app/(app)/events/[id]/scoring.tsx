@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { ScoreCard, useTheme } from '@gfp/ui';
-import { teamsApi, scoresApi, eventsApi, testDataApi, type Team, type Scorecard, type EventDetail } from '@/lib/api';
+import { teamsApi, scoresApi, eventsApi, testDataApi, type Team, type Scorecard, type EventDetail, type LeaderboardEntry } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 
@@ -17,6 +17,7 @@ export default function ScoringScreen() {
 
   const [event,        setEvent]        = useState<EventDetail | null>(null);
   const [teams,        setTeams]        = useState<Team[]>([]);
+  const [leaderboard,  setLeaderboard]  = useState<LeaderboardEntry[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [scorecard,    setScorecard]    = useState<Scorecard | null>(null);
   const [loading,      setLoading]      = useState(true);
@@ -29,9 +30,14 @@ export default function ScoringScreen() {
   useEffect(() => {
     async function init() {
       try {
-        const [e, t] = await Promise.all([eventsApi.get(id), teamsApi.list(id)]);
+        const [e, t, lb] = await Promise.all([
+          eventsApi.get(id),
+          teamsApi.list(id),
+          eventsApi.getLeaderboard(id).catch(() => [] as LeaderboardEntry[]),
+        ]);
         setEvent(e);
         setTeams(t);
+        setLeaderboard(lb);
         if (t.length > 0) setSelectedTeam(t[0].id);
       } catch (e: any) {
         setError(e.message ?? 'Failed to load data.');
@@ -120,6 +126,11 @@ export default function ScoringScreen() {
     ? holes.map(h => h.holeNumber)
     : Array.from({ length: holesCount }, (_, i) => i + 1);
 
+  const totalTeams    = teams.length;
+  const completedTeams = leaderboard.filter(e => e.isComplete).length;
+  const allComplete   = totalTeams > 0 && completedTeams === totalTeams;
+  const showSyncBar   = totalTeams > 0 && (event?.status === 'Scoring' || event?.status === 'Active');
+
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
   }
@@ -160,6 +171,26 @@ export default function ScoringScreen() {
         onConfirm={() => doToggleTestMode(false)}
         onCancel={() => setShowToggleWarning(false)}
       />
+
+      {/* Pending sync counter */}
+      {showSyncBar && (
+        <View style={[
+          styles.syncBar,
+          { backgroundColor: allComplete ? '#f0fdf4' : '#fff8e1',
+            borderBottomColor: allComplete ? '#27ae60' : '#f39c12' },
+        ]}>
+          <Text style={[styles.syncText, { color: allComplete ? '#1e8449' : '#856404' }]}>
+            {allComplete
+              ? `✓ All ${totalTeams} teams have complete scorecards`
+              : `⏳ ${completedTeams} of ${totalTeams} teams have all holes scored · ${totalTeams - completedTeams} pending`}
+          </Text>
+          {!allComplete && event?.status === 'Scoring' && (
+            <Text style={[styles.syncHint, { color: '#856404' }]}>
+              Collect QR codes or enter scores for remaining teams before publishing final results.
+            </Text>
+          )}
+        </View>
+      )}
 
       {/* Team selector */}
       <View style={styles.teamBar}>
@@ -253,6 +284,10 @@ export default function ScoringScreen() {
 const styles = StyleSheet.create({
   page:    { flex: 1 },
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  syncBar:  { paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 },
+  syncText: { fontSize: 13, fontWeight: '700' },
+  syncHint: { fontSize: 12, marginTop: 2 },
+
   testModeBar: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 16, paddingVertical: 10,

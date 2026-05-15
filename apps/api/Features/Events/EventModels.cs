@@ -201,6 +201,13 @@ public class EventConfigDto
     public bool? FreeAgentEnabled { get; set; }
 
     /// <summary>
+    /// Offline event mode — increases mobile sync retry intervals to conserve battery
+    /// and disables the live leaderboard on mobile. Intended for venues with poor connectivity.
+    /// </summary>
+    [JsonPropertyName("offlineMode")]
+    public bool? OfflineMode { get; set; }
+
+    /// <summary>
     /// Per-event color theme override.  null = inherit org theme.
     /// Allows one org to run differently-branded events.
     /// </summary>

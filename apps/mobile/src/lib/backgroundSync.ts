@@ -15,15 +15,19 @@ export const TASK_NAME = 'GFP_BACKGROUND_SYNC';
 let isSyncing        = false;
 let consecutiveFails = 0;
 let lastAttemptMs    = 0;
+let offlineModeActive = false; // updated each run from session; drives longer intervals
 
 /** Resets module-level sync state. Only used in tests. */
 export function __resetSyncState(): void {
-  isSyncing = false; consecutiveFails = 0; lastAttemptMs = 0;
+  isSyncing = false; consecutiveFails = 0; lastAttemptMs = 0; offlineModeActive = false;
 }
 
 function backoffMs(): number {
-  // 30 s → 60 s → 120 s → 240 s → 480 s (8 min cap)
-  return Math.min(30_000 * Math.pow(2, consecutiveFails), 480_000);
+  // Normal:  30 s → 60 s → 120 s → 240 s → 480 s (8 min cap)
+  // Offline: 150 s → 300 s → 600 s → … → 40 min cap  (conserves battery)
+  const base = offlineModeActive ? 150_000 : 30_000;
+  const cap  = offlineModeActive ? 2_400_000 : 480_000;
+  return Math.min(base * Math.pow(2, consecutiveFails), cap);
 }
 
 // ── Core sync logic ───────────────────────────────────────────────────────────
@@ -44,6 +48,7 @@ export async function attemptSync(): Promise<boolean> {
     const [session, deviceId] = await Promise.all([loadSession(), getDeviceId()]);
     if (!session) { isSyncing = false; return false; }
 
+    offlineModeActive = session.event.offlineMode ?? false;
     const { event, team } = session;
     const unsynced = await loadUnsyncedScores(event.id, team.id);
     if (unsynced.length === 0) { isSyncing = false; return false; }

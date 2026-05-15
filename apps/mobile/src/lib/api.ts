@@ -32,6 +32,7 @@ export interface EventCacheDto {
   status: string; startAt: string | null;
   logoUrl: string | null; themeJson: string | null;
   missionStatement: string | null; is501c3: boolean;
+  offlineMode: boolean;
 }
 
 export interface JoinEventResponse {

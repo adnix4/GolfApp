@@ -103,11 +103,13 @@ export default function EventSettingsScreen() {
   const [uploadErr,  setUploadErr]  = useState<string | null>(null);
 
   // Branding fields — null means "inherit from org"
-  const [logoUrl,  setLogoUrl]  = useState('');
-  const [mission,  setMission]  = useState('');
-  const [is501c3,  setIs501c3]  = useState(false);
-  const [hasTheme, setHasTheme] = useState(false);
-  const [colors,   setColors]   = useState<GFPTheme>({ ...ECO_GREEN_DEFAULT });
+  const [logoUrl,      setLogoUrl]      = useState('');
+  const [mission,      setMission]      = useState('');
+  const [is501c3,      setIs501c3]      = useState(false);
+  const [hasTheme,     setHasTheme]     = useState(false);
+  const [colors,       setColors]       = useState<GFPTheme>({ ...ECO_GREEN_DEFAULT });
+  const [offlineMode,  setOfflineMode]  = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -118,6 +120,7 @@ export default function EventSettingsScreen() {
       setLogoUrl(evt.logoUrl ?? '');
       setMission(evt.missionStatement ?? '');
       setIs501c3(evt.is501c3);
+      setOfflineMode(!!(evt.config as any)?.offlineMode);
       if (evt.themeJson) {
         setHasTheme(true);
         setColors(parseTheme(evt.themeJson));
@@ -374,6 +377,48 @@ export default function EventSettingsScreen() {
         {saving
           ? <ActivityIndicator color="#fff" />
           : <Text style={styles.saveBtnText}>Save Event Branding</Text>}
+      </Pressable>
+
+      {/* ── EVENT OPTIONS ── */}
+      <View style={[styles.card, { marginTop: 20 }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Event Options</Text>
+
+        <View style={styles.toggleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.label, { color: theme.colors.primary, marginTop: 0 }]}>
+              Offline Event Mode
+            </Text>
+            <Text style={[styles.hint, { color: theme.colors.accent }]}>
+              Increases mobile sync intervals to conserve battery at low-connectivity venues.
+              Also disables the live leaderboard on mobile.
+            </Text>
+          </View>
+          <Switch
+            value={offlineMode}
+            onValueChange={setOfflineMode}
+            trackColor={{ true: '#e67e22' }}
+            disabled={savingConfig}
+          />
+        </View>
+      </View>
+
+      <Pressable
+        style={[styles.saveBtn, { backgroundColor: '#e67e22', marginTop: 16 }, savingConfig && { opacity: 0.6 }]}
+        onPress={async () => {
+          setSavingConfig(true);
+          try {
+            await eventsApi.update(id, { config: { offlineMode } });
+          } catch (e: any) {
+            setError(e.message ?? 'Failed to save event options.');
+          } finally {
+            setSavingConfig(false);
+          }
+        }}
+        disabled={savingConfig}
+      >
+        {savingConfig
+          ? <ActivityIndicator color="#fff" />
+          : <Text style={styles.saveBtnText}>Save Event Options</Text>}
       </Pressable>
     </ScrollView>
   );

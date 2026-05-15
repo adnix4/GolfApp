@@ -165,6 +165,7 @@ public class MobileService
                 ThemeJson        = evt.ThemeJson ?? evt.Organization.ThemeJson,
                 MissionStatement = evt.MissionStatement ?? evt.Organization.MissionStatement,
                 Is501c3          = evt.Is501c3 || evt.Organization.Is501c3,
+                OfflineMode      = DeserializeOfflineMode(evt.ConfigJson),
             },
             Team = new TeamCacheDto
             {
@@ -360,5 +361,19 @@ public class MobileService
         }
         catch { /* malformed JSONB — treat as no hole numbers */ }
         return [];
+    }
+
+    private static bool DeserializeOfflineMode(string? configJson)
+    {
+        if (string.IsNullOrWhiteSpace(configJson)) return false;
+        try
+        {
+            using var doc = JsonDocument.Parse(configJson);
+            if (doc.RootElement.TryGetProperty("offlineMode", out var val) &&
+                val.ValueKind == JsonValueKind.True)
+                return true;
+        }
+        catch { /* ignore */ }
+        return false;
     }
 }

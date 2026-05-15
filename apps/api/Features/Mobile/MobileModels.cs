@@ -99,6 +99,7 @@ public record EventCacheDto
     public string? ThemeJson        { get; init; }
     public string? MissionStatement { get; init; }
     public bool    Is501c3          { get; init; }
+    public bool    OfflineMode      { get; init; }
 }
 
 public record TeamCacheDto
