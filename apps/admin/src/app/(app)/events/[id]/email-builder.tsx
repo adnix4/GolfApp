@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ScrollView,
-  TextInput, ActivityIndicator,
+  TextInput, ActivityIndicator, Platform,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
@@ -180,6 +180,17 @@ export default function EmailBuilderScreen() {
     }
   };
 
+  const handlePreviewPdf = () => {
+    if (!builderData || Platform.OS !== 'web') return;
+    const html = buildEmailHtml(builderData, sections, subject || `${builderData.eventName} — Email Preview`);
+    const w = (window as any).open('', '_blank');
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 400);
+  };
+
   const handleExport = async () => {
     if (!builderData) return;
     try {
@@ -308,6 +319,15 @@ export default function EmailBuilderScreen() {
                 ? <ActivityIndicator color="#fff" size="small" />
                 : <Text style={styles.btnText}>Send via SendGrid</Text>}
             </Pressable>
+
+            {Platform.OS === 'web' && (
+              <Pressable
+                style={[styles.btn, styles.btnOutline, { borderColor: '#27ae60' }]}
+                onPress={handlePreviewPdf}
+              >
+                <Text style={[styles.btnText, { color: '#27ae60' }]}>Preview / Print PDF</Text>
+              </Pressable>
+            )}
 
             <Pressable
               style={[styles.btn, styles.btnOutline, { borderColor: theme.colors.primary }]}

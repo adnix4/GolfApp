@@ -163,6 +163,29 @@ export async function registerPushToken(playerId: string, token: string | null):
   }
 }
 
+// ── HOLE CHALLENGES (public, no auth) ────────────────────────────────────────
+
+export interface ChallengeCacheDto {
+  id:               string;
+  holeNumber:       number | null;
+  challengeType:    string;
+  description:      string;
+  prizeDescription: string | null;
+  sponsorName:      string | null;
+  sponsorLogoUrl:   string | null;
+}
+
+export async function fetchPublicChallenges(eventCode: string): Promise<ChallengeCacheDto[]> {
+  try {
+    const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/challenges`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.challenges ?? []) as ChallengeCacheDto[];
+  } catch {
+    return [];
+  }
+}
+
 // ── PHASE 4: AUCTION ──────────────────────────────────────────────────────────
 
 export interface AuctionItemDto {

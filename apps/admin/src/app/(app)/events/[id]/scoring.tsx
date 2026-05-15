@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { ScoreCard, useTheme } from '@gfp/ui';
-import { teamsApi, scoresApi, eventsApi, testDataApi, type Team, type Scorecard, type EventDetail, type LeaderboardEntry } from '@/lib/api';
+import { teamsApi, scoresApi, eventsApi, testDataApi, challengesApi, type Team, type Scorecard, type EventDetail, type LeaderboardEntry, type HoleChallenge } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 
@@ -13,11 +13,13 @@ export default function ScoringScreen() {
   const theme    = useTheme();
 
   const { width, isMobile } = useResponsive();
-  const cardWidth = isMobile ? Math.floor((width - 40) / 2) : 180;
+  // 200px compact cards keep +/− buttons inside the card boundary (44pt × 2 + 60pt score = 148px + 24px padding = 172px ≤ 200px)
+  const cardWidth = isMobile ? Math.floor((width - 40) / 2) : 200;
 
   const [event,        setEvent]        = useState<EventDetail | null>(null);
   const [teams,        setTeams]        = useState<Team[]>([]);
   const [leaderboard,  setLeaderboard]  = useState<LeaderboardEntry[]>([]);
+  const [challenges,   setChallenges]   = useState<HoleChallenge[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [scorecard,    setScorecard]    = useState<Scorecard | null>(null);
   const [loading,      setLoading]      = useState(true);
@@ -30,14 +32,16 @@ export default function ScoringScreen() {
   useEffect(() => {
     async function init() {
       try {
-        const [e, t, lb] = await Promise.all([
+        const [e, t, lb, ch] = await Promise.all([
           eventsApi.get(id),
           teamsApi.list(id),
           eventsApi.getLeaderboard(id).catch(() => [] as LeaderboardEntry[]),
+          challengesApi.list(id).catch(() => [] as HoleChallenge[]),
         ]);
         setEvent(e);
         setTeams(t);
         setLeaderboard(lb);
+        setChallenges(ch);
         if (t.length > 0) setSelectedTeam(t[0].id);
       } catch (e: any) {
         setError(e.message ?? 'Failed to load data.');
@@ -244,6 +248,7 @@ export default function ScoringScreen() {
             const score = scoredHole?.grossScore ?? null;
             const isConflicted = scoredHole?.hasConflict ?? false;
             const isSaving = saving === holeNum;
+            const holeChallenge = challenges.find(c => c.holeNumber === holeNum) ?? null;
 
             return (
               <View key={holeNum} style={[styles.cardWrapper, { width: cardWidth }]}>
@@ -259,6 +264,8 @@ export default function ScoringScreen() {
                   onScoreChange={newScore => handleScoreChange(holeNum, newScore)}
                   isConflicted={isConflicted}
                   disabled={isSaving}
+                  compact
+                  challenge={holeChallenge}
                 />
                 {isConflicted && score != null && (
                   <Pressable

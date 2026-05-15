@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { ScoreCard, useTheme } from '@gfp/ui';
 import type { ThemeContextValue } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
+import { fetchPublicChallenges, type ChallengeCacheDto } from '@/lib/api';
 
 // ── INLINE SUB-COMPONENTS ─────────────────────────────────────────────────────
 
@@ -138,9 +139,10 @@ export default function ScorecardScreen() {
     upsertScore, syncScores,
   } = useSession();
 
-  const [holeIndex,  setHoleIndex]  = useState(0);
-  const [shotsOpen,  setShotsOpen]  = useState(false);
-  const [showHio,    setShowHio]    = useState(false);
+  const [holeIndex,   setHoleIndex]   = useState(0);
+  const [shotsOpen,   setShotsOpen]   = useState(false);
+  const [showHio,     setShowHio]     = useState(false);
+  const [challenges,  setChallenges]  = useState<ChallengeCacheDto[]>([]);
 
   const holeOrder = useMemo(
     () => session
@@ -154,6 +156,11 @@ export default function ScorecardScreen() {
       router.replace('/join');
     }
   }, [loading, session]);
+
+  useEffect(() => {
+    if (!session) return;
+    fetchPublicChallenges(session.event.eventCode).then(setChallenges);
+  }, [session?.event.eventCode]);
 
   const handleSync = useCallback(() => { syncScores(); }, [syncScores]);
 
@@ -170,6 +177,7 @@ export default function ScorecardScreen() {
   const par                = hole?.par ?? 4;
   const currentScore       = pendingScores.find(s => s.holeNumber === currentHoleNumber) ?? null;
   const isLastHole         = holeIndex === holeOrder.length - 1;
+  const holeChallenge      = challenges.find(c => c.holeNumber === currentHoleNumber) ?? null;
 
   const playerShots: Record<string, number> = currentScore?.playerShots ?? {};
 
@@ -297,6 +305,7 @@ export default function ScorecardScreen() {
           par={par}
           score={currentScore?.grossScore ?? null}
           onScoreChange={handleScoreChange}
+          challenge={holeChallenge}
         />
 
         {/* ── PUTTS ── */}

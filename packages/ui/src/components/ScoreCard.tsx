@@ -1,29 +1,6 @@
-/**
- * ScoreCard — Per-Hole Gross Score Entry Component
- * ─────────────────────────────────────────────────────────────────────────────
- * WHY THIS COMPONENT EXISTS:
- *   Score entry is the most frequently touched UI element during a round.
- *   It must work identically on:
- *     • An admin's tablet running apps/admin (Expo Router web)
- *     • A golfer's phone running apps/mobile (React Native iOS/Android)
- *
- *   The spec (§7.2) mandates 56pt minimum touch targets for accessibility and
- *   fat-finger usability on a golf course.  This component enforces that.
- *
- * RULE: No Platform.OS checks.  StyleSheet.create() only.
- *
- * USAGE:
- *   <ScoreCard
- *     holeNumber={7}
- *     par={4}
- *     score={score}          // current gross score value (or null if not entered)
- *     onScoreChange={(n) => saveScore(7, n)}
- *     isConflicted={false}   // true = show conflict warning (two devices disagree)
- *   />
- */
-
 import React, { useCallback } from 'react';
 import {
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -31,40 +8,31 @@ import {
 } from 'react-native';
 import { useTheme } from './ThemeProvider';
 
-// ── CONSTANTS ─────────────────────────────────────────────────────────────────
+const MIN_TOUCH_TARGET         = 56;
+const MIN_TOUCH_TARGET_COMPACT = 44;
 
-/**
- * MIN_TOUCH_TARGET — 56pt minimum touch target per spec §7.2.
- * ADA/Apple HIG minimum is 44pt, but the spec bumps it to 56pt for gloved
- * or wet hands on a golf course.
- */
-const MIN_TOUCH_TARGET = 56;
-
-/**
- * Score bounds — prevent absurd values without blocking all input.
- * A scramble team on a par 5 shouldn't need more than 12 strokes.
- */
 const SCORE_MIN = 1;
 const SCORE_MAX = 20;
 
-// ── PROPS ─────────────────────────────────────────────────────────────────────
-
-interface ScoreCardProps {
-  /** Hole number 1–18 displayed as the card label */
-  holeNumber: number;
-  /** Par for this hole — used to show relative-to-par display */
-  par: number;
-  /** Current gross score, or null if not yet entered */
-  score: number | null;
-  /** Called when the user presses + or − */
-  onScoreChange: (newScore: number) => void;
-  /** If true, renders a conflict indicator (two devices submitted different scores) */
-  isConflicted?: boolean;
-  /** If true, disables all input (round is complete or user lacks permission) */
-  disabled?: boolean;
+export interface ScoreCardChallenge {
+  description:    string;
+  sponsorName?:   string | null;
+  sponsorLogoUrl?: string | null;
+  prizeDescription?: string | null;
 }
 
-// ── COMPONENT ─────────────────────────────────────────────────────────────────
+interface ScoreCardProps {
+  holeNumber:    number;
+  par:           number;
+  score:         number | null;
+  onScoreChange: (newScore: number) => void;
+  isConflicted?: boolean;
+  disabled?:     boolean;
+  /** Renders smaller buttons (44pt) so the card fits inside tight grid cells */
+  compact?:      boolean;
+  /** Hole challenge / contest to show inside the card header */
+  challenge?:    ScoreCardChallenge | null;
+}
 
 export function ScoreCard({
   holeNumber,
@@ -73,38 +41,23 @@ export function ScoreCard({
   onScoreChange,
   isConflicted = false,
   disabled = false,
+  compact = false,
+  challenge = null,
 }: ScoreCardProps) {
   const theme = useTheme();
 
-  /**
-   * handleDecrement — subtract 1 from the score, respecting SCORE_MIN.
-   * useCallback prevents new function references on every render,
-   * keeping child Pressable re-renders minimal.
-   */
   const handleDecrement = useCallback(() => {
     if (disabled) return;
-    const current = score ?? par; // default to par if no score entered yet
-    if (current > SCORE_MIN) {
-      onScoreChange(current - 1);
-    }
+    const current = score ?? par;
+    if (current > SCORE_MIN) onScoreChange(current - 1);
   }, [score, par, disabled, onScoreChange]);
 
-  /**
-   * handleIncrement — add 1 to the score, respecting SCORE_MAX.
-   */
   const handleIncrement = useCallback(() => {
     if (disabled) return;
     const current = score ?? par;
-    if (current < SCORE_MAX) {
-      onScoreChange(current + 1);
-    }
+    if (current < SCORE_MAX) onScoreChange(current + 1);
   }, [score, par, disabled, onScoreChange]);
 
-  /**
-   * relativeScore — score relative to par.
-   * Negative = under par (good), Positive = over par.
-   * Displayed as "−1", "E" (even), "+2", etc.
-   */
   const relativeScore = score !== null ? score - par : null;
   const relativeLabel = relativeScore === null
     ? '—'
@@ -112,27 +65,23 @@ export function ScoreCard({
       ? 'E'
       : relativeScore > 0
         ? `+${relativeScore}`
-        : `${relativeScore}`; // already has − sign
+        : `${relativeScore}`;
 
-  /**
-   * Dynamic border color:
-   *   - Conflict: warning orange
-   *   - Score entered: theme action (green)
-   *   - No score yet: neutral grey
-   */
   const borderColor = isConflicted
     ? '#e67e22'
     : score !== null
       ? theme.colors.action
       : '#cccccc';
 
+  const touchTarget = compact ? MIN_TOUCH_TARGET_COMPACT : MIN_TOUCH_TARGET;
+  const cardPadding = compact ? 12 : 16;
+
   return (
     <View
-      style={[styles.card, { borderColor, backgroundColor: theme.colors.surface }]}
-      /**
-       * accessibilityLabel tells screen readers what this card is.
-       * Accessibility is not optional on a public-facing golf app.
-       */
+      style={[
+        styles.card,
+        { borderColor, backgroundColor: theme.colors.surface, padding: cardPadding },
+      ]}
       accessibilityLabel={`Hole ${holeNumber}, par ${par}${score !== null ? `, score ${score}` : ', not yet entered'}`}
       accessibilityRole="none"
     >
@@ -146,6 +95,32 @@ export function ScoreCard({
         </Text>
       </View>
 
+      {/* ── HOLE CHALLENGE BADGE ── */}
+      {challenge && (
+        <View style={[styles.challengeBadge, { backgroundColor: theme.colors.highlight, borderColor: theme.colors.accent + '44' }]}>
+          {challenge.sponsorLogoUrl ? (
+            <Image
+              source={{ uri: challenge.sponsorLogoUrl }}
+              style={styles.challengeSponsorLogo}
+              resizeMode="contain"
+              accessibilityLabel={challenge.sponsorName ?? 'Sponsor'}
+            />
+          ) : challenge.sponsorName ? (
+            <Text style={[styles.challengeSponsor, { color: theme.colors.accent }]} numberOfLines={1}>
+              {challenge.sponsorName}
+            </Text>
+          ) : null}
+          <Text style={[styles.challengeDesc, { color: theme.colors.primary }]} numberOfLines={compact ? 1 : 2}>
+            {challenge.description}
+          </Text>
+          {challenge.prizeDescription && (
+            <Text style={[styles.challengePrize, { color: theme.colors.accent }]} numberOfLines={1}>
+              🏆 {challenge.prizeDescription}
+            </Text>
+          )}
+        </View>
+      )}
+
       {/* ── CONFLICT INDICATOR ── */}
       {isConflicted && (
         <View style={styles.conflictBanner}>
@@ -155,32 +130,31 @@ export function ScoreCard({
 
       {/* ── SCORE CONTROLS ── */}
       <View style={styles.controls}>
-        {/*
-          * DECREMENT BUTTON
-          * minWidth/minHeight enforce the 56pt touch target requirement.
-          * The hitSlop prop extends the pressable area beyond the visual bounds
-          * — important when buttons are placed close together.
-          */}
         <Pressable
           onPress={handleDecrement}
           disabled={disabled || (score !== null && score <= SCORE_MIN)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={({ pressed }) => [
             styles.button,
-            { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary },
-            (disabled) && styles.buttonDisabled,
+            {
+              backgroundColor: pressed ? theme.colors.accent : theme.colors.primary,
+              minWidth:  touchTarget,
+              minHeight: touchTarget,
+              borderRadius: touchTarget / 2,
+            },
+            disabled && styles.buttonDisabled,
           ]}
           accessibilityLabel={`Decrease score for hole ${holeNumber}`}
           accessibilityRole="button"
         >
-          <Text style={[styles.buttonText, { color: theme.colors.surface }]}>−</Text>
+          <Text style={[styles.buttonText, { color: theme.colors.surface, fontSize: compact ? 24 : 28 }]}>−</Text>
         </Pressable>
 
         {/* ── SCORE DISPLAY ── */}
         <View style={styles.scoreDisplay}>
           <Text
-            style={[styles.scoreValue, { color: theme.colors.primary }]}
-            accessibilityLiveRegion="polite" // announce score changes to screen readers
+            style={[styles.scoreValue, { color: theme.colors.primary, fontSize: compact ? 32 : 40 }]}
+            accessibilityLiveRegion="polite"
           >
             {score !== null ? score : '—'}
           </Text>
@@ -189,10 +163,10 @@ export function ScoreCard({
               styles.relativeScore,
               {
                 color: relativeScore !== null && relativeScore < 0
-                  ? '#27ae60' // under par: green
+                  ? '#27ae60'
                   : relativeScore !== null && relativeScore > 0
-                    ? '#e74c3c' // over par: red
-                    : theme.colors.accent, // even or no score: accent
+                    ? '#e74c3c'
+                    : theme.colors.accent,
               },
             ]}
           >
@@ -207,26 +181,28 @@ export function ScoreCard({
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={({ pressed }) => [
             styles.button,
-            { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary },
+            {
+              backgroundColor: pressed ? theme.colors.accent : theme.colors.primary,
+              minWidth:  touchTarget,
+              minHeight: touchTarget,
+              borderRadius: touchTarget / 2,
+            },
             disabled && styles.buttonDisabled,
           ]}
           accessibilityLabel={`Increase score for hole ${holeNumber}`}
           accessibilityRole="button"
         >
-          <Text style={[styles.buttonText, { color: theme.colors.surface }]}>+</Text>
+          <Text style={[styles.buttonText, { color: theme.colors.surface, fontSize: compact ? 24 : 28 }]}>+</Text>
         </Pressable>
       </View>
     </View>
   );
 }
 
-// ── STYLES ────────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   card: {
     borderWidth: 2,
     borderRadius: 12,
-    padding: 16,
     marginVertical: 8,
     marginHorizontal: 4,
   },
@@ -243,6 +219,34 @@ const styles = StyleSheet.create({
   parLabel: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  challengeBadge: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginBottom: 8,
+    gap: 2,
+  },
+  challengeSponsorLogo: {
+    width: '100%',
+    height: 24,
+    marginBottom: 2,
+  },
+  challengeSponsor: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  challengeDesc: {
+    fontSize: 11,
+    fontWeight: '600',
+    lineHeight: 15,
+  },
+  challengePrize: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   conflictBanner: {
     backgroundColor: '#fdf2e3',
@@ -263,18 +267,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   button: {
-    /**
-     * minWidth and minHeight enforce the 56pt touch target from the spec.
-     * justifyContent/alignItems center the ± glyph within the touch area.
-     */
-    minWidth:        MIN_TOUCH_TARGET,
-    minHeight:       MIN_TOUCH_TARGET,
-    borderRadius:    MIN_TOUCH_TARGET / 2,
-    justifyContent:  'center',
-    alignItems:      'center',
+    justifyContent: 'center',
+    alignItems:     'center',
   },
   buttonText: {
-    fontSize: 28,
     fontWeight: '300',
     lineHeight: 32,
     textAlign: 'center',
@@ -284,10 +280,9 @@ const styles = StyleSheet.create({
   },
   scoreDisplay: {
     alignItems: 'center',
-    minWidth: 72,
+    minWidth: 60,
   },
   scoreValue: {
-    fontSize: 40,
     fontWeight: '800',
     lineHeight: 44,
   },

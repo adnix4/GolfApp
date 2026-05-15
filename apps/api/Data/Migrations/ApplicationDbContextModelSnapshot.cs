@@ -185,6 +185,14 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("zip");
 
+                    b.Property<double?>("CourseRating")
+                        .HasColumnType("double precision")
+                        .HasColumnName("course_rating");
+
+                    b.Property<int?>("SlopeRating")
+                        .HasColumnType("integer")
+                        .HasColumnName("slope_rating");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OrgId");
@@ -1234,6 +1242,11 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("total_rounds");
 
+                    b.Property<bool>("SyncHandicapToPlayer")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("sync_handicap_to_player");
+
                     b.HasKey("Id");
 
                     b.HasIndex("LeagueId")
@@ -1541,6 +1554,21 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("total_points");
 
+                    b.Property<int>("MatchWins")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("match_wins");
+
+                    b.Property<int>("MatchLosses")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("match_losses");
+
+                    b.Property<int>("MatchHalves")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("match_halves");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -1586,6 +1614,37 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasDatabaseName("IX_skins_round_id");
 
                     b.ToTable("skins");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.RoundAbsence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("RoundId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("round_id");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("member_id");
+
+                    b.Property<Guid?>("SubMemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sub_member_id");
+
+                    b.Property<DateTime>("ReportedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reported_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoundId", "MemberId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_round_absences_round_member_unique");
+
+                    b.ToTable("round_absences");
                 });
 
             modelBuilder.Entity("GolfFundraiserPro.Api.Features.Auth.RefreshTokenRecord", b =>
@@ -2236,6 +2295,32 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                     b.Navigation("Winner");
                 });
 
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.RoundAbsence", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.LeagueRound", "Round")
+                        .WithMany("Absences")
+                        .HasForeignKey("RoundId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.LeagueMember", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.LeagueMember", "Sub")
+                        .WithMany()
+                        .HasForeignKey("SubMemberId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Round");
+
+                    b.Navigation("Member");
+
+                    b.Navigation("Sub");
+                });
+
             modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.AuctionItem", b =>
                 {
                     b.Navigation("Bids");
@@ -2298,6 +2383,8 @@ namespace GolfFundraiserPro.Api.Data.Migrations
 
             modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.LeagueRound", b =>
                 {
+                    b.Navigation("Absences");
+
                     b.Navigation("Pairings");
 
                     b.Navigation("Scores");
