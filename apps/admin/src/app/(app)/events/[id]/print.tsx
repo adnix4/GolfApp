@@ -9,7 +9,7 @@ import {
   type EventDetail, type Team, type LeaderboardEntry, type Sponsor,
 } from '@/lib/api';
 
-type PrintMode = 'scorecards' | 'leaderboard' | 'sponsors';
+type PrintMode = 'scorecards' | 'leaderboard' | 'sponsors' | 'teetime';
 
 export default function PrintKitScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
@@ -52,6 +52,15 @@ export default function PrintKitScreen() {
       const [event, sponsors] = await Promise.all([eventsApi.get(id), sponsorsApi.list(id)]);
       openWindow(buildSponsorHtml(event, sponsors));
     } catch (e: any) { setError(e.message ?? 'Failed to generate sponsor sheet.'); }
+    finally { setLoading(null); }
+  }, [id]);
+
+  const printTeeTime = useCallback(async () => {
+    setLoading('teetime'); setError(null);
+    try {
+      const [event, teams] = await Promise.all([eventsApi.get(id), teamsApi.list(id)]);
+      openWindow(buildTeeTimeHtml(event, teams));
+    } catch (e: any) { setError(e.message ?? 'Failed to generate tee time schedule.'); }
     finally { setLoading(null); }
   }, [id]);
 
@@ -98,6 +107,15 @@ export default function PrintKitScreen() {
           loading={loading === 'sponsors'}
           disabled={!isWeb || loading !== null}
           color="#8e44ad"
+        />
+        <PrintCard
+          icon="⏰"
+          title="Tee Time Schedule"
+          description="Full tee time schedule sorted by start time. Print for the starter booth and registration table."
+          onPress={printTeeTime}
+          loading={loading === 'teetime'}
+          disabled={!isWeb || loading !== null}
+          color="#16a085"
         />
       </View>
     </View>
@@ -275,6 +293,57 @@ function buildSponsorHtml(event: EventDetail, sponsors: Sponsor[]): string {
       <h2>${event.name}</h2>
       <table>
         <thead><tr><th style="width:100px">Logo</th><th>Name</th><th>Tagline</th><th style="width:100px">Tier</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </body></html>`;
+}
+
+function buildTeeTimeHtml(event: EventDetail, teams: Team[]): string {
+  const sorted = [...teams].sort((a, b) => {
+    if (a.teeTime && b.teeTime) return new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime();
+    if (a.teeTime) return -1;
+    if (b.teeTime) return 1;
+    return (a.startingHole ?? 99) - (b.startingHole ?? 99);
+  });
+
+  const rows = sorted.map((team, idx) => {
+    const teeStr = team.teeTime
+      ? new Date(team.teeTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : '—';
+    const players = team.players.map(p => `${p.firstName} ${p.lastName}`).join(', ') || '—';
+    return `<tr>
+      <td style="font-weight:700;text-align:center">${idx + 1}</td>
+      <td style="font-weight:700">${team.name}</td>
+      <td style="font-weight:700;text-align:center">${teeStr}</td>
+      <td style="text-align:center">${team.startingHole ?? '—'}</td>
+      <td style="color:#555">${players}</td>
+    </tr>`;
+  }).join('');
+
+  const dateStr = event.startAt
+    ? new Date(event.startAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    : '';
+
+  return `<!DOCTYPE html><html><head><title>Tee Times — ${event.name}</title>${PRINT_BASE}</head>
+  <body>
+    <div class="no-print" style="padding:16px; background:#1a1a2e; color:#fff; font-family:Arial">
+      <strong>Golf Fundraiser Pro — Tee Time Schedule</strong>
+      &nbsp;&nbsp;
+      <button onclick="window.print()" style="padding:8px 20px; background:#27ae60; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:700">🖨 Print</button>
+    </div>
+    <div style="padding:24px">
+      <h1>${event.name}</h1>
+      <h2>Tee Time Schedule${dateStr ? ' &nbsp;·&nbsp; ' + dateStr : ''}</h2>
+      <p style="font-size:12px; color:#888; margin-top:4px">Printed ${new Date().toLocaleString()}</p>
+      <table>
+        <thead><tr>
+          <th style="width:40px;text-align:center">#</th>
+          <th>Team</th>
+          <th style="width:100px;text-align:center">Tee Time</th>
+          <th style="width:80px;text-align:center">Hole</th>
+          <th>Players</th>
+        </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>

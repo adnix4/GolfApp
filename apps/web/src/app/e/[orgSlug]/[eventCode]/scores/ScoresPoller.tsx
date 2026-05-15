@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import * as signalR from '@microsoft/signalr';
 import type { PublicEventData, PublicLeaderboard, PublicLeaderboardEntry } from '@/lib/api';
 
-const FALLBACK_POLL_MS = 30_000;
+const FALLBACK_POLL_MS = 15_000; // spec: 15-second SSE/HTTP fallback when WebSocket unavailable
 const BASE             = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 async function fetchLeaderboard(eventCode: string): Promise<PublicLeaderboard | null> {
@@ -167,9 +167,12 @@ export default function ScoresPoller({
       {hioAlert && (
         <div style={hio.banner}>
           <span style={hio.flag}>⛳</span>
-          <span style={hio.text}>
-            HOLE-IN-ONE! <strong>{hioAlert.playerName}</strong> — Hole {hioAlert.holeNumber}
-          </span>
+          <div style={hio.textBlock}>
+            <span style={hio.label}>Hole in One!</span>
+            <span style={hio.text}>
+              {hioAlert.playerName} — Hole {hioAlert.holeNumber} · {hioAlert.teamName}
+            </span>
+          </div>
           <button style={hio.close} onClick={() => setHioAlert(null)}>✕</button>
         </div>
       )}
@@ -358,8 +361,19 @@ const cssKeyframes = `
     50%       { opacity: 0.25; }
   }
   @keyframes gfp-hio-slide {
-    from { transform: translateY(-100%); opacity: 0; }
-    to   { transform: translateY(0);     opacity: 1; }
+    0%   { transform: translateY(-120%) scale(0.92); opacity: 0; }
+    60%  { transform: translateY(4px) scale(1.02);  opacity: 1; }
+    100% { transform: translateY(0)   scale(1);      opacity: 1; }
+  }
+  @keyframes gfp-hio-flag {
+    0%, 100% { transform: rotate(-8deg) scale(1);    }
+    25%       { transform: rotate(8deg)  scale(1.15); }
+    50%       { transform: rotate(-6deg) scale(1.05); }
+    75%       { transform: rotate(6deg)  scale(1.12); }
+  }
+  @keyframes gfp-hio-glow {
+    0%, 100% { box-shadow: 0 4px 32px rgba(245,158,11,0.45), 0 0 0 0 rgba(245,158,11,0.3); }
+    50%       { box-shadow: 0 4px 48px rgba(245,158,11,0.8), 0 0 0 8px rgba(245,158,11,0);  }
   }
 `;
 
@@ -372,18 +386,27 @@ const hio = {
     zIndex: 9999,
     display: 'flex',
     alignItems: 'center',
-    gap: '0.75rem',
-    padding: '0.875rem 1.5rem',
-    backgroundColor: '#f59e0b',
+    justifyContent: 'center',
+    gap: '1rem',
+    padding: '1.125rem 1.5rem',
+    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #f59e0b 100%)',
+    backgroundSize: '200% 100%',
     color: '#1c1917',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
-    animation: 'gfp-hio-slide 0.4s ease-out',
+    animation: 'gfp-hio-slide 0.45s cubic-bezier(0.34,1.56,0.64,1), gfp-hio-glow 1.8s ease-in-out 0.5s infinite',
   },
-  flag: { fontSize: '1.5rem' },
-  text: { flex: 1, fontSize: '1rem', fontWeight: 600 },
+  flag: {
+    fontSize: '1.75rem',
+    display: 'inline-block',
+    animation: 'gfp-hio-flag 0.9s ease-in-out 0.5s infinite',
+  },
+  textBlock: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center' },
+  label: { fontSize: '0.65rem', fontWeight: 800, letterSpacing: 3, textTransform: 'uppercase' as const, opacity: 0.7 },
+  text: { fontSize: '1.1rem', fontWeight: 900, letterSpacing: 0.5 },
   close: {
+    position: 'absolute' as const, right: '1rem',
     background: 'none', border: 'none', cursor: 'pointer',
-    fontSize: '1.1rem', color: '#1c1917', lineHeight: 1,
+    fontSize: '1.1rem', color: '#1c1917', lineHeight: 1, opacity: 0.6,
+    padding: '4px 8px',
   },
 } as const;
 

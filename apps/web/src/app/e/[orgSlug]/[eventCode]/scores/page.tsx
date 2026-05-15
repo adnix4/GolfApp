@@ -9,10 +9,18 @@ export async function generateMetadata(
   const { eventCode } = await params;
   const event = await fetchPublicEvent(eventCode);
   if (!event) return { title: 'Event Not Found' };
+  const { orgSlug } = await params;
+  const description = `Live leaderboard for ${event.name} by ${event.orgName}`;
   return {
     title: `${event.name} — Live Scores`,
-    description:  `Live leaderboard for ${event.name} by ${event.orgName}`,
+    description,
     robots: 'noindex',
+    openGraph: {
+      title: `${event.name} — Live Leaderboard`,
+      description,
+      type: 'website',
+      images: [`/e/${orgSlug}/${eventCode}/scores/opengraph-image`],
+    },
   };
 }
 

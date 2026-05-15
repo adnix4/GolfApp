@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator,
   ScrollView, Image, Platform, SafeAreaView,
+  Modal, Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScoreCard, useTheme } from '@gfp/ui';
@@ -72,6 +73,60 @@ const syncStyles = StyleSheet.create({
   text:    { fontSize: 13, fontWeight: '600' },
 });
 
+// ── HOLE-IN-ONE CELEBRATION MODAL ────────────────────────────────────────────
+
+function HoleInOneModal({ visible, holeName, onDismiss }: {
+  visible:  boolean;
+  holeName: string;
+  onDismiss: () => void;
+}) {
+  const scale   = useRef(new Animated.Value(0.3)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(scale, { toValue: 1, useNativeDriver: true, bounciness: 18 }),
+        Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      ]).start();
+    } else {
+      scale.setValue(0.3);
+      opacity.setValue(0);
+    }
+  }, [visible]);
+
+  return (
+    <Modal transparent visible={visible} animationType="none" onRequestClose={onDismiss}>
+      <Pressable style={hioStyles.backdrop} onPress={onDismiss} accessibilityLabel="Dismiss" accessibilityRole="button">
+        <Animated.View style={[hioStyles.card, { opacity, transform: [{ scale }] }]}>
+          <Text style={hioStyles.emoji}>⛳</Text>
+          <Text style={hioStyles.headline}>HOLE IN ONE!</Text>
+          <Text style={hioStyles.sub}>{holeName}</Text>
+          <Text style={hioStyles.hint}>Tap anywhere to dismiss</Text>
+        </Animated.View>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const hioStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  card: {
+    backgroundColor: '#1a1a2e', borderRadius: 24, padding: 40,
+    alignItems: 'center', marginHorizontal: 32,
+    borderWidth: 3, borderColor: '#f1c40f',
+    shadowColor: '#f1c40f', shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6, shadowRadius: 20, elevation: 20,
+  },
+  emoji:    { fontSize: 64, marginBottom: 12 },
+  headline: { fontSize: 34, fontWeight: '900', color: '#f1c40f', letterSpacing: 2, textAlign: 'center' },
+  sub:      { fontSize: 18, fontWeight: '600', color: '#fff', marginTop: 8, textAlign: 'center' },
+  hint:     { fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 20 },
+});
+
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
 
 export default function ScorecardScreen() {
@@ -85,6 +140,7 @@ export default function ScorecardScreen() {
 
   const [holeIndex,  setHoleIndex]  = useState(0);
   const [shotsOpen,  setShotsOpen]  = useState(false);
+  const [showHio,    setShowHio]    = useState(false);
 
   const holeOrder = useMemo(
     () => session
@@ -130,6 +186,7 @@ export default function ScorecardScreen() {
       playerShots:       currentScore?.playerShots,
       clientTimestampMs: Date.now(),
     });
+    if (grossScore === 1) setShowHio(true);
   }
 
   function changePutts(delta: number) {
@@ -343,6 +400,13 @@ export default function ScorecardScreen() {
           theme={theme}
         />
       </ScrollView>
+
+      {/* ── HOLE IN ONE CELEBRATION ── */}
+      <HoleInOneModal
+        visible={showHio}
+        holeName={`Hole ${currentHoleNumber}`}
+        onDismiss={() => setShowHio(false)}
+      />
 
       {/* ── HOLE NAVIGATION ── */}
       <View style={[styles.navBar, { backgroundColor: theme.colors.surface, borderTopColor: '#e0e0e0' }]}>
