@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { fetchPublicEvent, fetchPublicLeaderboard } from '@/lib/api';
 import type { PublicLeaderboard, PublicSponsorInfo, PublicFundraisingInfo } from '@/lib/api';
+import EventRegistrationSection, { DonateWidget } from './EventActions';
 
 // ── METADATA ──────────────────────────────────────────────────────────────────
 
@@ -58,9 +59,11 @@ export default async function EventPage(
   );
 
   const holeChallenges = sortedSponsors.filter(s => s.holeNumbers && s.holeNumbers.length > 0);
-  const hasSidebar     = event.sponsors.length > 0
+  const showDonate  = ['registration', 'active', 'scoring', 'completed'].includes(event.status);
+  const hasSidebar  = event.sponsors.length > 0
     || event.fundraising.grandTotalCents > 0
-    || holeChallenges.length > 0;
+    || holeChallenges.length > 0
+    || showDonate;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -154,19 +157,12 @@ export default async function EventPage(
 
               {/* Registration CTAs */}
               {['registration', 'active'].includes(event.status) && (
-                <section style={s.card} id="register">
-                  <h2 style={s.cardTitle}>Join the Tournament</h2>
-                  <div style={s.ctaRow}>
-                    <CTAButton href="#contact" primary label="Register a Team" />
-                    <CTAButton href="#contact" label="Join a Team" />
-                    {event.freeAgentEnabled && (
-                      <CTAButton href="#contact" label="I Need a Team" />
-                    )}
-                  </div>
-                  <p style={s.ctaNote}>
-                    Contact {event.orgName} to register or for more information.
-                  </p>
-                </section>
+                <EventRegistrationSection
+                  eventId={event.id}
+                  eventCode={event.eventCode}
+                  orgName={event.orgName}
+                  freeAgentEnabled={event.freeAgentEnabled}
+                />
               )}
 
               {/* Leaderboard */}
@@ -222,6 +218,17 @@ export default async function EventPage(
                 {/* Donation Thermometer */}
                 {event.fundraising.grandTotalCents > 0 && (
                   <DonationThermometer fundraising={event.fundraising} />
+                )}
+
+                {/* Donate Button */}
+                {showDonate && (
+                  <div style={w.card}>
+                    <h3 style={w.title}>💝 Support This Event</h3>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--color-accent)', marginBottom: '0.5rem' }}>
+                      Your donation helps make this event possible.
+                    </p>
+                    <DonateWidget eventCode={event.eventCode} orgName={event.orgName} is501c3={event.is501c3} />
+                  </div>
                 )}
 
                 {/* Hole Challenges */}

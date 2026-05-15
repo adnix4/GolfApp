@@ -539,3 +539,29 @@ public record LogoUploadResponse
     /// <summary>Relative URL stored on the event, e.g. /uploads/event-logos/abc.png</summary>
     public string Url { get; init; } = string.Empty;
 }
+
+// ── PUBLIC DONATION ───────────────────────────────────────────────────────────
+
+/// <summary>POST /api/v1/pub/events/{eventCode}/donate — anonymous donation submission.</summary>
+public record PublicDonateRequest
+{
+    [Required]
+    [MaxLength(200)]
+    public string DonorName { get; init; } = string.Empty;
+
+    [Required]
+    [EmailAddress]
+    [MaxLength(254)]
+    public string DonorEmail { get; init; } = string.Empty;
+
+    /// <summary>Donation amount in cents. Minimum $1.00 = 100.</summary>
+    [Range(100, 10_000_000)]
+    public int AmountCents { get; init; }
+}
+
+public record PublicDonateResponse
+{
+    public Guid   Id          { get; init; }
+    public int    AmountCents { get; init; }
+    public string Message     { get; init; } = string.Empty;
+}

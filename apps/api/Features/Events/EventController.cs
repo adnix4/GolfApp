@@ -353,6 +353,28 @@ public class EventController : ControllerBase
         return Ok(response);
     }
 
+    // ── PUBLIC DONATE (no auth) ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Records a donation pledge from the public event landing page.
+    /// No authentication required.
+    /// Available for Registration, Active, Scoring, and Completed events.
+    /// 404 for Draft and Cancelled events.
+    /// </summary>
+    [HttpPost("api/v1/pub/events/{eventCode}/donate")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(PublicDonateResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PublicDonateResponse>> SubmitDonation(
+        [FromRoute] string eventCode,
+        [FromBody] PublicDonateRequest request,
+        CancellationToken ct)
+    {
+        var response = await _eventService.SubmitPublicDonationAsync(eventCode, request, ct);
+        return StatusCode(StatusCodes.Status201Created, response);
+    }
+
     // ── TEST DATA ─────────────────────────────────────────────────────────────
 
     /// <summary>

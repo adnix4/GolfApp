@@ -886,6 +886,45 @@ public class EventService
         };
     }
 
+    // ── PUBLIC DONATE ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Records a public donation for an event (no Stripe — manual/pledge flow).
+    /// Available for Registration, Active, Scoring, and Completed events.
+    /// 404 for Draft and Cancelled events.
+    /// </summary>
+    public async Task<PublicDonateResponse> SubmitPublicDonationAsync(
+        string eventCode,
+        PublicDonateRequest request,
+        CancellationToken ct = default)
+    {
+        var evt = await _db.Events
+            .FirstOrDefaultAsync(e => e.EventCode == eventCode.ToUpperInvariant(), ct);
+
+        if (evt is null || evt.Status is EventStatus.Draft or EventStatus.Cancelled)
+            throw new NotFoundException($"No event found with code '{eventCode}'.");
+
+        var donation = new GolfFundraiserPro.Api.Domain.Entities.Donation
+        {
+            Id          = Guid.NewGuid(),
+            EventId     = evt.Id,
+            DonorName   = request.DonorName,
+            DonorEmail  = request.DonorEmail,
+            AmountCents = request.AmountCents,
+            IsTest      = evt.IsTestMode,
+        };
+
+        _db.Donations.Add(donation);
+        await _db.SaveChangesAsync(ct);
+
+        return new PublicDonateResponse
+        {
+            Id          = donation.Id,
+            AmountCents = donation.AmountCents,
+            Message     = $"Thank you, {request.DonorName}! Your donation of {donation.AmountCents / 100m:C} has been recorded.",
+        };
+    }
+
     // ── PRIVATE HELPERS ───────────────────────────────────────────────────────
 
     /// <summary>

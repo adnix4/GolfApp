@@ -84,3 +84,75 @@ export async function fetchPublicLeaderboard(eventCode: string): Promise<PublicL
     return null;
   }
 }
+
+// ── REGISTRATION ──────────────────────────────────────────────────────────────
+
+export interface RegisterTeamPayload {
+  teamName: string;
+  players:  { firstName: string; lastName: string; email: string; handicap?: number }[];
+}
+
+export interface JoinTeamPayload {
+  inviteToken: string;
+  player:      { firstName: string; lastName: string; email: string; handicap?: number };
+}
+
+export interface RegisterFreeAgentPayload {
+  player:      { firstName: string; lastName: string; email: string; handicap?: number };
+  skillLevel?: string;
+  pairingNote?: string;
+}
+
+export interface RegistrationResult {
+  ok:      boolean;
+  message: string;
+}
+
+async function postJson(url: string, body: unknown): Promise<{ ok: boolean; status: number; data: any }> {
+  const res = await fetch(url, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body),
+    cache:   'no-store',
+  });
+  let data: any = null;
+  try { data = await res.json(); } catch {}
+  return { ok: res.ok, status: res.status, data };
+}
+
+export async function registerTeam(eventId: string, payload: RegisterTeamPayload): Promise<RegistrationResult> {
+  const { ok, data } = await postJson(`${BASE}/api/v1/events/${eventId}/register/team`, payload);
+  if (!ok) return { ok: false, message: data?.detail ?? data?.title ?? 'Registration failed.' };
+  return { ok: true, message: 'Team registered! Check your email for next steps.' };
+}
+
+export async function joinTeam(eventId: string, payload: JoinTeamPayload): Promise<RegistrationResult> {
+  const { ok, data } = await postJson(`${BASE}/api/v1/events/${eventId}/register/join`, payload);
+  if (!ok) return { ok: false, message: data?.detail ?? data?.title ?? 'Could not join team.' };
+  return { ok: true, message: "You've been added to the team!" };
+}
+
+export async function registerFreeAgent(eventId: string, payload: RegisterFreeAgentPayload): Promise<RegistrationResult> {
+  const { ok, data } = await postJson(`${BASE}/api/v1/events/${eventId}/register/free-agent`, payload);
+  if (!ok) return { ok: false, message: data?.detail ?? data?.title ?? 'Registration failed.' };
+  return { ok: true, message: "You're on the free agent list — the organizer will be in touch!" };
+}
+
+// ── DONATION ──────────────────────────────────────────────────────────────────
+
+export interface DonatePayload {
+  donorName:   string;
+  donorEmail:  string;
+  amountCents: number;
+}
+
+export interface DonateResult {
+  ok:      boolean;
+  message: string;
+}
+
+export async function submitDonation(eventCode: string, payload: DonatePayload): Promise<DonateResult> {
+  const { ok, data } = await postJson(`${BASE}/api/v1/pub/events/${eventCode}/donate`, payload);
+  if (!ok) return { ok: false, message: data?.detail ?? data?.title ?? 'Donation failed.' };
+  return { ok: true, message: data?.message ?? 'Thank you for your donation!' };
+}
