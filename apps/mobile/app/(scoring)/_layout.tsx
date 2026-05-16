@@ -170,6 +170,14 @@ export default function ScoringLayout() {
       {isTestMode && (
         <View style={styles.testBanner}>
           <Text style={styles.bannerText}>Test Mode — scores will not appear on the live leaderboard</Text>
+          <Pressable
+            onPress={async () => { await clearSession(); router.replace('/join'); }}
+            style={styles.testBannerLeave}
+            accessibilityLabel="Leave test event"
+            accessibilityRole="button"
+          >
+            <Text style={styles.testBannerLeaveText}>Change Event</Text>
+          </Pressable>
         </View>
       )}
       {preScoringBrowse && (
@@ -269,8 +277,10 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
 
   // Banners (stack at top above tabs)
-  bannerText:       { color: '#fff', fontSize: 12, fontWeight: '600', textAlign: 'center' },
-  testBanner:       { backgroundColor: '#6a0dad', paddingVertical: 6, alignItems: 'center' },
+  bannerText:       { color: '#fff', fontSize: 12, fontWeight: '600', textAlign: 'center', flex: 1 },
+  testBanner:       { backgroundColor: '#6a0dad', paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
+  testBannerLeave:  { marginLeft: 10, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)' },
+  testBannerLeaveText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   preScoringBanner: { backgroundColor: '#b45309', paddingVertical: 6, alignItems: 'center' },
   offlineBanner:    { backgroundColor: '#e74c3c', paddingVertical: 6, alignItems: 'center' },
 
