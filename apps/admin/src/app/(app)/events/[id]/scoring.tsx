@@ -22,6 +22,7 @@ export default function ScoringScreen() {
   const [challenges,   setChallenges]   = useState<HoleChallenge[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [scorecard,    setScorecard]    = useState<Scorecard | null>(null);
+  const [playerShotsByHole, setPlayerShotsByHole] = useState<Record<number, Record<string, number>>>({});
   const [loading,      setLoading]      = useState(true);
   const [saving,       setSaving]       = useState<number | null>(null);
   const [error,        setError]        = useState<string | null>(null);
@@ -56,13 +57,25 @@ export default function ScoringScreen() {
     try {
       const sc = await scoresApi.getScorecard(id, teamId);
       setScorecard(sc);
+      // Hydrate per-player shots from stored JSON on each hole
+      const hydrated: Record<number, Record<string, number>> = {};
+      for (const hole of sc.holes) {
+        if (hole.playerShotsJson) {
+          try { hydrated[hole.holeNumber] = JSON.parse(hole.playerShotsJson); } catch { /* ignore */ }
+        }
+      }
+      setPlayerShotsByHole(hydrated);
     } catch {
       setScorecard(null);
+      setPlayerShotsByHole({});
     }
   }, [id]);
 
   useEffect(() => {
-    if (selectedTeam) loadScorecard(selectedTeam);
+    if (selectedTeam) {
+      setPlayerShotsByHole({});
+      loadScorecard(selectedTeam);
+    }
   }, [selectedTeam, loadScorecard]);
 
   async function handleScoreChange(holeNumber: number, grossScore: number) {
@@ -82,6 +95,39 @@ export default function ScoringScreen() {
       await loadScorecard(selectedTeam);
     } catch (e: any) {
       setError(e.message ?? 'Failed to save score.');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function handlePlayerShotChange(holeNumber: number, playerId: string, delta: number) {
+    if (!selectedTeam) return;
+    const current = playerShotsByHole[holeNumber]?.[playerId] ?? 0;
+    const next    = Math.max(0, current + delta);
+    const newHoleShots = { ...(playerShotsByHole[holeNumber] ?? {}), [playerId]: next };
+    if (next === 0) delete newHoleShots[playerId];
+    setPlayerShotsByHole(prev => ({ ...prev, [holeNumber]: newHoleShots }));
+
+    // Use existing gross if scored; otherwise derive from player totals
+    const existingGross = scorecard?.holes.find(h => h.holeNumber === holeNumber)?.grossScore;
+    const playerTotal   = Object.values(newHoleShots).reduce((s, n) => s + n, 0);
+    const grossScore    = existingGross ?? (playerTotal > 0 ? playerTotal : null);
+    if (grossScore == null) return;
+
+    setSaving(holeNumber);
+    setError(null);
+    try {
+      await scoresApi.submit(id, {
+        teamId: selectedTeam,
+        holeNumber,
+        grossScore,
+        playerShotsJson: Object.keys(newHoleShots).length > 0
+          ? JSON.stringify(newHoleShots)
+          : undefined,
+      });
+      await loadScorecard(selectedTeam);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to save player shots.');
     } finally {
       setSaving(null);
     }
@@ -124,6 +170,7 @@ export default function ScoringScreen() {
     }
   }
 
+  const selectedTeamPlayers = teams.find(t => t.id === selectedTeam)?.players ?? [];
   const holes = event?.course?.holes ?? [];
   const holesCount = event?.holes ?? 18;
   const holeNumbers = holes.length > 0
@@ -275,6 +322,38 @@ export default function ScoringScreen() {
                     <Text style={styles.resolveBtnText}>Accept {score}</Text>
                   </Pressable>
                 )}
+                {/* Per-player shot entry */}
+                {selectedTeamPlayers.length > 0 && (
+                  <View style={[styles.playerShotsBox, { backgroundColor: theme.colors.surface }]}>
+                    {selectedTeamPlayers.map(player => {
+                      const shots = playerShotsByHole[holeNum]?.[player.id] ?? 0;
+                      return (
+                        <View key={player.id} style={styles.playerShotRow}>
+                          <Text style={[styles.playerShotName, { color: theme.colors.primary }]} numberOfLines={1}>
+                            {player.firstName}
+                          </Text>
+                          <Pressable
+                            onPress={() => handlePlayerShotChange(holeNum, player.id, -1)}
+                            disabled={shots <= 0 || isSaving}
+                            style={[styles.shotBtn, { backgroundColor: theme.colors.primary, opacity: shots <= 0 ? 0.3 : 1 }]}
+                          >
+                            <Text style={styles.shotBtnText}>−</Text>
+                          </Pressable>
+                          <Text style={[styles.shotCount, { color: theme.colors.primary }]}>
+                            {shots > 0 ? shots : '—'}
+                          </Text>
+                          <Pressable
+                            onPress={() => handlePlayerShotChange(holeNum, player.id, 1)}
+                            disabled={isSaving}
+                            style={[styles.shotBtn, { backgroundColor: theme.colors.primary }]}
+                          >
+                            <Text style={styles.shotBtnText}>+</Text>
+                          </Pressable>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
               </View>
             );
           })}
@@ -350,4 +429,20 @@ const styles = StyleSheet.create({
   },
   resolveBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
   emptyText: { fontSize: 15 },
+
+  playerShotsBox: {
+    borderRadius: 8, marginTop: 4,
+    paddingVertical: 6, paddingHorizontal: 8,
+  },
+  playerShotRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 3, gap: 6,
+  },
+  playerShotName: { flex: 1, fontSize: 12, fontWeight: '600' },
+  shotBtn: {
+    width: 26, height: 26, borderRadius: 13,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  shotBtnText: { fontSize: 16, fontWeight: '400', color: '#fff', lineHeight: 20 },
+  shotCount:   { fontSize: 14, fontWeight: '700', minWidth: 22, textAlign: 'center' },
 });

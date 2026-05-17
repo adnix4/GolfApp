@@ -81,11 +81,12 @@ public class ScoreService
             }
             else
             {
-                existing.GrossScore   = request.GrossScore;
-                existing.Putts        = request.Putts;
-                existing.DeviceId     = request.DeviceId;
-                existing.SubmittedAt  = DateTime.UtcNow;
-                existing.IsConflicted = false;
+                existing.GrossScore      = request.GrossScore;
+                existing.Putts           = request.Putts;
+                existing.PlayerShotsJson = request.PlayerShotsJson;
+                existing.DeviceId        = request.DeviceId;
+                existing.SubmittedAt     = DateTime.UtcNow;
+                existing.IsConflicted    = false;
             }
 
             score = existing;
@@ -94,16 +95,17 @@ public class ScoreService
         {
             score = new Score
             {
-                Id          = Guid.NewGuid(),
-                EventId     = eventId,
-                TeamId      = request.TeamId,
-                HoleNumber  = request.HoleNumber,
-                GrossScore  = request.GrossScore,
-                Putts       = request.Putts,
-                DeviceId    = request.DeviceId,
-                SubmittedAt = DateTime.UtcNow,
-                Source      = ScoreSource.AdminEntry,
-                IsConflicted = false,
+                Id              = Guid.NewGuid(),
+                EventId         = eventId,
+                TeamId          = request.TeamId,
+                HoleNumber      = request.HoleNumber,
+                GrossScore      = request.GrossScore,
+                Putts           = request.Putts,
+                PlayerShotsJson = request.PlayerShotsJson,
+                DeviceId        = request.DeviceId,
+                SubmittedAt     = DateTime.UtcNow,
+                Source          = ScoreSource.AdminEntry,
+                IsConflicted    = false,
             };
             _db.Scores.Add(score);
         }
@@ -181,11 +183,12 @@ public class ScoreService
             scoreByHole.TryGetValue(n, out var s);
             return new ScorecardHoleEntry
             {
-                HoleNumber  = (short)n,
-                Par         = (short)parByHole.GetValueOrDefault(n, 4),
-                GrossScore  = s?.GrossScore,
-                Putts       = s?.Putts,
-                HasConflict = s?.IsConflicted ?? false,
+                HoleNumber      = (short)n,
+                Par             = (short)parByHole.GetValueOrDefault(n, 4),
+                GrossScore      = s?.GrossScore,
+                Putts           = s?.Putts,
+                PlayerShotsJson = s?.PlayerShotsJson,
+                HasConflict     = s?.IsConflicted ?? false,
             };
         }).ToList();
 
@@ -224,8 +227,9 @@ public class ScoreService
         if (!eventBelongs)
             throw new ForbiddenException();
 
-        if (request.GrossScore.HasValue) score.GrossScore = request.GrossScore.Value;
-        if (request.Putts.HasValue)      score.Putts      = request.Putts;
+        if (request.GrossScore.HasValue)       score.GrossScore      = request.GrossScore.Value;
+        if (request.Putts.HasValue)            score.Putts           = request.Putts;
+        if (request.PlayerShotsJson is not null) score.PlayerShotsJson = request.PlayerShotsJson;
 
         // Admin correction clears any conflict flag
         score.IsConflicted = false;

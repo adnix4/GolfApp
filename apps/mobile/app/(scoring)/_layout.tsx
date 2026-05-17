@@ -18,6 +18,12 @@ export default function ScoringLayout() {
   const [liveStatus, setLiveStatus] = useState(session?.event.status ?? '');
   const [checking,   setChecking]   = useState(false);
   const [dismissed,  setDismissed]  = useState(false);
+
+  // session loads from SQLite asynchronously — seed liveStatus once it's available
+  // so isTestMode / scoringOpen are correct before any poll runs.
+  useEffect(() => {
+    if (session?.event.status) setLiveStatus(session.event.status);
+  }, [session?.event.id]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isTestMode  = liveStatus === 'Draft';

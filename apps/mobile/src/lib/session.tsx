@@ -4,7 +4,7 @@ import React, {
 } from 'react';
 import type { JoinEventResponse, PendingScore, BatchSyncResponse } from './api';
 import { batchSync } from './api';
-import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsyncedScores, upsertPendingScore, markScoresSynced, clearPendingScores, getDeviceId } from './store';
+import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsyncedScores, upsertPendingScore, markScoresSynced, markHoleComplete, loadCompletedHoleNumbers, clearPendingScores, getDeviceId } from './store';
 import { attemptSync } from './backgroundSync';
 import { useNetworkTier, POLL_INTERVAL_MS, type NetworkTier } from './useNetworkTier';
 
@@ -13,11 +13,13 @@ interface SessionContextValue {
   deviceId:           string;
   loading:            boolean;
   pendingScores:      PendingScore[];
+  completedHoles:     Set<number>;
   syncStatus:         'idle' | 'syncing' | 'error' | 'synced';
   networkTier:        NetworkTier;
   setSession:         (data: JoinEventResponse) => Promise<void>;
   clearSession:       () => Promise<void>;
   upsertScore:        (score: PendingScore) => Promise<void>;
+  completeHole:       (holeNumber: number) => Promise<void>;
   syncScores:         () => Promise<BatchSyncResponse | null>;
   updateEventStatus:  (status: string) => void;
 }
@@ -25,11 +27,12 @@ interface SessionContextValue {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [session,       setSessionState]    = useState<JoinEventResponse | null>(null);
-  const [deviceId,      setDeviceId]        = useState('');
-  const [loading,       setLoading]         = useState(true);
-  const [pendingScores, setPendingScores]   = useState<PendingScore[]>([]);
-  const [syncStatus,    setSyncStatus]      = useState<'idle' | 'syncing' | 'error' | 'synced'>('idle');
+  const [session,         setSessionState]    = useState<JoinEventResponse | null>(null);
+  const [deviceId,        setDeviceId]        = useState('');
+  const [loading,         setLoading]         = useState(true);
+  const [pendingScores,   setPendingScores]   = useState<PendingScore[]>([]);
+  const [completedHoles,  setCompletedHoles]  = useState<Set<number>>(new Set());
+  const [syncStatus,      setSyncStatus]      = useState<'idle' | 'syncing' | 'error' | 'synced'>('idle');
   const networkTier = useNetworkTier();
 
   useEffect(() => {
@@ -39,8 +42,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setDeviceId(id);
         if (saved) {
           setSessionState(saved);
-          const scores = await loadPendingScores(saved.event.id, saved.team.id);
+          const [scores, completedNums] = await Promise.all([
+            loadPendingScores(saved.event.id, saved.team.id),
+            loadCompletedHoleNumbers(saved.event.id, saved.team.id),
+          ]);
           setPendingScores(scores);
+          setCompletedHoles(new Set(completedNums));
         }
       } catch {
         // Storage unavailable — start fresh with no session
@@ -101,15 +108,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       ...pendingScores.filter(s => s.holeNumber !== score.holeNumber),
       score,
     ].sort((a, b) => a.holeNumber - b.holeNumber);
-    // Update in-memory state immediately so the UI is responsive
     setPendingScores(updated);
     setSyncStatus('idle');
+    // Re-entering shots un-completes the hole (INSERT OR REPLACE resets completed_at in DB)
+    if (completedHoles.has(score.holeNumber)) {
+      setCompletedHoles(prev => { const n = new Set(prev); n.delete(score.holeNumber); return n; });
+    }
     try {
       await upsertPendingScore(session.event.id, session.team.id, score);
     } catch {
       // Score stays in-memory; backgroundSync will retry DB write on next poll
     }
-  }, [session, pendingScores]);
+  }, [session, pendingScores, completedHoles]);
 
   const updateEventStatus = useCallback((status: string) => {
     setSessionState(prev => prev ? { ...prev, event: { ...prev.event, status } } : null);
@@ -131,10 +141,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [session, deviceId]);
 
+  const completeHole = useCallback(async (holeNumber: number): Promise<void> => {
+    if (!session) return;
+    await markHoleComplete(session.event.id, session.team.id, holeNumber);
+    setCompletedHoles(prev => new Set([...prev, holeNumber]));
+    syncScores(); // release to leaderboard immediately
+  }, [session, syncScores]);
+
   return (
     <SessionContext.Provider value={{
-      session, deviceId, loading, pendingScores, syncStatus, networkTier,
-      setSession, clearSession: clear, upsertScore, syncScores, updateEventStatus,
+      session, deviceId, loading, pendingScores, completedHoles, syncStatus, networkTier,
+      setSession, clearSession: clear, upsertScore, completeHole, syncScores, updateEventStatus,
     }}>
       {children}
     </SessionContext.Provider>

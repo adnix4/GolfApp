@@ -34,12 +34,20 @@ const { mockDb } = vi.hoisted(() => {
           created_at:    params[7],
           synced_at:     null,
           sync_attempts: 0,
+          completed_at:  null,
         });
+
+      } else if (s.includes('PENDING_SCORES') && s.includes('SET COMPLETED_AT')) {
+        const [ts, eid, tid, holeNum] = params as [string, string, string, number];
+        for (const row of scores.values()) {
+          if (row.event_id === eid && row.team_id === tid && row.hole_number === holeNum)
+            (row as Record<string, unknown>).completed_at = ts;
+        }
 
       } else if (s.includes('PENDING_SCORES') && s.includes('SYNC_ATTEMPTS')) {
         const [eid, tid] = [params[0] as string, params[1] as string];
         for (const row of scores.values()) {
-          if (row.event_id === eid && row.team_id === tid && row.synced_at === null)
+          if (row.event_id === eid && row.team_id === tid && row.synced_at === null && row.completed_at != null)
             (row as Record<string, unknown>).sync_attempts = (row.sync_attempts as number) + 1;
         }
 
@@ -71,12 +79,12 @@ const { mockDb } = vi.hoisted(() => {
       const s = sql.trim().toUpperCase();
       if (s.includes('FROM PENDING_SCORES')) {
         const [eid, tid] = params as [string, string];
-        const rows = [...scores.values()].filter(
-          r => r.event_id === eid && r.team_id === tid,
-        );
-        // synced_at IS NULL filter
-        const onlyUnsynced = s.includes('SYNCED_AT IS NULL');
-        return (onlyUnsynced ? rows.filter(r => r.synced_at === null) : rows)
+        const rows       = [...scores.values()].filter(r => r.event_id === eid && r.team_id === tid);
+        const onlyUnsynced  = s.includes('SYNCED_AT IS NULL');
+        const onlyCompleted = s.includes('COMPLETED_AT IS NOT NULL');
+        return rows
+          .filter(r => !onlyUnsynced  || r.synced_at === null)
+          .filter(r => !onlyCompleted || r.completed_at != null)
           .sort((a, b) => (a.hole_number as number) - (b.hole_number as number));
       }
       return [];
@@ -97,6 +105,7 @@ vi.mock('../lib/db', () => ({
 import {
   getDeviceId, saveSession, loadSession, clearSession,
   upsertPendingScore, loadPendingScores, loadUnsyncedScores,
+  markHoleComplete, loadCompletedHoleNumbers,
   markScoresSynced, incrementSyncAttempts, clearPendingScores,
 } from '../lib/store';
 
@@ -209,26 +218,70 @@ describe('upsertPendingScore', () => {
   });
 });
 
+// ── markHoleComplete / loadCompletedHoleNumbers ───────────────────────────────
+
+describe('markHoleComplete', () => {
+  it('makes a hole appear in loadUnsyncedScores', async () => {
+    await upsertPendingScore('ev1', 'tm1', SCORE);
+    expect(await loadUnsyncedScores('ev1', 'tm1')).toHaveLength(0); // not complete yet
+    await markHoleComplete('ev1', 'tm1', 1);
+    expect(await loadUnsyncedScores('ev1', 'tm1')).toHaveLength(1);
+  });
+
+  it('sets completed_at on the correct row', async () => {
+    await upsertPendingScore('ev1', 'tm1', SCORE);
+    await markHoleComplete('ev1', 'tm1', 1);
+    const row = mockDb._scores.get('tm1:1');
+    expect(row?.completed_at).toBeTruthy();
+  });
+});
+
+describe('loadCompletedHoleNumbers', () => {
+  it('returns empty when no holes are complete', async () => {
+    await upsertPendingScore('ev1', 'tm1', SCORE);
+    expect(await loadCompletedHoleNumbers('ev1', 'tm1')).toEqual([]);
+  });
+
+  it('returns completed hole numbers in order', async () => {
+    await upsertPendingScore('ev1', 'tm1', SCORE);
+    await upsertPendingScore('ev1', 'tm1', { ...SCORE, holeNumber: 3 });
+    await markHoleComplete('ev1', 'tm1', 3);
+    await markHoleComplete('ev1', 'tm1', 1);
+    expect(await loadCompletedHoleNumbers('ev1', 'tm1')).toEqual([1, 3]);
+  });
+});
+
 // ── loadUnsyncedScores ────────────────────────────────────────────────────────
 
 describe('loadUnsyncedScores', () => {
-  it('returns only unsynced rows', async () => {
+  it('returns only completed unsynced rows', async () => {
     await upsertPendingScore('ev1', 'tm1', SCORE);
     await upsertPendingScore('ev1', 'tm1', { ...SCORE, holeNumber: 2 });
+    await markHoleComplete('ev1', 'tm1', 1);
+    await markHoleComplete('ev1', 'tm1', 2);
     await markScoresSynced('ev1', 'tm1'); // marks all synced
-    // re-add hole 3 (unsynced)
+    // re-add hole 3 and complete it (unsynced)
     await upsertPendingScore('ev1', 'tm1', { ...SCORE, holeNumber: 3 });
+    await markHoleComplete('ev1', 'tm1', 3);
     const unsynced = await loadUnsyncedScores('ev1', 'tm1');
     expect(unsynced.every(s => s.holeNumber === 3)).toBe(true);
+  });
+
+  it('does not return incomplete holes (not yet complete)', async () => {
+    await upsertPendingScore('ev1', 'tm1', SCORE);
+    expect(await loadUnsyncedScores('ev1', 'tm1')).toHaveLength(0);
   });
 });
 
 // ── markScoresSynced ──────────────────────────────────────────────────────────
 
 describe('markScoresSynced', () => {
-  it('makes all scores for the team disappear from loadUnsyncedScores', async () => {
+  it('makes all completed scores disappear from loadUnsyncedScores', async () => {
     await upsertPendingScore('ev1', 'tm1', SCORE);
     await upsertPendingScore('ev1', 'tm1', { ...SCORE, holeNumber: 2 });
+    await markHoleComplete('ev1', 'tm1', 1);
+    await markHoleComplete('ev1', 'tm1', 2);
+    expect(await loadUnsyncedScores('ev1', 'tm1')).toHaveLength(2);
     await markScoresSynced('ev1', 'tm1');
     expect(await loadUnsyncedScores('ev1', 'tm1')).toHaveLength(0);
   });
@@ -236,6 +289,8 @@ describe('markScoresSynced', () => {
   it('does not affect a different team', async () => {
     await upsertPendingScore('ev1', 'tm1', SCORE);
     await upsertPendingScore('ev1', 'tm2', SCORE);
+    await markHoleComplete('ev1', 'tm1', 1);
+    await markHoleComplete('ev1', 'tm2', 1);
     await markScoresSynced('ev1', 'tm1');
     expect(await loadUnsyncedScores('ev1', 'tm2')).toHaveLength(1);
   });
@@ -244,15 +299,24 @@ describe('markScoresSynced', () => {
 // ── incrementSyncAttempts ─────────────────────────────────────────────────────
 
 describe('incrementSyncAttempts', () => {
-  it('increments the attempt counter on all unsynced rows', async () => {
+  it('increments the attempt counter on completed unsynced rows', async () => {
     await upsertPendingScore('ev1', 'tm1', SCORE);
+    await markHoleComplete('ev1', 'tm1', 1);
     await incrementSyncAttempts('ev1', 'tm1');
     const row = mockDb._scores.get('tm1:1');
     expect(row?.sync_attempts).toBe(1);
   });
 
+  it('does not increment incomplete (not-yet-complete) rows', async () => {
+    await upsertPendingScore('ev1', 'tm1', SCORE);
+    await incrementSyncAttempts('ev1', 'tm1');
+    const row = mockDb._scores.get('tm1:1');
+    expect(row?.sync_attempts).toBe(0); // not complete — excluded
+  });
+
   it('does not increment already-synced rows', async () => {
     await upsertPendingScore('ev1', 'tm1', SCORE);
+    await markHoleComplete('ev1', 'tm1', 1);
     await markScoresSynced('ev1', 'tm1');
     await incrementSyncAttempts('ev1', 'tm1');
     const row = mockDb._scores.get('tm1:1');

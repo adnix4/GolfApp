@@ -443,7 +443,7 @@ export interface Score {
 
 export interface Scorecard {
   teamId: string; teamName: string;
-  holes: { holeNumber: number; par: number; grossScore: number | null; putts: number | null; hasConflict: boolean }[];
+  holes: { holeNumber: number; par: number; grossScore: number | null; putts: number | null; playerShotsJson: string | null; hasConflict: boolean }[];
   grossTotal: number; parTotal: number; toPar: number;
   holesComplete: number; hasConflicts: boolean;
 }
@@ -502,6 +502,7 @@ export interface RegisterTeamPayload {
 }
 export interface SubmitScorePayload {
   teamId: string; holeNumber: number; grossScore: number; putts?: number; deviceId?: string;
+  playerShotsJson?: string;
 }
 export interface UpsertChallengePayload {
   description: string;

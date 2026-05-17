@@ -60,11 +60,17 @@ export interface BatchSyncResponse {
   conflictDetails: SyncConflictDto[];
 }
 
+export interface PlayerShotBreakdown {
+  drive:    number;
+  approach: number;
+  putt:     number;
+}
+
 export interface PendingScore {
   holeNumber:        number;
   grossScore:        number;
   putts:             number | null;
-  playerShots?:      Record<string, number>; // playerId → strokes
+  playerShots?:      Record<string, PlayerShotBreakdown>; // playerId → { drive, approach, putt }
   clientTimestampMs: number;
 }
 
@@ -433,7 +439,11 @@ export async function batchSync(
         holeNumber:        s.holeNumber,
         grossScore:        s.grossScore,
         putts:             s.putts,
-        playerShots:       s.playerShots ?? null,
+        playerShots:       s.playerShots
+          ? Object.fromEntries(
+              Object.entries(s.playerShots).map(([id, b]) => [id, b.drive + b.approach + b.putt]),
+            )
+          : null,
         clientTimestampMs: s.clientTimestampMs,
       })),
     }),

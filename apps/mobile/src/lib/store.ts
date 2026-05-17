@@ -54,9 +54,9 @@ export async function upsertPendingScore(
   const db = await getDb();
   await db.runAsync(
     `INSERT OR REPLACE INTO pending_scores
-       (id, event_id, team_id, hole_number, gross_score, putts, player_shots,
-        created_at, synced_at, sync_attempts)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 0)`,
+       (id, event_id, team_id, hole_number, gross_score, putts,
+        player_shots, created_at, synced_at, sync_attempts, completed_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, NULL)`,
     [
       `${teamId}:${score.holeNumber}`,
       eventId,
@@ -115,7 +115,7 @@ export async function loadUnsyncedScores(
   }>(
     `SELECT hole_number, gross_score, putts, player_shots, created_at
        FROM pending_scores
-      WHERE event_id = ? AND team_id = ? AND synced_at IS NULL
+      WHERE event_id = ? AND team_id = ? AND completed_at IS NOT NULL AND synced_at IS NULL
       ORDER BY hole_number`,
     [eventId, teamId],
   );
@@ -138,9 +138,38 @@ export async function incrementSyncAttempts(
   await db.runAsync(
     `UPDATE pending_scores
         SET sync_attempts = sync_attempts + 1
-      WHERE event_id = ? AND team_id = ? AND synced_at IS NULL`,
+      WHERE event_id = ? AND team_id = ? AND completed_at IS NOT NULL AND synced_at IS NULL`,
     [eventId, teamId],
   );
+}
+
+// Marks a single hole as complete, making it eligible for sync and leaderboard release.
+export async function markHoleComplete(
+  eventId:    string,
+  teamId:     string,
+  holeNumber: number,
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE pending_scores SET completed_at = ?
+      WHERE event_id = ? AND team_id = ? AND hole_number = ?`,
+    [new Date().toISOString(), eventId, teamId, holeNumber],
+  );
+}
+
+// Returns hole numbers that have been marked complete (regardless of sync state).
+export async function loadCompletedHoleNumbers(
+  eventId: string,
+  teamId:  string,
+): Promise<number[]> {
+  const db   = await getDb();
+  const rows = await db.getAllAsync<{ hole_number: number }>(
+    `SELECT hole_number FROM pending_scores
+      WHERE event_id = ? AND team_id = ? AND completed_at IS NOT NULL
+      ORDER BY hole_number`,
+    [eventId, teamId],
+  );
+  return rows.map(r => r.hole_number);
 }
 
 // Called after a successful batch sync so the background task (1D) knows

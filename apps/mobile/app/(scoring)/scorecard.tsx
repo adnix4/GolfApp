@@ -5,10 +5,10 @@ import {
   Modal, Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ScoreCard, useTheme } from '@gfp/ui';
+import { useTheme } from '@gfp/ui';
 import type { ThemeContextValue } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
-import { fetchPublicChallenges, type ChallengeCacheDto } from '@/lib/api';
+import { fetchPublicChallenges, type ChallengeCacheDto, type PlayerShotBreakdown } from '@/lib/api';
 
 // ── INLINE SUB-COMPONENTS ─────────────────────────────────────────────────────
 
@@ -22,10 +22,38 @@ function HoleInfoChip({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ScoreChip({ grossScore, par }: { grossScore: number | null; par: number }) {
+  const theme = useTheme();
+  const rel   = grossScore !== null ? grossScore - par : null;
+  const relLabel =
+    rel === null ? '—' : rel === 0 ? 'E' : rel > 0 ? `+${rel}` : `${rel}`;
+  const relColor =
+    rel === null ? theme.colors.accent :
+    rel < 0      ? '#27ae60' :
+    rel > 0      ? '#e74c3c' : theme.colors.accent;
+
+  return (
+    <View style={[scoreChipStyles.chip, { backgroundColor: theme.colors.primary + '12', borderColor: theme.colors.primary + '40' }]}>
+      <Text style={[scoreChipStyles.label, { color: theme.colors.accent }]}>Score</Text>
+      <Text style={[scoreChipStyles.value, { color: theme.colors.primary }]}>
+        {grossScore !== null ? grossScore : '—'}
+      </Text>
+      <Text style={[scoreChipStyles.rel, { color: relColor }]}>{relLabel}</Text>
+    </View>
+  );
+}
+
 const infoChipStyles = StyleSheet.create({
   chip:  { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
   label: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   value: { fontSize: 16, fontWeight: '700', marginTop: 2 },
+});
+
+const scoreChipStyles = StyleSheet.create({
+  chip:  { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, alignItems: 'center', borderWidth: 1 },
+  label: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  value: { fontSize: 22, fontWeight: '800', marginTop: 2, lineHeight: 26 },
+  rel:   { fontSize: 13, fontWeight: '700', marginTop: 1 },
 });
 
 function SyncStatusBar({
@@ -128,6 +156,68 @@ const hioStyles = StyleSheet.create({
   hint:     { fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 20 },
 });
 
+// ── SHOT COUNTER COLUMN ───────────────────────────────────────────────────────
+
+function ShotColumn({
+  label, value, onDecrement, onIncrement, disabled, theme,
+}: {
+  label:       string;
+  value:       number;
+  onDecrement: () => void;
+  onIncrement: () => void;
+  disabled:    boolean;
+  theme:       ThemeContextValue;
+}) {
+  return (
+    <View style={shotColStyles.col}>
+      <Text style={[shotColStyles.label, { color: theme.colors.accent }]}>{label}</Text>
+      <Pressable
+        onPress={onIncrement}
+        disabled={disabled}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        style={({ pressed }) => [
+          shotColStyles.btn,
+          { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary },
+          disabled && shotColStyles.btnDisabled,
+        ]}
+        accessibilityLabel={`Increase ${label}`}
+        accessibilityRole="button"
+      >
+        <Text style={shotColStyles.btnText}>+</Text>
+      </Pressable>
+      <Text style={[shotColStyles.value, { color: theme.colors.primary }]}>
+        {value > 0 ? value : '—'}
+      </Text>
+      <Pressable
+        onPress={onDecrement}
+        disabled={disabled || value <= 0}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        style={({ pressed }) => [
+          shotColStyles.btn,
+          { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary },
+          (disabled || value <= 0) && shotColStyles.btnDisabled,
+        ]}
+        accessibilityLabel={`Decrease ${label}`}
+        accessibilityRole="button"
+      >
+        <Text style={shotColStyles.btnText}>−</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const shotColStyles = StyleSheet.create({
+  col:        { alignItems: 'center', flex: 1, gap: 6 },
+  label:      { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  btn: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  btnDisabled: { opacity: 0.3 },
+  btnText:    { fontSize: 24, fontWeight: '300', color: '#fff', lineHeight: 28 },
+  value:      { fontSize: 28, fontWeight: '800', lineHeight: 32, minWidth: 36, textAlign: 'center' },
+});
+
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
 
 export default function ScorecardScreen() {
@@ -135,26 +225,22 @@ export default function ScorecardScreen() {
   const router                 = useRouter();
   const {
     session, loading,
-    pendingScores, syncStatus,
-    upsertScore, syncScores,
+    pendingScores, completedHoles, syncStatus,
+    upsertScore, completeHole, syncScores,
   } = useSession();
 
-  const [holeIndex,   setHoleIndex]   = useState(0);
-  const [shotsOpen,   setShotsOpen]   = useState(false);
-  const [showHio,     setShowHio]     = useState(false);
-  const [challenges,  setChallenges]  = useState<ChallengeCacheDto[]>([]);
+  const [holeIndex,  setHoleIndex]  = useState(0);
+  const [showHio,    setShowHio]    = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [challenges, setChallenges] = useState<ChallengeCacheDto[]>([]);
 
   const holeOrder = useMemo(
-    () => session
-      ? getHoleOrder(session.team.startingHole, session.event.holes)
-      : [],
+    () => session ? getHoleOrder(session.team.startingHole, session.event.holes) : [],
     [session],
   );
 
   useEffect(() => {
-    if (!loading && !session) {
-      router.replace('/join');
-    }
+    if (!loading && !session) router.replace('/join');
   }, [loading, session]);
 
   useEffect(() => {
@@ -172,57 +258,63 @@ export default function ScorecardScreen() {
     );
   }
 
-  const currentHoleNumber = holeOrder[holeIndex] ?? 1;
-  const hole               = session.course?.holes.find(h => h.holeNumber === currentHoleNumber) ?? null;
-  const par                = hole?.par ?? 4;
-  const currentScore       = pendingScores.find(s => s.holeNumber === currentHoleNumber) ?? null;
-  const isLastHole         = holeIndex === holeOrder.length - 1;
-  const holeChallenge      = challenges.find(c => c.holeNumber === currentHoleNumber) ?? null;
+  const currentHoleNumber    = holeOrder[holeIndex] ?? 1;
+  const hole                 = session.course?.holes.find(h => h.holeNumber === currentHoleNumber) ?? null;
+  const par                  = hole?.par ?? 4;
+  const currentScore         = pendingScores.find(s => s.holeNumber === currentHoleNumber) ?? null;
+  const isLastHole           = holeIndex === holeOrder.length - 1;
+  const holeChallenge        = challenges.find(c => c.holeNumber === currentHoleNumber) ?? null;
+  const isCurrentHoleDone    = completedHoles.has(currentHoleNumber);
 
-  const playerShots: Record<string, number> = currentScore?.playerShots ?? {};
+  // Team gross = sum of every player's (drive + approach + putt)
+  const playerBreakdown = currentScore?.playerShots ?? {};
+  const grossScore      = Object.values(playerBreakdown).reduce(
+    (sum, b) => sum + b.drive + b.approach + b.putt, 0,
+  );
+  const displayScore = grossScore > 0 ? grossScore : null;
+  const hasShots     = grossScore > 0;
 
-  // Scoring input is only active during a live round (Scoring) or test mode (Draft).
   const scoringEnabled =
     session.event.status === 'Scoring' || session.event.status === 'Draft';
 
-  function handleScoreChange(grossScore: number) {
+  function changePlayerShots(
+    playerId: string,
+    type:    'drive' | 'approach' | 'putt',
+    delta:   number,
+  ) {
     if (!scoringEnabled) return;
+
+    const existing = playerBreakdown[playerId] ?? { drive: 0, approach: 0, putt: 0 };
+    const updated  = { ...existing, [type]: Math.max(0, existing[type] + delta) };
+    const all      = { ...playerBreakdown, [playerId]: updated };
+
+    const cleaned: Record<string, PlayerShotBreakdown> = {};
+    for (const [pid, b] of Object.entries(all)) {
+      if (b.drive + b.approach + b.putt > 0) cleaned[pid] = b;
+    }
+
+    const gross      = Object.values(cleaned).reduce((s, b) => s + b.drive + b.approach + b.putt, 0);
+    const totalPutts = Object.values(cleaned).reduce((s, b) => s + b.putt, 0);
+
     upsertScore({
       holeNumber:        currentHoleNumber,
-      grossScore,
-      putts:             currentScore?.putts ?? null,
-      playerShots:       currentScore?.playerShots,
+      grossScore:        gross > 0 ? gross : par,
+      putts:             totalPutts > 0 ? totalPutts : null,
+      playerShots:       Object.keys(cleaned).length > 0 ? cleaned : undefined,
       clientTimestampMs: Date.now(),
     });
-    if (grossScore === 1) setShowHio(true);
+    // HIO is only shown on explicit hole completion, not on shot entry
   }
 
-  function changePutts(delta: number) {
-    if (!scoringEnabled) return;
-    const curr = currentScore?.putts ?? 0;
-    const next = Math.max(0, Math.min(10, curr + delta));
-    upsertScore({
-      holeNumber:        currentHoleNumber,
-      grossScore:        currentScore?.grossScore ?? par,
-      putts:             next,
-      playerShots:       currentScore?.playerShots,
-      clientTimestampMs: Date.now(),
-    });
-  }
-
-  function changePlayerShots(playerId: string, delta: number) {
-    if (!scoringEnabled) return;
-    const curr = playerShots[playerId] ?? 0;
-    const next = Math.max(0, curr + delta);
-    const updated = { ...playerShots };
-    if (next === 0) delete updated[playerId]; else updated[playerId] = next;
-    upsertScore({
-      holeNumber:        currentHoleNumber,
-      grossScore:        currentScore?.grossScore ?? par,
-      putts:             currentScore?.putts ?? null,
-      playerShots:       Object.keys(updated).length > 0 ? updated : undefined,
-      clientTimestampMs: Date.now(),
-    });
+  async function handleComplete() {
+    if (!hasShots || isCurrentHoleDone || completing) return;
+    setCompleting(true);
+    try {
+      await completeHole(currentHoleNumber);
+      if (grossScore === 1) setShowHio(true);
+    } finally {
+      setCompleting(false);
+    }
   }
 
   function handlePrev() {
@@ -230,15 +322,14 @@ export default function ScorecardScreen() {
   }
 
   function handleNext() {
-    if (isLastHole) {
-      router.replace('/sync');
-    } else {
-      setHoleIndex(i => i + 1);
-    }
+    if (isLastHole) router.replace('/sync');
+    else setHoleIndex(i => i + 1);
   }
 
-  const completedCount = pendingScores.length;
-  const grossTotal     = pendingScores.reduce((sum, s) => sum + s.grossScore, 0);
+  const completedCount = completedHoles.size;
+  const grossTotal     = pendingScores
+    .filter(s => completedHoles.has(s.holeNumber))
+    .reduce((sum, s) => sum + s.grossScore, 0);
 
   return (
     <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
@@ -252,15 +343,13 @@ export default function ScorecardScreen() {
         </Text>
         {completedCount > 0 && (
           <Text style={[styles.headerTotal, { color: theme.colors.highlight }]}>
-            {completedCount} hole(s) · Total {grossTotal}
+            {completedCount} hole(s) complete · Total {grossTotal}
           </Text>
         )}
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+
         {/* ── HOLE SPONSOR ── */}
         {hole?.sponsorName && (
           <View style={[styles.sponsorBadge, { backgroundColor: theme.colors.accent + '22', borderColor: theme.colors.accent }]}>
@@ -279,14 +368,34 @@ export default function ScorecardScreen() {
           </View>
         )}
 
-        {/* ── HOLE INFO CHIPS ── */}
+        {/* ── HOLE INFO CHIPS: PAR | SCORE | HCP | yardages ── */}
         {hole && (
           <View style={styles.infoRow}>
             <HoleInfoChip label="Par"  value={String(hole.par)} />
+            <ScoreChip grossScore={displayScore} par={par} />
             <HoleInfoChip label="HCP"  value={String(hole.handicapIndex)} />
             {hole.yardageWhite != null && <HoleInfoChip label="White" value={`${hole.yardageWhite}y`} />}
             {hole.yardageBlue  != null && <HoleInfoChip label="Blue"  value={`${hole.yardageBlue}y`} />}
             {hole.yardageRed   != null && <HoleInfoChip label="Red"   value={`${hole.yardageRed}y`} />}
+          </View>
+        )}
+
+        {/* ── HOLE CHALLENGE BADGE ── */}
+        {holeChallenge && (
+          <View style={[styles.challengeBadge, { backgroundColor: theme.colors.highlight, borderColor: theme.colors.accent + '44' }]}>
+            {holeChallenge.sponsorName && (
+              <Text style={[styles.challengeSponsor, { color: theme.colors.accent }]}>
+                {holeChallenge.sponsorName}
+              </Text>
+            )}
+            <Text style={[styles.challengeDesc, { color: theme.colors.primary }]}>
+              {holeChallenge.description}
+            </Text>
+            {holeChallenge.prizeDescription && (
+              <Text style={[styles.challengePrize, { color: theme.colors.accent }]}>
+                🏆 {holeChallenge.prizeDescription}
+              </Text>
+            )}
           </View>
         )}
 
@@ -299,112 +408,87 @@ export default function ScorecardScreen() {
           </View>
         )}
 
-        {/* ── SCORE CARD ── */}
-        <ScoreCard
-          holeNumber={currentHoleNumber}
-          par={par}
-          score={currentScore?.grossScore ?? null}
-          onScoreChange={handleScoreChange}
-          challenge={holeChallenge}
-        />
+        {/* ── PER-PLAYER SHOT ENTRY ── */}
+        <View style={[styles.playerCard, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.playerCardTitle, { color: theme.colors.primary }]}>
+            Player Shots
+          </Text>
 
-        {/* ── PUTTS ── */}
-        <View style={[styles.puttsCard, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.puttsLabel, { color: theme.colors.primary }]}>Putts (optional)</Text>
-          <View style={styles.puttsControls}>
-            <Pressable
-              onPress={() => changePutts(-1)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={({ pressed }) => [
-                styles.puttsBtn,
-                { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary },
-              ]}
-              accessibilityLabel="Decrease putts"
-              accessibilityRole="button"
-            >
-              <Text style={styles.puttsBtnText}>−</Text>
-            </Pressable>
-
-            <Text style={[styles.puttsValue, { color: theme.colors.primary }]}>
-              {currentScore?.putts ?? '—'}
+          {session.team.players.length === 0 && (
+            <Text style={[styles.noPlayersText, { color: theme.colors.accent }]}>
+              No players on this team.
             </Text>
+          )}
 
-            <Pressable
-              onPress={() => changePutts(1)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={({ pressed }) => [
-                styles.puttsBtn,
-                { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary },
-              ]}
-              accessibilityLabel="Increase putts"
-              accessibilityRole="button"
-            >
-              <Text style={styles.puttsBtnText}>+</Text>
-            </Pressable>
-          </View>
-        </View>
+          {session.team.players.map((player, idx) => {
+            const shots       = playerBreakdown[player.id] ?? { drive: 0, approach: 0, putt: 0 };
+            const initials    = `${player.firstName[0]}${player.lastName[0]}`;
+            const playerTotal = shots.drive + shots.approach + shots.putt;
+            const isFirst     = idx === 0;
+            // Shot entry is disabled when the hole is marked complete
+            const shotDisabled = !scoringEnabled || isCurrentHoleDone;
 
-        {/* ── PLAYER SHOTS ── */}
-        {session.team.players.length > 0 && (
-          <View style={[styles.playerShotsCard, { backgroundColor: theme.colors.surface }]}>
-            <Pressable
-              onPress={() => setShotsOpen(o => !o)}
-              style={styles.playerShotsHeader}
-              accessibilityRole="button"
-              accessibilityLabel={shotsOpen ? 'Collapse player shots' : 'Expand player shots'}
-            >
-              <Text style={[styles.playerShotsTitle, { color: theme.colors.primary }]}>
-                Player Shots (optional)
-              </Text>
-              <Text style={[styles.playerShotsChevron, { color: theme.colors.accent }]}>
-                {shotsOpen ? '▲' : '▼'}
-              </Text>
-            </Pressable>
-
-            {shotsOpen && session.team.players.map(player => {
-              const shots    = playerShots[player.id] ?? 0;
-              const initials = `${player.firstName[0]}${player.lastName[0]}`;
-              return (
-                <View key={player.id} style={[styles.playerRow, { borderTopColor: '#f0f0f0' }]}>
+            return (
+              <View
+                key={player.id}
+                style={[
+                  styles.playerSection,
+                  !isFirst && { borderTopColor: theme.colors.accent + '22', borderTopWidth: StyleSheet.hairlineWidth },
+                ]}
+              >
+                <View style={styles.playerNameRow}>
                   <View style={[styles.playerAvatar, { backgroundColor: theme.colors.highlight }]}>
                     <Text style={[styles.playerInitials, { color: theme.colors.primary }]}>
                       {initials}
                     </Text>
                   </View>
                   <Text style={[styles.playerName, { color: theme.colors.primary }]} numberOfLines={1}>
-                    {player.firstName}
+                    {player.firstName} {player.lastName}
                   </Text>
-                  <View style={styles.shotControls}>
-                    <Pressable
-                      onPress={() => changePlayerShots(player.id, -1)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      style={[styles.shotBtn, { backgroundColor: theme.colors.primary }]}
-                      accessibilityLabel={`Decrease shots for ${player.firstName}`}
-                    >
-                      <Text style={styles.shotBtnText}>−</Text>
-                    </Pressable>
-                    <Text style={[styles.shotCount, { color: theme.colors.primary }]}>
-                      {shots > 0 ? shots : '—'}
+                  {playerTotal > 0 && (
+                    <Text style={[styles.playerTotal, { color: theme.colors.accent }]}>
+                      {playerTotal} shots
                     </Text>
-                    <Pressable
-                      onPress={() => changePlayerShots(player.id, 1)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      style={[styles.shotBtn, { backgroundColor: theme.colors.primary }]}
-                      accessibilityLabel={`Increase shots for ${player.firstName}`}
-                    >
-                      <Text style={styles.shotBtnText}>+</Text>
-                    </Pressable>
-                  </View>
+                  )}
                 </View>
-              );
-            })}
-          </View>
-        )}
+
+                <View style={styles.playerCols}>
+                  <ShotColumn
+                    label="Drive"
+                    value={shots.drive}
+                    onDecrement={() => changePlayerShots(player.id, 'drive', -1)}
+                    onIncrement={() => changePlayerShots(player.id, 'drive', 1)}
+                    disabled={shotDisabled}
+                    theme={theme}
+                  />
+                  <View style={[styles.colDivider, { backgroundColor: theme.colors.accent + '22' }]} />
+                  <ShotColumn
+                    label="Approach"
+                    value={shots.approach}
+                    onDecrement={() => changePlayerShots(player.id, 'approach', -1)}
+                    onIncrement={() => changePlayerShots(player.id, 'approach', 1)}
+                    disabled={shotDisabled}
+                    theme={theme}
+                  />
+                  <View style={[styles.colDivider, { backgroundColor: theme.colors.accent + '22' }]} />
+                  <ShotColumn
+                    label="Putt"
+                    value={shots.putt}
+                    onDecrement={() => changePlayerShots(player.id, 'putt', -1)}
+                    onIncrement={() => changePlayerShots(player.id, 'putt', 1)}
+                    disabled={shotDisabled}
+                    theme={theme}
+                  />
+                </View>
+              </View>
+            );
+          })}
+        </View>
 
         {/* ── SYNC STATUS ── */}
         <SyncStatusBar
           status={syncStatus}
-          pendingCount={pendingScores.length}
+          pendingCount={completedHoles.size}
           onSync={handleSync}
           theme={theme}
         />
@@ -419,43 +503,75 @@ export default function ScorecardScreen() {
 
       {/* ── HOLE NAVIGATION ── */}
       <View style={[styles.navBar, { backgroundColor: theme.colors.surface, borderTopColor: '#e0e0e0' }]}>
-        <Pressable
-          onPress={handlePrev}
-          disabled={holeIndex === 0}
-          style={({ pressed }) => [
-            styles.navBtn,
-            {
-              backgroundColor: pressed ? theme.colors.accent : theme.colors.primary,
-              opacity: holeIndex === 0 ? 0.3 : 1,
-            },
-          ]}
-          accessibilityLabel="Previous hole"
-          accessibilityRole="button"
-        >
-          <Text style={styles.navBtnText}>← Prev</Text>
-        </Pressable>
+        {/* Counter row */}
+        <View style={styles.counterRow}>
+          <Text style={[styles.holeCounter, { color: theme.colors.primary }]}>
+            Hole {holeIndex + 1} of {holeOrder.length}
+          </Text>
+          {isCurrentHoleDone && (
+            <View style={styles.completedBadge}>
+              <Text style={styles.completedBadgeText}>✓ Complete</Text>
+            </View>
+          )}
+        </View>
 
-        <Text style={[styles.holeCounter, { color: theme.colors.primary }]}>
-          {holeIndex + 1} / {holeOrder.length}
-        </Text>
+        {/* Button row */}
+        <View style={styles.btnRow}>
+          <Pressable
+            onPress={handlePrev}
+            disabled={holeIndex === 0}
+            style={({ pressed }) => [
+              styles.navBtn,
+              {
+                backgroundColor: pressed ? theme.colors.accent : theme.colors.primary,
+                opacity: holeIndex === 0 ? 0.3 : 1,
+              },
+            ]}
+            accessibilityLabel="Previous hole"
+            accessibilityRole="button"
+          >
+            <Text style={styles.navBtnText}>← Prev</Text>
+          </Pressable>
 
-        <Pressable
-          onPress={handleNext}
-          style={({ pressed }) => [
-            styles.navBtn,
-            {
-              backgroundColor: pressed
-                ? theme.colors.accent
-                : isLastHole
-                  ? theme.colors.action
-                  : theme.colors.primary,
-            },
-          ]}
-          accessibilityLabel={isLastHole ? 'Finish round' : 'Next hole'}
-          accessibilityRole="button"
-        >
-          <Text style={styles.navBtnText}>{isLastHole ? 'Finish ✓' : 'Next →'}</Text>
-        </Pressable>
+          {/* Complete Hole button */}
+          {isCurrentHoleDone ? (
+            <View style={styles.completedBtn}>
+              <Text style={styles.completedBtnText}>✓ Done</Text>
+            </View>
+          ) : (
+            <Pressable
+              onPress={handleComplete}
+              disabled={!hasShots || !scoringEnabled || completing}
+              style={({ pressed }) => [
+                styles.completeBtn,
+                { backgroundColor: pressed ? '#1e8449' : '#27ae60' },
+                (!hasShots || !scoringEnabled || completing) && styles.completeBtnDisabled,
+              ]}
+              accessibilityLabel="Complete hole"
+              accessibilityRole="button"
+            >
+              {completing
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={styles.completeBtnText}>Complete Hole</Text>}
+            </Pressable>
+          )}
+
+          <Pressable
+            onPress={handleNext}
+            style={({ pressed }) => [
+              styles.navBtn,
+              {
+                backgroundColor: pressed
+                  ? theme.colors.accent
+                  : isLastHole ? theme.colors.action : theme.colors.primary,
+              },
+            ]}
+            accessibilityLabel={isLastHole ? 'Finish round' : 'Next hole'}
+            accessibilityRole="button"
+          >
+            <Text style={styles.navBtnText}>{isLastHole ? 'Finish ✓' : 'Next →'}</Text>
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -494,63 +610,88 @@ const styles = StyleSheet.create({
 
   infoRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8,
-    justifyContent: 'center', marginBottom: 8,
+    justifyContent: 'center', marginBottom: 12,
+    alignItems: 'flex-start',
   },
 
-  puttsCard: {
-    borderRadius: 12, padding: 16, marginTop: 4,
+  challengeBadge: {
+    borderWidth: 1, borderRadius: 10,
+    padding: 10, marginBottom: 12, gap: 3,
+  },
+  challengeSponsor: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  challengeDesc:    { fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  challengePrize:   { fontSize: 12, fontWeight: '600' },
+
+  // ── Per-player shot card ──
+  playerCard: {
+    borderRadius: 14,
+    paddingTop: 16,
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    marginBottom: 8,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
   },
-  puttsLabel:    { fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: 10 },
-  puttsControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  puttsBtn: {
-    minWidth: 48, minHeight: 48, borderRadius: 24,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  puttsBtnText: { fontSize: 26, fontWeight: '300', color: '#fff', lineHeight: 30 },
-  puttsValue:   { fontSize: 32, fontWeight: '800', minWidth: 48, textAlign: 'center' },
+  playerCardTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
+  noPlayersText:   { fontSize: 13, paddingBottom: 8 },
 
-  playerShotsCard: {
-    borderRadius: 12, marginTop: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
-    overflow: 'hidden',
+  playerSection: {
+    paddingTop: 12,
+    paddingBottom: 16,
   },
-  playerShotsHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14,
-  },
-  playerShotsTitle:   { fontSize: 13, fontWeight: '600' },
-  playerShotsChevron: { fontSize: 13, fontWeight: '700' },
-
-  playerRow: {
+  playerNameRow: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    marginBottom: 12,
   },
-  playerAvatar:   { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  playerInitials: { fontSize: 13, fontWeight: '800' },
+  playerAvatar:   { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  playerInitials: { fontSize: 12, fontWeight: '800' },
   playerName:     { flex: 1, fontSize: 14, fontWeight: '600' },
+  playerTotal:    { fontSize: 13, fontWeight: '700' },
 
-  shotControls: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  shotBtn: {
-    width: 34, height: 34, borderRadius: 17,
-    alignItems: 'center', justifyContent: 'center',
+  playerCols: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  shotBtnText: { fontSize: 20, fontWeight: '300', color: '#fff', lineHeight: 24 },
-  shotCount:   { fontSize: 22, fontWeight: '800', minWidth: 28, textAlign: 'center' },
+  colDivider: { width: 1, height: 80, marginHorizontal: 4 },
 
+  // ── Navigation bar ──
   navBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
     borderTopWidth: 1,
+    paddingTop: 10,
+    paddingHorizontal: 12,
     paddingBottom: Platform.OS === 'ios' ? 28 : 12,
   },
-  navBtn: {
-    paddingHorizontal: 20, paddingVertical: 14,
-    borderRadius: 10, minWidth: 100, alignItems: 'center',
+  counterRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, marginBottom: 10,
   },
-  navBtnText:  { fontSize: 15, fontWeight: '700', color: '#fff' },
-  holeCounter: { fontSize: 15, fontWeight: '600' },
+  holeCounter: { fontSize: 14, fontWeight: '600' },
+  completedBadge: {
+    backgroundColor: '#27ae60', borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 2,
+  },
+  completedBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+
+  btnRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6,
+  },
+  navBtn: {
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderRadius: 10, minWidth: 80, alignItems: 'center',
+  },
+  navBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+
+  completeBtn: {
+    flex: 1, paddingVertical: 12, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  completeBtnDisabled: { opacity: 0.4 },
+  completeBtnText:     { fontSize: 14, fontWeight: '700', color: '#fff' },
+
+  completedBtn: {
+    flex: 1, paddingVertical: 12, borderRadius: 10,
+    alignItems: 'center', backgroundColor: '#27ae60' + '22',
+    borderWidth: 1, borderColor: '#27ae60',
+  },
+  completedBtnText: { fontSize: 14, fontWeight: '700', color: '#27ae60' },
 });

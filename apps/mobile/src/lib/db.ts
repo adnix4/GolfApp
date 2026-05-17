@@ -50,16 +50,19 @@ export function getDb(): Promise<Db> {
             value TEXT NOT NULL
           );
           CREATE TABLE IF NOT EXISTS pending_scores (
-            id            TEXT PRIMARY KEY,
-            event_id      TEXT NOT NULL,
-            team_id       TEXT NOT NULL,
-            hole_number   INTEGER NOT NULL,
-            gross_score   INTEGER NOT NULL,
-            putts         INTEGER,
-            player_shots  TEXT,
-            created_at    TEXT NOT NULL,
-            synced_at     TEXT,
-            sync_attempts INTEGER NOT NULL DEFAULT 0
+            id             TEXT PRIMARY KEY,
+            event_id       TEXT NOT NULL,
+            team_id        TEXT NOT NULL,
+            hole_number    INTEGER NOT NULL,
+            gross_score    INTEGER NOT NULL,
+            putts          INTEGER,
+            drive_shots    INTEGER,
+            approach_shots INTEGER,
+            player_shots   TEXT,
+            created_at     TEXT NOT NULL,
+            synced_at      TEXT,
+            sync_attempts  INTEGER NOT NULL DEFAULT 0,
+            completed_at   TEXT
           );
           CREATE TABLE IF NOT EXISTS leaderboard_cache (
             key       TEXT PRIMARY KEY,
@@ -67,6 +70,11 @@ export function getDb(): Promise<Db> {
             cached_at TEXT NOT NULL
           );
         `);
+        // Migrate existing DBs that predate the drive/approach columns.
+        // SQLite throws if the column already exists — that's fine, swallow it.
+        try { await db.runAsync('ALTER TABLE pending_scores ADD COLUMN drive_shots INTEGER', []); } catch { /* already exists */ }
+        try { await db.runAsync('ALTER TABLE pending_scores ADD COLUMN approach_shots INTEGER', []); } catch { /* already exists */ }
+        try { await db.runAsync('ALTER TABLE pending_scores ADD COLUMN completed_at TEXT', []); } catch { /* already exists */ }
         return db;
       })();
     }

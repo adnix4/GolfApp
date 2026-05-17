@@ -27,6 +27,9 @@ public record SubmitScoreRequest
     /// <summary>Device identifier for conflict detection. Default = admin-dashboard.</summary>
     [MaxLength(100)]
     public string DeviceId { get; init; } = "admin-dashboard";
+
+    /// <summary>Per-player shot totals as JSON: { "playerId": shots }. Null if not tracked.</summary>
+    public string? PlayerShotsJson { get; init; }
 }
 
 /// <summary>PATCH /api/v1/events/{eventId}/scores/{id} — admin correction.</summary>
@@ -37,6 +40,9 @@ public record UpdateScoreRequest
 
     [Range(0, 10)]
     public short? Putts { get; init; }
+
+    /// <summary>Per-player shot totals as JSON: { "playerId": shots }. Null if not tracked.</summary>
+    public string? PlayerShotsJson { get; init; }
 }
 
 /// <summary>
@@ -124,9 +130,10 @@ public record ScorecardResponse
 
 public record ScorecardHoleEntry
 {
-    public short  HoleNumber  { get; init; }
-    public short  Par         { get; init; }
-    public short? GrossScore  { get; init; }
-    public short? Putts       { get; init; }
-    public bool   HasConflict { get; init; }
+    public short   HoleNumber      { get; init; }
+    public short   Par             { get; init; }
+    public short?  GrossScore      { get; init; }
+    public short?  Putts           { get; init; }
+    public string? PlayerShotsJson { get; init; }
+    public bool    HasConflict     { get; init; }
 }

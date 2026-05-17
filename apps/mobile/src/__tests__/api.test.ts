@@ -121,7 +121,13 @@ describe('fetchLeaderboard', () => {
 describe('batchSync', () => {
   const scores: PendingScore[] = [
     { holeNumber: 1, grossScore: 4, putts: 2, clientTimestampMs: 1_700_000_000_000 },
-    { holeNumber: 2, grossScore: 3, putts: 1, playerShots: { 'p1': 2, 'p2': 1 }, clientTimestampMs: 1_700_000_001_000 },
+    {
+      holeNumber: 2, grossScore: 3, putts: 1, clientTimestampMs: 1_700_000_001_000,
+      playerShots: {
+        p1: { drive: 1, approach: 1, putt: 0 }, // total = 2
+        p2: { drive: 0, approach: 0, putt: 1 }, // total = 1
+      },
+    },
   ];
 
   const syncResponse = { accepted: 2, conflicts: 0, conflictDetails: [] };
