@@ -8,6 +8,7 @@ import { useSession } from '@/lib/session';
 import {
   fetchAuctionItems, placeBid, pledge,
   fetchPlayerBidHistory, fetchActiveAuctionSession,
+  raiseHand,
   resolveUrl,
   AuctionItemDto, AuctionSessionDto, PlayerBidHistoryItem,
 } from '@/lib/api';
@@ -29,6 +30,8 @@ export default function AuctionScreen() {
   const [bidAmt, setBidAmt]       = useState('');
   const [bidding, setBidding]     = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [raisingHand, setRaisingHand] = useState(false);
+  const [handRaised,  setHandRaised]  = useState(false);
 
   const load = useCallback(async () => {
     if (!eventId) return;
@@ -65,6 +68,17 @@ export default function AuctionScreen() {
   useEffect(() => {
     if (tab === 'history') loadHistory();
   }, [tab, loadHistory]);
+
+  async function handleRaiseHand() {
+    if (!eventId || raisingHand) return;
+    setRaisingHand(true);
+    try {
+      await raiseHand(eventId);
+      setHandRaised(true);
+      setTimeout(() => setHandRaised(false), 3000);
+    } catch { /* non-critical — ignore */ }
+    finally { setRaisingHand(false); }
+  }
 
   async function handleBid(item: AuctionItemDto) {
     if (!player?.id) return;
@@ -206,6 +220,26 @@ export default function AuctionScreen() {
                   {fmt(liveSession.currentCalledAmountCents)}
                 </Text>
               </View>
+
+              {/* Raise Hand — soft "I'm Bidding" signal */}
+              <Pressable
+                style={[
+                  styles.raiseHandBtn,
+                  handRaised && { backgroundColor: '#27ae60' },
+                  raisingHand && { opacity: 0.6 },
+                ]}
+                onPress={handleRaiseHand}
+                disabled={raisingHand}
+                accessibilityLabel="Raise hand to signal interest"
+                accessibilityRole="button"
+              >
+                {raisingHand
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.raiseHandText}>
+                      {handRaised ? '✓ Hand Raised!' : '🙋 I\'m Bidding'}
+                    </Text>}
+              </Pressable>
+
               <Text style={[styles.sectionTitle, { color: theme.colors.primary, marginTop: 16 }]}>
                 Pledge / Bid on this item
               </Text>
@@ -382,6 +416,11 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalCard:   { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
   cancelBtn:   { alignItems: 'center', marginTop: 16, paddingVertical: 10 },
+  raiseHandBtn: {
+    backgroundColor: '#2980b9', borderRadius: 12,
+    paddingVertical: 14, alignItems: 'center', marginTop: 12,
+  },
+  raiseHandText: { color: '#fff', fontWeight: '800', fontSize: 16 },
   errorBanner: { backgroundColor: '#fdf2f2', borderLeftWidth: 3, borderLeftColor: '#e74c3c', padding: 12 },
   errorBannerText: { color: '#c0392b', fontSize: 13 },
 });

@@ -42,8 +42,9 @@ export default function RegisterScreen() {
   const [teammates, setTeammates] = useState<TeammateFields[]>([]);
 
   // Success
-  const [confirmedTeamName, setConfirmedTeamName] = useState('');
-  const [confirmedPlayers,  setConfirmedPlayers]  = useState<string[]>([]);
+  const [confirmedTeamName,  setConfirmedTeamName]  = useState('');
+  const [confirmedPlayers,   setConfirmedPlayers]   = useState<string[]>([]);
+  const [entryFeeCents,      setEntryFeeCents]      = useState<number | null>(null);
 
   const addTeammate = useCallback(() => {
     setTeammates(prev => [...prev, emptyTeammate()]);
@@ -104,9 +105,10 @@ export default function RegisterScreen() {
     setError(null);
     setSubmitting(true);
     try {
-      await registerTeam(eventId, resolvedTeamName, players);
+      const result = await registerTeam(eventId, resolvedTeamName, players);
       setConfirmedTeamName(resolvedTeamName);
       setConfirmedPlayers(players.map(p => `${p.firstName} ${p.lastName}`));
+      setEntryFeeCents(result.entryFeeCents ?? null);
       setStep('success');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Registration failed. Please try again.');
@@ -148,6 +150,17 @@ export default function RegisterScreen() {
                 </Text>
               ))}
             </View>
+
+            {entryFeeCents != null && entryFeeCents > 0 && (
+              <View style={[styles.feeNotice, { backgroundColor: '#fffbf0', borderColor: '#f39c12' }]}>
+                <Text style={styles.feeNoticeTitle}>Entry Fee Due</Text>
+                <Text style={styles.feeNoticeText}>
+                  This event requires a ${(entryFeeCents / 100).toFixed(2)} entry fee.
+                  A payment link has been sent to your email — please complete payment
+                  before the event starts.
+                </Text>
+              </View>
+            )}
 
             <Text style={[styles.successNote, { color: theme.colors.accent }]}>
               Confirmation emails will be sent to all registered players. Everyone can join the
@@ -472,6 +485,10 @@ const styles = StyleSheet.create({
   // Success
   successIcon: { fontSize: 48, textAlign: 'center', marginBottom: 12 },
   successNote: { fontSize: 13, lineHeight: 20, marginTop: 12, marginBottom: 4 },
+
+  feeNotice:      { borderWidth: 1, borderRadius: 10, padding: 14, marginTop: 12 },
+  feeNoticeTitle: { fontSize: 14, fontWeight: '700', color: '#7d6608', marginBottom: 4 },
+  feeNoticeText:  { fontSize: 13, lineHeight: 19, color: '#7d6608' },
   rosterBox: {
     borderRadius: 10, borderWidth: 1,
     padding: 14, marginTop: 14, gap: 4,

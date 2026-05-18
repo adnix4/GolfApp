@@ -4,6 +4,8 @@ using Microsoft.Extensions.Configuration;
 using GolfFundraiserPro.Api.Domain.Entities;
 using GolfFundraiserPro.Api.Domain.Enums;
 using GolfFundraiserPro.Api.Features.Auction;
+using GolfFundraiserPro.Api.Features.Emails;
+using GolfFundraiserPro.Api.Features.Notifications;
 using GolfFundraiserPro.Api.Features.Payments;
 using WebAPI.Tests.Helpers;
 
@@ -29,7 +31,10 @@ public class AuctionCloseJobIntegrationTests
             .Build();
 
         var payments = new PaymentsService(db, config, NullLogger<PaymentsService>.Instance);
-        var svc      = new AuctionService(db, new NullRealTimeService(), payments,
+        var email    = new EmailService(db, config, NullLogger<EmailService>.Instance);
+        var push     = new PushNotificationService(new NullHttpClientFactory(), NullLogger<PushNotificationService>.Instance);
+        var env      = new NullWebHostEnvironment();
+        var svc      = new AuctionService(db, new NullRealTimeService(), payments, email, push, env,
                                           NullLogger<AuctionService>.Instance);
         return (svc, db);
     }

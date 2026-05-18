@@ -39,4 +39,7 @@ public sealed class NullRealTimeService : IRealTimeService
 
     public Task SendAuctionAmountUpdatedAsync(
         string eventCode, Guid? itemId, int amountCents, CancellationToken ct = default) => Task.CompletedTask;
+
+    public Task SendBidderCountUpdatedAsync(
+        string eventCode, int count, CancellationToken ct = default) => Task.CompletedTask;
 }

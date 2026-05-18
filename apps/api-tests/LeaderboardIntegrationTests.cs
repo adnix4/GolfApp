@@ -16,8 +16,9 @@ public class LeaderboardIntegrationTests
 {
     private static (EventService svc, GolfFundraiserPro.Api.Data.ApplicationDbContext db) Build()
     {
-        var db  = InMemoryDbFactory.Create();
-        var svc = new EventService(db, NullLogger<EventService>.Instance);
+        var db       = InMemoryDbFactory.Create();
+        var testData = new TestDataService(db, NullLogger<TestDataService>.Instance);
+        var svc      = new EventService(db, NullLogger<EventService>.Instance, testData);
         return (svc, db);
     }
 

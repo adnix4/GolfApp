@@ -331,6 +331,14 @@ export async function fetchActiveAuctionSession(eventId: string): Promise<Auctio
   return res.json();
 }
 
+/** Soft "I'm Bidding" paddle raise — increments the live bidder count. No auth required. */
+export async function raiseHand(eventId: string): Promise<void> {
+  await fetch(`${BASE}/api/v1/events/${eventId}/auction/sessions/raise-hand`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 // ── PHASE 5: LEAGUE ───────────────────────────────────────────────────────────
 
 export interface MemberSeasonSummary {
@@ -403,6 +411,9 @@ export interface RegistrationConfirmResponse {
     registrationType: string;
   };
   inviteLink: string | null;
+  /** Present when the event charges an entry fee and the captain has no saved payment method. */
+  entryFeeClientSecret?: string | null;
+  entryFeeCents?: number | null;
 }
 
 export async function registerTeam(
