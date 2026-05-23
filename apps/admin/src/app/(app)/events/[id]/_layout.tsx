@@ -1,8 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Slot, useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { ThemeProvider, useTheme } from '@gfp/ui';
+import { ECO_GREEN_DEFAULT, type GFPTheme } from '@gfp/theme';
 import { eventsApi, type EventDetail } from '@/lib/api';
+
+function parseTheme(json: string | null | undefined): GFPTheme | null {
+  if (!json) return null;
+  try { return { ...ECO_GREEN_DEFAULT, ...JSON.parse(json) }; }
+  catch { return null; }
+}
 import { TestingWarningBar } from '@/components/TestingWarningBar';
 
 type SubTab = { label: string; path: string };
@@ -80,6 +87,7 @@ export default function EventLayout() {
     !['Active', 'Scoring', 'Completed', 'Cancelled'].includes(event?.status ?? '');
 
   return (
+    <ThemeProvider theme={parseTheme(event?.themeJson)}>
     <View style={styles.container}>
 
       {/* ── Test mode warning bar ────────────────────────────────────────── */}
@@ -150,6 +158,7 @@ export default function EventLayout() {
       </View>
 
     </View>
+    </ThemeProvider>
   );
 }
 
