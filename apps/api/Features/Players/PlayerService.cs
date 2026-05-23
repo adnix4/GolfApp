@@ -97,6 +97,10 @@ public class PlayerService
         if (evt is null)
             throw new NotFoundException("Event", eventId);
 
+        if (evt.Status != EventStatus.Active)
+            throw new ValidationException(
+                $"Check-in is only available when the event is Active. Current status: {evt.Status}.");
+
         var player = await _db.Players
             .Include(p => p.Team)
                 .ThenInclude(t => t!.Players)
@@ -164,6 +168,13 @@ public class PlayerService
         Guid playerId, Guid eventId, CancellationToken ct = default)
     {
         var evt = await _db.Events.FirstOrDefaultAsync(e => e.Id == eventId, ct);
+
+        if (evt is null)
+            throw new NotFoundException("Event", eventId);
+
+        if (evt.Status != EventStatus.Active)
+            throw new ValidationException(
+                $"Check-in is only available when the event is Active. Current status: {evt.Status}.");
 
         var player = await _db.Players
             .Include(p => p.Team)
