@@ -233,7 +233,11 @@ export default function JoinScreen() {
                 ]}
                 onPress={() => router.push({
                   pathname: '/(auth)/register',
-                  params: { eventId: selected.id, eventName: selected.name },
+                  params: {
+                    eventId:          selected.id,
+                    eventName:        selected.name,
+                    freeAgentEnabled: selected.freeAgentEnabled ? '1' : '0',
+                  },
                 })}
                 accessibilityRole="button"
                 accessibilityLabel="Register for this event"

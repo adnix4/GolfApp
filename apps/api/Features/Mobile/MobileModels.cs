@@ -184,7 +184,8 @@ public record ActiveEventSummaryDto
     public string?   CourseName  { get; init; }
     public string?   CourseCity  { get; init; }
     public string?   CourseState { get; init; }
-    public string?   LogoUrl     { get; init; }
+    public string?   LogoUrl          { get; init; }
+    public bool      FreeAgentEnabled { get; init; }
 }
 
 /// <summary>Response to POST /api/v1/sync/scores.</summary>

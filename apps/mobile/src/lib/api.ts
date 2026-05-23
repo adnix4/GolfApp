@@ -75,17 +75,18 @@ export interface PendingScore {
 }
 
 export interface ActiveEventSummary {
-  id:          string;
-  name:        string;
-  eventCode:   string;
-  format:      string;
-  status:      string;
-  startAt:     string | null;
-  orgName:     string;
-  courseName:  string | null;
-  courseCity:  string | null;
-  courseState: string | null;
-  logoUrl:     string | null;
+  id:               string;
+  name:             string;
+  eventCode:        string;
+  format:           string;
+  status:           string;
+  startAt:          string | null;
+  orgName:          string;
+  courseName:       string | null;
+  courseCity:       string | null;
+  courseState:      string | null;
+  logoUrl:          string | null;
+  freeAgentEnabled: boolean;
 }
 
 export async function fetchActiveEvents(): Promise<ActiveEventSummary[]> {
@@ -429,6 +430,32 @@ export async function registerTeam(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? `Registration failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export type SkillLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Competitive';
+export type AgeGroup   = 'Under30'  | 'From30To50'   | 'Over50';
+
+export interface RegisterFreeAgentPayload {
+  player:      PlayerInput;
+  skillLevel?: SkillLevel;
+  ageGroup?:   AgeGroup;
+  pairingNote?: string;
+}
+
+export async function registerFreeAgent(
+  eventId: string,
+  payload: RegisterFreeAgentPayload,
+): Promise<RegistrationConfirmResponse> {
+  const res = await fetch(`${BASE}/api/v1/events/${eventId}/register/free-agent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? err.error ?? `Registration failed (${res.status})`);
   }
   return res.json();
 }

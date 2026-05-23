@@ -54,26 +54,40 @@ public class MobileService
     {
         var openStatuses = new[] { EventStatus.Registration, EventStatus.Active, EventStatus.Scoring };
 
-        return await _db.Events
+        var events = await _db.Events
             .Include(e => e.Organization)
             .Include(e => e.Course)
             .Where(e => openStatuses.Contains(e.Status))
             .OrderBy(e => e.StartAt)
-            .Select(e => new ActiveEventSummaryDto
-            {
-                Id          = e.Id,
-                Name        = e.Name,
-                EventCode   = e.EventCode,
-                Format      = e.Format.ToString(),
-                Status      = e.Status.ToString(),
-                StartAt     = e.StartAt,
-                OrgName     = e.Organization.Name,
-                CourseName  = e.Course != null ? e.Course.Name  : null,
-                CourseCity  = e.Course != null ? e.Course.City  : null,
-                CourseState = e.Course != null ? e.Course.State : null,
-                LogoUrl     = e.LogoUrl ?? e.Organization.LogoUrl,
-            })
             .ToListAsync(ct);
+
+        return events.Select(e =>
+        {
+            bool freeAgentEnabled = false;
+            try
+            {
+                using var doc = JsonDocument.Parse(e.ConfigJson ?? "{}");
+                if (doc.RootElement.TryGetProperty("freeAgentEnabled", out var fa))
+                    freeAgentEnabled = fa.GetBoolean();
+            }
+            catch { /* malformed JSON — leave false */ }
+
+            return new ActiveEventSummaryDto
+            {
+                Id               = e.Id,
+                Name             = e.Name,
+                EventCode        = e.EventCode,
+                Format           = e.Format.ToString(),
+                Status           = e.Status.ToString(),
+                StartAt          = e.StartAt,
+                OrgName          = e.Organization.Name,
+                CourseName       = e.Course?.Name,
+                CourseCity       = e.Course?.City,
+                CourseState      = e.Course?.State,
+                LogoUrl          = e.LogoUrl ?? e.Organization.LogoUrl,
+                FreeAgentEnabled = freeAgentEnabled,
+            };
+        }).ToList();
     }
 
     // ── JOIN ──────────────────────────────────────────────────────────────────

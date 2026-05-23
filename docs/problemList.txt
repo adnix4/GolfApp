@@ -1,52 +1,10 @@
-Event colors display
+
 teams should not show as checked in until a worker checks them in the day of the event after the event moves from the registration to the active state
 add payment type in mobile app
-add ability to pay for registration in mobile app.
+designate players to a team
+designate players as free agents if no team is selected when registering from the mobile app.
+take to the event page of the mobile app after registration hide scoring tab if scoring isn't active. Only allow for testing in the mobile app if the event code is presented.
 
-Phase 1 — Admin-Run Tournament
-
- + 1. Paper scorecard PDF — The spec calls for /events/{id}/scorecards/pdf (one per team, pre-filled with hole, par, handicap index). No PDF generation endpoint exists.
- + 2. Public landing page registration forms — The Next.js landing page shows "Contact {event.orgName}" CTAs that link to #contact instead of actual 3-mode registration forms.
-   Registration only works through the admin-initiated flow, not self-service from the public page.
- + 3. Donation entry widget — The landing page donation thermometer shows the total but there's no form for a visitor to actually submit a donation from the public page.
- + 4. Walk-up registration from check-in screen — Spec requires an abbreviated registration form accessible from the admin check-in screen with a QR displayed on-screen for
-  the walk-up player to screenshot.
-
-  ---
-  Phase 2 — Golfer Scoring App + QR Transfer
-
-  + 5. TV mode layout — /e/{orgSlug}/{eventCode}/scores?tv=1 routes to ScoresPoller but the large-font, auto-scrolling, sponsor-banner-rotation layout spec'd for TV mode needs
-  to be confirmed/built.
-  + 6. Admin "Pending Sync" counter — Spec requires an admin view showing "X of 25 teams confirmed" that blocks publishing the final leaderboard until all teams are synced or
-  QR-collected.
- + 7. Offline Event Mode flag — Event config needs an organizer-toggleable flag that increases sync retry intervals and disables the live leaderboard on mobile to conserve
-  battery.
-
-  ---
-  Phase 3 — Live Real-Time Scoring + Comms
-
- + 8. SSE fallback — Spec requires clients without WebSocket support to fall back to 15-second SSE polling. Only the SignalR path is currently implemented.
- + 9. Email ad builder — Puppeteer PDF preview — The builder screen and SendGrid direct-send are implemented, but server-side PDF preview via headless Chromium is not wired
-  up.
- + 10. Tee time schedule PDF export — Spec lists this as a Phase 3 deliverable (formatted, printable from admin dashboard). No PDF generation endpoint for tee times exists.
- + 11. Leaderboard share card — OG image generation with current standings for social sharing. Not implemented.
- + 12. Hole-in-One celebratory animation — The HoleInOneAlert SignalR event fires correctly, but the celebratory animation on the mobile score entry screen and public
-  leaderboard needs to be implemented client-side.
-
-  ---
-  Phase 4 — Payments + Auction
-
- + 13. Auction item status gaps — AuctionItemStatus enum only has Open, Closed, Cancelled. The spec defines two additional states: Extended (active with extended timer) and
-  Awarded (winner assigned, charges pending/complete). Without these, the extension history display and post-award state are ambiguous.
- + 14. "I'm Bidding" soft paddle-raise — Mobile app needs a button during live auction that increments a visible bidder count on the admin host screen without placing a formal
-   bid.
- + 15. Outbid push notification + email — When a new high bid is placed, the previous high bidder needs an Expo push notification and an email. Not visible in the auction bid
-  flow.
- + 16. Entry fee Stripe PaymentIntent in registration flow — Phase 4 adds online payment to team registration (not just manual tracking). The PaymentIntent after team creation
-   isn't in the registration endpoint.
- + 17. Failed charge resolution workflow — Admin dashboard needs an alert and manual resolution UI (re-charge or waive) for auction winners/donors whose charges fail. The
-  entity model supports this but the admin UI surface doesn't.
- + 18. Auction winner/donor receipt emails — SendGrid receipts with item description, amount, FMV for 501(c)3 deductibility need to be sent after successful charges.
 
   ---
   Phase 5 — League Play + Handicaps
