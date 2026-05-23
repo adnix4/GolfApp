@@ -1,8 +1,28 @@
 import { Slot, useRouter, useSegments } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { ThemeProvider } from '@gfp/ui';
+import { ECO_GREEN_DEFAULT, type GFPTheme } from '@gfp/theme';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { orgApi } from '@/lib/api';
+
+function parseTheme(json: string | null | undefined): GFPTheme | null {
+  if (!json) return null;
+  try { return { ...ECO_GREEN_DEFAULT, ...JSON.parse(json) }; }
+  catch { return null; }
+}
+
+function OrgThemeWrapper({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const [orgTheme, setOrgTheme] = useState<GFPTheme | null>(null);
+
+  useEffect(() => {
+    if (!user || user.role === 'SuperAdmin') { setOrgTheme(null); return; }
+    orgApi.getMe().then(org => setOrgTheme(parseTheme(org.themeJson))).catch(() => {});
+  }, [user?.orgId]);
+
+  return <ThemeProvider theme={orgTheme}>{children}</ThemeProvider>;
+}
 
 function AuthGate() {
   const { user, loading } = useAuth();
@@ -37,11 +57,11 @@ function AuthGate() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <OrgThemeWrapper>
         <AuthGate />
-      </AuthProvider>
-    </ThemeProvider>
+      </OrgThemeWrapper>
+    </AuthProvider>
   );
 }
 
