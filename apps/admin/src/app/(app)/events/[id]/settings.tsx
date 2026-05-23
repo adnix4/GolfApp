@@ -108,7 +108,8 @@ export default function EventSettingsScreen() {
   const [is501c3,      setIs501c3]      = useState(false);
   const [hasTheme,     setHasTheme]     = useState(false);
   const [colors,       setColors]       = useState<GFPTheme>({ ...ECO_GREEN_DEFAULT });
-  const [offlineMode,  setOfflineMode]  = useState(false);
+  const [offlineMode,       setOfflineMode]       = useState(false);
+  const [freeAgentEnabled,  setFreeAgentEnabled]  = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
 
   const load = useCallback(async () => {
@@ -121,6 +122,7 @@ export default function EventSettingsScreen() {
       setMission(evt.missionStatement ?? '');
       setIs501c3(evt.is501c3);
       setOfflineMode(!!(evt.config as any)?.offlineMode);
+      setFreeAgentEnabled(!!(evt.config as any)?.freeAgentEnabled);
       if (evt.themeJson) {
         setHasTheme(true);
         setColors(parseTheme(evt.themeJson));
@@ -400,6 +402,24 @@ export default function EventSettingsScreen() {
             disabled={savingConfig}
           />
         </View>
+
+        <View style={styles.toggleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.label, { color: theme.colors.primary, marginTop: 0 }]}>
+              Allow Free Agent Registration
+            </Text>
+            <Text style={[styles.hint, { color: theme.colors.accent }]}>
+              Lets players register without a team on the mobile app. The organizer assigns
+              free agents to teams before the event starts.
+            </Text>
+          </View>
+          <Switch
+            value={freeAgentEnabled}
+            onValueChange={setFreeAgentEnabled}
+            trackColor={{ true: theme.colors.primary }}
+            disabled={savingConfig}
+          />
+        </View>
       </View>
 
       <Pressable
@@ -407,7 +427,7 @@ export default function EventSettingsScreen() {
         onPress={async () => {
           setSavingConfig(true);
           try {
-            await eventsApi.update(id, { config: { offlineMode } });
+            await eventsApi.update(id, { config: { offlineMode, freeAgentEnabled } });
           } catch (e: any) {
             setError(e.message ?? 'Failed to save event options.');
           } finally {
