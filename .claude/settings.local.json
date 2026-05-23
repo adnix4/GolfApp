@@ -122,7 +122,16 @@
       "Bash(kill 21252)",
       "Bash(echo \"Started PID $!\")",
       "Bash(echo \"PID $!\")",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "Bash(git -C C:\\\\GolfApp status)",
+      "Bash(git -C C:\\\\GolfApp diff --stat)",
+      "PowerShell(git *)",
+      "Bash(git commit *)",
+      "Bash(dir apps *)",
+      "Bash(psql *)",
+      "Bash(where psql *)",
+      "Bash(find /c -name \"psql.exe\")",
+      "Bash(git *)"
     ]
   }
 }

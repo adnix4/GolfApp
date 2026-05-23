@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "zIIbNhudOxM=",
+  "dgSpecHash": "vlzr0oOCyWY=",
   "success": true,
   "projectFilePath": "C:\\GolfApp\\apps\\api-tests\\WebAPI.Tests.csproj",
   "expectedPackageFiles": [
@@ -63,6 +63,7 @@
     "C:\\Users\\fshro\\.nuget\\packages\\npgsql.nettopologysuite\\8.0.0\\npgsql.nettopologysuite.8.0.0.nupkg.sha512",
     "C:\\Users\\fshro\\.nuget\\packages\\pipelines.sockets.unofficial\\2.2.8\\pipelines.sockets.unofficial.2.2.8.nupkg.sha512",
     "C:\\Users\\fshro\\.nuget\\packages\\qrcoder\\1.6.0\\qrcoder.1.6.0.nupkg.sha512",
+    "C:\\Users\\fshro\\.nuget\\packages\\questpdf\\2024.3.4\\questpdf.2024.3.4.nupkg.sha512",
     "C:\\Users\\fshro\\.nuget\\packages\\sendgrid\\9.29.3\\sendgrid.9.29.3.nupkg.sha512",
     "C:\\Users\\fshro\\.nuget\\packages\\stackexchange.redis\\2.8.16\\stackexchange.redis.2.8.16.nupkg.sha512",
     "C:\\Users\\fshro\\.nuget\\packages\\starkbank-ecdsa\\1.3.3\\starkbank-ecdsa.1.3.3.nupkg.sha512",
