@@ -116,7 +116,7 @@ async function postJson(url: string, body: unknown): Promise<{ ok: boolean; stat
     cache:   'no-store',
   });
   let data: any = null;
-  try { data = await res.json(); } catch {}
+  try { data = await res.json(); } catch { /* not JSON */ }
   return { ok: res.ok, status: res.status, data };
 }
 
