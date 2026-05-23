@@ -253,7 +253,26 @@ export const teamsApi = {
     request<Team>(`/api/v1/events/${eventId}/teams/${teamId}`, { method: 'PATCH', body: payload }),
 };
 
-// ── FREE AGENTS ───────────────────────────────────────────────────────────────
+// ── PLAYERS ───────────────────────────────────────────────────────────────────
+
+export interface AddPlayerPayload {
+  firstName:     string;
+  lastName:      string;
+  email?:        string;
+  phone?:        string;
+  handicapIndex?: number;
+  teamId?:       string | null;
+}
+
+export interface UpdatePlayerPayload {
+  firstName?:    string;
+  lastName?:     string;
+  email?:        string;
+  phone?:        string;
+  handicapIndex?: number;
+  teamId?:       string;
+  clearTeam?:    boolean;
+}
 
 export const playersApi = {
   listFreeAgents: (eventId: string) =>
@@ -263,6 +282,15 @@ export const playersApi = {
     request<Team>(`/api/v1/events/${eventId}/free-agents/assign`, {
       method: 'POST', body: { playerId, teamId },
     }),
+
+  add: (eventId: string, payload: AddPlayerPayload) =>
+    request<Player>(`/api/v1/events/${eventId}/players`, { method: 'POST', body: payload }),
+
+  update: (eventId: string, playerId: string, payload: UpdatePlayerPayload) =>
+    request<Player>(`/api/v1/events/${eventId}/players/${playerId}`, { method: 'PATCH', body: payload }),
+
+  remove: (eventId: string, playerId: string) =>
+    request<void>(`/api/v1/events/${eventId}/players/${playerId}`, { method: 'DELETE' }),
 };
 
 // ── CHALLENGES ────────────────────────────────────────────────────────────────

@@ -20,6 +20,59 @@ public class PlayerService
         _logger   = logger;
     }
 
+    public async Task<PlayerResponse> AddAsync(
+        Guid orgId, Guid eventId,
+        AddPlayerRequest request, CancellationToken ct = default)
+    {
+        var evt = await _db.Events
+            .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
+
+        if (evt is null)
+            throw new NotFoundException("Event", eventId);
+
+        if (evt.Status is EventStatus.Completed or EventStatus.Cancelled)
+            throw new ValidationException($"Cannot add players to a {evt.Status} event.");
+
+        Guid? teamId = null;
+        if (request.TeamId.HasValue)
+        {
+            var team = await _db.Teams
+                .Include(t => t.Players)
+                .FirstOrDefaultAsync(t => t.Id == request.TeamId.Value && t.EventId == eventId, ct);
+
+            if (team is null)
+                throw new NotFoundException("Team", request.TeamId.Value);
+
+            if (team.Players.Count >= team.MaxPlayers)
+                throw new ValidationException(
+                    $"Team '{team.Name}' is full ({team.MaxPlayers}/{team.MaxPlayers} players).");
+
+            teamId = team.Id;
+        }
+
+        var player = new Domain.Entities.Player
+        {
+            Id            = Guid.NewGuid(),
+            EventId       = eventId,
+            TeamId        = teamId,
+            FirstName     = request.FirstName,
+            LastName      = request.LastName,
+            Email         = request.Email ?? string.Empty,
+            Phone         = request.Phone,
+            HandicapIndex = request.HandicapIndex,
+            CheckInStatus = CheckInStatus.Pending,
+        };
+
+        _db.Players.Add(player);
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Added player {PlayerId} to event {EventId} (team: {TeamId})",
+            player.Id, eventId, teamId?.ToString() ?? "free agent");
+
+        return MapToPlayerResponse(player);
+    }
+
     public async Task<List<PlayerResponse>> GetAllAsync(
         Guid orgId, Guid eventId, CancellationToken ct = default)
     {

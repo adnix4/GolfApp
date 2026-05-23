@@ -5,7 +5,10 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { teamsApi, eventsApi, type Team, type RegisterTeamPayload } from '@/lib/api';
+import {
+  teamsApi, eventsApi, playersApi,
+  type Team, type Player, type RegisterTeamPayload, type AddPlayerPayload,
+} from '@/lib/api';
 
 const STATUS_COLOR: Record<string, string> = {
   pending:    '#f39c12',
@@ -25,6 +28,10 @@ export default function TeamsScreen() {
   const [editing,     setEditing]     = useState<Team | null>(null);
   const [inviteResult, setInviteResult] = useState<{ teamName: string; url: string | null } | null>(null);
 
+  // Player add/edit state
+  const [addPlayerTeam, setAddPlayerTeam] = useState<Team | null>(null);
+  const [editingPlayer, setEditingPlayer] = useState<{ player: Player; team: Team } | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -36,7 +43,7 @@ export default function TeamsScreen() {
       setTeams(teamList);
       setEventStatus(event.status);
     } catch (e: any) {
-      setError(e.message ?? 'Failed to load teams. Check your connection and try again.');
+      setError(e.message ?? 'Failed to load teams.');
     } finally {
       setLoading(false);
     }
@@ -49,21 +56,45 @@ export default function TeamsScreen() {
       const updated = await teamsApi.checkIn(id, teamId);
       setTeams(prev => prev.map(t => t.id === teamId ? updated : t));
     } catch (e: any) {
-      setError(e.message ?? 'Check-in failed. Please try again.');
+      setError(e.message ?? 'Check-in failed.');
     }
   }
 
   function handleRegistered(team: Team, inviteUrl?: string | null) {
     setTeams(prev => [...prev, team]);
     setShowAdd(false);
-    if (inviteUrl) {
-      setInviteResult({ teamName: team.name, url: inviteUrl });
-    }
+    if (inviteUrl) setInviteResult({ teamName: team.name, url: inviteUrl });
   }
 
-  function handleUpdated(team: Team) {
+  function handleTeamUpdated(team: Team) {
     setTeams(prev => prev.map(t => t.id === team.id ? team : t));
     setEditing(null);
+  }
+
+  function handlePlayerAdded(player: Player, teamId: string) {
+    setTeams(prev => prev.map(t =>
+      t.id === teamId ? { ...t, players: [...t.players, player] } : t,
+    ));
+    setAddPlayerTeam(null);
+  }
+
+  function handlePlayerUpdated(player: Player) {
+    setTeams(prev => prev.map(t => ({
+      ...t,
+      players: t.players.map(p => p.id === player.id ? player : p),
+    })));
+    setEditingPlayer(null);
+  }
+
+  async function handleRemovePlayer(teamId: string, playerId: string) {
+    try {
+      await playersApi.remove(id, playerId);
+      setTeams(prev => prev.map(t =>
+        t.id === teamId ? { ...t, players: t.players.filter(p => p.id !== playerId) } : t,
+      ));
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to remove player.');
+    }
   }
 
   return (
@@ -90,7 +121,6 @@ export default function TeamsScreen() {
         </View>
       )}
 
-      {/* Invite link banner after registration */}
       {inviteResult && (
         <View style={styles.inviteBox}>
           <Text style={styles.inviteTitle}>Team "{inviteResult.teamName}" registered!</Text>
@@ -123,6 +153,7 @@ export default function TeamsScreen() {
           contentContainerStyle={styles.list}
           renderItem={({ item: team }) => (
             <View style={[styles.card, { borderColor: '#e8e8e8' }]}>
+              {/* Team header */}
               <View style={styles.cardHeader}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.teamName, { color: theme.colors.primary }]}>{team.name}</Text>
@@ -160,18 +191,44 @@ export default function TeamsScreen() {
                 <View style={styles.players}>
                   {team.players.map(p => (
                     <View key={p.id} style={styles.playerRow}>
-                      <Text style={[styles.playerName, { color: theme.colors.primary }]}>
-                        {p.firstName} {p.lastName}
-                      </Text>
-                      <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>
-                        {p.email}
-                        {p.handicapIndex != null ? ` · HCP ${p.handicapIndex}` : ''}
-                      </Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.playerName, { color: theme.colors.primary }]}>
+                          {p.firstName} {p.lastName}
+                        </Text>
+                        <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>
+                          {p.email}
+                          {p.handicapIndex != null ? ` · HCP ${p.handicapIndex}` : ''}
+                        </Text>
+                      </View>
+                      <View style={styles.playerActions}>
+                        <Pressable
+                          style={[styles.smallBtn, { borderColor: theme.colors.accent }]}
+                          onPress={() => setEditingPlayer({ player: p, team })}
+                        >
+                          <Text style={[styles.smallBtnText, { color: theme.colors.accent }]}>Edit</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.smallBtn, { borderColor: '#e74c3c' }]}
+                          onPress={() => {
+                            Alert.alert(
+                              'Remove Player',
+                              `Remove ${p.firstName} ${p.lastName} from this team?`,
+                              [
+                                { text: 'Cancel', style: 'cancel' },
+                                { text: 'Remove', style: 'destructive', onPress: () => handleRemovePlayer(team.id, p.id) },
+                              ],
+                            );
+                          }}
+                        >
+                          <Text style={[styles.smallBtnText, { color: '#e74c3c' }]}>Remove</Text>
+                        </Pressable>
+                      </View>
                     </View>
                   ))}
                 </View>
               )}
 
+              {/* Add player row */}
               <View style={styles.cardFooter}>
                 <Text style={[styles.feePill, {
                   color: team.entryFeePaid ? '#27ae60' : '#e74c3c',
@@ -179,6 +236,14 @@ export default function TeamsScreen() {
                 }]}>
                   {team.entryFeePaid ? 'Fee Paid' : 'Fee Unpaid'}
                 </Text>
+                {team.players.length < team.maxPlayers && (
+                  <Pressable
+                    style={[styles.addPlayerBtn, { borderColor: theme.colors.action }]}
+                    onPress={() => setAddPlayerTeam(team)}
+                  >
+                    <Text style={[styles.addPlayerBtnText, { color: theme.colors.action }]}>+ Add Player</Text>
+                  </Pressable>
+                )}
               </View>
             </View>
           )}
@@ -197,9 +262,153 @@ export default function TeamsScreen() {
         eventId={id}
         team={editing}
         onClose={() => setEditing(null)}
-        onSaved={handleUpdated}
+        onSaved={handleTeamUpdated}
+      />
+
+      <PlayerFormModal
+        visible={addPlayerTeam != null}
+        eventId={id}
+        teamId={addPlayerTeam?.id ?? null}
+        title={`Add Player — ${addPlayerTeam?.name ?? ''}`}
+        onClose={() => setAddPlayerTeam(null)}
+        onSaved={player => handlePlayerAdded(player, addPlayerTeam!.id)}
+      />
+
+      <PlayerFormModal
+        visible={editingPlayer != null}
+        eventId={id}
+        teamId={editingPlayer?.team.id ?? null}
+        player={editingPlayer?.player}
+        title="Edit Player"
+        onClose={() => setEditingPlayer(null)}
+        onSaved={handlePlayerUpdated}
       />
     </View>
+  );
+}
+
+// ── Player Form Modal (add or edit) ──────────────────────────────────────────
+
+interface PlayerFormModalProps {
+  visible:  boolean;
+  eventId:  string;
+  teamId:   string | null;
+  player?:  Player;
+  title:    string;
+  onClose:  () => void;
+  onSaved:  (player: Player) => void;
+}
+
+function PlayerFormModal({ visible, eventId, teamId, player, title, onClose, onSaved }: PlayerFormModalProps) {
+  const theme = useTheme();
+  const [firstName,  setFirstName]  = useState('');
+  const [lastName,   setLastName]   = useState('');
+  const [email,      setEmail]      = useState('');
+  const [handicap,   setHandicap]   = useState('');
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    setFirstName(player?.firstName ?? '');
+    setLastName(player?.lastName ?? '');
+    setEmail(player?.email ?? '');
+    setHandicap(player?.handicapIndex != null ? String(player.handicapIndex) : '');
+    setError(null);
+  }, [visible, player]);
+
+  function validate(): boolean {
+    if (!firstName.trim()) { setError('First name is required.'); return false; }
+    if (!lastName.trim())  { setError('Last name is required.'); return false; }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError(`"${email.trim()}" is not a valid email address.`); return false;
+    }
+    if (handicap.trim() && isNaN(Number(handicap))) {
+      setError('Handicap must be a number.'); return false;
+    }
+    return true;
+  }
+
+  async function handleSave() {
+    if (!validate()) return;
+    setError(null);
+    setLoading(true);
+    try {
+      let result: Player;
+      if (player) {
+        result = await playersApi.update(eventId, player.id, {
+          firstName: firstName.trim(),
+          lastName:  lastName.trim(),
+          email:     email.trim() || undefined,
+          ...(handicap.trim() ? { handicapIndex: Number(handicap) } : {}),
+        });
+      } else {
+        const payload: AddPlayerPayload = {
+          firstName: firstName.trim(),
+          lastName:  lastName.trim(),
+          email:     email.trim() || undefined,
+          ...(handicap.trim() ? { handicapIndex: Number(handicap) } : {}),
+          teamId: teamId ?? undefined,
+        };
+        result = await playersApi.add(eventId, payload);
+      }
+      onSaved(result);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to save player.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => { onClose(); }}>
+      <View style={styles.overlay}>
+        <View style={styles.modal}>
+          <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>{title}</Text>
+          {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
+
+          <View style={styles.nameRow}>
+            <TextInput
+              style={[styles.input, styles.halfInput, { borderColor: theme.colors.accent }]}
+              value={firstName} onChangeText={v => { setFirstName(v); if (error) setError(null); }}
+              placeholder="First *" placeholderTextColor="#999" editable={!loading}
+            />
+            <TextInput
+              style={[styles.input, styles.halfInput, { borderColor: theme.colors.accent }]}
+              value={lastName} onChangeText={v => { setLastName(v); if (error) setError(null); }}
+              placeholder="Last *" placeholderTextColor="#999" editable={!loading}
+            />
+          </View>
+          <TextInput
+            style={[styles.input, { borderColor: theme.colors.accent, marginTop: 8 }]}
+            value={email} onChangeText={v => { setEmail(v); if (error) setError(null); }}
+            placeholder="email@example.com (optional)" placeholderTextColor="#999"
+            keyboardType="email-address" autoCapitalize="none" editable={!loading}
+          />
+          <TextInput
+            style={[styles.input, { borderColor: theme.colors.accent, marginTop: 8 }]}
+            value={handicap} onChangeText={v => { setHandicap(v.replace(/[^0-9.]/g, '')); if (error) setError(null); }}
+            placeholder="Handicap index (optional)" placeholderTextColor="#999"
+            keyboardType="decimal-pad" editable={!loading}
+          />
+
+          <View style={styles.modalActions}>
+            <Pressable style={[styles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
+              <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.submitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
+              onPress={handleSave}
+              disabled={loading}
+            >
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.submitText}>{player ? 'Save' : 'Add'}</Text>}
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -277,7 +486,7 @@ function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: Register
       reset();
       onRegistered(result.team, result.inviteUrl);
     } catch (e: any) {
-      setError(e.message ?? 'Registration failed. Check the details and try again.');
+      setError(e.message ?? 'Registration failed.');
     } finally {
       setLoading(false);
     }
@@ -342,8 +551,8 @@ function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: Register
               </View>
             ))}
 
-            <Pressable style={[styles.addPlayerBtn, { borderColor: theme.colors.action }]} onPress={addPlayer}>
-              <Text style={[styles.addPlayerText, { color: theme.colors.action }]}>+ Add Player</Text>
+            <Pressable style={[styles.addPlayerFormBtn, { borderColor: theme.colors.action }]} onPress={addPlayer}>
+              <Text style={[styles.addPlayerFormText, { color: theme.colors.action }]}>+ Add Player</Text>
             </Pressable>
 
             <View style={styles.modalActions}>
@@ -409,7 +618,7 @@ function EditTeamModal({ visible, eventId, team, onClose, onSaved }: EditTeamMod
       });
       onSaved(updated);
     } catch (e: any) {
-      setError(e.message ?? 'Failed to save team. Please try again.');
+      setError(e.message ?? 'Failed to save team.');
     } finally {
       setLoading(false);
     }
@@ -498,12 +707,20 @@ const styles = StyleSheet.create({
   editBtnText: { fontSize: 12, fontWeight: '600' },
   checkInBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
   checkInText: { fontSize: 12, fontWeight: '700', color: '#fff' },
-  players: { gap: 6, paddingTop: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#eee' },
-  playerRow: {},
+
+  players: { gap: 8, paddingTop: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#eee' },
+  playerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   playerName: { fontSize: 14, fontWeight: '600' },
   playerMeta: { fontSize: 12 },
-  cardFooter: { flexDirection: 'row' },
+  playerActions: { flexDirection: 'row', gap: 6 },
+  smallBtn: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5, borderWidth: 1 },
+  smallBtnText: { fontSize: 11, fontWeight: '600' },
+
+  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   feePill: { fontSize: 12, fontWeight: '600', borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  addPlayerBtn: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+  addPlayerBtnText: { fontSize: 12, fontWeight: '600' },
+
   errorBox: {
     backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, marginBottom: 12,
     borderLeftWidth: 3, borderLeftColor: '#e74c3c',
@@ -522,13 +739,13 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 16 },
   fieldLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
   input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, backgroundColor: '#fafafa' },
+  nameRow: { flexDirection: 'row', gap: 8 },
+  halfInput: { flex: 1 },
   playerForm: { borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 12, marginBottom: 10, gap: 6 },
   playerFormHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   playerFormTitle: { fontSize: 13, fontWeight: '700' },
-  nameRow: { flexDirection: 'row', gap: 8 },
-  halfInput: { flex: 1 },
-  addPlayerBtn: { borderWidth: 1, borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginTop: 4 },
-  addPlayerText: { fontSize: 14, fontWeight: '600' },
+  addPlayerFormBtn: { borderWidth: 1, borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginTop: 4 },
+  addPlayerFormText: { fontSize: 14, fontWeight: '600' },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 20 },
   cancelBtn: { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   cancelText: { fontSize: 15, fontWeight: '600' },

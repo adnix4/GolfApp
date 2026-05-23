@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, Pressable, FlatList, Modal, ScrollView,
+  View, Text, Pressable, FlatList, Modal, ScrollView, TextInput,
   StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { playersApi, teamsApi, type Player, type Team } from '@/lib/api';
+import { playersApi, teamsApi, type Player, type Team, type AddPlayerPayload } from '@/lib/api';
 
 export default function FreeAgentsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
@@ -16,7 +16,7 @@ export default function FreeAgentsScreen() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
-  const [modal,    setModal]    = useState<'assign' | null>(null);
+  const [modal,    setModal]    = useState<'assign' | 'add' | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -57,6 +57,11 @@ export default function FreeAgentsScreen() {
     }
   }
 
+  function handleAgentAdded(player: Player) {
+    setAgents(prev => [...prev, player]);
+    setModal(null);
+  }
+
   const selectedList = agents.filter(a => selected.has(a.id));
 
   return (
@@ -65,9 +70,17 @@ export default function FreeAgentsScreen() {
         <Text style={[styles.title, { color: theme.colors.primary }]}>
           Free Agents ({agents.length})
         </Text>
-        <Pressable onPress={load} style={styles.refreshBtn}>
-          <Text style={[styles.refreshText, { color: theme.colors.accent }]}>↻ Refresh</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
+            onPress={() => setModal('add')}
+          >
+            <Text style={[styles.addBtnText, { color: theme.colors.surface }]}>+ Add Free Agent</Text>
+          </Pressable>
+          <Pressable onPress={load} style={styles.refreshBtn}>
+            <Text style={[styles.refreshText, { color: theme.colors.accent }]}>↻ Refresh</Text>
+          </Pressable>
+        </View>
       </View>
 
       {error && (
@@ -144,6 +157,14 @@ export default function FreeAgentsScreen() {
         />
       )}
 
+      {/* Add free agent modal */}
+      <AddFreeAgentModal
+        visible={modal === 'add'}
+        eventId={id}
+        onClose={() => setModal(null)}
+        onAdded={handleAgentAdded}
+      />
+
       {/* Assign to team modal */}
       <Modal
         visible={modal === 'assign'}
@@ -193,12 +214,128 @@ export default function FreeAgentsScreen() {
   );
 }
 
+// ── Add Free Agent Modal ──────────────────────────────────────────────────────
+
+interface AddFreeAgentModalProps {
+  visible:  boolean;
+  eventId:  string;
+  onClose:  () => void;
+  onAdded:  (player: Player) => void;
+}
+
+function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentModalProps) {
+  const theme = useTheme();
+  const [firstName, setFirstName] = useState('');
+  const [lastName,  setLastName]  = useState('');
+  const [email,     setEmail]     = useState('');
+  const [handicap,  setHandicap]  = useState('');
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState<string | null>(null);
+
+  function reset() { setFirstName(''); setLastName(''); setEmail(''); setHandicap(''); setError(null); }
+
+  function validate(): boolean {
+    if (!firstName.trim()) { setError('First name is required.'); return false; }
+    if (!lastName.trim())  { setError('Last name is required.'); return false; }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError(`"${email.trim()}" is not a valid email address.`); return false;
+    }
+    if (handicap.trim() && isNaN(Number(handicap))) {
+      setError('Handicap must be a number.'); return false;
+    }
+    return true;
+  }
+
+  async function handleSubmit() {
+    if (!validate()) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const payload: AddPlayerPayload = {
+        firstName: firstName.trim(),
+        lastName:  lastName.trim(),
+        email:     email.trim() || undefined,
+        ...(handicap.trim() ? { handicapIndex: Number(handicap) } : {}),
+      };
+      const player = await playersApi.add(eventId, payload);
+      reset();
+      onAdded(player);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to add free agent.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => { reset(); onClose(); }}>
+      <View style={styles.overlay}>
+        <View style={styles.modalBox}>
+          <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Add Free Agent</Text>
+          {error && (
+            <View style={{ backgroundColor: '#fdf2f2', borderRadius: 8, padding: 10, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#e74c3c' }}>
+              <Text style={{ color: '#c0392b', fontSize: 13 }}>{error}</Text>
+            </View>
+          )}
+          <View style={styles.nameRow}>
+            <TextInput
+              style={[styles.input, styles.halfInput, { borderColor: '#ccc' }]}
+              value={firstName} onChangeText={v => { setFirstName(v); if (error) setError(null); }}
+              placeholder="First *" placeholderTextColor="#999" editable={!loading}
+            />
+            <TextInput
+              style={[styles.input, styles.halfInput, { borderColor: '#ccc' }]}
+              value={lastName} onChangeText={v => { setLastName(v); if (error) setError(null); }}
+              placeholder="Last *" placeholderTextColor="#999" editable={!loading}
+            />
+          </View>
+          <TextInput
+            style={[styles.input, { borderColor: '#ccc', marginTop: 8 }]}
+            value={email} onChangeText={v => { setEmail(v); if (error) setError(null); }}
+            placeholder="email@example.com (optional)" placeholderTextColor="#999"
+            keyboardType="email-address" autoCapitalize="none" editable={!loading}
+          />
+          <TextInput
+            style={[styles.input, { borderColor: '#ccc', marginTop: 8 }]}
+            value={handicap} onChangeText={v => { setHandicap(v.replace(/[^0-9.]/g, '')); if (error) setError(null); }}
+            placeholder="Handicap index (optional)" placeholderTextColor="#999"
+            keyboardType="decimal-pad" editable={!loading}
+          />
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
+            <Pressable
+              style={[styles.cancelModalBtn, { flex: 1, borderColor: '#aaa' }]}
+              onPress={() => { reset(); onClose(); }}
+            >
+              <Text style={[styles.cancelModalText, { color: '#888' }]}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              style={[{ flex: 2, borderRadius: 8, paddingVertical: 12, alignItems: 'center' as const }, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Add</Text>}
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   page:   { flex: 1, backgroundColor: '#f7f8fa' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, paddingBottom: 16 },
   title:  { fontSize: 22, fontWeight: '800' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  addBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+  addBtnText: { fontSize: 13, fontWeight: '700' },
   refreshBtn: { paddingVertical: 6, paddingHorizontal: 12 },
   refreshText: { fontSize: 14, fontWeight: '600' },
+  nameRow: { flexDirection: 'row', gap: 8 },
+  halfInput: { flex: 1 },
+  input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, backgroundColor: '#fafafa' },
 
   errorBox: { margin: 16, backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
   errorText: { color: '#c0392b', fontSize: 14 },

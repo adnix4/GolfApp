@@ -16,6 +16,24 @@ public class PlayerController : ControllerBase
         _playerService = playerService;
     }
 
+    /// <summary>
+    /// Adds a player to the event. Pass teamId to assign to a team; omit or pass null for free agent.
+    /// </summary>
+    [HttpPost("api/v1/events/{eventId:guid}/players")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(typeof(PlayerResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PlayerResponse>> Add(
+        [FromRoute] Guid eventId,
+        [FromBody] AddPlayerRequest request,
+        CancellationToken ct)
+    {
+        var orgId    = GetOrgId();
+        var response = await _playerService.AddAsync(orgId, eventId, request, ct);
+        return CreatedAtAction(nameof(GetById), new { eventId, playerId = response.Id }, response);
+    }
+
     /// <summary>Returns all players registered for an event, sorted by last name.</summary>
     [HttpGet("api/v1/events/{eventId:guid}/players")]
     [Authorize(Policy = "EventStaff")]

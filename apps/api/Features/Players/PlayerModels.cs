@@ -2,6 +2,27 @@ using System.ComponentModel.DataAnnotations;
 
 namespace GolfFundraiserPro.Api.Features.Players;
 
+public record AddPlayerRequest
+{
+    [Required, MaxLength(100)]
+    public string FirstName { get; init; } = "";
+
+    [Required, MaxLength(100)]
+    public string LastName { get; init; } = "";
+
+    [MaxLength(254), EmailAddress]
+    public string? Email { get; init; }
+
+    [MaxLength(30)]
+    public string? Phone { get; init; }
+
+    [Range(0.0, 54.0)]
+    public double? HandicapIndex { get; init; }
+
+    /// <summary>Assign to this team. Omit or pass null to add as a free agent.</summary>
+    public Guid? TeamId { get; init; }
+}
+
 public record UpdatePlayerRequest
 {
     [MaxLength(100)]
