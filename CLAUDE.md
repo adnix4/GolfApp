@@ -28,7 +28,7 @@ making non-trivial changes in that area. Do not load all files at once.
 
 ## Key conventions
 
-- **Never commit** — user handles all git commits.
+- **Commits** — always ask the user for confirmation before running `git add` / `git commit`. Stage only relevant files (never `git add -A`), propose a commit message, and wait for approval before executing.
 - **API auth** — organizer endpoints use JWT (`[Authorize(Policy = "OrgAdmin")]` or `"EventStaff"`); public/mobile endpoints are `[AllowAnonymous]`.
 - **Event status machine** — Draft → Registration → Active → Scoring → Completed (or Cancelled). Enforce via `EventStatusRules.cs`.
 - **Mobile offline** — scores queue in SQLite (`pending_scores`), synced by `backgroundSync.ts`. Don't assume connectivity.
