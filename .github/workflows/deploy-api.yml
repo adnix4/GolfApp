@@ -101,13 +101,14 @@ jobs:
           cache-to:   type=gha,mode=max
 
       - name: Deploy to Railway
-        # Triggers Railway to pull and deploy the new image.
-        # Railway will run database migrations automatically via the
-        # ENTRYPOINT in the Dockerfile (dotnet run --migrate if configured).
-        uses: bervProject/railway-deploy@v1.0.0
-        with:
-          railway_token:  ${{ secrets.RAILWAY_TOKEN }}
-          service:        ${{ secrets.RAILWAY_SERVICE_ID }}
+        # Uses the official Railway CLI to trigger a redeploy.
+        # railway up builds from source using apps/api/Dockerfile and deploys
+        # to the service identified by RAILWAY_SERVICE_ID.
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          npm install -g @railway/cli
+          railway up --service ${{ secrets.RAILWAY_SERVICE_ID }} --detach
 
       - name: Notify deployment success
         if: success()
