@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
+import { ECO_GREEN_DEFAULT } from '@gfp/theme';
 import {
   eventsApi, teamsApi, sponsorsApi,
   type EventDetail, type Team, type LeaderboardEntry, type Sponsor,
@@ -97,7 +98,7 @@ export default function PrintKitScreen() {
           onPress={printLeaderboard}
           loading={loading === 'leaderboard'}
           disabled={!isWeb || loading !== null}
-          color="#27ae60"
+          color={theme.colors.action}
         />
         <PrintCard
           icon="🤝"
@@ -106,7 +107,7 @@ export default function PrintKitScreen() {
           onPress={printSponsors}
           loading={loading === 'sponsors'}
           disabled={!isWeb || loading !== null}
-          color="#8e44ad"
+          color={theme.colors.accent}
         />
         <PrintCard
           icon="⏰"
@@ -115,7 +116,7 @@ export default function PrintKitScreen() {
           onPress={printTeeTime}
           loading={loading === 'teetime'}
           disabled={!isWeb || loading !== null}
-          color="#16a085"
+          color={theme.colors.highlight}
         />
       </View>
     </View>
@@ -153,7 +154,17 @@ function PrintCard({
 
 // ── HTML Builders ─────────────────────────────────────────────────────────────
 
-const PRINT_BASE = `
+function parseEventColors(event: EventDetail): { primary: string; action: string } {
+  try {
+    const t = event.themeJson ? { ...ECO_GREEN_DEFAULT, ...JSON.parse(event.themeJson) } : ECO_GREEN_DEFAULT;
+    return { primary: t.primary, action: t.action };
+  } catch {
+    return { primary: ECO_GREEN_DEFAULT.primary, action: ECO_GREEN_DEFAULT.action };
+  }
+}
+
+function buildPrintBase(primary: string): string {
+  return `
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, sans-serif; color: #111; }
@@ -165,17 +176,18 @@ const PRINT_BASE = `
     h1 { font-size: 22px; margin-bottom: 4px; }
     h2 { font-size: 16px; margin-bottom: 10px; color: #555; }
     table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    th { background: #1a1a2e; color: #fff; padding: 8px 10px; text-align: left; font-size: 12px; text-transform: uppercase; }
+    th { background: ${primary}; color: #fff; padding: 8px 10px; text-align: left; font-size: 12px; text-transform: uppercase; }
     td { padding: 8px 10px; border-bottom: 1px solid #ddd; font-size: 14px; }
     tr:nth-child(even) td { background: #f5f5f5; }
   </style>
-`;
+`;};
 
 function fmt(s: string) {
   return s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function buildScorecardHtml(event: EventDetail, teams: Team[]): string {
+  const { primary, action } = parseEventColors(event);
   const holeRows = Array.from(
     { length: event.holes },
     (_, i) => {
@@ -212,18 +224,19 @@ function buildScorecardHtml(event: EventDetail, teams: Team[]): string {
     </div>
   `).join('');
 
-  return `<!DOCTYPE html><html><head><title>Scorecards — ${event.name}</title>${PRINT_BASE}</head>
+  return `<!DOCTYPE html><html><head><title>Scorecards — ${event.name}</title>${buildPrintBase(primary)}</head>
   <body>
-    <div class="no-print" style="padding:16px; background:#1a1a2e; color:#fff; font-family:Arial">
+    <div class="no-print" style="padding:16px; background:${primary}; color:#fff; font-family:Arial">
       <strong>Golf Fundraiser Pro — Scorecards</strong>
       &nbsp;&nbsp;
-      <button onclick="window.print()" style="padding:8px 20px; background:#27ae60; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:700">🖨 Print All</button>
+      <button onclick="window.print()" style="padding:8px 20px; background:${action}; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:700">🖨 Print All</button>
     </div>
     ${cards}
   </body></html>`;
 }
 
 function buildLeaderboardHtml(event: EventDetail, entries: LeaderboardEntry[]): string {
+  const { primary, action } = parseEventColors(event);
   const rows = entries.map((e, _i) => {
     const toPar = e.toPar === 0 ? 'E' : e.toPar > 0 ? `+${e.toPar}` : `${e.toPar}`;
     const color = e.toPar < 0 ? '#27ae60' : e.toPar > 0 ? '#e74c3c' : '#111';
@@ -240,12 +253,12 @@ function buildLeaderboardHtml(event: EventDetail, entries: LeaderboardEntry[]): 
     ? new Date(event.startAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
     : '';
 
-  return `<!DOCTYPE html><html><head><title>Leaderboard — ${event.name}</title>${PRINT_BASE}</head>
+  return `<!DOCTYPE html><html><head><title>Leaderboard — ${event.name}</title>${buildPrintBase(primary)}</head>
   <body>
-    <div class="no-print" style="padding:16px; background:#1a1a2e; color:#fff; font-family:Arial">
+    <div class="no-print" style="padding:16px; background:${primary}; color:#fff; font-family:Arial">
       <strong>Golf Fundraiser Pro — Leaderboard</strong>
       &nbsp;&nbsp;
-      <button onclick="window.print()" style="padding:8px 20px; background:#27ae60; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:700">🖨 Print</button>
+      <button onclick="window.print()" style="padding:8px 20px; background:${action}; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:700">🖨 Print</button>
     </div>
     <div style="padding:24px">
       <h1>${event.name}</h1>
@@ -266,6 +279,7 @@ function buildLeaderboardHtml(event: EventDetail, entries: LeaderboardEntry[]): 
 }
 
 function buildSponsorHtml(event: EventDetail, sponsors: Sponsor[]): string {
+  const { primary, action } = parseEventColors(event);
   const tierOrder = ['title', 'gold', 'hole', 'silver', 'bronze'];
   const tierColors: Record<string, string> = {
     title: '#8e44ad', gold: '#d4a017', hole: '#16a085', silver: '#7f8c8d', bronze: '#d35400',
@@ -281,12 +295,12 @@ function buildSponsorHtml(event: EventDetail, sponsors: Sponsor[]): string {
     </tr>
   `).join('');
 
-  return `<!DOCTYPE html><html><head><title>Sponsors — ${event.name}</title>${PRINT_BASE}</head>
+  return `<!DOCTYPE html><html><head><title>Sponsors — ${event.name}</title>${buildPrintBase(primary)}</head>
   <body>
-    <div class="no-print" style="padding:16px; background:#1a1a2e; color:#fff; font-family:Arial">
+    <div class="no-print" style="padding:16px; background:${primary}; color:#fff; font-family:Arial">
       <strong>Golf Fundraiser Pro — Sponsor Sheet</strong>
       &nbsp;&nbsp;
-      <button onclick="window.print()" style="padding:8px 20px; background:#27ae60; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:700">🖨 Print</button>
+      <button onclick="window.print()" style="padding:8px 20px; background:${action}; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:700">🖨 Print</button>
     </div>
     <div style="padding:24px">
       <h1>Our Sponsors</h1>
@@ -300,6 +314,7 @@ function buildSponsorHtml(event: EventDetail, sponsors: Sponsor[]): string {
 }
 
 function buildTeeTimeHtml(event: EventDetail, teams: Team[]): string {
+  const { primary, action } = parseEventColors(event);
   const sorted = [...teams].sort((a, b) => {
     if (a.teeTime && b.teeTime) return new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime();
     if (a.teeTime) return -1;
@@ -325,12 +340,12 @@ function buildTeeTimeHtml(event: EventDetail, teams: Team[]): string {
     ? new Date(event.startAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
     : '';
 
-  return `<!DOCTYPE html><html><head><title>Tee Times — ${event.name}</title>${PRINT_BASE}</head>
+  return `<!DOCTYPE html><html><head><title>Tee Times — ${event.name}</title>${buildPrintBase(primary)}</head>
   <body>
-    <div class="no-print" style="padding:16px; background:#1a1a2e; color:#fff; font-family:Arial">
+    <div class="no-print" style="padding:16px; background:${primary}; color:#fff; font-family:Arial">
       <strong>Golf Fundraiser Pro — Tee Time Schedule</strong>
       &nbsp;&nbsp;
-      <button onclick="window.print()" style="padding:8px 20px; background:#27ae60; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:700">🖨 Print</button>
+      <button onclick="window.print()" style="padding:8px 20px; background:${action}; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:700">🖨 Print</button>
     </div>
     <div style="padding:24px">
       <h1>${event.name}</h1>
