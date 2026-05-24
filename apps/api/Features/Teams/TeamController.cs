@@ -229,6 +229,24 @@ public class TeamController : ControllerBase
         return Ok(response);
     }
 
+    // ── DELETE TEAM ───────────────────────────────────────────────────────────
+
+    /// <summary>Removes an empty team. Refused if the team still has players.</summary>
+    [HttpDelete("api/v1/events/{eventId:guid}/teams/{teamId:guid}")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteTeam(
+        [FromRoute] Guid eventId,
+        [FromRoute] Guid teamId,
+        CancellationToken ct)
+    {
+        var orgId = GetOrgId();
+        await _teamService.DeleteTeamAsync(orgId, eventId, teamId, ct);
+        return NoContent();
+    }
+
     // ── FREE AGENT BOARD (admin only) ─────────────────────────────────────────
 
     /// <summary>

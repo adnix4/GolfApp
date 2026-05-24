@@ -421,6 +421,37 @@ public class TeamService
         return MapToTeamResponse(team);
     }
 
+    // ── DELETE TEAM ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Permanently removes an empty team from the event.
+    /// Refused if the team still has players assigned.
+    /// </summary>
+    public async Task DeleteTeamAsync(
+        Guid orgId,
+        Guid eventId,
+        Guid teamId,
+        CancellationToken ct = default)
+    {
+        var team = await _db.Teams
+            .Include(t => t.Players)
+            .FirstOrDefaultAsync(t =>
+                t.Id == teamId &&
+                t.EventId == eventId &&
+                t.Event.OrgId == orgId, ct);
+
+        if (team is null)
+            throw new NotFoundException("Team", teamId);
+
+        if (team.Players.Count > 0)
+            throw new ValidationException(
+                $"Cannot remove '{team.Name}' — it still has {team.Players.Count} player(s). " +
+                "Move or remove all players first.");
+
+        _db.Teams.Remove(team);
+        await _db.SaveChangesAsync(ct);
+    }
+
     // ── INVITE PREVIEW ────────────────────────────────────────────────────────
 
     /// <summary>

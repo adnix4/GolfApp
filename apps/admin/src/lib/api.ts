@@ -251,6 +251,9 @@ export const teamsApi = {
 
   update: (eventId: string, teamId: string, payload: { name?: string; maxPlayers?: number; entryFeePaid?: boolean }) =>
     request<Team>(`/api/v1/events/${eventId}/teams/${teamId}`, { method: 'PATCH', body: payload }),
+
+  remove: (eventId: string, teamId: string) =>
+    request<void>(`/api/v1/events/${eventId}/teams/${teamId}`, { method: 'DELETE' }),
 };
 
 // ── PLAYERS ───────────────────────────────────────────────────────────────────

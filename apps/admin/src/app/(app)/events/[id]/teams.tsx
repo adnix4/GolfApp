@@ -91,6 +91,15 @@ export default function TeamsScreen() {
     setEditingPlayer(null);
   }
 
+  async function handleRemoveTeam(teamId: string, teamName: string) {
+    try {
+      await teamsApi.remove(id, teamId);
+      setTeams(prev => prev.filter(t => t.id !== teamId));
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to remove team.');
+    }
+  }
+
   async function handleRemovePlayer(teamId: string, playerId: string) {
     try {
       await playersApi.remove(id, playerId);
@@ -179,6 +188,21 @@ export default function TeamsScreen() {
                     >
                       <Text style={[styles.editBtnText, { color: theme.colors.accent }]}>Edit</Text>
                     </Pressable>
+                    {team.players.length === 0 && (
+                      <Pressable
+                        style={[styles.editBtn, { borderColor: '#e74c3c' }]}
+                        onPress={() => Alert.alert(
+                          'Remove Team',
+                          `Remove "${team.name}"? This cannot be undone.`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Remove', style: 'destructive', onPress: () => handleRemoveTeam(team.id, team.name) },
+                          ],
+                        )}
+                      >
+                        <Text style={[styles.editBtnText, { color: '#e74c3c' }]}>Remove</Text>
+                      </Pressable>
+                    )}
                     {team.checkInStatus === 'pending' && eventStatus === 'Active' && (
                       <Pressable
                         style={[styles.checkInBtn, { backgroundColor: theme.colors.action }]}
