@@ -514,18 +514,22 @@ public class TeamService
         if (!eventExists)
             throw new NotFoundException("Event", eventId);
 
+        // Fetch unfiltered, sort in memory — EF translates (int)SkillLevel to
+        // skill_level::int which fails because the column stores text enum values.
         var agents = await _db.Players
             .Where(p =>
                 p.EventId == eventId &&
                 p.TeamId == null &&
                 (p.RegistrationType == RegistrationType.FreeAgent ||
                  p.RegistrationType == RegistrationType.FreeAgentAssigned))
+            .ToListAsync(ct);
+
+        return agents
             .OrderBy(p => p.SkillLevel.HasValue ? (int)p.SkillLevel : 99)
             .ThenBy(p => p.HandicapIndex ?? 99)
             .ThenBy(p => p.LastName)
-            .ToListAsync(ct);
-
-        return agents.Select(MapToFreeAgentResponse).ToList();
+            .Select(MapToFreeAgentResponse)
+            .ToList();
     }
 
     // ── MANUAL FREE AGENT ASSIGNMENT ──────────────────────────────────────────
@@ -855,9 +859,9 @@ public class TeamService
         {
             if (string.IsNullOrWhiteSpace(json)) return new EventConfig(null, null, null);
             var doc = JsonDocument.Parse(json);
-            bool? allowWalkUps = doc.RootElement.TryGetProperty("allowWalkUps",     out var aw) ? aw.GetBoolean() : null;
-            int?  maxTeams     = doc.RootElement.TryGetProperty("maxTeams",         out var mt) ? mt.GetInt32()   : null;
-            bool? freeAgent    = doc.RootElement.TryGetProperty("freeAgentEnabled", out var fa) ? fa.GetBoolean() : null;
+            bool? allowWalkUps = doc.RootElement.TryGetProperty("allowWalkUps",     out var aw) && aw.ValueKind is JsonValueKind.True or JsonValueKind.False ? aw.GetBoolean() : null;
+            int?  maxTeams     = doc.RootElement.TryGetProperty("maxTeams",         out var mt) && mt.ValueKind == JsonValueKind.Number ? mt.GetInt32()   : null;
+            bool? freeAgent    = doc.RootElement.TryGetProperty("freeAgentEnabled", out var fa) && fa.ValueKind is JsonValueKind.True or JsonValueKind.False ? fa.GetBoolean() : null;
             return new EventConfig(allowWalkUps, maxTeams, freeAgent);
         }
         catch
