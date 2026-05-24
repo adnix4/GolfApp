@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Pressable, FlatList, Modal, TextInput,
-  StyleSheet, ActivityIndicator, ScrollView, Alert,
+  StyleSheet, ActivityIndicator, ScrollView, Alert, Platform,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
@@ -9,6 +9,17 @@ import {
   teamsApi, eventsApi, playersApi,
   type Team, type Player, type RegisterTeamPayload, type AddPlayerPayload,
 } from '@/lib/api';
+
+function confirmAction(title: string, message: string, onConfirm: () => void) {
+  if (Platform.OS === 'web') {
+    if ((globalThis as any).window?.confirm(`${title}\n\n${message}`)) onConfirm();
+  } else {
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Confirm', style: 'destructive', onPress: onConfirm },
+    ]);
+  }
+}
 
 const STATUS_COLOR: Record<string, string> = {
   pending:    '#f39c12',
@@ -191,13 +202,10 @@ export default function TeamsScreen() {
                     {team.players.length === 0 && (
                       <Pressable
                         style={[styles.editBtn, { borderColor: '#e74c3c' }]}
-                        onPress={() => Alert.alert(
+                        onPress={() => confirmAction(
                           'Remove Team',
                           `Remove "${team.name}"? This cannot be undone.`,
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Remove', style: 'destructive', onPress: () => handleRemoveTeam(team.id, team.name) },
-                          ],
+                          () => handleRemoveTeam(team.id, team.name),
                         )}
                       >
                         <Text style={[styles.editBtnText, { color: '#e74c3c' }]}>Remove</Text>
@@ -238,16 +246,11 @@ export default function TeamsScreen() {
                         </Pressable>
                         <Pressable
                           style={[styles.smallBtn, { borderColor: '#e74c3c' }]}
-                          onPress={() => {
-                            Alert.alert(
-                              'Remove Player',
-                              `Remove ${p.firstName} ${p.lastName} from this team?`,
-                              [
-                                { text: 'Cancel', style: 'cancel' },
-                                { text: 'Remove', style: 'destructive', onPress: () => handleRemovePlayer(team.id, p.id) },
-                              ],
-                            );
-                          }}
+                          onPress={() => confirmAction(
+                            'Remove Player',
+                            `Remove ${p.firstName} ${p.lastName} from this team?`,
+                            () => handleRemovePlayer(team.id, p.id),
+                          )}
                         >
                           <Text style={[styles.smallBtnText, { color: '#e74c3c' }]}>Remove</Text>
                         </Pressable>
