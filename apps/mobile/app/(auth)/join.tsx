@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, Pressable, StyleSheet,
   ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { joinEvent, fetchActiveEvents, type ActiveEventSummary } from '@/lib/api';
@@ -35,6 +35,7 @@ export default function JoinScreen() {
   const theme  = useTheme();
   const router = useRouter();
   const { session, loading, deviceId, setSession } = useSession();
+  const { preEventId } = useLocalSearchParams<{ preEventId?: string }>();
 
   const [step,          setStep]          = useState<Step>('pick');
   const [events,        setEvents]        = useState<ActiveEventSummary[]>([]);
@@ -54,6 +55,15 @@ export default function JoinScreen() {
     fetchActiveEvents().then(data => {
       setEvents(data);
       setEventsLoading(false);
+      if (preEventId) {
+        const found = data.find(e => e.id === preEventId);
+        if (found) {
+          setSelected(found);
+          setEventCode(found.eventCode);
+          setError(null);
+          setStep('join');
+        }
+      }
     });
   }, []);
 

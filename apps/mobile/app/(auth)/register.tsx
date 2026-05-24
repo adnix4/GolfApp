@@ -213,10 +213,18 @@ export default function RegisterScreen() {
 
             <Pressable
               style={({ pressed }) => [styles.submitBtn, { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary }]}
+              onPress={() => router.replace({ pathname: '/(auth)/join', params: { preEventId: eventId } })}
+              accessibilityRole="button"
+            >
+              <Text style={styles.submitBtnText}>View Event Details</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.homeBtn, { borderColor: theme.colors.primary, opacity: pressed ? 0.7 : 1 }]}
               onPress={() => router.replace('/join')}
               accessibilityRole="button"
             >
-              <Text style={styles.submitBtnText}>Back to Home</Text>
+              <Text style={[styles.homeBtnText, { color: theme.colors.primary }]}>Back to Home</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -554,6 +562,8 @@ const styles = StyleSheet.create({
   submitBtn:        { paddingVertical: 16, borderRadius: 12, alignItems: 'center' },
   submitBtnSpacing: { marginTop: 6 },
   submitBtnText:    { fontSize: 17, fontWeight: '700', color: '#fff' },
+  homeBtn:          { paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1, marginTop: 10 },
+  homeBtnText:      { fontSize: 15, fontWeight: '600' },
 
   successIcon: { fontSize: 48, textAlign: 'center', marginBottom: 12 },
   successNote: { fontSize: 13, lineHeight: 20, marginTop: 12, marginBottom: 4 },

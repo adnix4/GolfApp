@@ -131,7 +131,8 @@
       "Bash(psql *)",
       "Bash(where psql *)",
       "Bash(find /c -name \"psql.exe\")",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(echo \"exit=$?\")"
     ]
   }
 }

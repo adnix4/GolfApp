@@ -31,12 +31,14 @@ export default function TeamsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
 
-  const [teams,       setTeams]       = useState<Team[]>([]);
-  const [eventStatus, setEventStatus] = useState<string | null>(null);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState<string | null>(null);
-  const [showAdd,     setShowAdd]     = useState(false);
-  const [editing,     setEditing]     = useState<Team | null>(null);
+  const [teams,             setTeams]             = useState<Team[]>([]);
+  const [eventName,         setEventName]         = useState<string>('');
+  const [eventStatus,       setEventStatus]       = useState<string | null>(null);
+  const [loading,           setLoading]           = useState(true);
+  const [error,             setError]             = useState<string | null>(null);
+  const [showAdd,           setShowAdd]           = useState(false);
+  const [editing,           setEditing]           = useState<Team | null>(null);
+  const [removeTeamTarget,  setRemoveTeamTarget]  = useState<Team | null>(null);
   const [inviteResult, setInviteResult] = useState<{ teamName: string; url: string | null } | null>(null);
 
   // Player add/edit state
@@ -52,6 +54,7 @@ export default function TeamsScreen() {
         eventsApi.get(id),
       ]);
       setTeams(teamList);
+      setEventName(event.name);
       setEventStatus(event.status);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load teams.');
@@ -102,11 +105,13 @@ export default function TeamsScreen() {
     setEditingPlayer(null);
   }
 
-  async function handleRemoveTeam(teamId: string, teamName: string) {
+  async function handleRemoveTeam(teamId: string) {
     try {
       await teamsApi.remove(id, teamId);
       setTeams(prev => prev.filter(t => t.id !== teamId));
+      setRemoveTeamTarget(null);
     } catch (e: any) {
+      setRemoveTeamTarget(null);
       setError(e.message ?? 'Failed to remove team.');
     }
   }
@@ -202,11 +207,7 @@ export default function TeamsScreen() {
                     {team.players.length === 0 && (
                       <Pressable
                         style={[styles.editBtn, { borderColor: '#e74c3c' }]}
-                        onPress={() => confirmAction(
-                          'Remove Team',
-                          `Remove "${team.name}"? This cannot be undone.`,
-                          () => handleRemoveTeam(team.id, team.name),
-                        )}
+                        onPress={() => setRemoveTeamTarget(team)}
                       >
                         <Text style={[styles.editBtnText, { color: '#e74c3c' }]}>Remove</Text>
                       </Pressable>
@@ -317,7 +318,78 @@ export default function TeamsScreen() {
         onClose={() => setEditingPlayer(null)}
         onSaved={handlePlayerUpdated}
       />
+
+      <ConfirmRemoveTeamModal
+        visible={removeTeamTarget != null}
+        eventName={eventName}
+        team={removeTeamTarget}
+        onClose={() => setRemoveTeamTarget(null)}
+        onConfirm={() => handleRemoveTeam(removeTeamTarget!.id)}
+      />
     </View>
+  );
+}
+
+// ── Confirm Remove Team Modal ─────────────────────────────────────────────────
+
+interface ConfirmRemoveTeamModalProps {
+  visible:   boolean;
+  eventName: string;
+  team:      Team | null;
+  onClose:   () => void;
+  onConfirm: () => Promise<void>;
+}
+
+function ConfirmRemoveTeamModal({ visible, eventName, team, onClose, onConfirm }: ConfirmRemoveTeamModalProps) {
+  const theme = useTheme();
+  const [loading, setLoading] = useState(false);
+
+  async function handleConfirm() {
+    setLoading(true);
+    try {
+      await onConfirm();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View style={[styles.modal, styles.confirmModal]}>
+          {/* Event name title bar */}
+          <View style={[styles.confirmModalHeader, { backgroundColor: theme.colors.primary }]}>
+            <Text style={styles.confirmModalEventName} numberOfLines={1}>{eventName}</Text>
+          </View>
+
+          {/* Warning body */}
+          <View style={styles.confirmModalBody}>
+            <Text style={[styles.confirmModalMessage, { color: theme.colors.primary }]}>
+              Warning removing team "{team?.name}" can not be undone.
+            </Text>
+
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.cancelBtn, { borderColor: theme.colors.accent }]}
+                onPress={onClose}
+                disabled={loading}
+              >
+                <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.submitBtn, { backgroundColor: '#e74c3c' }, loading && { opacity: 0.6 }]}
+                onPress={handleConfirm}
+                disabled={loading}
+              >
+                {loading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.submitText}>Remove</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -922,4 +994,13 @@ const styles = StyleSheet.create({
   pickerRadioDot: { width: 9, height: 9, borderRadius: 5 },
   pickerOptionLabel: { fontSize: 14, fontWeight: '600' },
   pickerOptionDesc:  { fontSize: 12, marginTop: 1 },
+
+  confirmModal: { padding: 0, overflow: 'hidden' },
+  confirmModalHeader: {
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderTopLeftRadius: 16, borderTopRightRadius: 16,
+  },
+  confirmModalEventName: { fontSize: 14, fontWeight: '700', color: '#fff', letterSpacing: 0.2 },
+  confirmModalBody: { padding: 24 },
+  confirmModalMessage: { fontSize: 16, fontWeight: '600', lineHeight: 24, marginBottom: 4 },
 });

@@ -1,31 +1,46 @@
+  High impact — directly tied to spec targets
 
-teams should not show as checked in until a worker checks them in the day of the event after the event moves from the registration to the active state
-add payment type in mobile app
-designate players to a team
-designate players as free agents if no team is selected when registering from the mobile app.
-take to the event page of the mobile app after registration hide scoring tab if scoring isn't active. Only allow for testing in the mobile app if the event code is presented.
+  1. Redis leaderboard cache is invalidated but never populated (apps/api/Features/RealTime/RealTimeService.cs:201-209, apps/api/Features/Events/EventService.cs:410)
+  The cache key leaderboard:{eventCode} is deleted on every score push, but GetLeaderboardAsync never reads or writes it. Spec §3 Phase 3 calls for "Redis leaderboard cache:
+  2–5 second TTL absorbs shotgun-burst load spikes" — currently the cache is a no-op. Wire GetLeaderboardAsync as read-through (set with 2–5s TTL on miss).
 
+  2. Standings recomputed from scratch on every single score (RealTimeService.cs:231-288)
+  PublishScoreAsync calls ComputeStandingsAsync per score, running 3 DB queries plus a full sort. On a shotgun-start event with 36 teams scoring nearly simultaneously, that's
+   36+ recomputes/sec and 36 full-standings SignalR broadcasts — exactly the burst the spec wants Redis to absorb. Suggestions: (a) debounce/coalesce per-event broadcasts to
+  ~1/sec, (b) reuse the cached payload from #1, (c) drop the redundant per-score LeaderboardRefreshed (the lightweight ScoreUpdated is enough — clients refetch).
 
-  ---
-  Phase 5 — League Play + Handicaps
+  3. GetLeaderboardAsync causes cartesian explosion + tracked entities (EventService.cs:415-420)
+  Include(e => e.Teams).Include(e => e.Scores).Include(e => e.Course).ThenInclude(c => c.Holes) produces a teams × scores × holes Cartesian join on a single query. For a
+  36-team / 18-hole event that's ~11K rows materialized. Also no AsNoTracking. Switch to a projection (Select(...) over _db.Teams, _db.Scores, _db.CourseHoles separately,
+  AsNoTracking) — same pattern RealTimeService.ComputeStandingsAsync already uses correctly.
 
-  19. Absence reporting endpoint — POST /rounds/{id}/absence is listed in the spec (section 5.8) but is missing from the League controller. Players need to report absence for
-   a round to trigger the substitute workflow.
-  20. Substitute handling — Admin UI to add a substitute player with temporary handicap for a round. The is_sub flag exists in league_pairings but the workflow for managing
-  subs isn't wired.
-  21. Sandbagger flag — Automatic detection when a player's handicap hasn't decreased after 5+ rounds significantly below their index, with a flag shown in the admin handicap
-   dashboard.
-  22. Pairings PDF — Spec requires a printable tee sheet PDF (group number, players, tee time, starting hole) generated when pairings are locked.
-  23. Standings PDF export — For clubhouse posting. No PDF generation for league standings.
-  24. Pairing notification delivery — When pairings are locked, each player needs a push notification and email: "Round 7 pairings are ready — you tee off at 8:42 AM in Group
-   4 with John, Mike, and Sarah."
-  25. Round result emails + handicap update emails — EmailTriggerType has RoundResult and HandicapUpdate values in the enum, but the trigger calls from LeagueService when a
-  round closes need to be verified/completed.
-  26. Head-to-head W/L record — Mobile league screen needs a view of the player's win/loss record against each individual opponent this season (spec marks this optional but
-  included).
-  27. USGA handicap formula (Phase 5b) — Best 8 of last 20 differentials. Requires course_rating and slope_rating fields per tee set on course holes (currently only par and
-  handicap_index are stored).
-  28. Match play and Quota formats (Phase 5b) — LeagueFormat enum exists but match play scoring logic (per-hole W/L/H, season record) and Quota (points above target) aren't
-  implemented.
-  29. Handicap sync toggle — Admin option to optionally sync league_members.handicap_index back to players.handicap_index (tournament handicap). Spec lists this as a
-  configurable toggle.
+  Medium impact
+
+  4. Mobile leaderboard polls only — never connects via SignalR (apps/mobile/app/(scoring)/leaderboard.tsx:11,134-162)
+  Spec §3 Phase 3 makes SignalR the primary path with 15s polling as fallback. Mobile uses setInterval(poll, 15_000) only — every mobile client adds 1 DB-hit/15s permanently.
+   Web uses @microsoft/signalr correctly (ScoresPoller.tsx:49). Adding @microsoft/signalr to mobile (works in RN via WebSocket transport) lets dozens of golfers share one
+  push channel instead of each polling.
+
+  5. Mobile FlatList re-mounts every row on every poll (leaderboard.tsx:221)
+  keyExtractor={item => String(item.rank) + item.teamName} — rank changes each poll, so React unmounts/remounts every row. Use item.teamId, wrap StandingRow in React.memo,
+  and stop passing the live theme object as a prop (move useTheme() inside).
+
+  6. Web ScoresPoller re-renders the whole standings table every second (apps/web/.../ScoresPoller.tsx:111-115)
+  The secondsAgo ticker updates state every 1s, re-rendering standings.map(...) + re-injecting <style>{cssKeyframes}</style>. Move the "Updated Xs ago" footer into its own
+  component so it re-renders in isolation. On TV mode (50+ teams) this is the biggest CPU win.
+
+  7. StandingsCalculator.ComputeMatchRecordsAsync is N+1 per round (StandingsCalculator.cs:140-207)
+  Two DB queries per closed round inside a loop. For a 20-round season that's 40 queries that can collapse to 2 batched ones (_db.LeaguePairings.Where(p =>
+  closedRoundIds.Contains(p.RoundId)), same for scores). Also inner pair loop does aScores.First(s => s.HoleNumber == hole) per hole per pair — pre-group into
+  Dictionary<MemberId, Dictionary<Hole, NetScore>> once.
+
+  Lower impact / nice-to-have
+
+  8. RealTimeService is registered scoped but pulls a singleton IConnectionMultiplexer via IServiceProvider.GetService per request — minor, but a direct constructor inject
+  would be cleaner and avoid the service-locator hop on every score.
+
+  9. Inline style object allocations in ScoresPoller — each <td style={{ ...tv.td, textAlign: 'right', color: ... }}> allocates a new object per render per row. With #6 fixed
+   this matters less; for TV mode hoisting to className/CSS is worth it.
+
+  10. Mobile polling ignores event.offlineMode — spec §2.4 says offline mode should "disable live leaderboard on mobile to conserve battery". The 15s leaderboard poll runs
+  unconditionally; backgroundSync.ts correctly reads offlineModeActive but the leaderboard screen does not.
