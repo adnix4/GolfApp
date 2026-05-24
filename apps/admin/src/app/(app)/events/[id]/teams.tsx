@@ -79,10 +79,15 @@ export default function TeamsScreen() {
   }
 
   function handlePlayerUpdated(player: Player) {
-    setTeams(prev => prev.map(t => ({
-      ...t,
-      players: t.players.map(p => p.id === player.id ? player : p),
-    })));
+    setTeams(prev => {
+      // Remove the player from whichever team currently holds them
+      const without = prev.map(t => ({ ...t, players: t.players.filter(p => p.id !== player.id) }));
+      // Place them on the new team (or leave as free agent if teamId is null)
+      if (player.teamId) {
+        return without.map(t => t.id === player.teamId ? { ...t, players: [...t.players, player] } : t);
+      }
+      return without;
+    });
     setEditingPlayer(null);
   }
 
@@ -269,6 +274,7 @@ export default function TeamsScreen() {
         visible={addPlayerTeam != null}
         eventId={id}
         teamId={addPlayerTeam?.id ?? null}
+        teams={teams}
         title={`Add Player — ${addPlayerTeam?.name ?? ''}`}
         onClose={() => setAddPlayerTeam(null)}
         onSaved={player => handlePlayerAdded(player, addPlayerTeam!.id)}
@@ -278,6 +284,7 @@ export default function TeamsScreen() {
         visible={editingPlayer != null}
         eventId={id}
         teamId={editingPlayer?.team.id ?? null}
+        teams={teams}
         player={editingPlayer?.player}
         title="Edit Player"
         onClose={() => setEditingPlayer(null)}
@@ -293,20 +300,23 @@ interface PlayerFormModalProps {
   visible:  boolean;
   eventId:  string;
   teamId:   string | null;
+  teams:    Team[];
   player?:  Player;
   title:    string;
   onClose:  () => void;
   onSaved:  (player: Player) => void;
 }
 
-function PlayerFormModal({ visible, eventId, teamId, player, title, onClose, onSaved }: PlayerFormModalProps) {
+function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClose, onSaved }: PlayerFormModalProps) {
   const theme = useTheme();
-  const [firstName,  setFirstName]  = useState('');
-  const [lastName,   setLastName]   = useState('');
-  const [email,      setEmail]      = useState('');
-  const [handicap,   setHandicap]   = useState('');
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState<string | null>(null);
+  const [firstName,       setFirstName]       = useState('');
+  const [lastName,        setLastName]        = useState('');
+  const [email,           setEmail]           = useState('');
+  const [handicap,        setHandicap]        = useState('');
+  const [selectedTeamId,  setSelectedTeamId]  = useState<string | null>(null);
+  const [pickerOpen,      setPickerOpen]      = useState(false);
+  const [loading,         setLoading]         = useState(false);
+  const [error,           setError]           = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -314,8 +324,22 @@ function PlayerFormModal({ visible, eventId, teamId, player, title, onClose, onS
     setLastName(player?.lastName ?? '');
     setEmail(player?.email ?? '');
     setHandicap(player?.handicapIndex != null ? String(player.handicapIndex) : '');
+    setSelectedTeamId(teamId);
+    setPickerOpen(false);
     setError(null);
-  }, [visible, player]);
+  }, [visible, player, teamId]);
+
+  // Teams available in the picker: not full, or already the selected team
+  const availableTeams = teams.filter(t =>
+    t.players.length < t.maxPlayers || t.id === selectedTeamId,
+  );
+
+  function teamLabel(tid: string | null): string {
+    if (!tid) return 'Free agent — organizer will assign';
+    const t = teams.find(t => t.id === tid);
+    if (!t) return 'Unknown team';
+    return `${t.name}  (${t.players.length}/${t.maxPlayers} players)`;
+  }
 
   function validate(): boolean {
     if (!firstName.trim()) { setError('First name is required.'); return false; }
@@ -336,11 +360,17 @@ function PlayerFormModal({ visible, eventId, teamId, player, title, onClose, onS
     try {
       let result: Player;
       if (player) {
+        const teamChanged = selectedTeamId !== (player.teamId ?? null);
         result = await playersApi.update(eventId, player.id, {
           firstName: firstName.trim(),
           lastName:  lastName.trim(),
           email:     email.trim() || undefined,
           ...(handicap.trim() ? { handicapIndex: Number(handicap) } : {}),
+          ...(teamChanged
+            ? selectedTeamId === null
+              ? { clearTeam: true }
+              : { teamId: selectedTeamId }
+            : {}),
         });
       } else {
         const payload: AddPlayerPayload = {
@@ -363,50 +393,139 @@ function PlayerFormModal({ visible, eventId, teamId, player, title, onClose, onS
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => { onClose(); }}>
       <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>{title}</Text>
-          {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
+        <ScrollView contentContainerStyle={styles.modalScroll} keyboardShouldPersistTaps="handled">
+          <View style={styles.modal}>
+            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>{title}</Text>
+            {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
 
-          <View style={styles.nameRow}>
-            <TextInput
-              style={[styles.input, styles.halfInput, { borderColor: theme.colors.accent }]}
-              value={firstName} onChangeText={v => { setFirstName(v); if (error) setError(null); }}
-              placeholder="First *" placeholderTextColor="#999" editable={!loading}
-            />
-            <TextInput
-              style={[styles.input, styles.halfInput, { borderColor: theme.colors.accent }]}
-              value={lastName} onChangeText={v => { setLastName(v); if (error) setError(null); }}
-              placeholder="Last *" placeholderTextColor="#999" editable={!loading}
-            />
-          </View>
-          <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent, marginTop: 8 }]}
-            value={email} onChangeText={v => { setEmail(v); if (error) setError(null); }}
-            placeholder="email@example.com (optional)" placeholderTextColor="#999"
-            keyboardType="email-address" autoCapitalize="none" editable={!loading}
-          />
-          <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent, marginTop: 8 }]}
-            value={handicap} onChangeText={v => { setHandicap(v.replace(/[^0-9.]/g, '')); if (error) setError(null); }}
-            placeholder="Handicap index (optional)" placeholderTextColor="#999"
-            keyboardType="decimal-pad" editable={!loading}
-          />
+            {/* Name */}
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Name *</Text>
+            <Text style={[styles.fieldDesc, { color: theme.colors.accent }]}>Player's first and last name as it should appear on the scorecard.</Text>
+            <View style={styles.nameRow}>
+              <TextInput
+                style={[styles.input, styles.halfInput, { borderColor: theme.colors.accent }]}
+                value={firstName} onChangeText={v => { setFirstName(v); if (error) setError(null); }}
+                placeholder="First name" placeholderTextColor="#999" editable={!loading}
+              />
+              <TextInput
+                style={[styles.input, styles.halfInput, { borderColor: theme.colors.accent }]}
+                value={lastName} onChangeText={v => { setLastName(v); if (error) setError(null); }}
+                placeholder="Last name" placeholderTextColor="#999" editable={!loading}
+              />
+            </View>
 
-          <View style={styles.modalActions}>
-            <Pressable style={[styles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
-              <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.submitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
-              onPress={handleSave}
-              disabled={loading}
-            >
-              {loading
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.submitText}>{player ? 'Save' : 'Add'}</Text>}
-            </Pressable>
+            {/* Email */}
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Email</Text>
+            <Text style={[styles.fieldDesc, { color: theme.colors.accent }]}>Used by the player to join the event on the mobile app. Must be unique within this event.</Text>
+            <TextInput
+              style={[styles.input, { borderColor: theme.colors.accent }]}
+              value={email} onChangeText={v => { setEmail(v); if (error) setError(null); }}
+              placeholder="player@example.com"
+              placeholderTextColor="#999"
+              keyboardType="email-address" autoCapitalize="none" editable={!loading}
+            />
+
+            {/* Handicap */}
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Handicap Index</Text>
+            <Text style={[styles.fieldDesc, { color: theme.colors.accent }]}>USGA handicap index (0 – 54). Used for net scoring, pairing, and flights. Leave blank if unknown.</Text>
+            <TextInput
+              style={[styles.input, { borderColor: theme.colors.accent }]}
+              value={handicap} onChangeText={v => { setHandicap(v.replace(/[^0-9.]/g, '')); if (error) setError(null); }}
+              placeholder="e.g. 14.2"
+              placeholderTextColor="#999"
+              keyboardType="decimal-pad" editable={!loading}
+            />
+
+            {/* Team assignment — edit mode only */}
+            {!!player && (
+              <>
+                <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Team Assignment</Text>
+                <Text style={[styles.fieldDesc, { color: theme.colors.accent }]}>
+                  Move this player to a different team or designate them as a free agent for the organizer to assign.
+                  Only teams with open slots are shown.
+                </Text>
+
+                {/* Selector button */}
+                <Pressable
+                  style={[styles.pickerBtn, { borderColor: theme.colors.accent }, pickerOpen && { borderColor: theme.colors.primary }]}
+                  onPress={() => setPickerOpen(o => !o)}
+                  disabled={loading}
+                >
+                  <Text style={[styles.pickerBtnText, { color: selectedTeamId ? theme.colors.primary : '#999' }]} numberOfLines={1}>
+                    {teamLabel(selectedTeamId)}
+                  </Text>
+                  <Text style={{ color: theme.colors.accent, fontSize: 12, marginLeft: 6 }}>{pickerOpen ? '▲' : '▼'}</Text>
+                </Pressable>
+
+                {/* Options list */}
+                {pickerOpen && (
+                  <View style={[styles.pickerList, { borderColor: theme.colors.accent }]}>
+                    {/* Free agent option */}
+                    <Pressable
+                      style={[styles.pickerOption, selectedTeamId === null && { backgroundColor: theme.colors.primary + '18' }]}
+                      onPress={() => { setSelectedTeamId(null); setPickerOpen(false); }}
+                    >
+                      <View style={[styles.pickerRadio, { borderColor: theme.colors.primary }]}>
+                        {selectedTeamId === null && <View style={[styles.pickerRadioDot, { backgroundColor: theme.colors.primary }]} />}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.pickerOptionLabel, { color: theme.colors.primary }]}>Free agent</Text>
+                        <Text style={[styles.pickerOptionDesc, { color: theme.colors.accent }]}>Organizer will assign this player to a team</Text>
+                      </View>
+                    </Pressable>
+
+                    {/* Team options */}
+                    {availableTeams.map(t => {
+                      const isSelected = selectedTeamId === t.id;
+                      const isCurrent  = t.id === player.teamId;
+                      const open = t.maxPlayers - t.players.length;
+                      return (
+                        <Pressable
+                          key={t.id}
+                          style={[styles.pickerOption, isSelected && { backgroundColor: theme.colors.primary + '18' }]}
+                          onPress={() => { setSelectedTeamId(t.id); setPickerOpen(false); }}
+                        >
+                          <View style={[styles.pickerRadio, { borderColor: theme.colors.primary }]}>
+                            {isSelected && <View style={[styles.pickerRadioDot, { backgroundColor: theme.colors.primary }]} />}
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.pickerOptionLabel, { color: theme.colors.primary }]}>
+                              {t.name}{isCurrent ? '  (current)' : ''}
+                            </Text>
+                            <Text style={[styles.pickerOptionDesc, { color: theme.colors.accent }]}>
+                              {t.players.length}/{t.maxPlayers} players · {isCurrent ? 'current team' : `${open} slot${open !== 1 ? 's' : ''} open`}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+
+                    {availableTeams.length === 0 && (
+                      <View style={styles.pickerOption}>
+                        <Text style={{ color: '#888', fontSize: 13, fontStyle: 'italic' }}>No teams with open slots</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </>
+            )}
+
+            <View style={styles.modalActions}>
+              <Pressable style={[styles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
+                <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.submitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
+                onPress={handleSave}
+                disabled={loading}
+              >
+                {loading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.submitText}>{player ? 'Save' : 'Add'}</Text>}
+              </Pressable>
+            </View>
           </View>
-        </View>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -751,4 +870,29 @@ const styles = StyleSheet.create({
   cancelText: { fontSize: 15, fontWeight: '600' },
   submitBtn: { flex: 2, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   submitText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+
+  fieldDesc: { fontSize: 12, marginTop: -4, marginBottom: 6, lineHeight: 17 },
+
+  pickerBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: '#fafafa',
+  },
+  pickerBtnText: { flex: 1, fontSize: 14 },
+  pickerList: {
+    borderWidth: 1, borderRadius: 8, marginTop: 4, overflow: 'hidden',
+    maxHeight: 260,
+  },
+  pickerOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 12, paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#eee',
+  },
+  pickerRadio: {
+    width: 18, height: 18, borderRadius: 9, borderWidth: 2,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  pickerRadioDot: { width: 9, height: 9, borderRadius: 5 },
+  pickerOptionLabel: { fontSize: 14, fontWeight: '600' },
+  pickerOptionDesc:  { fontSize: 12, marginTop: 1 },
 });
