@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { memo, useState, useEffect, useRef, useCallback } from 'react';
 import * as signalR from '@microsoft/signalr';
 import type { PublicEventData, PublicLeaderboard, PublicLeaderboardEntry } from '@/lib/api';
 
@@ -39,7 +39,6 @@ export default function ScoresPoller({
 }) {
   const [leaderboard, setLeaderboard] = useState(initialLeaderboard);
   const [lastUpdated, setLastUpdated] = useState(() => new Date());
-  const [secondsAgo,  setSecondsAgo]  = useState(0);
   const [fetchError,  setFetchError]  = useState(false);
   const [connected,   setConnected]   = useState(false);
   const [hioAlert,    setHioAlert]    = useState<HoleInOneAlert | null>(null);
@@ -53,15 +52,12 @@ export default function ScoresPoller({
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
-    let startedOk = false;
-
     hub.on('LeaderboardRefreshed', (data: { standings: PublicLeaderboardEntry[] }) => {
       if (data?.standings) {
         setLeaderboard(prev => prev
           ? { ...prev, standings: data.standings }
           : null);
         setLastUpdated(new Date());
-        setSecondsAgo(0);
         setFetchError(false);
       }
     });
@@ -81,7 +77,6 @@ export default function ScoresPoller({
 
     hub.start()
       .then(async () => {
-        startedOk = true;
         setConnected(true);
         await hub.invoke('JoinEvent', eventCode).catch(() => {});
       })
@@ -98,7 +93,6 @@ export default function ScoresPoller({
       if (data) {
         setLeaderboard(data);
         setLastUpdated(new Date());
-        setSecondsAgo(0);
         setFetchError(false);
       } else {
         setFetchError(true);
@@ -106,13 +100,6 @@ export default function ScoresPoller({
     }, FALLBACK_POLL_MS);
     return () => clearInterval(id);
   }, [connected, eventCode]);
-
-  // ── "Updated Xs ago" ticker ────────────────────────────────────────────────
-  useEffect(() => {
-    setSecondsAgo(0);
-    const id = setInterval(() => setSecondsAgo(s => s + 1), 1000);
-    return () => clearInterval(id);
-  }, [lastUpdated]);
 
   // ── Hole-in-one alert expiry ───────────────────────────────────────────────
   useEffect(() => {
@@ -219,7 +206,7 @@ export default function ScoresPoller({
                 </thead>
                 <tbody>
                   {standings.map((entry, i) => (
-                    <Row key={i} entry={entry} index={i} tvMode={tvMode} />
+                    <Row key={entry.teamId} entry={entry} index={i} tvMode={tvMode} />
                   ))}
                 </tbody>
               </table>
@@ -231,13 +218,12 @@ export default function ScoresPoller({
         {!tvMode && (
           <footer style={nm.footer}>
             <div style={nm.footerInner}>
-              <span style={fetchError ? nm.footerError : nm.footerMeta}>
-                {fetchError
-                  ? 'Connection issue — retrying…'
-                  : connected
-                    ? `Live · Updated ${secondsAgo}s ago`
-                    : `Updated ${secondsAgo}s ago · polling every ${FALLBACK_POLL_MS / 1000}s`}
-              </span>
+              <UpdatedAgo
+                lastUpdated={lastUpdated}
+                connected={connected}
+                fetchError={fetchError}
+                tvMode={false}
+              />
               <a href={`/e/${event.orgSlug}/${eventCode}`} style={nm.backLink}>
                 ← Event page
               </a>
@@ -253,17 +239,56 @@ export default function ScoresPoller({
         {/* ── TV STATUS BAR ── */}
         {tvMode && (
           <div style={tv.statusBar}>
-            {fetchError
-              ? <span style={tv.statusError}>Connection issue — retrying…</span>
-              : <span style={tv.statusMeta}>
-                  {connected ? `Live · Updated ${secondsAgo}s ago` : `Updated ${secondsAgo}s ago`}
-                </span>}
+            <UpdatedAgo
+              lastUpdated={lastUpdated}
+              connected={connected}
+              fetchError={fetchError}
+              tvMode={true}
+            />
           </div>
         )}
 
       </div>
     </>
   );
+}
+
+// ── UPDATED-AGO TICKER ───────────────────────────────────────────────────────
+// Isolated so its 1 s tick re-renders only this span. Keeping it in the parent
+// re-rendered the standings table every second — on TV mode with 50+ teams
+// that was the dominant CPU cost on the page.
+
+function UpdatedAgo({
+  lastUpdated, connected, fetchError, tvMode,
+}: {
+  lastUpdated: Date;
+  connected:   boolean;
+  fetchError:  boolean;
+  tvMode:      boolean;
+}) {
+  const [secondsAgo, setSecondsAgo] = useState(0);
+
+  useEffect(() => {
+    setSecondsAgo(0);
+    const id = setInterval(() => setSecondsAgo(s => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [lastUpdated]);
+
+  if (fetchError) {
+    return (
+      <span style={tvMode ? tv.statusError : nm.footerError}>
+        Connection issue — retrying…
+      </span>
+    );
+  }
+
+  const text = tvMode
+    ? (connected ? `Live · Updated ${secondsAgo}s ago` : `Updated ${secondsAgo}s ago`)
+    : (connected
+        ? `Live · Updated ${secondsAgo}s ago`
+        : `Updated ${secondsAgo}s ago · polling every ${FALLBACK_POLL_MS / 1000}s`);
+
+  return <span style={tvMode ? tv.statusMeta : nm.footerMeta}>{text}</span>;
 }
 
 // ── SPONSOR TICKER (TV mode only) ────────────────────────────────────────────
@@ -308,8 +333,25 @@ function SponsorTicker({ sponsors }: { sponsors: PublicEventData['sponsors'] }) 
 }
 
 // ── ROW ───────────────────────────────────────────────────────────────────────
+// Memoized with a custom equality check on the fields actually rendered.
+// SignalR broadcasts send a fresh standings array per tick, so default
+// referential equality wouldn't help — but the per-team fields rarely change,
+// so most rows skip render entirely after a single team scores.
 
-function Row({
+const rowEqual = (
+  a: { entry: PublicLeaderboardEntry; index: number; tvMode: boolean },
+  b: { entry: PublicLeaderboardEntry; index: number; tvMode: boolean },
+) =>
+  a.tvMode             === b.tvMode &&
+  a.index              === b.index &&
+  a.entry.rank         === b.entry.rank &&
+  a.entry.teamName     === b.entry.teamName &&
+  a.entry.toPar        === b.entry.toPar &&
+  a.entry.grossTotal   === b.entry.grossTotal &&
+  a.entry.holesComplete === b.entry.holesComplete &&
+  a.entry.isComplete   === b.entry.isComplete;
+
+const Row = memo(function Row({
   entry, index, tvMode,
 }: {
   entry:  PublicLeaderboardEntry;
@@ -325,33 +367,42 @@ function Row({
   const thru = entry.isComplete ? 'F' : String(entry.holesComplete || '—');
 
   if (tvMode) {
-    const isEven = index % 2 === 0;
+    const rowStyle = index % 2 === 0 ? tvRowStyles.even : tvRowStyles.odd;
     return (
-      <tr style={{ backgroundColor: isEven ? '#161b22' : '#1c2128', borderBottom: '1px solid #30363d' }}>
-        <td style={{ ...tv.td, textAlign: 'center', color: '#8b949e' }}>{entry.rank}</td>
-        <td style={{ ...tv.td, fontWeight: 700 }}>{entry.teamName}</td>
-        <td style={{ ...tv.td, textAlign: 'right', fontWeight: 900, fontSize: '1.3rem', color: toParColor }}>
-          {toParLabel}
-        </td>
-        <td style={{ ...tv.td, textAlign: 'right', color: '#8b949e' }}>{entry.grossTotal || '—'}</td>
-        <td style={{ ...tv.td, textAlign: 'right', color: '#8b949e' }}>{thru}</td>
+      <tr style={rowStyle}>
+        <td style={tvCellStyles.rank}>{entry.rank}</td>
+        <td style={tvCellStyles.team}>{entry.teamName}</td>
+        <td style={{ ...tvCellStyles.toParBase, color: toParColor }}>{toParLabel}</td>
+        <td style={tvCellStyles.rightMuted}>{entry.grossTotal || '—'}</td>
+        <td style={tvCellStyles.rightMuted}>{thru}</td>
       </tr>
     );
   }
 
-  const isEven = index % 2 === 0;
+  const rowStyle = index % 2 === 0 ? nmRowStyles.even : nmRowStyles.odd;
   return (
-    <tr style={{ backgroundColor: isEven ? '#fff' : '#f9fafb', borderBottom: '1px solid #eee' }}>
-      <td style={{ ...nm.td, textAlign: 'center', fontWeight: 700, color: '#555' }}>{entry.rank}</td>
-      <td style={{ ...nm.td, fontWeight: 600 }}>{entry.teamName}</td>
-      <td style={{ ...nm.td, textAlign: 'right', fontWeight: 800, fontSize: '1.05rem', color: toParColor }}>
-        {toParLabel}
-      </td>
-      <td style={{ ...nm.td, textAlign: 'right', color: '#555' }}>{entry.grossTotal || '—'}</td>
-      <td style={{ ...nm.td, textAlign: 'right', color: '#888' }}>{thru}</td>
+    <tr style={rowStyle}>
+      <td style={nmCellStyles.rank}>{entry.rank}</td>
+      <td style={nmCellStyles.team}>{entry.teamName}</td>
+      <td style={{ ...nmCellStyles.toParBase, color: toParColor }}>{toParLabel}</td>
+      <td style={nmCellStyles.rightMuted}>{entry.grossTotal || '—'}</td>
+      <td style={nmCellStyles.rightMutedAlt}>{thru}</td>
     </tr>
   );
-}
+}, rowEqual);
+
+// Module-level cell-style constants. Hoisting these out of the render path
+// eliminates ~10 object spreads × N rows per leaderboard update.
+
+const tvRowStyles = {
+  even: { backgroundColor: '#161b22', borderBottom: '1px solid #30363d' } as const,
+  odd:  { backgroundColor: '#1c2128', borderBottom: '1px solid #30363d' } as const,
+};
+
+const nmRowStyles = {
+  even: { backgroundColor: '#fff',    borderBottom: '1px solid #eee' } as const,
+  odd:  { backgroundColor: '#f9fafb', borderBottom: '1px solid #eee' } as const,
+};
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
 
@@ -491,4 +542,24 @@ const tv = {
   tickerLogo:    { height: 28, width: 'auto', objectFit: 'contain' as const, borderRadius: 4, backgroundColor: '#fff', padding: '2px 6px' },
   tickerName:    { fontSize: '1rem', fontWeight: 700, color: '#e6edf3' },
   tickerTagline: { fontSize: '0.85rem', color: '#8b949e' },
+} as const;
+
+// ── PRE-MERGED CELL STYLES ────────────────────────────────────────────────────
+// Hoisted out of Row's render so the per-row cell `style` props are stable
+// references. Only the toPar cell still allocates per row (color depends on
+// the team's score) — and that one merges into toParBase.
+
+const tvCellStyles = {
+  rank:        { ...tv.td, textAlign: 'center' as const, color: '#8b949e' },
+  team:        { ...tv.td, fontWeight: 700 as const },
+  toParBase:   { ...tv.td, textAlign: 'right' as const, fontWeight: 900 as const, fontSize: '1.3rem' },
+  rightMuted:  { ...tv.td, textAlign: 'right' as const, color: '#8b949e' },
+} as const;
+
+const nmCellStyles = {
+  rank:           { ...nm.td, textAlign: 'center' as const, fontWeight: 700 as const, color: '#555' },
+  team:           { ...nm.td, fontWeight: 600 as const },
+  toParBase:      { ...nm.td, textAlign: 'right' as const, fontWeight: 800 as const, fontSize: '1.05rem' },
+  rightMuted:     { ...nm.td, textAlign: 'right' as const, color: '#555' },
+  rightMutedAlt:  { ...nm.td, textAlign: 'right' as const, color: '#888' },
 } as const;

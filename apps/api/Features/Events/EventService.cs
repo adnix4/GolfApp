@@ -38,6 +38,7 @@ using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
 using GolfFundraiserPro.Api.Domain.Enums;
+using GolfFundraiserPro.Api.Features.Events.Leaderboard;
 
 namespace GolfFundraiserPro.Api.Features.Events;
 
@@ -49,12 +50,18 @@ public class EventService
     // State machine and code format are now in EventStatusRules / EventCodeRules (pure, testable).
 
     private readonly TestDataService _testData;
+    private readonly LeaderboardCache? _leaderboardCache;
 
-    public EventService(ApplicationDbContext db, ILogger<EventService> logger, TestDataService testData)
+    public EventService(
+        ApplicationDbContext db,
+        ILogger<EventService> logger,
+        TestDataService testData,
+        LeaderboardCache? leaderboardCache = null)
     {
-        _db       = db;
-        _logger   = logger;
-        _testData = testData;
+        _db               = db;
+        _logger           = logger;
+        _testData         = testData;
+        _leaderboardCache = leaderboardCache;
     }
 
     // ── CREATE ────────────────────────────────────────────────────────────────
@@ -412,105 +419,25 @@ public class EventService
         Guid eventId,
         CancellationToken ct = default)
     {
-        var evt = await _db.Events
-            .Include(e => e.Teams)
-            .Include(e => e.Scores)
-            .Include(e => e.Course)
-                .ThenInclude(c => c!.Holes)
-            .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
-
-        if (evt is null)
+        var meta = await LeaderboardLoader.LoadEventAsync(_db, eventId, ct);
+        if (meta is null || meta.OrgId != orgId)
             throw new NotFoundException("Event", eventId);
 
-        var parByHole = evt.Course?.Holes
-            .ToDictionary(h => (int)h.HoleNumber, h => (int)h.Par)
-            ?? Enumerable.Range(1, evt.Holes).ToDictionary(n => n, _ => 4);
+        var standings = await LeaderboardLoader.LoadStandingsAsync(_db, meta, ct);
 
-        var scoresByTeam = evt.Scores
-            .GroupBy(s => s.TeamId)
-            .ToDictionary(g => g.Key, g => g.ToList());
-
-        bool isStableford = evt.Format == EventFormat.Stableford;
-
-        var entries = new List<(Guid TeamId, string TeamName, int ToPar, int GrossTotal,
-            int StablefordPoints, int HolesComplete, bool IsComplete,
-            short? StartingHole, DateTime? TeeTime)>();
-
-        foreach (var team in evt.Teams)
+        return standings.Select(s => new LeaderboardEntryResponse
         {
-            var teamScores    = scoresByTeam.GetValueOrDefault(team.Id, []);
-            var grossTotal    = teamScores.Sum(s => (int)s.GrossScore);
-            var parTotal      = teamScores.Sum(s => parByHole.GetValueOrDefault(s.HoleNumber, 4));
-            var holesComplete = teamScores.Count;
-
-            var stablefordPts = isStableford
-                ? teamScores.Sum(s => Math.Max(0, parByHole.GetValueOrDefault(s.HoleNumber, 4) - (int)s.GrossScore + 2))
-                : 0;
-
-            entries.Add((
-                TeamId:          team.Id,
-                TeamName:        team.Name,
-                ToPar:           grossTotal - parTotal,
-                GrossTotal:      grossTotal,
-                StablefordPoints: stablefordPts,
-                HolesComplete:   holesComplete,
-                IsComplete:      holesComplete >= evt.Holes,
-                StartingHole:    team.StartingHole,
-                TeeTime:         team.TeeTime
-            ));
-        }
-
-        // Stableford: highest points wins. All other formats: lowest ToPar wins.
-        IOrderedEnumerable<(Guid TeamId, string TeamName, int ToPar, int GrossTotal,
-            int StablefordPoints, int HolesComplete, bool IsComplete,
-            short? StartingHole, DateTime? TeeTime)> sorted;
-
-        if (isStableford)
-        {
-            sorted = entries
-                .OrderBy(e => e.HolesComplete == 0 ? 1 : 0)
-                .ThenByDescending(e => e.StablefordPoints)
-                .ThenByDescending(e => e.HolesComplete);
-        }
-        else
-        {
-            sorted = entries
-                .OrderBy(e => e.HolesComplete == 0 ? 1 : 0)
-                .ThenBy(e => e.ToPar)
-                .ThenByDescending(e => e.HolesComplete);
-        }
-
-        var sortedList = sorted.ToList();
-        var result = new List<LeaderboardEntryResponse>();
-        var rank = 1;
-
-        for (int i = 0; i < sortedList.Count; i++)
-        {
-            if (i > 0 && sortedList[i].HolesComplete > 0)
-            {
-                bool tied = isStableford
-                    ? sortedList[i].StablefordPoints == sortedList[i - 1].StablefordPoints
-                    : sortedList[i].ToPar == sortedList[i - 1].ToPar;
-                if (!tied) rank = i + 1;
-            }
-
-            var e = sortedList[i];
-            result.Add(new LeaderboardEntryResponse
-            {
-                Rank             = e.HolesComplete == 0 ? 0 : rank,
-                TeamId           = e.TeamId,
-                TeamName         = e.TeamName,
-                ToPar            = e.ToPar,
-                GrossTotal       = e.GrossTotal,
-                StablefordPoints = e.StablefordPoints,
-                HolesComplete    = e.HolesComplete,
-                IsComplete       = e.IsComplete,
-                StartingHole     = e.StartingHole,
-                TeeTime          = e.TeeTime,
-            });
-        }
-
-        return result;
+            Rank             = s.Rank,
+            TeamId           = s.TeamId,
+            TeamName         = s.TeamName,
+            ToPar            = s.ToPar,
+            GrossTotal       = s.GrossTotal,
+            StablefordPoints = s.StablefordPoints,
+            HolesComplete    = s.HolesComplete,
+            IsComplete       = s.IsComplete,
+            StartingHole     = s.StartingHole,
+            TeeTime          = s.TeeTime,
+        }).ToList();
     }
 
     // ── FUNDRAISING ───────────────────────────────────────────────────────────
@@ -723,88 +650,60 @@ public class EventService
         string eventCode,
         CancellationToken ct = default)
     {
-        var evt = await _db.Events
-            .Include(e => e.Organization)
-            .Include(e => e.Teams)
-            .Include(e => e.Scores)
-            .Include(e => e.Course)
-                .ThenInclude(c => c!.Holes)
-            .FirstOrDefaultAsync(e => e.EventCode == eventCode.ToUpperInvariant(), ct);
+        // Spec §3 Phase 3: 2 s Redis read-through absorbs shotgun-burst load.
+        // On a cache hit we skip DB entirely.
+        if (_leaderboardCache is not null)
+        {
+            var cachedJson = await _leaderboardCache.GetPublicAsync(eventCode);
+            if (cachedJson is not null)
+            {
+                var cached = JsonSerializer.Deserialize<PublicLeaderboardResponse>(cachedJson);
+                if (cached is not null) return cached;
+            }
+        }
 
-        if (evt is null || evt.Status is EventStatus.Draft or EventStatus.Cancelled)
+        var meta = await LeaderboardLoader.LoadEventByCodeAsync(_db, eventCode, ct);
+        if (meta is null || meta.Status is EventStatus.Draft or EventStatus.Cancelled)
             throw new NotFoundException($"No event found with code '{eventCode}'.");
 
-        var parByHole = evt.Course?.Holes
-            .ToDictionary(h => (int)h.HoleNumber, h => (int)h.Par)
-            ?? Enumerable.Range(1, evt.Holes).ToDictionary(n => n, _ => 4);
+        var standings = await LeaderboardLoader.LoadStandingsAsync(_db, meta, ct);
 
-        var scoresByTeam = evt.Scores
-            .GroupBy(s => s.TeamId)
-            .ToDictionary(g => g.Key, g => g.ToList());
+        // Org branding fallback for resolved fields — single projected query, no joins.
+        var org = await _db.Organizations
+            .AsNoTracking()
+            .Where(o => o.Id == meta.OrgId)
+            .Select(o => new { o.Name, o.LogoUrl, o.ThemeJson })
+            .FirstOrDefaultAsync(ct);
 
-        bool isStableford = evt.Format == EventFormat.Stableford;
-
-        var entries = new List<(string TeamName, int ToPar, int GrossTotal, int StablefordPoints, int HolesComplete, bool IsComplete)>();
-
-        foreach (var team in evt.Teams)
+        var response = new PublicLeaderboardResponse
         {
-            var teamScores    = scoresByTeam.GetValueOrDefault(team.Id, []);
-            var grossTotal    = teamScores.Sum(s => (int)s.GrossScore);
-            var parTotal      = teamScores.Sum(s => parByHole.GetValueOrDefault(s.HoleNumber, 4));
-            var holesComplete = teamScores.Count;
-            var stablefordPts = isStableford
-                ? teamScores.Sum(s => Math.Max(0, parByHole.GetValueOrDefault(s.HoleNumber, 4) - (int)s.GrossScore + 2))
-                : 0;
-            entries.Add((team.Name, grossTotal - parTotal, grossTotal, stablefordPts, holesComplete, holesComplete >= evt.Holes));
-        }
-
-        var sorted = isStableford
-            ? entries
-                .OrderBy(e => e.HolesComplete == 0 ? 1 : 0)
-                .ThenByDescending(e => e.StablefordPoints)
-                .ThenByDescending(e => e.HolesComplete)
-                .ToList()
-            : entries
-                .OrderBy(e => e.HolesComplete == 0 ? 1 : 0)
-                .ThenBy(e => e.ToPar)
-                .ThenByDescending(e => e.HolesComplete)
-                .ToList();
-
-        var standings = new List<PublicLeaderboardEntry>();
-        var rank = 1;
-        for (int i = 0; i < sorted.Count; i++)
-        {
-            if (i > 0 && sorted[i].HolesComplete > 0)
+            EventId   = meta.Id,
+            EventName = meta.Name,
+            Format    = meta.Format.ToString(),
+            Status    = meta.Status.ToString(),
+            Standings = standings.Select(s => new PublicLeaderboardEntry
             {
-                bool tied = isStableford
-                    ? sorted[i].StablefordPoints == sorted[i - 1].StablefordPoints
-                    : sorted[i].ToPar == sorted[i - 1].ToPar;
-                if (!tied) rank = i + 1;
-            }
-
-            standings.Add(new PublicLeaderboardEntry
-            {
-                Rank             = sorted[i].HolesComplete == 0 ? 0 : rank,
-                TeamName         = sorted[i].TeamName,
-                ToPar            = sorted[i].ToPar,
-                GrossTotal       = sorted[i].GrossTotal,
-                StablefordPoints = sorted[i].StablefordPoints,
-                HolesComplete    = sorted[i].HolesComplete,
-                IsComplete       = sorted[i].IsComplete,
-            });
-        }
-
-        return new PublicLeaderboardResponse
-        {
-            EventId          = evt.Id,
-            EventName        = evt.Name,
-            Format           = evt.Format.ToString(),
-            Status           = evt.Status.ToString(),
-            Standings        = standings,
-            ResolvedLogoUrl   = evt.LogoUrl  ?? evt.Organization.LogoUrl,
-            ResolvedThemeJson = evt.ThemeJson ?? evt.Organization.ThemeJson,
-            OrgName           = evt.Organization.Name,
+                Rank             = s.Rank,
+                TeamId           = s.TeamId,
+                TeamName         = s.TeamName,
+                ToPar            = s.ToPar,
+                GrossTotal       = s.GrossTotal,
+                StablefordPoints = s.StablefordPoints,
+                HolesComplete    = s.HolesComplete,
+                IsComplete       = s.IsComplete,
+            }).ToList(),
+            ResolvedLogoUrl   = meta.LogoUrl   ?? org?.LogoUrl,
+            ResolvedThemeJson = meta.ThemeJson ?? org?.ThemeJson,
+            OrgName           = org?.Name,
         };
+
+        if (_leaderboardCache is not null)
+        {
+            var json = JsonSerializer.Serialize(response);
+            await _leaderboardCache.SetPublicAsync(eventCode, json);
+        }
+
+        return response;
     }
 
     // ── PUBLIC CHALLENGES ─────────────────────────────────────────────────────

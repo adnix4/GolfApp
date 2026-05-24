@@ -1,49 +1,56 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using StackExchange.Redis;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Hubs;
-using GolfFundraiserPro.Api.Domain.Enums;
+using GolfFundraiserPro.Api.Features.Events.Leaderboard;
 using GolfFundraiserPro.Api.Features.Notifications;
 
 namespace GolfFundraiserPro.Api.Features.RealTime;
 
 /// <summary>
-/// Scoped service that wraps the SignalR hub context and Redis cache.
-/// Called by ScoreService and MobileService after a score is persisted.
+/// Scoped service that wraps the SignalR hub context.
+///
+/// On a score push: emits a lightweight ScoreUpdated for the affected team
+/// (uses the already-coalesced broadcaster to compute the team's new rank),
+/// then asks LeaderboardBroadcaster to coalesce a full LeaderboardRefreshed.
 /// </summary>
 public class RealTimeService : IRealTimeService
 {
-    private readonly IHubContext<TournamentHub> _hub;
-    private readonly ApplicationDbContext _db;
-    private readonly PushNotificationService _push;
-    private readonly ILogger<RealTimeService> _logger;
-    private readonly IDatabase? _cache;
+    private readonly IHubContext<TournamentHub>  _hub;
+    private readonly ApplicationDbContext        _db;
+    private readonly PushNotificationService     _push;
+    private readonly ILogger<RealTimeService>    _logger;
+    private readonly LeaderboardBroadcaster      _broadcaster;
 
     public RealTimeService(
-        IHubContext<TournamentHub> hub,
-        ApplicationDbContext db,
-        PushNotificationService push,
-        ILogger<RealTimeService> logger,
-        IServiceProvider services)
+        IHubContext<TournamentHub>  hub,
+        ApplicationDbContext        db,
+        PushNotificationService     push,
+        ILogger<RealTimeService>    logger,
+        LeaderboardBroadcaster      broadcaster)
     {
-        _hub    = hub;
-        _db     = db;
-        _push   = push;
-        _logger = logger;
-        _cache  = services.GetService<IConnectionMultiplexer>()?.GetDatabase();
+        _hub         = hub;
+        _db          = db;
+        _push        = push;
+        _logger      = logger;
+        _broadcaster = broadcaster;
     }
 
     /// <summary>
-    /// Fires ScoreUpdated + optional HoleInOneAlert + LeaderboardRefreshed
-    /// for a single score submission, then invalidates the Redis leaderboard cache.
+    /// Fires lightweight ScoreUpdated + optional HoleInOneAlert immediately,
+    /// and requests a coalesced LeaderboardRefreshed (at most one per ~1.5 s
+    /// per event). Computes the scoring team's new rank inline so the
+    /// ScoreUpdated payload has accurate totals.
     /// </summary>
     public async Task PublishScoreAsync(
         string eventCode, Guid eventId, Guid teamId,
         short holeNumber, short grossScore, string teamName,
         CancellationToken ct = default)
     {
-        var standings = await ComputeStandingsAsync(eventId, ct);
+        var meta = await LeaderboardLoader.LoadEventAsync(_db, eventId, ct);
+        if (meta is null) return;
+
+        var standings = await LeaderboardLoader.LoadStandingsAsync(_db, meta, ct);
         var entry     = standings.FirstOrDefault(s => s.TeamId == teamId);
 
         await TrySendAsync("ScoreUpdated", eventCode, new
@@ -72,42 +79,38 @@ public class RealTimeService : IRealTimeService
                 eventCode, holeNumber, teamName);
         }
 
-        await TrySendAsync("LeaderboardRefreshed", eventCode, new { standings }, ct);
-        await InvalidateCacheAsync(eventCode);
+        _broadcaster.RequestBroadcast(eventCode, eventId);
     }
 
     /// <summary>
-    /// Fires a single LeaderboardRefreshed event — used by BatchSyncAsync after
-    /// saving multiple scores so we don't spam individual ScoreUpdated calls.
+    /// Called by BatchSyncAsync after a mobile device flushes multiple offline
+    /// scores. Fires hole-in-one alerts for each, then a single coalesced
+    /// LeaderboardRefreshed.
     /// </summary>
     public async Task PublishLeaderboardAsync(
         string eventCode, Guid eventId,
         IEnumerable<(Guid TeamId, string TeamName, short HoleNumber, short GrossScore)> acceptedScores,
         CancellationToken ct = default)
     {
-        // Fire HoleInOneAlert for any hole-in-one in this batch
-        foreach (var (teamId, teamName, holeNumber, grossScore) in acceptedScores)
+        foreach (var (_, teamName, holeNumber, grossScore) in acceptedScores)
         {
-            if (grossScore == 1)
+            if (grossScore != 1) continue;
+
+            await TrySendAsync("HoleInOneAlert", eventCode, new
             {
-                await TrySendAsync("HoleInOneAlert", eventCode, new
-                {
-                    teamName,
-                    playerName = teamName,
-                    holeNumber,
-                }, ct);
+                teamName,
+                playerName = teamName,
+                holeNumber,
+            }, ct);
 
-                await SendHoleInOnePushAsync(eventId, teamName, holeNumber, ct);
+            await SendHoleInOnePushAsync(eventId, teamName, holeNumber, ct);
 
-                _logger.LogInformation(
-                    "Hole-in-one on event {EventCode} hole {Hole} by team '{Team}'",
-                    eventCode, holeNumber, teamName);
-            }
+            _logger.LogInformation(
+                "Hole-in-one on event {EventCode} hole {Hole} by team '{Team}'",
+                eventCode, holeNumber, teamName);
         }
 
-        var standings = await ComputeStandingsAsync(eventId, ct);
-        await TrySendAsync("LeaderboardRefreshed", eventCode, new { standings }, ct);
-        await InvalidateCacheAsync(eventCode);
+        _broadcaster.RequestBroadcast(eventCode, eventId);
     }
 
     /// <summary>
@@ -198,16 +201,6 @@ public class RealTimeService : IRealTimeService
         }
     }
 
-    private async Task InvalidateCacheAsync(string eventCode)
-    {
-        if (_cache is null) return;
-        try { await _cache.KeyDeleteAsync($"leaderboard:{eventCode}"); }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Redis invalidation failed for {EventCode}", eventCode);
-        }
-    }
-
     // Fetches all player push tokens for the event and sends a hole-in-one push notification.
     private async Task SendHoleInOnePushAsync(
         Guid eventId, string teamName, short holeNumber, CancellationToken ct)
@@ -225,78 +218,5 @@ public class RealTimeService : IRealTimeService
             body:  $"{teamName} just made a hole-in-one on hole {holeNumber}!",
             data:  new { type = "hole_in_one", teamName, holeNumber },
             ct:    ct);
-    }
-
-    // Computes standings from live DB data, format-aware.
-    private async Task<List<StandingEntry>> ComputeStandingsAsync(Guid eventId, CancellationToken ct)
-    {
-        var evt = await _db.Events
-            .Include(e => e.Course).ThenInclude(c => c!.Holes)
-            .Where(e => e.Id == eventId)
-            .Select(e => new { e.Format, Holes = e.Course != null ? e.Course.Holes : null })
-            .FirstOrDefaultAsync(ct);
-
-        bool isStableford = evt?.Format == Domain.Enums.EventFormat.Stableford;
-
-        var parByHole = evt?.Holes?
-            .ToDictionary(h => (int)h.HoleNumber, h => (int)h.Par)
-            ?? new Dictionary<int, int>();
-
-        var teams = await _db.Teams
-            .Where(t => t.EventId == eventId)
-            .Select(t => new { t.Id, t.Name })
-            .ToListAsync(ct);
-
-        var scores = await _db.Scores
-            .Where(s => s.EventId == eventId && !s.IsConflicted)
-            .Select(s => new { s.TeamId, s.GrossScore, s.HoleNumber })
-            .ToListAsync(ct);
-
-        var byTeam = scores
-            .GroupBy(s => s.TeamId)
-            .ToDictionary(g => g.Key, g => g.ToList());
-
-        var entries = teams.Select(t =>
-        {
-            var ts    = byTeam.GetValueOrDefault(t.Id, []);
-            var gross = ts.Sum(s => (int)s.GrossScore);
-            var holes = ts.Count;
-            var par   = ts.Sum(s => parByHole.GetValueOrDefault(s.HoleNumber, 4));
-            var toPar = gross - par;
-            var stablefordPts = isStableford
-                ? ts.Sum(s => Math.Max(0, parByHole.GetValueOrDefault(s.HoleNumber, 4) - (int)s.GrossScore + 2))
-                : 0;
-            return new StandingEntry
-            {
-                TeamId          = t.Id,
-                TeamName        = t.Name,
-                Gross           = gross,
-                ToPar           = toPar,
-                StablefordPoints = stablefordPts,
-                Thru            = holes,
-            };
-        });
-
-        List<StandingEntry> sorted = isStableford
-            ? entries.OrderByDescending(e => e.StablefordPoints).ThenByDescending(e => e.Thru).ToList()
-            : entries.OrderBy(e => e.ToPar).ThenBy(e => e.Gross).ToList();
-
-        for (var i = 0; i < sorted.Count; i++)
-            sorted[i] = sorted[i] with { Rank = i + 1 };
-
-        return sorted;
-    }
-
-    // ── MODELS ─────────────────────────────────────────────────────────────────
-
-    internal sealed record StandingEntry
-    {
-        public Guid   TeamId          { get; init; }
-        public string TeamName        { get; init; } = string.Empty;
-        public int    Gross           { get; init; }
-        public int    ToPar           { get; init; }
-        public int    StablefordPoints { get; init; }
-        public int    Thru            { get; init; }
-        public int    Rank            { get; init; }
     }
 }

@@ -141,49 +141,62 @@ public class StandingsCalculator
         Guid seasonId, List<Guid> closedRoundIds, CancellationToken ct)
     {
         var records = new Dictionary<Guid, (int Wins, int Losses, int Halves)>();
+        if (closedRoundIds.Count == 0) return records;
+
+        // Two batched queries — no per-round round-trip.
+        var allPairings = await _db.LeaguePairings
+            .AsNoTracking()
+            .Where(p => closedRoundIds.Contains(p.RoundId))
+            .Select(p => new { p.RoundId, p.MemberIdsJson })
+            .ToListAsync(ct);
+
+        var allScores = await _db.LeagueScores
+            .AsNoTracking()
+            .Where(s => closedRoundIds.Contains(s.RoundId))
+            .Select(s => new { s.RoundId, s.MemberId, s.HoleNumber, s.NetScore })
+            .ToListAsync(ct);
+
+        // Pre-group: round → member → hole → netScore. O(1) lookups inside the
+        // pair loop instead of repeated Where/First scans of the flat list.
+        var scoresByRound = allScores
+            .GroupBy(s => s.RoundId)
+            .ToDictionary(
+                rg => rg.Key,
+                rg => rg.GroupBy(s => s.MemberId).ToDictionary(
+                    mg => mg.Key,
+                    mg => mg.ToDictionary(s => (int)s.HoleNumber, s => (int)s.NetScore)));
+
+        var pairingsByRound = allPairings
+            .GroupBy(p => p.RoundId)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         foreach (var roundId in closedRoundIds)
         {
-            var pairings = await _db.LeaguePairings
-                .Where(p => p.RoundId == roundId)
-                .ToListAsync(ct);
-
-            // Per-hole scores per member for this round
-            var scores = await _db.LeagueScores
-                .Where(s => s.RoundId == roundId)
-                .ToListAsync(ct);
+            if (!pairingsByRound.TryGetValue(roundId, out var pairings)) continue;
+            var roundScores = scoresByRound.GetValueOrDefault(roundId, []);
 
             foreach (var pairing in pairings)
             {
                 var memberIds = PairingEngine.DeserializeMemberIds(pairing.MemberIdsJson);
                 if (memberIds.Count < 2) continue;
 
-                // For each pair in the group, compare per-hole net scores
                 for (int i = 0; i < memberIds.Count; i++)
                 for (int j = i + 1; j < memberIds.Count; j++)
                 {
                     var aId = memberIds[i];
                     var bId = memberIds[j];
 
-                    var aScores = scores.Where(s => s.MemberId == aId).ToList();
-                    var bScores = scores.Where(s => s.MemberId == bId).ToList();
-
-                    var holes = aScores.Select(s => s.HoleNumber)
-                        .Intersect(bScores.Select(s => s.HoleNumber))
-                        .ToList();
-
-                    if (holes.Count == 0) continue;
+                    if (!roundScores.TryGetValue(aId, out var aHoles)) continue;
+                    if (!roundScores.TryGetValue(bId, out var bHoles)) continue;
 
                     int aHolesWon = 0, bHolesWon = 0;
-                    foreach (var hole in holes)
+                    foreach (var (hole, aNet) in aHoles)
                     {
-                        var aNet = aScores.First(s => s.HoleNumber == hole).NetScore;
-                        var bNet = bScores.First(s => s.HoleNumber == hole).NetScore;
-                        if (aNet < bNet) aHolesWon++;
+                        if (!bHoles.TryGetValue(hole, out var bNet)) continue;
+                        if      (aNet < bNet) aHolesWon++;
                         else if (bNet < aNet) bHolesWon++;
                     }
 
-                    // Determine match winner for this round's head-to-head
                     if (aHolesWon > bHolesWon)
                     {
                         Increment(records, aId, win: true);

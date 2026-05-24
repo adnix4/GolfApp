@@ -499,6 +499,8 @@ public record PublicLeaderboardResponse
 public record PublicLeaderboardEntry
 {
     public int     Rank             { get; init; }
+    /// <summary>Stable identifier so client lists can use it as a React key across re-sorts.</summary>
+    public Guid    TeamId           { get; init; }
     public string  TeamName         { get; init; } = string.Empty;
     public int     ToPar            { get; init; }
     public int     GrossTotal       { get; init; }

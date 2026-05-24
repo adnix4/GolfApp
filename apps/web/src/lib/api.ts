@@ -43,6 +43,7 @@ export interface PublicEventData {
 
 export interface PublicLeaderboardEntry {
   rank:          number;
+  teamId:        string;
   teamName:      string;
   toPar:         number;
   grossTotal:    number;

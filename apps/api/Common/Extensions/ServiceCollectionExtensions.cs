@@ -144,6 +144,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Features.Mobile.MobileService>();
         services.AddScoped<Features.RealTime.IRealTimeService, Features.RealTime.RealTimeService>();
         services.AddScoped<Features.RealTime.RealTimeService>();
+
+        // Leaderboard infra — singletons own per-event coalescing state and the
+        // Redis read-through cache. See Features/Events/Leaderboard/.
+        services.AddSingleton<Features.Events.Leaderboard.LeaderboardCache>();
+        services.AddSingleton<Features.Events.Leaderboard.LeaderboardBroadcaster>();
         services.AddScoped<Features.Notifications.PushNotificationService>();
         services.AddScoped<Features.EmailBuilder.EmailBuilderService>();
 

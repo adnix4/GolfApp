@@ -15,6 +15,7 @@
     "@gfp/shared-types":   "*",
     "@gfp/theme":          "*",
     "@gfp/ui":             "*",
+    "@microsoft/signalr":  "^8.0.0",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "@react-native-community/netinfo": "^11.4.1",
     "expo-secure-store": "~55.0.13",
