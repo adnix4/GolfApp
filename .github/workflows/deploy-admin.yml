@@ -66,10 +66,16 @@ jobs:
       - name: Install EAS CLI
         run: npm install --global eas-cli@latest
 
+      - name: Export Expo Router web build
+        # `eas deploy` expects a prebuilt dist/ folder — it no longer runs
+        # the export step itself. The `build` script in apps/admin/package.json
+        # runs `expo export --platform web`.
+        working-directory: apps/admin
+        run: npm run build
+
       - name: Deploy to EAS Hosting (production channel)
-        # `eas deploy --prod` exports the Expo Router web app as a static site
-        # and uploads it to EAS Hosting.
-        # The --non-interactive flag prevents prompts in CI.
+        # Uploads the dist/ folder produced by the previous step.
+        # --non-interactive prevents prompts in CI.
         working-directory: apps/admin
         run: eas deploy --prod --non-interactive
         env:
