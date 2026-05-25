@@ -88,11 +88,11 @@ export default function PreflightScreen() {
       ? { status: 'warn', detail: 'No course attached yet — par data unavailable' }
       : { status: 'ok', detail: `${session.event.name} · ${session.course.name}` };
 
-  const rosterCheck: CheckState = !session || session.team.players.length === 0
+  const rosterCheck: CheckState = !session || !session.team || session.team.players.length === 0
     ? { status: 'fail', detail: 'No players found on your team' }
     : { status: 'ok', detail: `${session.team.players.length} player${session.team.players.length !== 1 ? 's' : ''} on ${session.team.name}` };
 
-  const startCheck: CheckState = !session
+  const startCheck: CheckState = !session || !session.team
     ? { status: 'fail', detail: 'No session' }
     : session.team.startingHole != null
       ? { status: 'ok', detail: `Shotgun start — Hole ${session.team.startingHole}` }

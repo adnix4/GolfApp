@@ -169,7 +169,7 @@ describe('loadSession', () => {
     await saveSession(SESSION);
     const result = await loadSession();
     expect(result?.event.id).toBe('ev1');
-    expect(result?.team.name).toBe('Eagles');
+    expect(result?.team!.name).toBe('Eagles');
   });
 });
 

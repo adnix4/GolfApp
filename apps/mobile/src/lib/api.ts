@@ -37,7 +37,8 @@ export interface EventCacheDto {
 
 export interface JoinEventResponse {
   event:     EventCacheDto;
-  team:      TeamCacheDto;
+  /** Null when awaitingAssignment is true (free agent not yet assigned to a team). */
+  team?:     TeamCacheDto;
   player:    PlayerCacheDto;
   org:       OrgCacheDto;
   course:    CourseCacheDto | null;
@@ -45,6 +46,12 @@ export interface JoinEventResponse {
   leagueId?: string;
   seasonId?: string;
   memberId?: string;
+  /**
+   * True when the golfer registered as a free agent and the organizer has not yet
+   * assigned them to a team. `team` will be undefined in this case.
+   * The join screen shows a "Check Again" button that re-polls until assigned.
+   */
+  awaitingAssignment?: boolean;
 }
 
 export interface SyncConflictDto {

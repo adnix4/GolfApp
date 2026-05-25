@@ -50,6 +50,7 @@ export async function attemptSync(): Promise<boolean> {
 
     offlineModeActive = session.event.offlineMode ?? false;
     const { event, team } = session;
+    if (!team) { isSyncing = false; return false; } // free agent awaiting assignment — nothing to sync
     const unsynced = await loadUnsyncedScores(event.id, team.id);
     if (unsynced.length === 0) { isSyncing = false; return false; }
 

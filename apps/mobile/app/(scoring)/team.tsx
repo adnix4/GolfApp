@@ -56,7 +56,7 @@ export default function TeamScreen() {
   const theme   = useTheme();
   const { session } = useSession();
 
-  if (!session) return null;
+  if (!session?.team) return null;
 
   const { team, player: me, event, course } = session;
 

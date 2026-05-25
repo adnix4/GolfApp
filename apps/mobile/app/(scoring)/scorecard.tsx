@@ -156,6 +156,110 @@ const hioStyles = StyleSheet.create({
   hint:     { fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 20 },
 });
 
+// ── CHALLENGE DETAIL MODAL ────────────────────────────────────────────────────
+
+const CHALLENGE_TYPE_LABELS: Record<string, string> = {
+  ClosestToPin: '📍 Closest to the Pin',
+  LongestDrive: '💨 Longest Drive',
+  LongestPutt:  '⛳ Longest Putt',
+  KP:           '🎯 KP Challenge',
+  HoleInOne:    '🎰 Hole in One',
+};
+
+function ChallengeDetailModal({
+  challenge,
+  onDismiss,
+}: {
+  challenge: ChallengeCacheDto | null;
+  onDismiss: () => void;
+}) {
+  const theme = useTheme();
+  if (!challenge) return null;
+
+  return (
+    <Modal
+      transparent
+      visible
+      animationType="slide"
+      onRequestClose={onDismiss}
+    >
+      <Pressable
+        style={chalModalStyles.backdrop}
+        onPress={onDismiss}
+        accessibilityLabel="Close challenge detail"
+        accessibilityRole="button"
+      >
+        <Pressable style={[chalModalStyles.card, { backgroundColor: theme.colors.surface }]} onPress={() => {}}>
+          <View style={[chalModalStyles.header, { backgroundColor: theme.colors.primary }]}>
+            <Text style={chalModalStyles.headerText}>
+              {challenge.holeNumber != null
+                ? `Hole ${challenge.holeNumber} Challenge`
+                : 'Event Challenge'}
+            </Text>
+          </View>
+          <View style={chalModalStyles.body}>
+            {challenge.challengeType ? (
+              <Text style={[chalModalStyles.typeLabel, { color: theme.colors.accent }]}>
+                {CHALLENGE_TYPE_LABELS[challenge.challengeType] ?? challenge.challengeType}
+              </Text>
+            ) : null}
+            <Text style={[chalModalStyles.description, { color: theme.colors.primary }]}>
+              {challenge.description}
+            </Text>
+            {challenge.prizeDescription ? (
+              <View style={[chalModalStyles.prizeBox, { backgroundColor: '#fffbf0', borderColor: '#f39c12' }]}>
+                <Text style={chalModalStyles.prizeLabel}>🏆 Prize</Text>
+                <Text style={chalModalStyles.prizeText}>{challenge.prizeDescription}</Text>
+              </View>
+            ) : null}
+            {challenge.sponsorName ? (
+              <Text style={[chalModalStyles.sponsorText, { color: theme.colors.accent }]}>
+                Presented by {challenge.sponsorName}
+              </Text>
+            ) : null}
+          </View>
+          <Pressable
+            style={[chalModalStyles.closeBtn, { backgroundColor: theme.colors.primary }]}
+            onPress={onDismiss}
+            accessibilityRole="button"
+          >
+            <Text style={chalModalStyles.closeBtnText}>Got It</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const chalModalStyles = StyleSheet.create({
+  backdrop:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  card:         { borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
+  header:       { paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center' },
+  headerText:   { color: '#fff', fontSize: 17, fontWeight: '800' },
+  body:         { padding: 20, gap: 10 },
+  typeLabel:    { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
+  description:  { fontSize: 16, lineHeight: 24 },
+  prizeBox:     { borderWidth: 1, borderRadius: 10, padding: 12 },
+  prizeLabel:   { fontSize: 12, fontWeight: '700', color: '#b7770d', marginBottom: 4 },
+  prizeText:    { fontSize: 14, color: '#7d6608', lineHeight: 20 },
+  sponsorText:  { fontSize: 13, textAlign: 'center' },
+  closeBtn:     { margin: 20, marginTop: 8, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  closeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+});
+
+// ── SUMMARY TABLE (pre-scoring and post-round shared layout) ──────────────────
+
+const summaryCol = StyleSheet.create({
+  row:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, paddingHorizontal: 8 },
+  hole: { flex: 1,   textAlign: 'center' },   // "#"   — up to "18"
+  yds:  { flex: 1.5, textAlign: 'center' },   // "Yds" — 3-digit yardage
+  par:  { flex: 1,   textAlign: 'center' },   // "Par" — single digit
+  scr:  { flex: 1.5, textAlign: 'center' },   // "Scr" — up to 2 digits
+  rel:  { flex: 1.5, textAlign: 'center' },   // "+/−" — up to "+10"
+  spon: { flex: 3,   textAlign: 'center' },   // "Spon" — absorbs remaining space
+  chal: { flex: 1.5, alignItems: 'center' },  // "Chal" — 🏆 or —
+});
+
 // ── SHOT COUNTER COLUMN ───────────────────────────────────────────────────────
 
 function ShotColumn({
@@ -229,15 +333,34 @@ export default function ScorecardScreen() {
     upsertScore, completeHole, syncScores,
   } = useSession();
 
-  const [holeIndex,  setHoleIndex]  = useState(0);
-  const [showHio,    setShowHio]    = useState(false);
-  const [completing, setCompleting] = useState(false);
-  const [challenges, setChallenges] = useState<ChallengeCacheDto[]>([]);
+  const [holeIndex,         setHoleIndex]         = useState(0);
+  const [showHio,           setShowHio]           = useState(false);
+  const [completing,        setCompleting]        = useState(false);
+  const [challenges,        setChallenges]        = useState<ChallengeCacheDto[]>([]);
+  const [selectedChallenge, setSelectedChallenge] = useState<ChallengeCacheDto | null>(null);
+  const [headerTip,         setHeaderTip]         = useState<string | null>(null);
+  const tipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const holeOrder = useMemo(
-    () => session ? getHoleOrder(session.team.startingHole, session.event.holes) : [],
+    () => session?.team ? getHoleOrder(session.team.startingHole, session.event.holes) : [],
     [session],
   );
+
+  // hole number → sponsor name (first match wins)
+  const holeSponsorMap = useMemo(() => {
+    const map = new Map<number, string>();
+    session?.sponsors?.forEach(s => {
+      s.holeNumbers.forEach(h => { if (!map.has(h)) map.set(h, s.name); });
+    });
+    return map;
+  }, [session?.sponsors]);
+
+  // hole number → hole-specific challenge
+  const challengeMap = useMemo(() => {
+    const map = new Map<number, ChallengeCacheDto>();
+    challenges.forEach(c => { if (c.holeNumber != null) map.set(c.holeNumber, c); });
+    return map;
+  }, [challenges]);
 
   useEffect(() => {
     if (!loading && !session) router.replace('/join');
@@ -250,7 +373,16 @@ export default function ScorecardScreen() {
 
   const handleSync = useCallback(() => { syncScores(); }, [syncScores]);
 
-  if (loading || !session) {
+  const showHeaderTip = useCallback((desc: string) => {
+    if (tipTimerRef.current) clearTimeout(tipTimerRef.current);
+    setHeaderTip(desc);
+    tipTimerRef.current = setTimeout(() => setHeaderTip(null), 2000);
+  }, []);
+
+  // clean up timer on unmount
+  useEffect(() => () => { if (tipTimerRef.current) clearTimeout(tipTimerRef.current); }, []);
+
+  if (loading || !session?.team) {
     return (
       <View style={[styles.center, { backgroundColor: theme.pageBackground }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -258,6 +390,125 @@ export default function ScorecardScreen() {
     );
   }
 
+  // ── PRE-SCORING SUMMARY (shown in place of per-hole sheets when not live) ────
+  const scoringEnabled =
+    session.event.status === 'Scoring' || session.event.status === 'Draft';
+
+  if (!scoringEnabled) {
+    const allHoles = Array.from({ length: session.event.holes }, (_, i) => i + 1);
+
+    return (
+      <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+        {/* Header: event name + hosted by course */}
+        <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
+          <Text style={[styles.headerEventName, { color: theme.colors.highlight }]} numberOfLines={2}>
+            {session.event.name}
+          </Text>
+          {session.course ? (
+            <Text style={[styles.headerHostedBy, { color: theme.colors.highlight }]} numberOfLines={1}>
+              Hosted by {session.course.name}
+            </Text>
+          ) : null}
+        </View>
+
+        <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 40 }]}>
+
+          {/* [Team]'s Scorecard */}
+          <Text style={[styles.summaryTitle, { color: theme.colors.primary }]}>
+            {session.team.name}'s Scorecard
+          </Text>
+
+          {/* Table header — tap any abbreviation for the full label */}
+          <View style={[styles.summaryTableHeader, { backgroundColor: theme.colors.primary }]}>
+            <Text style={[summaryCol.hole, styles.summaryTh]} numberOfLines={1} onPress={() => showHeaderTip('Hole Number')}>#</Text>
+            <Text style={[summaryCol.yds,  styles.summaryTh]} numberOfLines={1} onPress={() => showHeaderTip('Yardage')}>Yds</Text>
+            <Text style={[summaryCol.par,  styles.summaryTh]} numberOfLines={1} onPress={() => showHeaderTip('Par')}>Par</Text>
+            <Text style={[summaryCol.scr,  styles.summaryTh]} numberOfLines={1} onPress={() => showHeaderTip('Strokes')}>Scr</Text>
+            <Text style={[summaryCol.rel,  styles.summaryTh]} numberOfLines={1} onPress={() => showHeaderTip('Score vs. Par')}>+/−</Text>
+            <Text style={[summaryCol.spon, styles.summaryTh]} numberOfLines={1} onPress={() => showHeaderTip('Hole Sponsor')}>Spon</Text>
+            <Text style={[summaryCol.chal, styles.summaryTh]} numberOfLines={1} onPress={() => showHeaderTip('Hole Challenge')}>Chal</Text>
+          </View>
+          {headerTip !== null && (
+            <View style={[styles.headerTip, { backgroundColor: theme.colors.primary + 'cc' }]}>
+              <Text style={styles.headerTipText}>{headerTip}</Text>
+            </View>
+          )}
+
+          {allHoles.map((holeNum, idx) => {
+            const holeData  = session.course?.holes.find(h => h.holeNumber === holeNum);
+            const par       = holeData?.par ?? 4;
+            const challenge = challengeMap.get(holeNum);
+            const sponsor   = holeSponsorMap.get(holeNum);
+            const yardage   = holeData?.yardageWhite ?? holeData?.yardageBlue ?? holeData?.yardageRed;
+            const rowBg     = idx % 2 === 0 ? theme.colors.surface : theme.colors.highlight + 'cc';
+
+            // Show pending score if it exists (e.g. from a draft/test run)
+            const pending   = pendingScores.find(s => s.holeNumber === holeNum);
+            const hasScore  = !!pending;
+            const gross     = pending?.grossScore ?? 0;
+            const relative  = hasScore ? gross - par : null;
+            const relLabel  =
+              relative === null ? '—' :
+              relative === 0    ? 'E' :
+              relative > 0      ? `+${relative}` : `${relative}`;
+            const relColor =
+              relative === null ? theme.colors.accent :
+              relative < 0      ? '#27ae60' :
+              relative > 0      ? '#e74c3c' : theme.colors.accent;
+
+            return (
+              <View key={holeNum} style={styles.summaryHoleBlock}>
+                <View style={[summaryCol.row, { backgroundColor: rowBg }]}>
+                  <Text style={[summaryCol.hole, styles.summaryCell, { color: theme.colors.primary, fontWeight: '700' }]}>
+                    {holeNum}
+                  </Text>
+                  <Text style={[summaryCol.yds, styles.summaryCell, { color: theme.colors.accent }]}>
+                    {yardage != null ? `${yardage}` : '—'}
+                  </Text>
+                  <Text style={[summaryCol.par, styles.summaryCell, { color: theme.colors.accent }]}>
+                    {par}
+                  </Text>
+                  <Text style={[summaryCol.scr, styles.summaryCell, { color: theme.colors.primary, opacity: hasScore ? 1 : 0.3, fontWeight: hasScore ? '700' : '400' }]}>
+                    {hasScore ? gross : '—'}
+                  </Text>
+                  <Text style={[summaryCol.rel, styles.summaryCell, { color: relColor, fontWeight: '600' }]}>
+                    {relLabel}
+                  </Text>
+                  {sponsor ? (
+                    <Text style={[summaryCol.spon, styles.summaryCell, { color: theme.colors.accent }]} numberOfLines={1}>
+                      {sponsor}
+                    </Text>
+                  ) : (
+                    <Text style={[summaryCol.spon, styles.summaryCellDash, { color: theme.colors.accent }]}>—</Text>
+                  )}
+                  {challenge ? (
+                    <Pressable
+                      style={summaryCol.chal}
+                      onPress={() => setSelectedChallenge(challenge)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View challenge for hole ${holeNum}`}
+                    >
+                      <Text style={styles.summaryChallengeIcon}>🏆</Text>
+                    </Pressable>
+                  ) : (
+                    <Text style={[summaryCol.chal, styles.summaryCellDash, { color: theme.colors.accent }]}>—</Text>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+
+        <ChallengeDetailModal
+          challenge={selectedChallenge}
+          onDismiss={() => setSelectedChallenge(null)}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  // ── ACTIVE SCORING VIEW ───────────────────────────────────────────────────────
   const currentHoleNumber    = holeOrder[holeIndex] ?? 1;
   const hole                 = session.course?.holes.find(h => h.holeNumber === currentHoleNumber) ?? null;
   const par                  = hole?.par ?? 4;
@@ -273,9 +524,6 @@ export default function ScorecardScreen() {
   );
   const displayScore = grossScore > 0 ? grossScore : null;
   const hasShots     = grossScore > 0;
-
-  const scoringEnabled =
-    session.event.status === 'Scoring' || session.event.status === 'Draft';
 
   function changePlayerShots(
     playerId: string,
@@ -694,4 +942,28 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#27ae60',
   },
   completedBtnText: { fontSize: 14, fontWeight: '700', color: '#27ae60' },
+
+  // ── Pre-scoring summary ──────────────────────────────────────────────────────
+  headerEventName: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
+  headerHostedBy:  { fontSize: 13, fontWeight: '500', marginTop: 3, textAlign: 'center', opacity: 0.8 },
+
+  summaryTitle: {
+    fontSize: 18, fontWeight: '800',
+    marginTop: 16, marginBottom: 8, paddingHorizontal: 12,
+  },
+  summaryTableHeader: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 8, paddingHorizontal: 12,
+  },
+  summaryTh:            { fontSize: 11, fontWeight: '700', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center' },
+  summaryHoleBlock:     {},
+  summaryCell:          { fontSize: 14 },
+  summaryCellDash:      { textAlign: 'center', fontSize: 14 },
+  summaryChallengeIcon: { fontSize: 16 },
+  summarySubRow:        { paddingHorizontal: 12, paddingBottom: 6 },
+  summarySubText:       { fontSize: 11, fontWeight: '500' },
+
+  // Column-label tooltip (tap a header abbreviation to reveal full name)
+  headerTip:     { alignItems: 'center', paddingVertical: 5, marginBottom: 2 },
+  headerTipText: { color: '#fff', fontSize: 12, fontWeight: '600', letterSpacing: 0.3 },
 });

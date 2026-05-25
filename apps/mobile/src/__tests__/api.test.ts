@@ -70,7 +70,7 @@ describe('joinEvent', () => {
     mockOk(response);
     const result = await joinEvent('TESTCODE', 'jane@test.com', 'dev-001');
     expect(result.event.eventCode).toBe('TESTCODE');
-    expect(result.team.name).toBe('Eagles');
+    expect(result.team!.name).toBe('Eagles');
   });
 
   it('throws an error when the server returns 404', async () => {

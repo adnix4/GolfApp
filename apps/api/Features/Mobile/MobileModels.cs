@@ -72,15 +72,34 @@ public record PendingScoreInput
 /// Response to POST /events/{eventCode}/join.
 /// Contains everything the mobile app needs to pre-populate its SQLite event_cache
 /// so scoring can proceed fully offline.
+///
+/// FREE AGENT CASE:
+///   When AwaitingAssignment = true, the golfer is in the free agent pool but has
+///   not yet been assigned to a team. Team will be null. The mobile app shows a
+///   "waiting for assignment" screen with a "Check Again" button.
 /// </summary>
 public record JoinEventResponse
 {
     public EventCacheDto          Event   { get; init; } = null!;
-    public TeamCacheDto           Team    { get; init; } = null!;
+
+    /// <summary>
+    /// Null when the golfer is a free agent awaiting team assignment.
+    /// The mobile app must check AwaitingAssignment before accessing this field.
+    /// </summary>
+    public TeamCacheDto?          Team    { get; init; }
+
     public PlayerCacheDto         Player  { get; init; } = null!;
     public OrgCacheDto            Org     { get; init; } = null!;
     public CourseCacheDto?        Course  { get; init; }
     public List<SponsorCacheDto>  Sponsors { get; init; } = new();
+
+    /// <summary>
+    /// True when the golfer registered as a free agent and the organizer has not
+    /// yet assigned them to a team. Team will be null in this case.
+    /// The mobile app should show a "waiting for assignment" screen and offer a
+    /// "Check Again" button that re-calls this endpoint.
+    /// </summary>
+    public bool AwaitingAssignment { get; init; } = false;
 }
 
 public record EventCacheDto

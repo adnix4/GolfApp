@@ -9,7 +9,7 @@ import { useSession } from '@/lib/session';
 import { joinEvent, fetchActiveEvents, type ActiveEventSummary } from '@/lib/api';
 import { registerForPushNotifications } from '@/lib/pushNotifications';
 
-type Step = 'pick' | 'join';
+type Step = 'pick' | 'join' | 'waiting';
 
 const FORMAT_LABELS: Record<string, string> = {
   Scramble:   'Scramble',
@@ -46,6 +46,12 @@ export default function JoinScreen() {
   const [error,         setError]         = useState<string | null>(null);
   const [joining,       setJoining]       = useState(false);
   const [showManual,    setShowManual]    = useState(false);
+
+  // Free-agent waiting state — stored so "Check Again" can re-poll with same credentials
+  const [waitingEventCode, setWaitingEventCode] = useState('');
+  const [waitingEmail,     setWaitingEmail]     = useState('');
+  const [waitingName,      setWaitingName]      = useState('');
+  const [waitingEventName, setWaitingEventName] = useState('');
 
   useEffect(() => {
     if (!loading && session) router.replace('/scorecard');
@@ -91,11 +97,45 @@ export default function JoinScreen() {
     setJoining(true);
     try {
       const data = await joinEvent(code, emailT, deviceId);
+
+      if (data.awaitingAssignment) {
+        // Free agent registered but not yet assigned to a team — show waiting screen
+        setWaitingEventCode(code);
+        setWaitingEmail(emailT);
+        setWaitingName(`${data.player.firstName} ${data.player.lastName}`);
+        setWaitingEventName(data.event.name);
+        setStep('waiting');
+        return;
+      }
+
       await setSession(data);
       registerForPushNotifications(data.player.id).catch(() => {});
       router.replace('/preflight');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not join event. Check your code and email.');
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  async function handleCheckAgain() {
+    setError(null);
+    setJoining(true);
+    try {
+      const data = await joinEvent(waitingEventCode, waitingEmail, deviceId);
+
+      if (data.awaitingAssignment) {
+        // Still not assigned — stay on waiting screen, just update the name in case it changed
+        setWaitingName(`${data.player.firstName} ${data.player.lastName}`);
+        return;
+      }
+
+      // Assigned! Enter the normal join flow.
+      await setSession(data);
+      registerForPushNotifications(data.player.id).catch(() => {});
+      router.replace('/preflight');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not check status. Please try again.');
     } finally {
       setJoining(false);
     }
@@ -118,6 +158,72 @@ export default function JoinScreen() {
       <Text style={[styles.logoSub,   { color: theme.colors.accent }]}>Golf Fundraiser Pro</Text>
     </View>
   );
+
+  // ── WAITING STEP (free agent awaiting team assignment) ────────────────────────
+
+  if (step === 'waiting') {
+    return (
+      <KeyboardAvoidingView
+        style={[styles.page, { backgroundColor: theme.pageBackground }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          {logo}
+
+          <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+            <Text style={styles.waitingIcon}>⏳</Text>
+            <Text style={[styles.heading, { color: theme.colors.primary }]}>
+              Awaiting Team Assignment
+            </Text>
+            <Text style={[styles.sub, { color: theme.colors.accent }]}>
+              <Text style={{ fontWeight: '700' }}>{waitingName}</Text>, you're in the free agent pool for{' '}
+              <Text style={{ fontWeight: '700' }}>{waitingEventName}</Text>.{'\n\n'}
+              The organizer will assign you to a team before the event starts. Tap{' '}
+              <Text style={{ fontWeight: '700' }}>Check Again</Text> on the day of the event.
+            </Text>
+
+            {error && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
+            <View style={[styles.waitingInfoBox, { backgroundColor: theme.colors.primary + '0d', borderColor: theme.colors.primary + '33' }]}>
+              <Text style={[styles.waitingInfoLabel, { color: theme.colors.primary }]}>Your registration</Text>
+              <Text style={[styles.waitingInfoRow,  { color: theme.colors.accent }]}>📧 {waitingEmail}</Text>
+              <Text style={[styles.waitingInfoRow,  { color: theme.colors.accent }]}>🏌️ Free agent pool</Text>
+            </View>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.joinBtn,
+                { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary },
+                joining && { opacity: 0.6 },
+              ]}
+              onPress={handleCheckAgain}
+              disabled={joining}
+              accessibilityRole="button"
+              accessibilityLabel="Check if you have been assigned to a team"
+            >
+              {joining
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.joinBtnText}>Check Again</Text>}
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.waitingBackBtn, { borderColor: theme.colors.primary, opacity: pressed ? 0.7 : 1 }]}
+              onPress={() => { setStep('pick'); setError(null); }}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.waitingBackBtnText, { color: theme.colors.primary }]}>
+                Back to Home
+              </Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
 
   // ── JOIN STEP ─────────────────────────────────────────────────────────────────
 
@@ -482,4 +588,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14, alignItems: 'center',
   },
   registerBtnText: { fontSize: 15, fontWeight: '600' },
+
+  // Waiting step
+  waitingIcon:      { fontSize: 48, textAlign: 'center', marginBottom: 12 },
+  waitingInfoBox:   { borderRadius: 10, borderWidth: 1, padding: 14, marginTop: 16, marginBottom: 4, gap: 6 },
+  waitingInfoLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
+  waitingInfoRow:   { fontSize: 14 },
+  waitingBackBtn:   {
+    borderWidth: 1.5, borderRadius: 12,
+    paddingVertical: 14, alignItems: 'center', marginTop: 10,
+  },
+  waitingBackBtnText: { fontSize: 15, fontWeight: '600' },
 });

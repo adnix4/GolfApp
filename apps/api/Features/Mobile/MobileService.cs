@@ -123,10 +123,76 @@ public class MobileService
         if (evt.Status is EventStatus.Completed)
             throw new ValidationException("This event has already completed.");
 
-        // Find the player by email within this event
+        // Find the player by email within this event — check team-assigned players first
         var player = evt.Teams
             .SelectMany(t => t.Players)
             .FirstOrDefault(p => p.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase));
+
+        // If not found in any team, check the free agent pool (TeamId = null)
+        if (player is null)
+        {
+            var freeAgent = await _db.Players
+                .FirstOrDefaultAsync(
+                    p => p.EventId == evt.Id
+                      && p.Email   == request.Email.ToLowerInvariant()
+                      && p.TeamId  == null,
+                    ct);
+
+            if (freeAgent is not null)
+            {
+                // Once scoring is live every player must be on a team — block them
+                // with an actionable error so they call the organizer immediately.
+                if (evt.Status is EventStatus.Scoring)
+                    throw new ValidationException(
+                        "The round has started but you haven't been assigned to a team yet. " +
+                        "Please contact your event organizer immediately.");
+
+                // Draft / Registration / Active — the organizer still has time to assign.
+                // Return a minimal response so the mobile app can show a waiting screen.
+                _logger.LogInformation(
+                    "Free agent '{Email}' checked in for event '{Code}' — awaiting assignment",
+                    request.Email, eventCode);
+
+                return new JoinEventResponse
+                {
+                    AwaitingAssignment = true,
+                    Player = new PlayerCacheDto
+                    {
+                        Id        = freeAgent.Id,
+                        FirstName = freeAgent.FirstName,
+                        LastName  = freeAgent.LastName,
+                        Email     = freeAgent.Email,
+                    },
+                    Event = new EventCacheDto
+                    {
+                        Id               = evt.Id,
+                        Name             = evt.Name,
+                        EventCode        = evt.EventCode,
+                        Format           = evt.Format.ToString(),
+                        StartType        = evt.StartType.ToString(),
+                        Holes            = evt.Holes,
+                        Status           = evt.Status.ToString(),
+                        StartAt          = evt.StartAt,
+                        LogoUrl          = evt.LogoUrl  ?? evt.Organization.LogoUrl,
+                        ThemeJson        = evt.ThemeJson ?? evt.Organization.ThemeJson,
+                        MissionStatement = evt.MissionStatement ?? evt.Organization.MissionStatement,
+                        Is501c3          = evt.Is501c3 || evt.Organization.Is501c3,
+                        OfflineMode      = DeserializeOfflineMode(evt.ConfigJson),
+                    },
+                    Org = new OrgCacheDto
+                    {
+                        Id        = evt.Organization.Id,
+                        Name      = evt.Organization.Name,
+                        Slug      = evt.Organization.Slug,
+                        LogoUrl   = evt.Organization.LogoUrl,
+                        ThemeJson = evt.Organization.ThemeJson,
+                    },
+                    Team     = null,
+                    Course   = null,
+                    Sponsors = [],
+                };
+            }
+        }
 
         if (player is null)
             throw new NotFoundException(

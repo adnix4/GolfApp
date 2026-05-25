@@ -108,7 +108,7 @@ export default function QrTransferScreen() {
 
   // Build QR payload(s) on mount
   const build = useCallback(async () => {
-    if (!session) return;
+    if (!session?.team) return;
     setBuilding(true);
     setError(null);
     try {
@@ -149,7 +149,7 @@ export default function QrTransferScreen() {
 
   useEffect(() => { build(); }, [build]);
 
-  if (!session) return null;
+  if (!session?.team) return null;
 
   const isSplit  = qrValues.length === 2;
   const qrValue  = qrValues[activePart] ?? '';

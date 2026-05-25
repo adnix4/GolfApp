@@ -42,12 +42,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setDeviceId(id);
         if (saved) {
           setSessionState(saved);
-          const [scores, completedNums] = await Promise.all([
-            loadPendingScores(saved.event.id, saved.team.id),
-            loadCompletedHoleNumbers(saved.event.id, saved.team.id),
-          ]);
-          setPendingScores(scores);
-          setCompletedHoles(new Set(completedNums));
+          if (saved.team) {
+            const [scores, completedNums] = await Promise.all([
+              loadPendingScores(saved.event.id, saved.team.id),
+              loadCompletedHoleNumbers(saved.event.id, saved.team.id),
+            ]);
+            setPendingScores(scores);
+            setCompletedHoles(new Set(completedNums));
+          }
         }
       } catch {
         // Storage unavailable — start fresh with no session
@@ -61,12 +63,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // Adaptive foreground polling — interval shrinks/stops based on network tier.
   // Piggybacks on the same backoff/mutex as the OS background task.
   useEffect(() => {
-    if (!session || networkTier === 'offline') return;
+    if (!session || !session.team || networkTier === 'offline') return;
     let cancelled = false;
     const poll = async () => {
       const synced = await attemptSync();
       if (synced && !cancelled) {
-        const updated = await loadPendingScores(session.event.id, session.team.id);
+        const updated = await loadPendingScores(session.event.id, session.team!.id);
         setPendingScores(updated);
         setSyncStatus('synced');
       }
@@ -75,12 +77,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const id = setInterval(poll, POLL_INTERVAL_MS[networkTier]);
     return () => { cancelled = true; clearInterval(id); };
   // deps are intentionally limited: poll/POLL_INTERVAL_MS are stable and excluding them avoids restarting the interval on every render
-  }, [session?.event.id, session?.team.id, networkTier]);
+  }, [session?.event.id, session?.team?.id, networkTier]);
 
   const setSession = useCallback(async (data: JoinEventResponse) => {
     try {
       await saveSession(data);
-      const scores = await loadPendingScores(data.event.id, data.team.id);
+      const scores = data.team
+        ? await loadPendingScores(data.event.id, data.team.id)
+        : [];
       setSessionState(data);
       setPendingScores(scores);
       setSyncStatus('idle');
@@ -94,7 +98,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const clear = useCallback(async () => {
     try {
-      if (session) await clearPendingScores(session.event.id, session.team.id);
+      if (session?.team) await clearPendingScores(session.event.id, session.team.id);
       await clearSession();
     } catch { /* ignore DB errors on clear — we still reset in-memory state */ }
     setSessionState(null);
@@ -103,7 +107,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [session]);
 
   const upsertScore = useCallback(async (score: PendingScore) => {
-    if (!session) return;
+    if (!session?.team) return;
     const updated = [
       ...pendingScores.filter(s => s.holeNumber !== score.holeNumber),
       score,
@@ -115,7 +119,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setCompletedHoles(prev => { const n = new Set(prev); n.delete(score.holeNumber); return n; });
     }
     try {
-      await upsertPendingScore(session.event.id, session.team.id, score);
+      await upsertPendingScore(session.event.id, session.team!.id, score);
     } catch {
       // Score stays in-memory; backgroundSync will retry DB write on next poll
     }
@@ -126,7 +130,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const syncScores = useCallback(async (): Promise<BatchSyncResponse | null> => {
-    if (!session) return null;
+    if (!session?.team) return null;
     setSyncStatus('syncing');
     try {
       const unsynced = await loadUnsyncedScores(session.event.id, session.team.id);
@@ -142,7 +146,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [session, deviceId]);
 
   const completeHole = useCallback(async (holeNumber: number): Promise<void> => {
-    if (!session) return;
+    if (!session?.team) return;
     await markHoleComplete(session.event.id, session.team.id, holeNumber);
     setCompletedHoles(prev => new Set([...prev, holeNumber]));
     syncScores(); // release to leaderboard immediately
