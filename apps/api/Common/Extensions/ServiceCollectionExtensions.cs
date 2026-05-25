@@ -285,7 +285,7 @@ public static class ServiceCollectionExtensions
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()
             .UseRecommendedSerializerSettings()
-            .UsePostgreSqlStorage(connectionString));
+            .UsePostgreSqlStorage(opts => opts.UseNpgsqlConnection(connectionString)));
 
         // Phase 3: increased to 5 workers to handle push notification jobs alongside email jobs.
         services.AddHangfireServer(options =>

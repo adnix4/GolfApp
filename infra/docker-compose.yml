@@ -38,8 +38,6 @@
 #   OLD: no pgAdmin                       ← MISSING — harder to inspect data
 #   NEW: pgAdmin4 added on port 5050      ← CORRECT per spec Foundation §8
 
-version: '3.9'
-
 services:
 
   # ── POSTGRESQL + POSTGIS ────────────────────────────────────────────────────

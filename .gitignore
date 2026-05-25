@@ -7,6 +7,10 @@
 #   patterns like "node_modules" match in any subdirectory.
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ── LOCAL CREDENTIALS / PERSONAL NOTES ─────────────────────────────────────
+# Personal dev-credential reference — never commit
+docs/login.ts
+
 # ── NODE / NPM ──────────────────────────────────────────────────────────────
 # Dependency directories — never commit, always reinstall via `npm install`
 node_modules/
