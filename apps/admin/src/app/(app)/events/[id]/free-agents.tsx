@@ -7,6 +7,27 @@ import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { playersApi, teamsApi, type Player, type Team, type AddPlayerPayload } from '@/lib/api';
 
+function fmtAgeGroup(v: string | null | undefined): string | null {
+  if (!v) return null;
+  if (v === 'Under30')    return 'Under 30';
+  if (v === 'From30To50') return '30–50';
+  if (v === 'Over50')     return 'Over 50';
+  return v;
+}
+
+function digitsOnly(v: string): string { return v.replace(/\D/g, '').slice(0, 10); }
+function fmtPhoneInput(digits: string): string {
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+function fmtPhone(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const d = raw.replace(/\D/g, '');
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  return raw;
+}
+
 export default function FreeAgentsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
@@ -146,10 +167,26 @@ export default function FreeAgentsScreen() {
                   <Text style={[styles.agentName, { color: theme.colors.primary }]}>
                     {agent.firstName} {agent.lastName}
                   </Text>
-                  <Text style={[styles.agentMeta, { color: theme.colors.accent }]}>
-                    {agent.email}
-                    {agent.handicapIndex != null ? ` · HCP ${agent.handicapIndex}` : ''}
-                  </Text>
+                  {!!agent.email && (
+                    <Text style={[styles.agentMeta, { color: theme.colors.accent }]}>{agent.email}</Text>
+                  )}
+                  {!!agent.phone && (
+                    <Text style={[styles.agentMeta, { color: theme.colors.accent }]}>{fmtPhone(agent.phone)}</Text>
+                  )}
+                  {(agent.handicapIndex != null || agent.skillLevel || agent.ageGroup) && (
+                    <Text style={[styles.agentMeta, { color: theme.colors.accent }]}>
+                      {[
+                        agent.handicapIndex != null ? `HCP ${agent.handicapIndex}` : null,
+                        agent.skillLevel ?? null,
+                        fmtAgeGroup(agent.ageGroup),
+                      ].filter(Boolean).join(' · ')}
+                    </Text>
+                  )}
+                  {!!agent.pairingNote && (
+                    <Text style={[styles.agentNote, { color: theme.colors.accent }]}>
+                      Note: {agent.pairingNote}
+                    </Text>
+                  )}
                 </View>
               </Pressable>
             );
@@ -228,17 +265,21 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
   const [email,     setEmail]     = useState('');
+  const [phone,     setPhone]     = useState('');
   const [handicap,  setHandicap]  = useState('');
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
 
-  function reset() { setFirstName(''); setLastName(''); setEmail(''); setHandicap(''); setError(null); }
+  function reset() { setFirstName(''); setLastName(''); setEmail(''); setPhone(''); setHandicap(''); setError(null); }
 
   function validate(): boolean {
     if (!firstName.trim()) { setError('First name is required.'); return false; }
     if (!lastName.trim())  { setError('Last name is required.'); return false; }
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError(`"${email.trim()}" is not a valid email address.`); return false;
+    }
+    if (phone.trim() && digitsOnly(phone).length !== 10) {
+      setError('Phone number must be 10 digits.'); return false;
     }
     if (handicap.trim() && isNaN(Number(handicap))) {
       setError('Handicap must be a number.'); return false;
@@ -255,6 +296,7 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
         firstName: firstName.trim(),
         lastName:  lastName.trim(),
         email:     email.trim() || undefined,
+        phone:     phone.trim() || undefined,
         ...(handicap.trim() ? { handicapIndex: Number(handicap) } : {}),
       };
       const player = await playersApi.add(eventId, payload);
@@ -294,6 +336,13 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
             value={email} onChangeText={v => { setEmail(v); if (error) setError(null); }}
             placeholder="email@example.com (optional)" placeholderTextColor="#999"
             keyboardType="email-address" autoCapitalize="none" editable={!loading}
+          />
+          <TextInput
+            style={[styles.input, { borderColor: '#ccc', marginTop: 8 }]}
+            value={phone}
+            onChangeText={v => { setPhone(fmtPhoneInput(digitsOnly(v))); if (error) setError(null); }}
+            placeholder="(555) 867-5309 (optional)" placeholderTextColor="#999"
+            keyboardType="phone-pad" editable={!loading}
           />
           <TextInput
             style={[styles.input, { borderColor: '#ccc', marginTop: 8 }]}
@@ -355,6 +404,7 @@ const styles = StyleSheet.create({
   checkmark: { color: '#fff', fontSize: 12, fontWeight: '800' },
   agentName: { fontSize: 15, fontWeight: '700' },
   agentMeta: { fontSize: 13, marginTop: 2 },
+  agentNote: { fontSize: 12, marginTop: 3, fontStyle: 'italic' },
 
   overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
   modalBox:  { width: '90%', maxWidth: 420, backgroundColor: '#fff', borderRadius: 14, padding: 24, gap: 12 },

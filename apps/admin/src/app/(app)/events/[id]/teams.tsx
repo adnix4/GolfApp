@@ -10,6 +10,27 @@ import {
   type Team, type Player, type RegisterTeamPayload, type AddPlayerPayload,
 } from '@/lib/api';
 
+function fmtAgeGroup(v: string | null | undefined): string | null {
+  if (!v) return null;
+  if (v === 'Under30')    return 'Under 30';
+  if (v === 'From30To50') return '30–50';
+  if (v === 'Over50')     return 'Over 50';
+  return v;
+}
+
+function digitsOnly(v: string): string { return v.replace(/\D/g, '').slice(0, 10); }
+function fmtPhoneInput(digits: string): string {
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+function fmtPhone(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const d = raw.replace(/\D/g, '');
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  return raw;
+}
+
 function confirmAction(title: string, message: string, onConfirm: () => void) {
   if (Platform.OS === 'web') {
     if ((globalThis as any).window?.confirm(`${title}\n\n${message}`)) onConfirm();
@@ -233,10 +254,26 @@ export default function TeamsScreen() {
                         <Text style={[styles.playerName, { color: theme.colors.primary }]}>
                           {p.firstName} {p.lastName}
                         </Text>
-                        <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>
-                          {p.email}
-                          {p.handicapIndex != null ? ` · HCP ${p.handicapIndex}` : ''}
-                        </Text>
+                        {!!p.email && (
+                          <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>{p.email}</Text>
+                        )}
+                        {!!p.phone && (
+                          <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>{fmtPhone(p.phone)}</Text>
+                        )}
+                        {(p.handicapIndex != null || p.skillLevel || p.ageGroup) && (
+                          <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>
+                            {[
+                              p.handicapIndex != null ? `HCP ${p.handicapIndex}` : null,
+                              p.skillLevel ?? null,
+                              fmtAgeGroup(p.ageGroup),
+                            ].filter(Boolean).join(' · ')}
+                          </Text>
+                        )}
+                        {!!p.pairingNote && (
+                          <Text style={[styles.playerNote, { color: theme.colors.accent }]}>
+                            Note: {p.pairingNote}
+                          </Text>
+                        )}
                       </View>
                       <View style={styles.playerActions}>
                         <Pressable
@@ -411,6 +448,7 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
   const [firstName,       setFirstName]       = useState('');
   const [lastName,        setLastName]        = useState('');
   const [email,           setEmail]           = useState('');
+  const [phone,           setPhone]           = useState('');
   const [handicap,        setHandicap]        = useState('');
   const [selectedTeamId,  setSelectedTeamId]  = useState<string | null>(null);
   const [pickerOpen,      setPickerOpen]      = useState(false);
@@ -422,6 +460,7 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
     setFirstName(player?.firstName ?? '');
     setLastName(player?.lastName ?? '');
     setEmail(player?.email ?? '');
+    setPhone(player?.phone ? fmtPhoneInput(digitsOnly(player.phone)) : '');
     setHandicap(player?.handicapIndex != null ? String(player.handicapIndex) : '');
     setSelectedTeamId(teamId);
     setPickerOpen(false);
@@ -446,6 +485,9 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError(`"${email.trim()}" is not a valid email address.`); return false;
     }
+    if (phone.trim() && digitsOnly(phone).length !== 10) {
+      setError('Phone number must be 10 digits.'); return false;
+    }
     if (handicap.trim() && isNaN(Number(handicap))) {
       setError('Handicap must be a number.'); return false;
     }
@@ -464,6 +506,7 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
           firstName: firstName.trim(),
           lastName:  lastName.trim(),
           email:     email.trim() || undefined,
+          phone:     phone.trim() || undefined,
           ...(handicap.trim() ? { handicapIndex: Number(handicap) } : {}),
           ...(teamChanged
             ? selectedTeamId === null
@@ -476,6 +519,7 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
           firstName: firstName.trim(),
           lastName:  lastName.trim(),
           email:     email.trim() || undefined,
+          phone:     phone.trim() || undefined,
           ...(handicap.trim() ? { handicapIndex: Number(handicap) } : {}),
           teamId: teamId ?? undefined,
         };
@@ -524,6 +568,17 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
               keyboardType="email-address" autoCapitalize="none" editable={!loading}
             />
 
+            {/* Phone */}
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Phone <Text style={styles.fieldOptional}>(optional)</Text></Text>
+            <TextInput
+              style={[styles.input, { borderColor: theme.colors.accent }]}
+              value={phone}
+              onChangeText={v => { setPhone(fmtPhoneInput(digitsOnly(v))); if (error) setError(null); }}
+              placeholder="(555) 867-5309"
+              placeholderTextColor="#999"
+              keyboardType="phone-pad" editable={!loading}
+            />
+
             {/* Handicap */}
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Handicap Index</Text>
             <Text style={[styles.fieldDesc, { color: theme.colors.accent }]}>USGA handicap index (0 – 54). Used for net scoring, pairing, and flights. Leave blank if unknown.</Text>
@@ -558,7 +613,11 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
 
                 {/* Options list */}
                 {pickerOpen && (
-                  <View style={[styles.pickerList, { borderColor: theme.colors.accent }]}>
+                  <ScrollView
+                    style={[styles.pickerList, { borderColor: theme.colors.accent }]}
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled"
+                  >
                     {/* Free agent option */}
                     <Pressable
                       style={[styles.pickerOption, selectedTeamId === null && { backgroundColor: theme.colors.primary + '18' }]}
@@ -604,7 +663,7 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
                         <Text style={{ color: '#888', fontSize: 13, fontStyle: 'italic' }}>No teams with open slots</Text>
                       </View>
                     )}
-                  </View>
+                  </ScrollView>
                 )}
               </>
             )}
@@ -930,6 +989,7 @@ const styles = StyleSheet.create({
   playerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   playerName: { fontSize: 14, fontWeight: '600' },
   playerMeta: { fontSize: 12 },
+  playerNote: { fontSize: 11, marginTop: 2, fontStyle: 'italic' },
   playerActions: { flexDirection: 'row', gap: 6 },
   smallBtn: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5, borderWidth: 1 },
   smallBtnText: { fontSize: 11, fontWeight: '600' },
@@ -970,7 +1030,8 @@ const styles = StyleSheet.create({
   submitBtn: { flex: 2, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   submitText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 
-  fieldDesc: { fontSize: 12, marginTop: -4, marginBottom: 6, lineHeight: 17 },
+  fieldDesc:     { fontSize: 12, marginTop: -4, marginBottom: 6, lineHeight: 17 },
+  fieldOptional: { fontSize: 12, fontWeight: '400' },
 
   pickerBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -979,7 +1040,7 @@ const styles = StyleSheet.create({
   },
   pickerBtnText: { flex: 1, fontSize: 14 },
   pickerList: {
-    borderWidth: 1, borderRadius: 8, marginTop: 4, overflow: 'hidden',
+    borderWidth: 1, borderRadius: 8, marginTop: 4,
     maxHeight: 260,
   },
   pickerOption: {

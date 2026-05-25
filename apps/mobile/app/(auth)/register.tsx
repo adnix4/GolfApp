@@ -17,6 +17,13 @@ interface TeammateFields { firstName: string; lastName: string; email: string; }
 const emptyTeammate = (): TeammateFields => ({ firstName: '', lastName: '', email: '' });
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function digitsOnly(v: string): string { return v.replace(/\D/g, '').slice(0, 10); }
+function fmtPhoneInput(digits: string): string {
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 const SKILL_OPTIONS: { value: SkillLevel; label: string }[] = [
   { value: 'Beginner',     label: 'Beginner'     },
   { value: 'Intermediate', label: 'Intermediate' },
@@ -84,6 +91,9 @@ export default function RegisterScreen() {
     if (!ln) { setError('Your last name is required.');     return; }
     if (!em) { setError('Your email address is required.'); return; }
     if (!EMAIL_RE.test(em)) { setError('Enter a valid email address.'); return; }
+
+    const ph = phone.trim();
+    if (ph && digitsOnly(ph).length !== 10) { setError('Phone number must be 10 digits.'); return; }
 
     const hcp = handicap.trim() ? parseFloat(handicap.trim()) : undefined;
     if (hcp !== undefined && (isNaN(hcp) || hcp < 0 || hcp > 54)) {
@@ -295,8 +305,8 @@ export default function RegisterScreen() {
           </Text>
           <TextInput
             style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
-            value={phone} onChangeText={setPhone}
-            placeholder="555-867-5309" placeholderTextColor="#aaa"
+            value={phone} onChangeText={v => setPhone(fmtPhoneInput(digitsOnly(v)))}
+            placeholder="(555) 867-5309" placeholderTextColor="#aaa"
             keyboardType="phone-pad" editable={!submitting}
           />
 

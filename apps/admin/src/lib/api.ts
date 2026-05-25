@@ -463,7 +463,11 @@ export interface Team {
 export interface Player {
   id: string; teamId: string | null; eventId: string;
   firstName: string; lastName: string; email: string;
+  phone?: string | null;
   handicapIndex: number | null; checkInStatus: string;
+  skillLevel?: string | null;
+  ageGroup?: string | null;
+  pairingNote?: string | null;
 }
 
 export interface Score {
