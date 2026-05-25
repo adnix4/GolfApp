@@ -9,10 +9,21 @@
       "output": "static",
       "favicon": "./assets/favicon.png"
     },
-    "platforms": ["web"],
-    "plugins": ["expo-router"],
+    "platforms": [
+      "web"
+    ],
+    "plugins": [
+      "expo-router"
+    ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "76c2b04f-769e-430f-a0f5-c6d44f3bc886"
+      }
+    },
+    "owner": "adamnix"
   }
 }
