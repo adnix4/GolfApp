@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { sponsorsApi, type Sponsor, type CreateSponsorPayload } from '@/lib/api';
+import { sponsorsApi, type Sponsor, type CreateSponsorPayload, type SponsorPlacements } from '@/lib/api';
 
 const TIER_OPTIONS = ['title', 'gold', 'hole', 'silver', 'bronze'] as const;
 const TIER_COLOR: Record<string, string> = {
@@ -15,6 +15,66 @@ const TIER_COLOR: Record<string, string> = {
   silver: '#7f8c8d',
   bronze: '#d35400',
 };
+
+// ── HOLE PICKER ───────────────────────────────────────────────────────────────
+
+function HolePicker({
+  selected,
+  onChange,
+  disabled,
+}: {
+  selected: number[];
+  onChange: (holes: number[]) => void;
+  disabled: boolean;
+}) {
+  const theme = useTheme();
+
+  function toggle(h: number) {
+    if (disabled) return;
+    onChange(
+      selected.includes(h)
+        ? selected.filter(n => n !== h)
+        : [...selected, h].sort((a, b) => a - b),
+    );
+  }
+
+  return (
+    <View style={holePickerStyles.grid}>
+      {Array.from({ length: 18 }, (_, i) => i + 1).map(h => {
+        const active = selected.includes(h);
+        return (
+          <Pressable
+            key={h}
+            onPress={() => toggle(h)}
+            style={[
+              holePickerStyles.cell,
+              active
+                ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
+                : { backgroundColor: '#f5f5f5', borderColor: '#ddd' },
+              disabled && { opacity: 0.5 },
+            ]}
+            accessibilityLabel={`Hole ${h}${active ? ', selected' : ''}`}
+            accessibilityRole="checkbox"
+          >
+            <Text style={[holePickerStyles.cellText, active && { color: '#fff' }]}>{h}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const holePickerStyles = StyleSheet.create({
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  cell: {
+    width: 40, height: 40,
+    borderRadius: 8, borderWidth: 1.5,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cellText: { fontSize: 14, fontWeight: '700', color: '#444' },
+});
+
+// ── SPONSORS SCREEN ───────────────────────────────────────────────────────────
 
 export default function SponsorsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
@@ -100,50 +160,62 @@ export default function SponsorsScreen() {
           data={sponsors}
           keyExtractor={s => s.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item: s }) => (
-            <View style={[styles.card, { borderColor: '#e8e8e8' }]}>
-              <View style={styles.cardLeft}>
-                {s.logoUrl ? (
-                  <Image source={{ uri: s.logoUrl }} style={styles.logo} resizeMode="contain" />
-                ) : (
-                  <View style={[styles.logoPlaceholder, { backgroundColor: theme.colors.highlight }]}>
-                    <Text style={{ fontSize: 10, color: theme.colors.accent }}>No Logo</Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.cardBody}>
-                <Text style={[styles.sponsorName, { color: theme.colors.primary }]}>{s.name}</Text>
-                {s.tagline && (
-                  <Text style={[styles.tagline, { color: theme.colors.accent }]}>{s.tagline}</Text>
-                )}
-                {s.websiteUrl && (
-                  <Text style={[styles.url, { color: theme.colors.action }]} numberOfLines={1}>{s.websiteUrl}</Text>
-                )}
-                {s.donationAmountCents != null && s.donationAmountCents > 0 && (
-                  <Text style={[styles.donationAmt, { color: '#16a085' }]}>
-                    ${(s.donationAmountCents / 100).toFixed(2)} donation
-                  </Text>
-                )}
-              </View>
-              <View style={styles.cardRight}>
-                <View style={[styles.tierBadge, { backgroundColor: TIER_COLOR[s.tier] ?? '#999' }]}>
-                  <Text style={styles.tierText}>{s.tier}</Text>
+          renderItem={({ item: s }) => {
+            const holeNums = s.placements?.holeNumbers ?? [];
+            return (
+              <View style={[styles.card, { borderColor: '#e8e8e8' }]}>
+                <View style={styles.cardLeft}>
+                  {s.logoUrl ? (
+                    <Image source={{ uri: s.logoUrl }} style={styles.logo} resizeMode="contain" />
+                  ) : (
+                    <View style={[styles.logoPlaceholder, { backgroundColor: theme.colors.highlight }]}>
+                      <Text style={{ fontSize: 10, color: theme.colors.accent }}>No Logo</Text>
+                    </View>
+                  )}
                 </View>
-                <Pressable
-                  style={[styles.editBtn, { borderColor: theme.colors.accent }]}
-                  onPress={() => setEditing(s)}
-                >
-                  <Text style={[styles.editBtnText, { color: theme.colors.accent }]}>Edit</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.deleteBtn}
-                  onPress={() => handleDelete(s)}
-                >
-                  <Text style={styles.deleteBtnText}>Delete</Text>
-                </Pressable>
+                <View style={styles.cardBody}>
+                  <Text style={[styles.sponsorName, { color: theme.colors.primary }]}>{s.name}</Text>
+                  {s.tagline && (
+                    <Text style={[styles.tagline, { color: theme.colors.accent }]}>{s.tagline}</Text>
+                  )}
+                  {s.websiteUrl && (
+                    <Text style={[styles.url, { color: theme.colors.action }]} numberOfLines={1}>{s.websiteUrl}</Text>
+                  )}
+                  {s.donationAmountCents != null && s.donationAmountCents > 0 && (
+                    <Text style={[styles.donationAmt, { color: '#16a085' }]}>
+                      ${(s.donationAmountCents / 100).toFixed(2)} donation
+                    </Text>
+                  )}
+                  {holeNums.length > 0 && (
+                    <View style={styles.holeChipsRow}>
+                      {holeNums.map(h => (
+                        <View key={h} style={[styles.holeChip, { backgroundColor: theme.colors.primary + '18', borderColor: theme.colors.primary + '44' }]}>
+                          <Text style={[styles.holeChipText, { color: theme.colors.primary }]}>H{h}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+                <View style={styles.cardRight}>
+                  <View style={[styles.tierBadge, { backgroundColor: TIER_COLOR[s.tier] ?? '#999' }]}>
+                    <Text style={styles.tierText}>{s.tier}</Text>
+                  </View>
+                  <Pressable
+                    style={[styles.editBtn, { borderColor: theme.colors.accent }]}
+                    onPress={() => setEditing(s)}
+                  >
+                    <Text style={[styles.editBtnText, { color: theme.colors.accent }]}>Edit</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.deleteBtn}
+                    onPress={() => handleDelete(s)}
+                  >
+                    <Text style={styles.deleteBtnText}>Delete</Text>
+                  </Pressable>
+                </View>
               </View>
-            </View>
-          )}
+            );
+          }}
         />
       )}
 
@@ -178,6 +250,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
   const [websiteUrl,      setWebsiteUrl]      = useState('');
   const [tagline,         setTagline]         = useState('');
   const [donationAmt,     setDonationAmt]     = useState('');
+  const [selectedHoles,   setSelectedHoles]   = useState<number[]>([]);
   const [loading,         setLoading]         = useState(false);
   const [error,           setError]           = useState<string | null>(null);
   const [pendingFile,     setPendingFile]      = useState<File | null>(null);
@@ -189,12 +262,13 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
     if (visible) {
       setName(initialData?.name ?? '');
       setLogoUrl(initialData?.logoUrl ?? '');
-      setTier(initialData?.tier ?? 'gold');
+      setTier((initialData?.tier ?? 'gold').toLowerCase());
       setWebsiteUrl(initialData?.websiteUrl ?? '');
       setTagline(initialData?.tagline ?? '');
       setDonationAmt(
         initialData?.donationAmountCents ? String(initialData.donationAmountCents / 100) : ''
       );
+      setSelectedHoles(initialData?.placements?.holeNumbers ?? []);
       setError(null);
       setPendingFile(null);
       setLocalPreview(null);
@@ -227,6 +301,8 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
         ? Math.round(parseFloat(donationAmt) * 100)
         : undefined;
 
+      const placements: SponsorPlacements = { holeNumbers: selectedHoles };
+
       const payload: CreateSponsorPayload = {
         name: name.trim(),
         ...(logoUrl.trim() ? { logoUrl: logoUrl.trim() } : {}),
@@ -234,6 +310,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
         ...(websiteUrl.trim() ? { websiteUrl: websiteUrl.trim() } : {}),
         ...(tagline.trim() ? { tagline: tagline.trim() } : {}),
         ...(donationCents !== undefined ? { donationAmountCents: donationCents } : {}),
+        placements,
       };
       let result = isEdit
         ? await sponsorsApi.update(eventId, initialData!.id, payload)
@@ -261,85 +338,111 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
           </Text>
           {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
 
-          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Sponsor Name</Text>
-          <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent }]}
-            value={name} onChangeText={setName}
-            placeholder="Acme Corp" placeholderTextColor="#999" editable={!loading}
-          />
+          {/* Scrollable form body */}
+          <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
 
-          {/* Logo section */}
-          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Logo</Text>
-          {previewUri ? (
-            <Image source={{ uri: previewUri }} style={styles.logoPreview} resizeMode="contain" />
-          ) : null}
-          <View style={styles.logoRow}>
-            {/* Hidden file input — web only */}
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/svg+xml"
-              style={{ display: 'none' }}
-              ref={fileInputRef as any}
-              onChange={handleFileChange as any}
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Sponsor Name</Text>
+            <TextInput
+              style={[styles.input, { borderColor: theme.colors.accent }]}
+              value={name} onChangeText={setName}
+              placeholder="Acme Corp" placeholderTextColor="#999" editable={!loading}
             />
-            <Pressable
-              style={[styles.uploadBtn, { borderColor: theme.colors.primary }]}
-              onPress={() => (fileInputRef.current as any)?.click()}
-              disabled={loading}
-            >
-              <Text style={[styles.uploadBtnText, { color: theme.colors.primary }]}>
-                {pendingFile ? 'Change Image' : 'Upload Image'}
-              </Text>
-            </Pressable>
-            {pendingFile && (
-              <Text style={styles.fileNameText} numberOfLines={1}>{pendingFile.name}</Text>
-            )}
-          </View>
-          <Text style={styles.orText}>— or paste a URL —</Text>
-          <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent }]}
-            value={logoUrl}
-            onChangeText={v => { setLogoUrl(v); setPendingFile(null); setLocalPreview(null); }}
-            placeholder="https://example.com/logo.png"
-            placeholderTextColor="#999"
-            editable={!loading}
-          />
 
-          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Website URL</Text>
-          <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent }]}
-            value={websiteUrl} onChangeText={setWebsiteUrl}
-            placeholder="https://acme.com (optional)" placeholderTextColor="#999" editable={!loading}
-          />
-
-          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Tagline</Text>
-          <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent }]}
-            value={tagline} onChangeText={setTagline}
-            placeholder="Powering your round (optional)" placeholderTextColor="#999" editable={!loading}
-          />
-
-          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Donation Amount</Text>
-          <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent }]}
-            value={donationAmt} onChangeText={setDonationAmt}
-            placeholder="0.00 (optional)" placeholderTextColor="#999"
-            keyboardType="decimal-pad" editable={!loading}
-          />
-
-          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Tier</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
-            {TIER_OPTIONS.map(t => (
+            {/* Logo section */}
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Logo</Text>
+            {previewUri ? (
+              <Image source={{ uri: previewUri }} style={styles.logoPreview} resizeMode="contain" />
+            ) : null}
+            <View style={styles.logoRow}>
+              {/* Hidden file input — web only */}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                style={{ display: 'none' }}
+                ref={fileInputRef as any}
+                onChange={handleFileChange as any}
+              />
               <Pressable
-                key={t}
-                style={[styles.pill, tier === t && { backgroundColor: TIER_COLOR[t] ?? '#999', borderColor: TIER_COLOR[t] ?? '#999' }]}
-                onPress={() => setTier(t)}
+                style={[styles.uploadBtn, { borderColor: theme.colors.primary }]}
+                onPress={() => (fileInputRef.current as any)?.click()}
+                disabled={loading}
               >
-                <Text style={[styles.pillText, tier === t && { color: '#fff' }]}>{t}</Text>
+                <Text style={[styles.uploadBtnText, { color: theme.colors.primary }]}>
+                  {pendingFile ? 'Change Image' : 'Upload Image'}
+                </Text>
               </Pressable>
-            ))}
+              {pendingFile && (
+                <Text style={styles.fileNameText} numberOfLines={1}>{pendingFile.name}</Text>
+              )}
+            </View>
+            <Text style={styles.orText}>— or paste a URL —</Text>
+            <TextInput
+              style={[styles.input, { borderColor: theme.colors.accent }]}
+              value={logoUrl}
+              onChangeText={v => { setLogoUrl(v); setPendingFile(null); setLocalPreview(null); }}
+              placeholder="https://example.com/logo.png"
+              placeholderTextColor="#999"
+              editable={!loading}
+            />
+
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Website URL</Text>
+            <TextInput
+              style={[styles.input, { borderColor: theme.colors.accent }]}
+              value={websiteUrl} onChangeText={setWebsiteUrl}
+              placeholder="https://acme.com (optional)" placeholderTextColor="#999" editable={!loading}
+            />
+
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Tagline</Text>
+            <TextInput
+              style={[styles.input, { borderColor: theme.colors.accent }]}
+              value={tagline} onChangeText={setTagline}
+              placeholder="Powering your round (optional)" placeholderTextColor="#999" editable={!loading}
+            />
+
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Donation Amount</Text>
+            <TextInput
+              style={[styles.input, { borderColor: theme.colors.accent }]}
+              value={donationAmt} onChangeText={setDonationAmt}
+              placeholder="0.00 (optional)" placeholderTextColor="#999"
+              keyboardType="decimal-pad" editable={!loading}
+            />
+
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Tier</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
+              {TIER_OPTIONS.map(t => (
+                <Pressable
+                  key={t}
+                  style={[styles.pill, tier === t && { backgroundColor: TIER_COLOR[t] ?? '#999', borderColor: TIER_COLOR[t] ?? '#999' }]}
+                  onPress={() => setTier(t)}
+                >
+                  <Text style={[styles.pillText, tier === t && { color: '#fff' }]}>{t}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            {/* ── HOLE SPONSORSHIP ── */}
+            <View style={styles.holeSection}>
+              <Text style={[styles.fieldLabel, { color: theme.colors.primary, marginTop: 0 }]}>
+                Hole Sponsorship
+              </Text>
+              <Text style={[styles.holeHint, { color: theme.colors.accent }]}>
+                Select which holes display this sponsor's name and logo on the mobile scorecard.
+              </Text>
+              <HolePicker
+                selected={selectedHoles}
+                onChange={setSelectedHoles}
+                disabled={loading}
+              />
+              {selectedHoles.length > 0 && (
+                <Text style={[styles.holeSelectionSummary, { color: theme.colors.primary }]}>
+                  Selected: {selectedHoles.join(', ')}
+                </Text>
+              )}
+            </View>
+
           </ScrollView>
 
+          {/* Action buttons — outside scroll so they stay visible */}
           <View style={styles.modalActions}>
             <Pressable style={[styles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
               <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
@@ -388,6 +491,12 @@ const styles = StyleSheet.create({
   tagline: { fontSize: 13, marginTop: 2 },
   url: { fontSize: 12, marginTop: 2 },
   donationAmt: { fontSize: 12, marginTop: 2, fontWeight: '600' },
+  holeChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
+  holeChip: {
+    paddingHorizontal: 7, paddingVertical: 3,
+    borderRadius: 6, borderWidth: 1,
+  },
+  holeChipText: { fontSize: 11, fontWeight: '700' },
   cardRight: { alignItems: 'flex-end', gap: 6 },
   tierBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   tierText: { fontSize: 11, fontWeight: '700', color: '#fff', textTransform: 'capitalize' },
@@ -401,14 +510,21 @@ const styles = StyleSheet.create({
   },
   errorText: { color: '#c0392b', fontSize: 14 },
   overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  modal:    { width: '100%', maxWidth: 480, backgroundColor: '#fff', borderRadius: 16, padding: 28 },
-  modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 16 },
+  modal:    { width: '100%', maxWidth: 480, backgroundColor: '#fff', borderRadius: 16, padding: 28, maxHeight: '90%' },
+  modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 12 },
+  modalScroll: { maxHeight: 500 },
   fieldLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
   input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, backgroundColor: '#fafafa' },
   pillRow: { marginBottom: 4 },
   pill: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#ccc', marginRight: 8, backgroundColor: '#fafafa' },
   pillText: { fontSize: 13, fontWeight: '600', color: '#444', textTransform: 'capitalize' },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  holeSection: {
+    marginTop: 16, paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e0e0e0',
+  },
+  holeHint: { fontSize: 12, marginBottom: 4 },
+  holeSelectionSummary: { fontSize: 12, fontWeight: '600', marginTop: 8 },
+  modalActions: { flexDirection: 'row', gap: 12, marginTop: 16 },
   cancelBtn: { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   cancelText: { fontSize: 15, fontWeight: '600' },
   submitBtn: { flex: 2, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },

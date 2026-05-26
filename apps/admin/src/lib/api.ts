@@ -496,10 +496,18 @@ export interface FundraisingTotals {
   teamsPaid: number; teamsTotal: number; donationCount: number;
 }
 
+export interface SponsorPlacements {
+  holeNumbers?: number[];
+  leaderboard?: boolean;
+  landingPage?: boolean;
+  emailHeader?: boolean;
+}
+
 export interface Sponsor {
   id: string; eventId: string; name: string; logoUrl: string;
   websiteUrl: string | null; tagline: string | null; tier: string;
   donationAmountCents: number | null;
+  placements: SponsorPlacements;
 }
 
 export interface QrCollectResult {
@@ -549,7 +557,7 @@ export interface UpsertChallengePayload {
 export interface CreateSponsorPayload {
   name: string; logoUrl?: string; tier: string; websiteUrl?: string; tagline?: string;
   donationAmountCents?: number;
-  placements?: Record<string, unknown>;
+  placements?: SponsorPlacements;
 }
 
 // ── AUCTION ───────────────────────────────────────────────────────────────────

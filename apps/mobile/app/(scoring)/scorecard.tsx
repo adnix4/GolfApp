@@ -2,13 +2,13 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator,
   ScrollView, Image, Platform, SafeAreaView,
-  Modal, Animated,
+  Modal, Animated, Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import type { ThemeContextValue } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
-import { fetchPublicChallenges, type ChallengeCacheDto, type PlayerShotBreakdown } from '@/lib/api';
+import { fetchPublicChallenges, type ChallengeCacheDto, type PlayerShotBreakdown, type SponsorCacheDto } from '@/lib/api';
 
 // ── INLINE SUB-COMPONENTS ─────────────────────────────────────────────────────
 
@@ -247,6 +247,117 @@ const chalModalStyles = StyleSheet.create({
   closeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
 
+// ── SPONSOR MODAL ────────────────────────────────────────────────────────────
+
+function SponsorModal({
+  sponsor,
+  onDismiss,
+}: {
+  sponsor: SponsorCacheDto | null;
+  onDismiss: () => void;
+}) {
+  const theme = useTheme();
+  if (!sponsor) return null;
+
+  function openWebsite() {
+    if (sponsor!.websiteUrl) Linking.openURL(sponsor!.websiteUrl);
+  }
+
+  return (
+    <Modal
+      transparent
+      visible
+      animationType="slide"
+      onRequestClose={onDismiss}
+    >
+      <Pressable
+        style={sponModalStyles.backdrop}
+        onPress={onDismiss}
+        accessibilityLabel="Close sponsor info"
+        accessibilityRole="button"
+      >
+        {/* Inner card stops tap propagation so it doesn't close */}
+        <Pressable
+          style={[sponModalStyles.card, { backgroundColor: theme.colors.surface }]}
+          onPress={() => {}}
+        >
+          {/* Header */}
+          <View style={[sponModalStyles.header, { backgroundColor: theme.colors.primary }]}>
+            <Text style={sponModalStyles.headerText}>🤝 Hole Sponsor</Text>
+          </View>
+
+          <View style={sponModalStyles.body}>
+            {/* Logo or name */}
+            {sponsor.logoUrl ? (
+              <Image
+                source={{ uri: sponsor.logoUrl }}
+                style={sponModalStyles.logo}
+                resizeMode="contain"
+                accessibilityLabel={`${sponsor.name} logo`}
+              />
+            ) : (
+              <Text style={[sponModalStyles.sponsorName, { color: theme.colors.primary }]}>
+                {sponsor.name}
+              </Text>
+            )}
+
+            {/* Thank-you statement */}
+            <Text style={[sponModalStyles.thankYou, { color: theme.colors.primary }]}>
+              Thank you to{' '}
+              <Text style={{ fontWeight: '800' }}>{sponsor.name}</Text>
+              {' '}for generously sponsoring this hole and supporting our event!
+            </Text>
+
+            {/* Website button — only shown when a URL is set */}
+            {sponsor.websiteUrl ? (
+              <Pressable
+                onPress={openWebsite}
+                style={({ pressed }) => [
+                  sponModalStyles.websiteBtn,
+                  { backgroundColor: theme.colors.primary, opacity: pressed ? 0.8 : 1 },
+                ]}
+                accessibilityRole="link"
+                accessibilityLabel={`Visit ${sponsor.name} website`}
+              >
+                <Text style={sponModalStyles.websiteBtnText}>
+                  Visit {sponsor.name} →
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {/* Close */}
+          <Pressable
+            style={[sponModalStyles.closeBtn, { backgroundColor: theme.colors.primary }]}
+            onPress={onDismiss}
+            accessibilityRole="button"
+          >
+            <Text style={sponModalStyles.closeBtnText}>Got It</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const sponModalStyles = StyleSheet.create({
+  backdrop:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  card:       { borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
+  header:     { paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center' },
+  headerText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  body:       { padding: 24, alignItems: 'center', gap: 16 },
+  logo:       { width: 200, height: 70, marginBottom: 4 },
+  sponsorName:{ fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  thankYou:   { fontSize: 15, textAlign: 'center', lineHeight: 22, opacity: 0.85 },
+  websiteBtn: {
+    paddingVertical: 12, paddingHorizontal: 28,
+    borderRadius: 10, alignItems: 'center', marginTop: 4,
+  },
+  websiteBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  closeBtn:   { marginHorizontal: 20, marginBottom: 24, marginTop: 4, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  closeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+});
+
 // ── SUMMARY TABLE (pre-scoring and post-round shared layout) ──────────────────
 
 const summaryCol = StyleSheet.create({
@@ -338,6 +449,7 @@ export default function ScorecardScreen() {
   const [completing,        setCompleting]        = useState(false);
   const [challenges,        setChallenges]        = useState<ChallengeCacheDto[]>([]);
   const [selectedChallenge, setSelectedChallenge] = useState<ChallengeCacheDto | null>(null);
+  const [selectedSponsor,   setSelectedSponsor]   = useState<SponsorCacheDto | null>(null);
   const [headerTip,         setHeaderTip]         = useState<string | null>(null);
   const tipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -346,11 +458,11 @@ export default function ScorecardScreen() {
     [session],
   );
 
-  // hole number → sponsor name (first match wins)
+  // hole number → full sponsor object (first match wins)
   const holeSponsorMap = useMemo(() => {
-    const map = new Map<number, string>();
+    const map = new Map<number, SponsorCacheDto>();
     session?.sponsors?.forEach(s => {
-      s.holeNumbers.forEach(h => { if (!map.has(h)) map.set(h, s.name); });
+      s.holeNumbers.forEach(h => { if (!map.has(h)) map.set(h, s); });
     });
     return map;
   }, [session?.sponsors]);
@@ -475,9 +587,17 @@ export default function ScorecardScreen() {
                     {relLabel}
                   </Text>
                   {sponsor ? (
-                    <Text style={[summaryCol.spon, styles.summaryCell, { color: theme.colors.accent }]} numberOfLines={1}>
-                      {sponsor}
-                    </Text>
+                    <Pressable
+                      style={{ flex: 3, alignItems: 'center', justifyContent: 'center' }}
+                      onPress={() => setSelectedSponsor(sponsor)}
+                      hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View ${sponsor.name} sponsor info`}
+                    >
+                      <Text style={[styles.summaryCell, { color: theme.colors.primary, fontWeight: '600', textAlign: 'center', textDecorationLine: 'underline' }]} numberOfLines={1}>
+                        {sponsor.name}
+                      </Text>
+                    </Pressable>
                   ) : (
                     <Text style={[summaryCol.spon, styles.summaryCellDash, { color: theme.colors.accent }]}>—</Text>
                   )}
@@ -504,6 +624,10 @@ export default function ScorecardScreen() {
           challenge={selectedChallenge}
           onDismiss={() => setSelectedChallenge(null)}
         />
+        <SponsorModal
+          sponsor={selectedSponsor}
+          onDismiss={() => setSelectedSponsor(null)}
+        />
       </SafeAreaView>
     );
   }
@@ -515,6 +639,7 @@ export default function ScorecardScreen() {
   const currentScore         = pendingScores.find(s => s.holeNumber === currentHoleNumber) ?? null;
   const isLastHole           = holeIndex === holeOrder.length - 1;
   const holeChallenge        = challenges.find(c => c.holeNumber === currentHoleNumber) ?? null;
+  const currentHoleSponsor   = holeSponsorMap.get(currentHoleNumber) ?? null;
   const isCurrentHoleDone    = completedHoles.has(currentHoleNumber);
 
   // Team gross = sum of every player's (drive + approach + putt)
@@ -599,21 +724,32 @@ export default function ScorecardScreen() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
         {/* ── HOLE SPONSOR ── */}
-        {hole?.sponsorName && (
-          <View style={[styles.sponsorBadge, { backgroundColor: theme.colors.accent + '22', borderColor: theme.colors.accent }]}>
-            {hole.sponsorLogoUrl ? (
+        {currentHoleSponsor && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.sponsorBadge,
+              { backgroundColor: theme.colors.accent + '22', borderColor: theme.colors.accent, opacity: pressed ? 0.75 : 1 },
+            ]}
+            onPress={() => setSelectedSponsor(currentHoleSponsor)}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${currentHoleSponsor.name} sponsor info`}
+          >
+            {hole?.sponsorLogoUrl ? (
               <Image
                 source={{ uri: hole.sponsorLogoUrl }}
                 style={styles.sponsorLogo}
                 resizeMode="contain"
-                accessibilityLabel={`Hole sponsor: ${hole.sponsorName}`}
+                accessibilityLabel={`Hole sponsor: ${currentHoleSponsor.name}`}
               />
             ) : (
               <Text style={[styles.sponsorName, { color: theme.colors.primary }]}>
-                Sponsored by {hole.sponsorName}
+                Sponsored by {currentHoleSponsor.name}
               </Text>
             )}
-          </View>
+            <Text style={[styles.sponsorTapHint, { color: theme.colors.accent }]}>
+              Tap to learn more
+            </Text>
+          </Pressable>
         )}
 
         {/* ── HOLE INFO CHIPS: PAR | SCORE | HCP | yardages ── */}
@@ -749,6 +885,12 @@ export default function ScorecardScreen() {
         onDismiss={() => setShowHio(false)}
       />
 
+      {/* ── SPONSOR INFO ── */}
+      <SponsorModal
+        sponsor={selectedSponsor}
+        onDismiss={() => setSelectedSponsor(null)}
+      />
+
       {/* ── HOLE NAVIGATION ── */}
       <View style={[styles.navBar, { backgroundColor: theme.colors.surface, borderTopColor: '#e0e0e0' }]}>
         {/* Counter row */}
@@ -852,9 +994,11 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center',
     paddingVertical: 10, paddingHorizontal: 16, marginBottom: 12,
+    gap: 4,
   },
-  sponsorLogo: { width: 120, height: 36 },
-  sponsorName: { fontSize: 13, fontWeight: '600' },
+  sponsorLogo:    { width: 120, height: 36 },
+  sponsorName:    { fontSize: 13, fontWeight: '600' },
+  sponsorTapHint: { fontSize: 10, fontWeight: '500', opacity: 0.65 },
 
   infoRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8,
