@@ -132,7 +132,8 @@
       "Bash(where psql *)",
       "Bash(find /c -name \"psql.exe\")",
       "Bash(git *)",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "Read(//tmp/**)"
     ]
   }
 }
