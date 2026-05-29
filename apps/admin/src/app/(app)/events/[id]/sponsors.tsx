@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, FlatList, Modal, TextInput,
-  StyleSheet, ActivityIndicator, ScrollView, Image, Alert,
+  StyleSheet, ActivityIndicator, ScrollView, Alert,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
 import { sponsorsApi, type Sponsor, type CreateSponsorPayload, type SponsorPlacements } from '@/lib/api';
 
 const TIER_OPTIONS = ['title', 'gold', 'hole', 'silver', 'bronze'] as const;
@@ -166,7 +166,15 @@ export default function SponsorsScreen() {
               <View style={[styles.card, { borderColor: '#e8e8e8' }]}>
                 <View style={styles.cardLeft}>
                   {s.logoUrl ? (
-                    <Image source={{ uri: s.logoUrl }} style={styles.logo} resizeMode="contain" />
+                    <AdaptiveLogoFrame
+                      uri={s.logoUrl}
+                      width={64} height={40}
+                      primaryColor={theme.colors.primary}
+                      borderColor={theme.colors.primary}
+                      borderRadius={6}
+                      padding={6}
+                      accessibilityLabel={`${s.name} logo`}
+                    />
                   ) : (
                     <View style={[styles.logoPlaceholder, { backgroundColor: theme.colors.highlight }]}>
                       <Text style={{ fontSize: 10, color: theme.colors.accent }}>No Logo</Text>
@@ -351,7 +359,17 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
             {/* Logo section */}
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Logo</Text>
             {previewUri ? (
-              <Image source={{ uri: previewUri }} style={styles.logoPreview} resizeMode="contain" />
+              <View style={styles.logoPreviewWrap}>
+                <AdaptiveLogoFrame
+                  uri={previewUri}
+                  width={220} height={70}
+                  primaryColor={theme.colors.primary}
+                  borderColor={theme.colors.primary}
+                  borderRadius={8}
+                  padding={10}
+                  accessibilityLabel="Logo preview"
+                />
+              </View>
             ) : null}
             <View style={styles.logoRow}>
               {/* Hidden file input — web only */}
@@ -529,7 +547,7 @@ const styles = StyleSheet.create({
   cancelText: { fontSize: 15, fontWeight: '600' },
   submitBtn: { flex: 2, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   submitText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  logoPreview: { width: '100%', height: 80, borderRadius: 8, backgroundColor: '#f0f0f0', marginBottom: 8 },
+  logoPreviewWrap: { alignItems: 'center', marginBottom: 8 },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
   uploadBtn: { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
   uploadBtnText: { fontSize: 13, fontWeight: '700' },

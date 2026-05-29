@@ -5,11 +5,10 @@ import {
   Modal, Animated, Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
 import type { ThemeContextValue } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
 import { fetchPublicChallenges, type ChallengeCacheDto, type PlayerShotBreakdown, type SponsorCacheDto } from '@/lib/api';
-import { useAdaptiveLogoBg } from '@/lib/useLogoBackground';
 
 // ── INLINE SUB-COMPONENTS ─────────────────────────────────────────────────────
 
@@ -258,17 +257,12 @@ function SponsorModal({
   onDismiss: () => void;
 }) {
   const theme = useTheme();
-  // Adaptive background: white for dark logos, primary for light/white logos
-  const logoBg = useAdaptiveLogoBg(sponsor?.logoUrl, theme.colors.primary);
 
   if (!sponsor) return null;
 
   function openWebsite() {
     if (sponsor!.websiteUrl) Linking.openURL(sponsor!.websiteUrl);
   }
-
-  // Text colour must contrast with the adaptive bg
-  const logoTextColor = logoBg === '#ffffff' ? theme.colors.primary : '#ffffff';
 
   return (
     <Modal
@@ -308,19 +302,18 @@ function SponsorModal({
             </View>
 
             <View style={sponModalStyles.body}>
-              {/* Logo or name — background adapts to logo colours */}
+              {/* Logo or name — AdaptiveLogoFrame picks bg colour automatically */}
               {sponsor.logoUrl ? (
-                <View style={[
-                  sponModalStyles.logoContainer,
-                  { borderColor: theme.colors.primary, backgroundColor: logoBg },
-                ]}>
-                  <Image
-                    source={{ uri: sponsor.logoUrl }}
-                    style={sponModalStyles.logo}
-                    resizeMode="contain"
-                    accessibilityLabel={`${sponsor.name} logo`}
-                  />
-                </View>
+                <AdaptiveLogoFrame
+                  uri={sponsor.logoUrl}
+                  width={200} height={70}
+                  primaryColor={theme.colors.primary}
+                  borderColor={theme.colors.primary}
+                  borderWidth={2}
+                  borderRadius={12}
+                  padding={12}
+                  accessibilityLabel={`${sponsor.name} logo`}
+                />
               ) : (
                 <Text style={[sponModalStyles.sponsorName, { color: theme.colors.primary }]}>
                   {sponsor.name}
@@ -408,15 +401,6 @@ const sponModalStyles = StyleSheet.create({
   headerText: { color: '#fff', fontSize: 17, fontWeight: '800' },
   body:       { padding: 24, alignItems: 'center', gap: 14 },
 
-  /** Bordered box that frames the logo on the white card background */
-  logoContainer: {
-    borderWidth: 2,
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-    // backgroundColor set dynamically via useAdaptiveLogoBg
-  },
-  logo:        { width: 200, height: 70 },
   sponsorName: { fontSize: 22, fontWeight: '800', textAlign: 'center' },
 
   /** Tagline under logo — uses primary for max readability on white */
@@ -721,12 +705,6 @@ export default function ScorecardScreen() {
   const currentHoleSponsor   = holeSponsorMap.get(currentHoleNumber) ?? null;
   const isCurrentHoleDone    = completedHoles.has(currentHoleNumber);
 
-  // Adaptive background for the hole-badge logo (white or primary, based on logo colours)
-  const holeBadgeLogoBg = useAdaptiveLogoBg(
-    hole?.sponsorLogoUrl ?? currentHoleSponsor?.logoUrl,
-    theme.colors.primary,
-  );
-
   // Team gross = sum of every player's (drive + approach + putt)
   const playerBreakdown = currentScore?.playerShots ?? {};
   const grossScore      = Object.values(playerBreakdown).reduce(
@@ -820,17 +798,15 @@ export default function ScorecardScreen() {
             accessibilityLabel={`View ${currentHoleSponsor.name} sponsor info`}
           >
             {hole?.sponsorLogoUrl ? (
-              <View style={[styles.sponsorLogoFrame, {
-                borderColor: theme.colors.primary,
-                backgroundColor: holeBadgeLogoBg,
-              }]}>
-                <Image
-                  source={{ uri: hole.sponsorLogoUrl }}
-                  style={styles.sponsorLogo}
-                  resizeMode="contain"
-                  accessibilityLabel={`Hole sponsor: ${currentHoleSponsor.name}`}
-                />
-              </View>
+              <AdaptiveLogoFrame
+                uri={hole.sponsorLogoUrl}
+                width={120} height={36}
+                primaryColor={theme.colors.primary}
+                borderColor={theme.colors.primary}
+                borderRadius={8}
+                padding={6}
+                accessibilityLabel={`Hole sponsor: ${currentHoleSponsor.name}`}
+              />
             ) : (
               <Text style={[styles.sponsorName, { color: theme.colors.primary }]}>
                 Sponsored by {currentHoleSponsor.name}
@@ -1097,19 +1073,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  /**
-   * Logo frame — background colour is set dynamically via useAdaptiveLogoBg
-   * so it automatically contrasts with the logo (white for dark logos,
-   * primary for light/white logos).
-   */
-  sponsorLogoFrame: {
-    borderWidth: 1.5,
-    borderRadius: 8,
-    padding: 6,
-    alignItems: 'center',
-    // backgroundColor set dynamically
-  },
-  sponsorLogo:    { width: 120, height: 36 },
   sponsorName:    { fontSize: 13, fontWeight: '700' },
   sponsorTagline: { fontSize: 11, fontWeight: '600', fontStyle: 'italic', textAlign: 'center' },
   sponsorTapHint: { fontSize: 10, fontWeight: '500', opacity: 0.55 },

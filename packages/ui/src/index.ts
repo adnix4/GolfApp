@@ -21,10 +21,12 @@
  *   useTheme       — hook to access GFP color tokens in any component
  */
 
-export { ScoreCard }      from './components/ScoreCard';
-export { LeaderboardRow } from './components/LeaderboardRow';
-export { TeamCard }       from './components/TeamCard';
-export { SponsorBanner }  from './components/SponsorBanner';
+export { ScoreCard }        from './components/ScoreCard';
+export { LeaderboardRow }   from './components/LeaderboardRow';
+export { TeamCard }         from './components/TeamCard';
+export { SponsorBanner }    from './components/SponsorBanner';
+export { AdaptiveLogoFrame } from './components/AdaptiveLogoFrame';
+export type { AdaptiveLogoFrameProps } from './components/AdaptiveLogoFrame';
 export { ThemeProvider, useTheme } from './components/ThemeProvider';
 
 /**

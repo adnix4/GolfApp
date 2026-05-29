@@ -10,7 +10,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@gfp/theme": "*"
+    "@gfp/theme": "*",
+    "react-native-image-colors": ">=2.6.0"
   },
   "peerDependencies": {
     "react": ">=19.0.0",
