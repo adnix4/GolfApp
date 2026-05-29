@@ -1,27 +1,21 @@
 'use client';
 
-import { memo, useState, useEffect, useRef, useCallback } from 'react';
-import * as signalR from '@microsoft/signalr';
+import { memo, useState, useEffect, useRef } from 'react';
+import { useLiveLeaderboard } from '@gfp/shared-types';
 import type { PublicEventData, PublicLeaderboard, PublicLeaderboardEntry } from '@/lib/api';
 
 const FALLBACK_POLL_MS = 15_000; // spec: 15-second SSE/HTTP fallback when WebSocket unavailable
 const BASE             = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
-async function fetchLeaderboard(eventCode: string): Promise<PublicLeaderboard | null> {
+async function fetchStandings(eventCode: string): Promise<PublicLeaderboardEntry[] | null> {
   try {
     const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/leaderboard`, { cache: 'no-store' });
     if (!res.ok) return null;
-    return res.json();
+    const data: PublicLeaderboard = await res.json();
+    return data.standings;
   } catch {
     return null;
   }
-}
-
-interface HoleInOneAlert {
-  teamName:   string;
-  playerName: string;
-  holeNumber: number;
-  expiresAt:  number;
 }
 
 // ── COMPONENT ─────────────────────────────────────────────────────────────────
@@ -37,78 +31,38 @@ export default function ScoresPoller({
   eventCode:          string;
   tvMode?:            boolean;
 }) {
-  const [leaderboard, setLeaderboard] = useState(initialLeaderboard);
-  const [lastUpdated, setLastUpdated] = useState(() => new Date());
-  const [fetchError,  setFetchError]  = useState(false);
-  const [connected,   setConnected]   = useState(false);
-  const [hioAlert,    setHioAlert]    = useState<HoleInOneAlert | null>(null);
+  const {
+    standings: liveStandings,
+    connected,
+    error: fetchError,
+    lastUpdated,
+    hioAlert,
+    dismissHioAlert,
+  } = useLiveLeaderboard<PublicLeaderboardEntry>({
+    baseUrl:          BASE,
+    eventCode,
+    initialStandings: initialLeaderboard?.standings ?? null,
+    pollIntervalMs:   FALLBACK_POLL_MS,
+    fetchStandings,
+  });
+
   const tableRef = useRef<HTMLDivElement>(null);
 
-  // ── SignalR real-time connection ───────────────────────────────────────────
-  useEffect(() => {
-    const hub = new signalR.HubConnectionBuilder()
-      .withUrl(`${BASE}/hubs/tournament`)
-      .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Warning)
-      .build();
+  // Reconstruct the leaderboard object the rest of the page expects — keep
+  // the SSR metadata (eventId/eventName/status) and swap in fresh standings.
+  const leaderboard: PublicLeaderboard | null = liveStandings === null
+    ? initialLeaderboard
+    : initialLeaderboard
+      ? { ...initialLeaderboard, standings: liveStandings }
+      : null;
 
-    hub.on('LeaderboardRefreshed', (data: { standings: PublicLeaderboardEntry[] }) => {
-      if (data?.standings) {
-        setLeaderboard(prev => prev
-          ? { ...prev, standings: data.standings }
-          : null);
-        setLastUpdated(new Date());
-        setFetchError(false);
-      }
-    });
-
-    hub.on('HoleInOneAlert', (data: HoleInOneAlert) => {
-      setHioAlert({
-        ...data,
-        expiresAt: Date.now() + 60_000,
-      });
-    });
-
-    hub.onreconnecting(() => setConnected(false));
-    hub.onreconnected(async () => {
-      setConnected(true);
-      await hub.invoke('JoinEvent', eventCode).catch(() => {});
-    });
-
-    hub.start()
-      .then(async () => {
-        setConnected(true);
-        await hub.invoke('JoinEvent', eventCode).catch(() => {});
-      })
-      .catch(() => setFetchError(true));
-
-    return () => { hub.stop(); };
-  }, [eventCode]);
-
-  // ── Fallback poll (when SignalR disconnected) ──────────────────────────────
-  useEffect(() => {
-    if (connected) return;
-    const id = setInterval(async () => {
-      const data = await fetchLeaderboard(eventCode);
-      if (data) {
-        setLeaderboard(data);
-        setLastUpdated(new Date());
-        setFetchError(false);
-      } else {
-        setFetchError(true);
-      }
-    }, FALLBACK_POLL_MS);
-    return () => clearInterval(id);
-  }, [connected, eventCode]);
-
-  // ── Hole-in-one alert expiry ───────────────────────────────────────────────
+  // Auto-dismiss the HIO banner after 60s. Mobile dismisses after 10s in its
+  // own overlay; this lets each surface tune the dwell time.
   useEffect(() => {
     if (!hioAlert) return;
-    const ms = hioAlert.expiresAt - Date.now();
-    if (ms <= 0) { setHioAlert(null); return; }
-    const id = setTimeout(() => setHioAlert(null), ms);
+    const id = setTimeout(dismissHioAlert, 60_000);
     return () => clearTimeout(id);
-  }, [hioAlert]);
+  }, [hioAlert, dismissHioAlert]);
 
   // ── TV mode auto-scroll ────────────────────────────────────────────────────
   useEffect(() => {
@@ -160,7 +114,7 @@ export default function ScoresPoller({
               {hioAlert.playerName} — Hole {hioAlert.holeNumber} · {hioAlert.teamName}
             </span>
           </div>
-          <button style={hio.close} onClick={() => setHioAlert(null)}>✕</button>
+          <button style={hio.close} onClick={dismissHioAlert}>✕</button>
         </div>
       )}
 
@@ -261,7 +215,7 @@ export default function ScoresPoller({
 function UpdatedAgo({
   lastUpdated, connected, fetchError, tvMode,
 }: {
-  lastUpdated: Date;
+  lastUpdated: Date | null;
   connected:   boolean;
   fetchError:  boolean;
   tvMode:      boolean;
@@ -280,6 +234,10 @@ function UpdatedAgo({
         Connection issue — retrying…
       </span>
     );
+  }
+
+  if (!lastUpdated) {
+    return <span style={tvMode ? tv.statusMeta : nm.footerMeta}>Loading…</span>;
   }
 
   const text = tvMode

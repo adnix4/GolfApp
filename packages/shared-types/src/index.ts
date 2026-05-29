@@ -44,6 +44,7 @@ export * from './money';
 export * from './phone';
 export * from './eventOptions';
 export * from './apiClient';
+export * from './useLiveLeaderboard';
 
 // ── ENUMS ─────────────────────────────────────────────────────────────────────
 

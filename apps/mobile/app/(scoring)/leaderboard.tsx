@@ -1,26 +1,20 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import {
   View, Text, FlatList, Pressable, StyleSheet, Modal,
   ActivityIndicator, SafeAreaView, Platform,
 } from 'react-native';
-import * as signalR from '@microsoft/signalr';
 import { useTheme } from '@gfp/ui';
+import { useLiveLeaderboard, type HoleInOneAlert as HoleInOneData } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
 import { fetchLeaderboard } from '@/lib/api';
-import type { PublicLeaderboard, PublicLeaderboardEntry } from '@/lib/api';
+import type { PublicLeaderboardEntry } from '@/lib/api';
 
 // Spec §3 Phase 3: SignalR is primary; 15 s HTTP fallback only when the hub
 // connection is down. Spec §2.4: offline-mode events disable live leaderboard
-// on mobile to conserve battery — we surface a static "Live updates paused"
-// state and skip both transports.
+// on mobile to conserve battery — useLiveLeaderboard short-circuits both
+// transports when the `disabled` flag is set.
 const FALLBACK_POLL_MS = 15_000;
 const BASE             = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
-
-interface HoleInOneData {
-  teamName:   string;
-  playerName: string;
-  holeNumber: number;
-}
 
 // ── ROW (memoized) ────────────────────────────────────────────────────────────
 // Pulls theme from context so identity is stable across parent re-renders.
@@ -180,115 +174,37 @@ export default function LeaderboardScreen() {
   const { session } = useSession();
   const offlineMode = session?.event.offlineMode ?? false;
 
-  const [data,        setData]        = useState<PublicLeaderboard | null>(null);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState(false);
-  const [connected,   setConnected]   = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [hioAlert,    setHioAlert]    = useState<HoleInOneData | null>(null);
-
-  const hubRef = useRef<signalR.HubConnection | null>(null);
-
-  // ── SignalR primary transport ─────────────────────────────────────────────
-  // Re-uses the existing TournamentHub. WebSocket transport works in
-  // React Native; if the start fails the polling fallback below kicks in.
-  useEffect(() => {
-    if (!session || offlineMode) return;
-    const code = session.event.eventCode;
-
-    const hub = new signalR.HubConnectionBuilder()
-      .withUrl(`${BASE}/hubs/tournament`)
-      .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Warning)
-      .build();
-
-    hubRef.current = hub;
-
-    hub.on('LeaderboardRefreshed', (payload: { standings: PublicLeaderboardEntry[] }) => {
-      if (!payload?.standings) return;
-      setData(prev => prev
-        ? { ...prev, standings: payload.standings }
-        : { eventId: '', eventName: '', status: '', standings: payload.standings });
-      setLastUpdated(new Date());
-      setError(false);
-      setLoading(false);
-    });
-
-    hub.on('HoleInOneAlert', (alert: HoleInOneData) => setHioAlert(alert));
-
-    hub.onreconnecting(() => setConnected(false));
-    hub.onreconnected(() => {
-      setConnected(true);
-      hub.invoke('JoinEvent', code).catch(() => {});
-    });
-    hub.onclose(() => setConnected(false));
-
-    hub.start()
-      .then(() => {
-        setConnected(true);
-        return hub.invoke('JoinEvent', code).catch(() => {});
-      })
-      .catch(() => setConnected(false));
-
-    return () => {
-      hubRef.current = null;
-      hub.stop().catch(() => {});
-    };
-  }, [session?.event.eventCode, offlineMode]);
-
-  // ── HTTP fallback ─────────────────────────────────────────────────────────
-  // Always runs the initial fetch so first paint isn't blocked on SignalR
-  // negotiation; the recurring poll only ticks when the hub is disconnected.
-  useEffect(() => {
-    if (!session || offlineMode) {
-      setLoading(false);
-      return;
-    }
-    const code      = session.event.eventCode;
-    let cancelled   = false;
-
-    async function poll() {
+  const {
+    standings, loading, connected, error, lastUpdated,
+    hioAlert, dismissHioAlert, refresh,
+  } = useLiveLeaderboard<PublicLeaderboardEntry>({
+    baseUrl:        BASE,
+    eventCode:      session?.event.eventCode,
+    disabled:       offlineMode,
+    pollIntervalMs: FALLBACK_POLL_MS,
+    fetchStandings: async (code) => {
+      // The mobile fetchLeaderboard throws on failure; convert to null so the
+      // hook flags an error state without surfacing the exception.
       try {
         const result = await fetchLeaderboard(code);
-        if (cancelled) return;
-        setData(result);
-        setLastUpdated(new Date());
-        setError(false);
-        setLoading(false);
+        return result.standings;
       } catch {
-        if (!cancelled) {
-          setError(true);
-          setLoading(false);
-        }
+        return null;
       }
-    }
-
-    poll();
-    const id = setInterval(() => { if (!connected) poll(); }, FALLBACK_POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [session?.event.eventCode, offlineMode, connected]);
-
-  function manualRefresh() {
-    if (!session) return;
-    fetchLeaderboard(session.event.eventCode)
-      .then(r => { setData(r); setLastUpdated(new Date()); setError(false); })
-      .catch(() => setError(true));
-  }
+    },
+  });
 
   return (
     <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
 
-      {hioAlert && <HoleInOneOverlay data={hioAlert} onDismiss={() => setHioAlert(null)} />}
+      {hioAlert && <HoleInOneOverlay data={hioAlert} onDismiss={dismissHioAlert} />}
 
       <StatusBar
         error={error}
         connected={connected}
         offline={offlineMode}
         lastUpdated={lastUpdated}
-        onRefresh={manualRefresh}
+        onRefresh={refresh}
         loading={loading}
       />
 
@@ -296,7 +212,7 @@ export default function LeaderboardScreen() {
         <View style={styles.center}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
-      ) : !data || data.standings.length === 0 ? (
+      ) : !standings || standings.length === 0 ? (
         <View style={styles.center}>
           <Text style={styles.emptyIcon}>🏆</Text>
           <Text style={[styles.emptyTitle, { color: theme.colors.primary }]}>No Scores Yet</Text>
@@ -306,7 +222,7 @@ export default function LeaderboardScreen() {
         </View>
       ) : (
         <FlatList
-          data={data.standings}
+          data={standings}
           keyExtractor={item => item.teamId}
           ListHeaderComponent={<TableHeader />}
           renderItem={({ item }) => <StandingRow entry={item} />}

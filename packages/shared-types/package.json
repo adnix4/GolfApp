@@ -13,7 +13,14 @@
   "dependencies": {
     "zod": "^3.23.8"
   },
+  "peerDependencies": {
+    "@microsoft/signalr": "^8.0.0",
+    "react": ">=18"
+  },
   "devDependencies": {
+    "@microsoft/signalr": "^8.0.0",
+    "@types/react": "*",
+    "react": "*",
     "typescript": "*"
   }
 }
