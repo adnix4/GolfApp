@@ -4,42 +4,19 @@ import {
   StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, StatusPill } from '@gfp/ui';
+import {
+  FORMAT_OPTIONS, FORMAT_LABELS, FORMAT_HINTS,
+  START_OPTIONS, START_LABELS, START_HINTS,
+  HOLES_OPTIONS,
+} from '@gfp/shared-types';
 import { eventsApi, type EventSummary, type CreateEventPayload } from '@/lib/api';
-
-const FORMAT_OPTIONS  = ['Scramble', 'Stroke', 'Stableford', 'BestBall'] as const;
-const START_OPTIONS   = ['Shotgun', 'TeeTimes'] as const;
-const HOLES_OPTIONS   = [9, 18] as const;
-
-const FORMAT_LABELS: Record<string, string> = {
-  Scramble:   'Scramble',
-  Stroke:     'Stroke Play',
-  Stableford: 'Stableford',
-  BestBall:   'Best Ball',
-};
-const FORMAT_HINTS: Record<string, string> = {
-  Scramble:   'Team plays the best shot each stroke',
-  Stroke:     'Total strokes counted per player',
-  Stableford: 'Points awarded based on score vs par',
-  BestBall:   'Best individual score counts per hole',
-};
-const START_LABELS: Record<string, string> = {
-  Shotgun:   'Shotgun Start',
-  TeeTimes:  'Tee Times',
-};
-const START_HINTS: Record<string, string> = {
-  Shotgun:   'All teams begin simultaneously from different holes',
-  TeeTimes:  'Teams are assigned scheduled tee times',
-};
-
-const STATUS_COLOR: Record<string, string> = {
-  Draft:        '#95a5a6',
-  Registration: '#3498db',
-  Active:       '#2ecc71',
-  Scoring:      '#f39c12',
-  Completed:    '#27ae60',
-  Cancelled:    '#e74c3c',
-};
+import {
+  formatDateInput, formatTimeInput,
+  validateDateField, validateTimeField,
+  buildIsoDateTime,
+} from '@/lib/dateTime';
+import { eventStatusColor } from '@/lib/eventStatus';
 
 export default function EventsScreen() {
   const theme  = useTheme();
@@ -141,9 +118,7 @@ export default function EventsScreen() {
                 <Text style={[styles.cardName, { color: theme.colors.primary }]} numberOfLines={1}>
                   {item.name}
                 </Text>
-                <View style={[styles.badge, { backgroundColor: STATUS_COLOR[item.status] ?? '#aaa' }]}>
-                  <Text style={styles.badgeText}>{item.status}</Text>
-                </View>
+                <StatusPill color={eventStatusColor(item.status)} label={item.status} />
               </View>
               <View style={styles.cardMeta}>
                 <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
@@ -210,67 +185,6 @@ interface FieldErrors {
   name?:      string;
   startDate?: string;
   startTime?: string;
-}
-
-// Auto-format as MM/DD/YYYY while user types digits
-function formatDateInput(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-}
-
-// Auto-format as HH:MM while user types digits
-function formatTimeInput(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 4);
-  if (digits.length <= 2) return digits;
-  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
-}
-
-// Validate date string and return error message or undefined
-function validateDateField(date: string): string | undefined {
-  if (!date) return undefined;
-  if (date.length < 10) return 'Enter a complete date (MM/DD/YYYY)';
-  const [mStr, dStr, yStr] = date.split('/');
-  const m = Number(mStr), d = Number(dStr), y = Number(yStr);
-  if (!m || !d || !y) return 'Enter date as MM/DD/YYYY';
-  if (m < 1 || m > 12) return 'Month must be between 01 and 12';
-  if (d < 1 || d > 31) return 'Day must be between 01 and 31';
-  if (y < 2025) return 'Year must be 2025 or later';
-  return undefined;
-}
-
-// Validate time string and return error message or undefined
-function validateTimeField(time: string): string | undefined {
-  if (!time) return undefined;
-  if (time.length < 5) return 'Enter a complete time (HH:MM)';
-  const [hStr, mStr] = time.split(':');
-  const h = Number(hStr), m = Number(mStr);
-  if (isNaN(h) || isNaN(m)) return 'Enter time as HH:MM';
-  if (h < 1 || h > 12) return 'Hour must be between 1 and 12';
-  if (m < 0 || m > 59) return 'Minutes must be between 00 and 59';
-  return undefined;
-}
-
-// Build a UTC ISO-8601 string from the form's date/time fields.
-// Uses local calendar date + wall-clock time, which matches what admins expect.
-function buildStartAt(date: string, time: string, ampm: 'AM' | 'PM'): string | undefined {
-  if (!date || date.length < 10) return undefined;
-  const [mStr, dStr, yStr] = date.split('/');
-  const m = Number(mStr), d = Number(dStr), y = Number(yStr);
-  if (!m || !d || !y) return undefined;
-
-  let h = 0, min = 0;
-  if (time && time.length >= 5) {
-    const [hStr, mStr2] = time.split(':');
-    h = Number(hStr) || 0;
-    min = Number(mStr2) || 0;
-    if (ampm === 'PM' && h !== 12) h += 12;
-    if (ampm === 'AM' && h === 12) h = 0;
-  }
-
-  // Local-time Date → toISOString() converts to UTC automatically
-  return new Date(y, m - 1, d, h, min, 0).toISOString();
 }
 
 // Map API errors to messages a non-technical user can act on
@@ -343,7 +257,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
     setSubmitError(null);
     setLoading(true);
     try {
-      const startAt = buildStartAt(startDate, startTime, startAmPm);
+      const startAt = buildIsoDateTime(startDate, startTime, startAmPm);
       const payload: CreateEventPayload = {
         name: name.trim(),
         format,
@@ -670,17 +584,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flex: 1,
     marginRight: 12,
-  },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#fff',
-    textTransform: 'uppercase',
   },
   cardMeta: {
     flexDirection: 'row',

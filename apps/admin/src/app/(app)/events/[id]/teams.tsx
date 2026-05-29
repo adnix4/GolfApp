@@ -4,7 +4,8 @@ import {
   StyleSheet, ActivityIndicator, ScrollView, Alert, Platform,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, StatusPill } from '@gfp/ui';
+import { digitsOnly, fmtPhone, fmtPhoneInput } from '@gfp/shared-types';
 import {
   teamsApi, eventsApi, playersApi,
   type Team, type Player, type RegisterTeamPayload, type AddPlayerPayload,
@@ -18,19 +19,6 @@ function fmtAgeGroup(v: string | null | undefined): string | null {
   return v;
 }
 
-function digitsOnly(v: string): string { return v.replace(/\D/g, '').slice(0, 10); }
-function fmtPhoneInput(digits: string): string {
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-}
-function fmtPhone(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  const d = raw.replace(/\D/g, '');
-  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
-  return raw;
-}
-
 function confirmAction(title: string, message: string, onConfirm: () => void) {
   if (Platform.OS === 'web') {
     if ((globalThis as any).window?.confirm(`${title}\n\n${message}`)) onConfirm();
@@ -42,7 +30,7 @@ function confirmAction(title: string, message: string, onConfirm: () => void) {
   }
 }
 
-const STATUS_COLOR: Record<string, string> = {
+const CHECK_IN_STATUS_COLOR: Record<string, string> = {
   pending:    '#f39c12',
   checked_in: '#2ecc71',
   complete:   '#27ae60',
@@ -215,9 +203,12 @@ export default function TeamsScreen() {
                   </Text>
                 </View>
                 <View style={styles.cardRight}>
-                  <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[team.checkInStatus] ?? '#aaa' }]}>
-                    <Text style={styles.statusText}>{team.checkInStatus.replace('_', ' ')}</Text>
-                  </View>
+                  <StatusPill
+                    color={CHECK_IN_STATUS_COLOR[team.checkInStatus] ?? '#aaa'}
+                    label={team.checkInStatus.replace('_', ' ')}
+                    textTransform="capitalize"
+                    size="sm"
+                  />
                   <View style={styles.actionBtns}>
                     <Pressable
                       style={[styles.editBtn, { borderColor: theme.colors.accent }]}
@@ -978,8 +969,6 @@ const styles = StyleSheet.create({
   meta: { fontSize: 13, marginTop: 2 },
   cardRight: { alignItems: 'flex-end', gap: 6 },
   actionBtns: { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  statusBadge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 10 },
-  statusText: { fontSize: 11, fontWeight: '700', color: '#fff', textTransform: 'capitalize' },
   editBtn: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
   editBtnText: { fontSize: 12, fontWeight: '600' },
   checkInBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },

@@ -5,68 +5,17 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
+import { centsToDollarsInput, dollarsToCents, formatCentsShort } from '@gfp/shared-types';
 import { auctionApi, resolveUrl, type AuctionItem, type CreateAuctionItemPayload } from '@/lib/api';
+import {
+  formatDateInput, formatTimeInput,
+  buildIsoDateTime, parseIsoToFields,
+} from '@/lib/dateTime';
 
 const AUCTION_TYPES = ['Silent', 'Live', 'DonationSilent', 'DonationLive'] as const;
 const TYPE_LABELS: Record<string, string> = {
   Silent: 'Silent', Live: 'Live', DonationSilent: 'Donation (Silent)', DonationLive: 'Donation (Live)',
 };
-
-// ── Money helpers ─────────────────────────────────────────────────────────────
-
-function centsToDollars(cents: number | undefined): string {
-  if (!cents && cents !== 0) return '';
-  return (cents / 100).toFixed(2);
-}
-
-function dollarsToCents(val: string): number {
-  const n = parseFloat(val.replace(/[^0-9.]/g, ''));
-  return isNaN(n) ? 0 : Math.round(n * 100);
-}
-
-// ── Date helpers (for "Closes At") ───────────────────────────────────────────
-
-function formatDateInput(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-}
-
-function formatTimeInput(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 4);
-  if (digits.length <= 2) return digits;
-  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
-}
-
-function buildClosesAt(date: string, time: string, ampm: 'AM' | 'PM'): string | undefined {
-  if (!date || date.length < 10) return undefined;
-  const [mStr, dStr, yStr] = date.split('/');
-  const m = Number(mStr), d = Number(dStr), y = Number(yStr);
-  if (!m || !d || !y) return undefined;
-  let h = 0, min = 0;
-  if (time && time.length >= 5) {
-    const [hStr, minStr] = time.split(':');
-    h   = Number(hStr) || 0;
-    min = Number(minStr) || 0;
-    if (ampm === 'PM' && h !== 12) h += 12;
-    if (ampm === 'AM' && h === 12) h = 0;
-  }
-  return new Date(y, m - 1, d, h, min).toISOString();
-}
-
-function parseClosesAt(iso: string | null | undefined): { date: string; time: string; ampm: 'AM' | 'PM' } {
-  if (!iso) return { date: '', time: '', ampm: 'AM' };
-  const dt  = new Date(iso);
-  const mo  = String(dt.getMonth() + 1).padStart(2, '0');
-  const day = String(dt.getDate()).padStart(2, '0');
-  const yr  = dt.getFullYear();
-  let h     = dt.getHours();
-  const min = String(dt.getMinutes()).padStart(2, '0');
-  const ampm: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return { date: `${mo}/${day}/${yr}`, time: `${String(h).padStart(2, '0')}:${min}`, ampm };
-}
 
 // ── Form state shape ──────────────────────────────────────────────────────────
 
@@ -95,19 +44,19 @@ function emptyForm(): AuctionForm {
 }
 
 function itemToForm(item: AuctionItem): AuctionForm {
-  const c = parseClosesAt(item.closesAt);
+  const c = parseIsoToFields(item.closesAt);
   return {
     title:           item.title,
     description:     item.description,
     auctionType:     item.auctionType,
-    startingBid:     centsToDollars(item.startingBidCents),
-    bidIncrement:    centsToDollars(item.bidIncrementCents),
-    buyNowPrice:     item.buyNowPriceCents ? centsToDollars(item.buyNowPriceCents) : '',
+    startingBid:     centsToDollarsInput(item.startingBidCents),
+    bidIncrement:    centsToDollarsInput(item.bidIncrementCents),
+    buyNowPrice:     item.buyNowPriceCents ? centsToDollarsInput(item.buyNowPriceCents) : '',
     closeDate:       c.date,
     closeTime:       c.time,
     closeAmpm:       c.ampm,
-    fairMarketValue: centsToDollars(item.fairMarketValueCents),
-    goal:            item.goalCents ? centsToDollars(item.goalCents) : '',
+    fairMarketValue: centsToDollarsInput(item.fairMarketValueCents),
+    goal:            item.goalCents ? centsToDollarsInput(item.goalCents) : '',
     displayOrder:    String(item.displayOrder),
   };
 }
@@ -191,7 +140,7 @@ export default function AuctionScreen() {
         ...(form.buyNowPrice.trim()  ? { buyNowPriceCents:  dollarsToCents(form.buyNowPrice)  } : {}),
         ...(form.goal.trim()         ? { goalCents:         dollarsToCents(form.goal)          } : {}),
         ...(form.closeDate.length >= 10
-          ? { closesAt: buildClosesAt(form.closeDate, form.closeTime, form.closeAmpm) }
+          ? { closesAt: buildIsoDateTime(form.closeDate, form.closeTime, form.closeAmpm) }
           : {}),
       };
       let saved: AuctionItem;
@@ -265,7 +214,7 @@ export default function AuctionScreen() {
     setEditItem(updated);
   }
 
-  const fmt = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+  const fmt = formatCentsShort;
 
   function field(key: keyof AuctionForm, value: string) {
     setForm(f => ({ ...f, [key]: value }));

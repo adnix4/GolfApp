@@ -38,6 +38,12 @@ export type UUID = string;
  */
 export type ISOTimestamp = string;
 
+// ── SHARED UTILITY HELPERS ────────────────────────────────────────────────────
+
+export * from './money';
+export * from './phone';
+export * from './eventOptions';
+
 // ── ENUMS ─────────────────────────────────────────────────────────────────────
 
 /**

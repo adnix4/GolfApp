@@ -4,6 +4,7 @@ import {
   TextInput, Modal, ScrollView, ActivityIndicator, Alert, Image,
 } from 'react-native';
 import { useTheme } from '@gfp/ui';
+import { formatCentsShort } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
 import {
   fetchAuctionItems, placeBid, pledge,
@@ -103,7 +104,7 @@ export default function AuctionScreen() {
     }
   }
 
-  const fmt = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+  const fmt = formatCentsShort;
 
   const currentLiveItem = liveSession?.currentItemId
     ? items.find(i => i.id === liveSession.currentItemId) ?? null

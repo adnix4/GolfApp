@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
+import { formatCentsShort, digitsOnly, fmtPhoneInput } from '@gfp/shared-types';
 import {
   registerTeam, registerFreeAgent,
   type PlayerInput, type SkillLevel, type AgeGroup,
@@ -16,13 +17,6 @@ type Step = 'form' | 'success';
 interface TeammateFields { firstName: string; lastName: string; email: string; }
 const emptyTeammate = (): TeammateFields => ({ firstName: '', lastName: '', email: '' });
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function digitsOnly(v: string): string { return v.replace(/\D/g, '').slice(0, 10); }
-function fmtPhoneInput(digits: string): string {
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-}
 
 const SKILL_OPTIONS: { value: SkillLevel; label: string }[] = [
   { value: 'Beginner',     label: 'Beginner'     },
@@ -209,7 +203,7 @@ export default function RegisterScreen() {
               <View style={[styles.feeNotice, { backgroundColor: '#fffbf0', borderColor: '#f39c12' }]}>
                 <Text style={styles.feeNoticeTitle}>Entry Fee Due</Text>
                 <Text style={styles.feeNoticeText}>
-                  This event requires a ${(entryFeeCents / 100).toFixed(2)} entry fee.
+                  This event requires a {formatCentsShort(entryFeeCents)} entry fee.
                   A payment link has been sent to your email — please complete payment before the event starts.
                 </Text>
               </View>

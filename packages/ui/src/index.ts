@@ -27,6 +27,8 @@ export { TeamCard }         from './components/TeamCard';
 export { SponsorBanner }    from './components/SponsorBanner';
 export { AdaptiveLogoFrame } from './components/AdaptiveLogoFrame';
 export type { AdaptiveLogoFrameProps } from './components/AdaptiveLogoFrame';
+export { StatusPill }       from './components/StatusPill';
+export type { StatusPillProps } from './components/StatusPill';
 export { ThemeProvider, useTheme } from './components/ThemeProvider';
 
 /**

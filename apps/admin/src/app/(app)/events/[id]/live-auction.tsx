@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
+import { centsToDollarsInput, dollarsToCents, formatCentsShort } from '@gfp/shared-types';
 import { auctionApi, type AuctionItem, type AuctionSession } from '@/lib/api';
 
 export default function LiveAuctionScreen() {
@@ -34,7 +35,7 @@ export default function LiveAuctionScreen() {
       setItems(itemData.filter(i => i.auctionType === 'Live' || i.auctionType === 'DonationLive'));
       setSession(sessionData);
       if (sessionData) {
-        setCalledAmt(centsToDollars(sessionData.currentCalledAmountCents));
+        setCalledAmt(centsToDollarsInput(sessionData.currentCalledAmountCents));
       }
     } catch (e: any) {
       setError(e.message ?? 'Failed to load live auction data.');
@@ -67,7 +68,7 @@ export default function LiveAuctionScreen() {
     try {
       const s = await auctionApi.nextItem(eventId);
       setSession(s);
-      setCalledAmt(centsToDollars(s.currentCalledAmountCents));
+      setCalledAmt(centsToDollarsInput(s.currentCalledAmountCents));
       if (!s.currentItemId) setSuccess('All items have been presented.');
     } catch (e: any) {
       setError(e.message ?? 'Could not advance to the next item.');
@@ -107,7 +108,7 @@ export default function LiveAuctionScreen() {
     }
   }
 
-  const fmt = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+  const fmt = formatCentsShort;
 
   if (loading) return (
     <View style={styles.center}>
@@ -268,17 +269,6 @@ export default function LiveAuctionScreen() {
       )}
     </ScrollView>
   );
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function centsToDollars(cents: number): string {
-  return (cents / 100).toFixed(2);
-}
-
-function dollarsToCents(val: string): number {
-  const n = parseFloat(val.replace(/[^0-9.]/g, ''));
-  return isNaN(n) ? 0 : Math.round(n * 100);
 }
 
 // ── Award Winner Input ────────────────────────────────────────────────────────

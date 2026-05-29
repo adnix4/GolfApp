@@ -4,12 +4,11 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
+import { formatCents } from '@gfp/shared-types';
 import { eventsApi, testDataApi, auctionApi, type FundraisingTotals, type EventDetail, type FailedCharge } from '@/lib/api';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 
-function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
-}
+const formatCurrency = formatCents;
 
 export default function FundraisingScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();

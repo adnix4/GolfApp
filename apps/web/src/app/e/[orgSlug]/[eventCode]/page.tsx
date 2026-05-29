@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { formatCents } from '@gfp/shared-types';
 import { fetchPublicEvent, fetchPublicLeaderboard } from '@/lib/api';
 import type { PublicLeaderboard, PublicSponsorInfo, PublicFundraisingInfo } from '@/lib/api';
 import EventRegistrationSection, { DonateWidget } from './EventActions';
@@ -439,9 +440,7 @@ function fmt(s: string) {
   return s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function cents(n: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n / 100);
-}
+const cents = formatCents;
 
 // ── RESPONSIVE GRID CSS ───────────────────────────────────────────────────────
 

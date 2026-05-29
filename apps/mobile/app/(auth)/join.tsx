@@ -5,19 +5,12 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
+import { FORMAT_LABELS } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
 import { joinEvent, fetchActiveEvents, type ActiveEventSummary } from '@/lib/api';
 import { registerForPushNotifications } from '@/lib/pushNotifications';
 
 type Step = 'pick' | 'join' | 'waiting';
-
-const FORMAT_LABELS: Record<string, string> = {
-  Scramble:   'Scramble',
-  Stroke:     'Stroke Play',
-  Stableford: 'Stableford',
-  BestBall:   'Best Ball',
-  Match:      'Match Play',
-};
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   Registration: { label: 'Registration Open', color: '#2e7d32' },

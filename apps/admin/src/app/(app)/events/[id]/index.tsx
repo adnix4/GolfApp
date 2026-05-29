@@ -3,111 +3,23 @@ import {
   View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView, Modal, TextInput,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, StatusPill } from '@gfp/ui';
+import {
+  FORMAT_OPTIONS, FORMAT_LABELS,
+  START_OPTIONS, START_LABELS,
+  HOLES_OPTIONS,
+} from '@gfp/shared-types';
 import { eventsApi, testDataApi, type EventDetail, type UpdateEventPayload } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
-
-const FORMAT_OPTIONS  = ['Scramble', 'Stroke', 'Stableford', 'BestBall'] as const;
-const START_OPTIONS   = ['Shotgun', 'TeeTimes'] as const;
-const HOLES_OPTIONS   = [9, 18] as const;
-const FORMAT_LABELS: Record<string, string> = {
-  Scramble: 'Scramble', Stroke: 'Stroke Play', Stableford: 'Stableford', BestBall: 'Best Ball',
-};
-const START_LABELS: Record<string, string> = {
-  Shotgun: 'Shotgun Start', TeeTimes: 'Tee Times',
-};
-
-const STATUS_COLOR: Record<string, string> = {
-  Draft:        '#95a5a6',
-  Registration: '#3498db',
-  Active:       '#2ecc71',
-  Scoring:      '#f39c12',
-  Completed:    '#27ae60',
-  Cancelled:    '#e74c3c',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  Draft:        'Draft',
-  Registration: 'Registration Open',
-  Active:       'Active',
-  Scoring:      'Scoring',
-  Completed:    'Completed',
-  Cancelled:    'Cancelled',
-};
-
-const NEXT_TRANSITIONS: Record<string, { status: string; label: string; danger?: boolean }[]> = {
-  Registration: [{ status: 'Active',    label: 'Go Active (Day of Event)' }],
-  Active:       [{ status: 'Scoring',   label: 'Open Scoring' }],
-  Scoring:      [{ status: 'Completed', label: 'Mark Complete' }],
-};
-
-// ── Date/time helpers ─────────────────────────────────────────────────────────
-
-function formatDateInput(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-}
-
-function formatTimeInput(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 4);
-  if (digits.length <= 2) return digits;
-  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
-}
-
-function validateDateField(date: string): string | undefined {
-  if (!date) return undefined;
-  if (date.length < 10) return 'Enter a complete date (MM/DD/YYYY)';
-  const [mStr, dStr, yStr] = date.split('/');
-  const m = Number(mStr), d = Number(dStr), y = Number(yStr);
-  if (!m || !d || !y) return 'Enter date as MM/DD/YYYY';
-  if (m < 1 || m > 12) return 'Month must be between 01 and 12';
-  if (d < 1 || d > 31) return 'Day must be between 01 and 31';
-  if (y < 2025) return 'Year must be 2025 or later';
-  return undefined;
-}
-
-function validateTimeField(time: string): string | undefined {
-  if (!time) return undefined;
-  if (time.length < 5) return 'Enter a complete time (HH:MM)';
-  const [hStr, mStr] = time.split(':');
-  const h = Number(hStr), m = Number(mStr);
-  if (isNaN(h) || isNaN(m)) return 'Enter time as HH:MM';
-  if (h < 1 || h > 12) return 'Hour must be between 1 and 12';
-  if (m < 0 || m > 59) return 'Minutes must be between 00 and 59';
-  return undefined;
-}
-
-function buildStartAt(date: string, time: string, ampm: 'AM' | 'PM'): string | undefined {
-  if (!date || date.length < 10) return undefined;
-  const [mStr, dStr, yStr] = date.split('/');
-  const m = Number(mStr), d = Number(dStr), y = Number(yStr);
-  if (!m || !d || !y) return undefined;
-  let h = 0, min = 0;
-  if (time && time.length >= 5) {
-    const [hStr, mStr2] = time.split(':');
-    h = Number(hStr) || 0;
-    min = Number(mStr2) || 0;
-    if (ampm === 'PM' && h !== 12) h += 12;
-    if (ampm === 'AM' && h === 12) h = 0;
-  }
-  return new Date(y, m - 1, d, h, min).toISOString();
-}
-
-function parseStartAt(startAt: string | null): { date: string; time: string; ampm: 'AM' | 'PM' } {
-  if (!startAt) return { date: '', time: '', ampm: 'AM' };
-  const dt = new Date(startAt);
-  const mo  = String(dt.getMonth() + 1).padStart(2, '0');
-  const day = String(dt.getDate()).padStart(2, '0');
-  const yr  = dt.getFullYear();
-  let h = dt.getHours();
-  const min = String(dt.getMinutes()).padStart(2, '0');
-  const ampm: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return { date: `${mo}/${day}/${yr}`, time: `${String(h).padStart(2, '0')}:${min}`, ampm };
-}
+import {
+  formatDateInput, formatTimeInput,
+  validateDateField, validateTimeField,
+  buildIsoDateTime, parseIsoToFields,
+} from '@/lib/dateTime';
+import {
+  eventStatusColor, eventStatusLabel, NEXT_TRANSITIONS,
+} from '@/lib/eventStatus';
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 
@@ -209,9 +121,7 @@ export default function EventOverviewScreen() {
           <Text style={[styles.eventName, { color: theme.colors.primary }]}>{event.name}</Text>
           <Text style={[styles.eventCode, { color: theme.colors.accent }]}>Code: {event.eventCode}</Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[event.status] ?? '#999' }]}>
-          <Text style={styles.statusBadgeText}>{STATUS_LABEL[event.status] ?? event.status}</Text>
-        </View>
+        <StatusPill color={eventStatusColor(event.status)} label={eventStatusLabel(event.status)} />
       </View>
 
       {/* Draft setup checklist — shown instead of the plain "Advance Status" section */}
@@ -541,7 +451,7 @@ interface EditEventModalProps {
 
 function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProps) {
   const theme = useTheme();
-  const parsed = parseStartAt(event.startAt);
+  const parsed = parseIsoToFields(event.startAt);
 
   const [name,      setName]      = useState(event.name);
   const [format,    setFormat]    = useState(event.format);
@@ -556,7 +466,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
 
   useEffect(() => {
     if (!visible) return;
-    const p = parseStartAt(event.startAt);
+    const p = parseIsoToFields(event.startAt);
     setName(event.name); setFormat(event.format); setStartType(event.startType); setHoles(event.holes);
     setStartDate(p.date); setStartTime(p.time); setAmpm(p.ampm);
     setError(null); setFieldErrors({});
@@ -580,7 +490,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
     try {
       const updated = await eventsApi.update(event.id, {
         name: name.trim(), format, startType, holes,
-        ...(startDate ? { startAt: buildStartAt(startDate, startTime, ampm) } : {}),
+        ...(startDate ? { startAt: buildIsoDateTime(startDate, startTime, ampm) } : {}),
       });
       onSaved(updated);
     } catch (e: any) { setError(e.message ?? 'Failed to save event details.'); }
@@ -771,8 +681,6 @@ const styles = StyleSheet.create({
   pageHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 4 },
   eventName:  { fontSize: 22, fontWeight: '800' },
   eventCode:  { fontSize: 13, marginTop: 2 },
-  statusBadge: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14 },
-  statusBadgeText: { fontSize: 12, fontWeight: '700', color: '#fff', textTransform: 'uppercase' },
 
   section: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e8e8e8', borderRadius: 12, padding: 16 },
 

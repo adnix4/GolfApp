@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
+import { centsToDollarsInput, formatCentsShort } from '@gfp/shared-types';
 import { challengesApi, eventsApi, type HoleChallenge } from '@/lib/api';
 
 const COMMON_CHALLENGES = [
@@ -137,7 +138,7 @@ export default function ChallengesScreen() {
                 )}
                 {ch.donationAmountCents != null && ch.donationAmountCents > 0 && (
                   <Text style={[styles.donationLine, { color: '#16a085' }]}>
-                    ${(ch.donationAmountCents / 100).toFixed(2)} donation
+                    {formatCentsShort(ch.donationAmountCents)} donation
                   </Text>
                 )}
                 {ch.winnerName && (
@@ -202,7 +203,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
       setSponsorName(initial?.sponsorName ?? '');
       setSponsorLogoUrl(initial?.sponsorLogoUrl ?? '');
       setDonationAmt(
-        initial?.donationAmountCents ? String(initial.donationAmountCents / 100) : ''
+        initial?.donationAmountCents ? centsToDollarsInput(initial.donationAmountCents) : ''
       );
       setError(null);
     }

@@ -3,10 +3,12 @@ import {
   View, Text, ScrollView, Pressable, RefreshControl,
   ActivityIndicator, StyleSheet,
 } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { useTheme, StatusPill } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
 import { superAdminApi, OrgSummary, AllEventSummary } from '@/lib/api';
 
+// Super-admin uses a different palette than the organizer event view —
+// here Completed is blue (legacy) and Archived is a real status.
 const STATUS_COLOR: Record<string, string> = {
   Draft:     '#95a5a6',
   Active:    '#27ae60',
@@ -15,11 +17,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 function Badge({ status }: { status: string }) {
-  return (
-    <View style={[styles.badge, { backgroundColor: STATUS_COLOR[status] ?? '#95a5a6' }]}>
-      <Text style={styles.badgeText}>{status}</Text>
-    </View>
-  );
+  return <StatusPill color={STATUS_COLOR[status] ?? '#95a5a6'} label={status} size="sm" />;
 }
 
 export default function SuperAdminDashboard() {
@@ -263,6 +261,4 @@ const styles = StyleSheet.create({
 
   emptyMsg: { padding: 24, textAlign: 'center', fontSize: 14 },
 
-  badge:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });

@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
+import { formatCentsShort } from '@gfp/shared-types';
 import {
   leagueApi, SeasonDashboard, LeagueMember, LeagueRound,
   StandingRow, SkinRow, PairingGroup, HandicapHistoryRow, RoundAbsence,
@@ -538,7 +539,7 @@ export default function SeasonDashboardScreen() {
                     )}
                   </View>
                   <Text style={[styles.skinPot, { color: theme.colors.primary }]}>
-                    ${(sk.potCents / 100).toFixed(2)}
+                    {formatCentsShort(sk.potCents)}
                   </Text>
                 </View>
               ))

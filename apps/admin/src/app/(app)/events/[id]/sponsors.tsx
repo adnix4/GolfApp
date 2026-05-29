@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
+import { centsToDollarsInput, formatCentsShort } from '@gfp/shared-types';
 import { sponsorsApi, type Sponsor, type CreateSponsorPayload, type SponsorPlacements } from '@/lib/api';
 
 const TIER_OPTIONS = ['title', 'gold', 'hole', 'silver', 'bronze'] as const;
@@ -191,7 +192,7 @@ export default function SponsorsScreen() {
                   )}
                   {s.donationAmountCents != null && s.donationAmountCents > 0 && (
                     <Text style={[styles.donationAmt, { color: '#16a085' }]}>
-                      ${(s.donationAmountCents / 100).toFixed(2)} donation
+                      {formatCentsShort(s.donationAmountCents)} donation
                     </Text>
                   )}
                   {holeNums.length > 0 && (
@@ -274,7 +275,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
       setWebsiteUrl(initialData?.websiteUrl ?? '');
       setTagline(initialData?.tagline ?? '');
       setDonationAmt(
-        initialData?.donationAmountCents ? String(initialData.donationAmountCents / 100) : ''
+        initialData?.donationAmountCents ? centsToDollarsInput(initialData.donationAmountCents) : ''
       );
       setSelectedHoles(initialData?.placements?.holeNumbers ?? []);
       setError(null);

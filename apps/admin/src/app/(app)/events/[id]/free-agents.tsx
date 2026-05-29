@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
+import { digitsOnly, fmtPhone, fmtPhoneInput } from '@gfp/shared-types';
 import { playersApi, teamsApi, type Player, type Team, type AddPlayerPayload } from '@/lib/api';
 
 function fmtAgeGroup(v: string | null | undefined): string | null {
@@ -13,19 +14,6 @@ function fmtAgeGroup(v: string | null | undefined): string | null {
   if (v === 'From30To50') return '30–50';
   if (v === 'Over50')     return 'Over 50';
   return v;
-}
-
-function digitsOnly(v: string): string { return v.replace(/\D/g, '').slice(0, 10); }
-function fmtPhoneInput(digits: string): string {
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-}
-function fmtPhone(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  const d = raw.replace(/\D/g, '');
-  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
-  return raw;
 }
 
 export default function FreeAgentsScreen() {
