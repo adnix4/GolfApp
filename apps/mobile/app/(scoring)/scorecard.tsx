@@ -278,7 +278,15 @@ function SponsorModal({
       >
         {/* Inner card stops tap propagation so it doesn't close */}
         <Pressable
-          style={[sponModalStyles.card, { backgroundColor: theme.colors.surface }]}
+          style={[
+            sponModalStyles.card,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.primary,
+              borderWidth: 3,
+              shadowColor: theme.colors.primary,
+            },
+          ]}
           onPress={() => {}}
         >
           {/* Header */}
@@ -289,17 +297,26 @@ function SponsorModal({
           <View style={sponModalStyles.body}>
             {/* Logo or name */}
             {sponsor.logoUrl ? (
-              <Image
-                source={{ uri: sponsor.logoUrl }}
-                style={sponModalStyles.logo}
-                resizeMode="contain"
-                accessibilityLabel={`${sponsor.name} logo`}
-              />
+              <View style={[sponModalStyles.logoContainer, { borderColor: theme.colors.primary + '33' }]}>
+                <Image
+                  source={{ uri: sponsor.logoUrl }}
+                  style={sponModalStyles.logo}
+                  resizeMode="contain"
+                  accessibilityLabel={`${sponsor.name} logo`}
+                />
+              </View>
             ) : (
               <Text style={[sponModalStyles.sponsorName, { color: theme.colors.primary }]}>
                 {sponsor.name}
               </Text>
             )}
+
+            {/* Tagline — shown when set */}
+            {sponsor.tagline ? (
+              <Text style={[sponModalStyles.tagline, { color: theme.colors.accent }]}>
+                {sponsor.tagline}
+              </Text>
+            ) : null}
 
             {/* Thank-you statement */}
             <Text style={[sponModalStyles.thankYou, { color: theme.colors.primary }]}>
@@ -341,13 +358,37 @@ function SponsorModal({
 }
 
 const sponModalStyles = StyleSheet.create({
-  backdrop:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  card:       { borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
+  backdrop:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  card: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+    // high-contrast shadow (colour set dynamically via style prop)
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 14,
+  },
   header:     { paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center' },
   headerText: { color: '#fff', fontSize: 17, fontWeight: '800' },
-  body:       { padding: 24, alignItems: 'center', gap: 16 },
-  logo:       { width: 200, height: 70, marginBottom: 4 },
-  sponsorName:{ fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  body:       { padding: 24, alignItems: 'center', gap: 14 },
+  /** Subtle bordered box that frames the logo without clipping it */
+  logoContainer: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+  },
+  logo:        { width: 200, height: 70 },
+  sponsorName: { fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  /** Tagline displayed below the logo in accent colour */
+  tagline: {
+    fontSize: 14,
+    fontWeight: '600',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   thankYou:   { fontSize: 15, textAlign: 'center', lineHeight: 22, opacity: 0.85 },
   websiteBtn: {
     paddingVertical: 12, paddingHorizontal: 28,

@@ -179,6 +179,7 @@ public record SponsorCacheDto
     public string       Name       { get; init; } = string.Empty;
     public string       LogoUrl    { get; init; } = string.Empty;
     public string?      WebsiteUrl { get; init; }
+    public string?      Tagline    { get; init; }
     public string       Tier       { get; init; } = string.Empty;
     /// <summary>Hole numbers this sponsor is associated with (for hole-sponsor display).</summary>
     public List<int>    HoleNumbers { get; init; } = new();

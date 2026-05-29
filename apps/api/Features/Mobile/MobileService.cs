@@ -213,11 +213,12 @@ public class MobileService
         var sponsors = evt.Sponsors
             .Select(s => new SponsorCacheDto
             {
-                Id         = s.Id,
-                Name       = s.Name,
-                LogoUrl    = s.LogoUrl,
-                WebsiteUrl = s.WebsiteUrl,
-                Tier       = s.Tier.ToString(),
+                Id          = s.Id,
+                Name        = s.Name,
+                LogoUrl     = s.LogoUrl,
+                WebsiteUrl  = s.WebsiteUrl,
+                Tagline     = s.Tagline,
+                Tier        = s.Tier.ToString(),
                 HoleNumbers = ExtractHoleNumbers(s.PlacementsJson),
             })
             .ToList();

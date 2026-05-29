@@ -16,7 +16,7 @@ function authHeader(): Record<string, string> {
 export interface PlayerCacheDto  { id: string; firstName: string; lastName: string; email: string; }
 export interface HoleCacheDto    { holeNumber: number; par: number; handicapIndex: number; yardageWhite: number | null; yardageBlue: number | null; yardageRed: number | null; sponsorName: string | null; sponsorLogoUrl: string | null; }
 export interface CourseCacheDto  { id: string; name: string; city: string; state: string; holes: HoleCacheDto[]; }
-export interface SponsorCacheDto { id: string; name: string; logoUrl: string; websiteUrl: string | null; tier: string; holeNumbers: number[]; }
+export interface SponsorCacheDto { id: string; name: string; logoUrl: string; websiteUrl: string | null; tagline: string | null; tier: string; holeNumbers: number[]; }
 export interface OrgCacheDto     { id: string; name: string; slug: string; logoUrl: string | null; themeJson: string | null; }
 
 export interface TeamCacheDto {
