@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, Pressable, TextInput, Modal,
-  ActivityIndicator, StyleSheet, ScrollView,
+  View, Text, FlatList, Pressable, TextInput, StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, AsyncSection, FormModal, PrimaryButton } from '@gfp/ui';
 import { leagueApi, LeagueSummary } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
 
@@ -64,38 +63,24 @@ export default function LeaguesScreen() {
     }
   }
 
-  if (loading) return (
-    <View style={styles.center}>
-      <ActivityIndicator size="large" color={theme.colors.primary} />
-    </View>
-  );
-
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.surface }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.colors.accent }]}>
         <Text style={[styles.title, { color: theme.colors.primary }]}>Leagues</Text>
-        <Pressable
-          style={[styles.btn, { backgroundColor: theme.colors.primary }]}
+        <PrimaryButton
+          label="+ New League"
+          size="sm"
           onPress={() => setShowCreate(true)}
-        >
-          <Text style={[styles.btnText, { color: theme.colors.surface }]}>+ New League</Text>
-        </Pressable>
+        />
       </View>
 
-      {error && (
-        <View style={styles.errorBanner}>
-          <Text style={{ color: '#dc2626' }}>{error}</Text>
-        </View>
-      )}
-
-      {leagues.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={[styles.emptyText, { color: theme.colors.accent }]}>
-            No leagues yet. Create one to get started.
-          </Text>
-        </View>
-      ) : (
+      <AsyncSection
+        loading={loading}
+        error={error}
+        empty={leagues.length === 0 ? 'No leagues yet. Create one to get started.' : null}
+        onRetry={load}
+      >
         <FlatList
           data={leagues}
           keyExtractor={l => l.id}
@@ -128,14 +113,16 @@ export default function LeaguesScreen() {
             </Pressable>
           )}
         />
-      )}
+      </AsyncSection>
 
-      {/* Create Modal */}
-      <Modal visible={showCreate} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={[styles.modal, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>New League</Text>
-
+      <FormModal
+        visible={showCreate}
+        title="New League"
+        onClose={() => setShowCreate(false)}
+        onSubmit={handleCreate}
+        submitLabel="Create"
+        loading={saving}
+      >
             <Text style={[styles.label, { color: theme.colors.accent }]}>League Name</Text>
             <TextInput
               style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
@@ -192,20 +179,7 @@ export default function LeaguesScreen() {
               </View>
             </View>
 
-            <View style={styles.modalActions}>
-              <Pressable style={styles.cancelBtn} onPress={() => setShowCreate(false)}>
-                <Text style={{ color: theme.colors.accent }}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.btn, { backgroundColor: theme.colors.primary, opacity: saving ? 0.6 : 1 }]}
-                onPress={handleCreate} disabled={saving}
-              >
-                <Text style={{ color: theme.colors.surface }}>{saving ? 'Creating…' : 'Create'}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      </FormModal>
     </View>
   );
 }

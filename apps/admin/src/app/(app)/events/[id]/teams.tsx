@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator, ScrollView, Alert, Platform,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme, StatusPill } from '@gfp/ui';
+import { useTheme, StatusPill, FormModal } from '@gfp/ui';
 import { digitsOnly, fmtPhone, fmtPhoneInput } from '@gfp/shared-types';
 import {
   teamsApi, eventsApi, playersApi,
@@ -382,42 +382,20 @@ function ConfirmRemoveTeamModal({ visible, eventName, team, onClose, onConfirm }
   }
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={[styles.modal, styles.confirmModal]}>
-          {/* Event name title bar */}
-          <View style={[styles.confirmModalHeader, { backgroundColor: theme.colors.primary }]}>
-            <Text style={styles.confirmModalEventName} numberOfLines={1}>{eventName}</Text>
-          </View>
-
-          {/* Warning body */}
-          <View style={styles.confirmModalBody}>
-            <Text style={[styles.confirmModalMessage, { color: theme.colors.primary }]}>
-              Warning removing team "{team?.name}" can not be undone.
-            </Text>
-
-            <View style={styles.modalActions}>
-              <Pressable
-                style={[styles.cancelBtn, { borderColor: theme.colors.accent }]}
-                onPress={onClose}
-                disabled={loading}
-              >
-                <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.submitBtn, { backgroundColor: '#e74c3c' }, loading && { opacity: 0.6 }]}
-                onPress={handleConfirm}
-                disabled={loading}
-              >
-                {loading
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.submitText}>Remove</Text>}
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </View>
-    </Modal>
+    <FormModal
+      visible={visible}
+      title={eventName}
+      onClose={onClose}
+      onSubmit={handleConfirm}
+      submitLabel="Remove"
+      loading={loading}
+      destructive
+      maxWidth={420}
+    >
+      <Text style={[styles.confirmModalMessage, { color: theme.colors.primary }]}>
+        Warning removing team "{team?.name}" can not be undone.
+      </Text>
+    </FormModal>
   );
 }
 

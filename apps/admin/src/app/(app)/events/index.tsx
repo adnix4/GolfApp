@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, Pressable, FlatList, Modal, TextInput,
-  StyleSheet, ActivityIndicator, ScrollView,
+  View, Text, Pressable, FlatList, TextInput,
+  StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, StatusPill } from '@gfp/ui';
+import { useTheme, StatusPill, AsyncSection, PrimaryButton, FormModal } from '@gfp/ui';
 import {
   FORMAT_OPTIONS, FORMAT_LABELS, FORMAT_HINTS,
   START_OPTIONS, START_LABELS, START_HINTS,
@@ -71,38 +71,20 @@ export default function EventsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.colors.primary }]}>Events</Text>
-        <Pressable
-          style={[styles.createBtn, { backgroundColor: theme.colors.primary }]}
+        <PrimaryButton
+          label="+ New Event"
+          size="sm"
           onPress={() => setShowCreate(true)}
-          accessibilityRole="button"
           accessibilityLabel="Create new event"
-        >
-          <Text style={[styles.createBtnText, { color: theme.colors.surface }]}>+ New Event</Text>
-        </Pressable>
+        />
       </View>
 
-      {loading && (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-        </View>
-      )}
-
-      {!loading && error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable onPress={load}><Text style={{ color: theme.colors.action }}>Retry</Text></Pressable>
-        </View>
-      )}
-
-      {!loading && !error && events.length === 0 && (
-        <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.colors.accent }]}>
-            No events yet. Create your first event to get started.
-          </Text>
-        </View>
-      )}
-
-      {!loading && events.length > 0 && (
+      <AsyncSection
+        loading={loading}
+        error={error}
+        empty={events.length === 0 ? 'No events yet. Create your first event to get started.' : null}
+        onRetry={load}
+      >
         <FlatList
           data={events}
           keyExtractor={e => e.id}
@@ -162,7 +144,7 @@ export default function EventsScreen() {
             </Pressable>
           )}
         />
-      )}
+      </AsyncSection>
 
       <CreateEventModal
         visible={showCreate}
@@ -281,19 +263,19 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
   const showTimeError  = touched.startTime && !!fieldErrors.startTime;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
-      <View style={styles.overlay}>
-        <ScrollView
-          contentContainerStyle={styles.overlayScroll}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.modal}>
-            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>New Event</Text>
-            <Text style={styles.requiredNote}>
-              <Text style={styles.requiredStar}>*</Text> Required fields
-            </Text>
+    <FormModal
+      visible={visible}
+      title="New Event"
+      onClose={handleClose}
+      onSubmit={handleSubmit}
+      submitLabel="Create Event"
+      loading={loading}
+    >
+      <Text style={styles.requiredNote}>
+        <Text style={styles.requiredStar}>*</Text> Required fields
+      </Text>
 
-            {submitError && (
+      {submitError && (
               <View style={styles.submitErrorBox}>
                 <Text style={styles.submitErrorIcon}>⚠</Text>
                 <Text style={styles.submitErrorText}>{submitError}</Text>
@@ -494,34 +476,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
               </View>
             </View>
 
-            <View style={styles.modalActions}>
-              <Pressable
-                style={[styles.cancelBtn, { borderColor: theme.colors.accent }]}
-                onPress={handleClose}
-                disabled={loading}
-              >
-                <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.submitBtn,
-                  { backgroundColor: theme.colors.primary },
-                  loading && { opacity: 0.6 },
-                ]}
-                onPress={handleSubmit}
-                disabled={loading}
-                accessibilityRole="button"
-                accessibilityLabel="Create event"
-              >
-                {loading
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.submitText}>Create Event</Text>}
-              </Pressable>
-            </View>
-          </View>
-        </ScrollView>
-      </View>
-    </Modal>
+    </FormModal>
   );
 }
 
