@@ -276,120 +276,148 @@ function SponsorModal({
         accessibilityLabel="Close sponsor info"
         accessibilityRole="button"
       >
-        {/* Inner card stops tap propagation so it doesn't close */}
-        <Pressable
+        {/*
+          Two-layer approach:
+          • cardShell  — outer View owns the visible border + shadow (not clipped)
+          • card       — inner Pressable uses overflow:hidden to clip the header bg
+                         neatly to the top rounded corners
+        */}
+        <View
           style={[
-            sponModalStyles.card,
+            sponModalStyles.cardShell,
             {
-              backgroundColor: theme.colors.surface,
               borderColor: theme.colors.primary,
-              borderWidth: 3,
               shadowColor: theme.colors.primary,
             },
           ]}
-          onPress={() => {}}
         >
-          {/* Header */}
-          <View style={[sponModalStyles.header, { backgroundColor: theme.colors.primary }]}>
-            <Text style={sponModalStyles.headerText}>🤝 Hole Sponsor</Text>
-          </View>
-
-          <View style={sponModalStyles.body}>
-            {/* Logo or name */}
-            {sponsor.logoUrl ? (
-              <View style={[sponModalStyles.logoContainer, { borderColor: theme.colors.primary + '33' }]}>
-                <Image
-                  source={{ uri: sponsor.logoUrl }}
-                  style={sponModalStyles.logo}
-                  resizeMode="contain"
-                  accessibilityLabel={`${sponsor.name} logo`}
-                />
-              </View>
-            ) : (
-              <Text style={[sponModalStyles.sponsorName, { color: theme.colors.primary }]}>
-                {sponsor.name}
-              </Text>
-            )}
-
-            {/* Tagline — shown when set */}
-            {sponsor.tagline ? (
-              <Text style={[sponModalStyles.tagline, { color: theme.colors.accent }]}>
-                {sponsor.tagline}
-              </Text>
-            ) : null}
-
-            {/* Thank-you statement */}
-            <Text style={[sponModalStyles.thankYou, { color: theme.colors.primary }]}>
-              Thank you to{' '}
-              <Text style={{ fontWeight: '800' }}>{sponsor.name}</Text>
-              {' '}for generously sponsoring this hole and supporting our event!
-            </Text>
-
-            {/* Website button — only shown when a URL is set */}
-            {sponsor.websiteUrl ? (
-              <Pressable
-                onPress={openWebsite}
-                style={({ pressed }) => [
-                  sponModalStyles.websiteBtn,
-                  { backgroundColor: theme.colors.primary, opacity: pressed ? 0.8 : 1 },
-                ]}
-                accessibilityRole="link"
-                accessibilityLabel={`Visit ${sponsor.name} website`}
-              >
-                <Text style={sponModalStyles.websiteBtnText}>
-                  Visit {sponsor.name} →
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-
-          {/* Close */}
           <Pressable
-            style={[sponModalStyles.closeBtn, { backgroundColor: theme.colors.primary }]}
-            onPress={onDismiss}
-            accessibilityRole="button"
+            style={[sponModalStyles.card, { backgroundColor: '#ffffff' }]}
+            onPress={() => {}}
           >
-            <Text style={sponModalStyles.closeBtnText}>Got It</Text>
+            {/* Header */}
+            <View style={[sponModalStyles.header, { backgroundColor: theme.colors.primary }]}>
+              <Text style={sponModalStyles.headerText}>🤝 Hole Sponsor</Text>
+            </View>
+
+            <View style={sponModalStyles.body}>
+              {/* Logo or name */}
+              {sponsor.logoUrl ? (
+                <View style={[sponModalStyles.logoContainer, { borderColor: theme.colors.primary }]}>
+                  <Image
+                    source={{ uri: sponsor.logoUrl }}
+                    style={sponModalStyles.logo}
+                    resizeMode="contain"
+                    accessibilityLabel={`${sponsor.name} logo`}
+                  />
+                </View>
+              ) : (
+                <Text style={[sponModalStyles.sponsorName, { color: theme.colors.primary }]}>
+                  {sponsor.name}
+                </Text>
+              )}
+
+              {/* Tagline — shown when set */}
+              {sponsor.tagline ? (
+                <Text style={[sponModalStyles.tagline, { color: theme.colors.primary }]}>
+                  {sponsor.tagline}
+                </Text>
+              ) : null}
+
+              {/* Thank-you statement */}
+              <Text style={sponModalStyles.thankYou}>
+                Thank you to{' '}
+                <Text style={{ fontWeight: '800' }}>{sponsor.name}</Text>
+                {' '}for generously sponsoring this hole and supporting our event!
+              </Text>
+
+              {/* Website button — only shown when a URL is set */}
+              {sponsor.websiteUrl ? (
+                <Pressable
+                  onPress={openWebsite}
+                  style={({ pressed }) => [
+                    sponModalStyles.websiteBtn,
+                    { backgroundColor: theme.colors.primary, opacity: pressed ? 0.8 : 1 },
+                  ]}
+                  accessibilityRole="link"
+                  accessibilityLabel={`Visit ${sponsor.name} website`}
+                >
+                  <Text style={sponModalStyles.websiteBtnText}>
+                    Visit {sponsor.name} →
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+
+            {/* Close */}
+            <Pressable
+              style={[sponModalStyles.closeBtn, { backgroundColor: theme.colors.primary }]}
+              onPress={onDismiss}
+              accessibilityRole="button"
+            >
+              <Text style={sponModalStyles.closeBtnText}>Got It</Text>
+            </Pressable>
           </Pressable>
-        </Pressable>
+        </View>
       </Pressable>
     </Modal>
   );
 }
 
 const sponModalStyles = StyleSheet.create({
-  backdrop:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
-  card: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
-    // high-contrast shadow (colour set dynamically via style prop)
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 14,
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.80)', justifyContent: 'flex-end' },
+
+  /**
+   * cardShell — outer wrapper that owns the visible 3 px border and drop shadow.
+   * Must NOT have overflow:hidden so the border is fully painted.
+   */
+  cardShell: {
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderWidth: 3,
+    borderBottomWidth: 0,
+    // shadow props; shadowColor set dynamically
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    elevation: 18,
   },
+
+  /**
+   * card — inner Pressable with overflow:hidden so the coloured header is
+   * clipped cleanly to the rounded top corners.  Slightly smaller radius so
+   * it sits flush inside the shell border.
+   */
+  card: {
+    borderTopLeftRadius: 23,
+    borderTopRightRadius: 23,
+    overflow: 'hidden',
+  },
+
   header:     { paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center' },
   headerText: { color: '#fff', fontSize: 17, fontWeight: '800' },
   body:       { padding: 24, alignItems: 'center', gap: 14 },
-  /** Subtle bordered box that frames the logo without clipping it */
+
+  /** Bordered box that frames the logo on the white card background */
   logoContainer: {
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
+    backgroundColor: '#fff',
   },
   logo:        { width: 200, height: 70 },
   sponsorName: { fontSize: 22, fontWeight: '800', textAlign: 'center' },
-  /** Tagline displayed below the logo in accent colour */
+
+  /** Tagline under logo — uses primary for max readability on white */
   tagline: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     fontStyle: 'italic',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 21,
   },
-  thankYou:   { fontSize: 15, textAlign: 'center', lineHeight: 22, opacity: 0.85 },
+  thankYou:   { fontSize: 15, color: '#222', textAlign: 'center', lineHeight: 22 },
   websiteBtn: {
     paddingVertical: 12, paddingHorizontal: 28,
     borderRadius: 10, alignItems: 'center', marginTop: 4,
@@ -769,25 +797,32 @@ export default function ScorecardScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.sponsorBadge,
-              { backgroundColor: theme.colors.accent + '22', borderColor: theme.colors.accent, opacity: pressed ? 0.75 : 1 },
+              { backgroundColor: '#ffffff', borderColor: theme.colors.primary, opacity: pressed ? 0.75 : 1 },
             ]}
             onPress={() => setSelectedSponsor(currentHoleSponsor)}
             accessibilityRole="button"
             accessibilityLabel={`View ${currentHoleSponsor.name} sponsor info`}
           >
             {hole?.sponsorLogoUrl ? (
-              <Image
-                source={{ uri: hole.sponsorLogoUrl }}
-                style={styles.sponsorLogo}
-                resizeMode="contain"
-                accessibilityLabel={`Hole sponsor: ${currentHoleSponsor.name}`}
-              />
+              <View style={[styles.sponsorLogoFrame, { borderColor: theme.colors.primary }]}>
+                <Image
+                  source={{ uri: hole.sponsorLogoUrl }}
+                  style={styles.sponsorLogo}
+                  resizeMode="contain"
+                  accessibilityLabel={`Hole sponsor: ${currentHoleSponsor.name}`}
+                />
+              </View>
             ) : (
               <Text style={[styles.sponsorName, { color: theme.colors.primary }]}>
                 Sponsored by {currentHoleSponsor.name}
               </Text>
             )}
-            <Text style={[styles.sponsorTapHint, { color: theme.colors.accent }]}>
+            {currentHoleSponsor.tagline ? (
+              <Text style={[styles.sponsorTagline, { color: theme.colors.primary }]}>
+                {currentHoleSponsor.tagline}
+              </Text>
+            ) : null}
+            <Text style={[styles.sponsorTapHint, { color: theme.colors.primary }]}>
               Tap to learn more
             </Text>
           </Pressable>
@@ -1032,14 +1067,29 @@ const styles = StyleSheet.create({
   headerTotal: { fontSize: 12, fontWeight: '600', marginTop: 4, opacity: 0.75 },
 
   sponsorBadge: {
-    borderWidth: 1, borderRadius: 10,
+    borderWidth: 2, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
     paddingVertical: 10, paddingHorizontal: 16, marginBottom: 12,
     gap: 4,
+    // white bg + primary border makes the badge pop on any surface
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  /** Thin border ring around the logo image inside the badge */
+  sponsorLogoFrame: {
+    borderWidth: 1.5,
+    borderRadius: 8,
+    padding: 6,
+    backgroundColor: '#fff',
+    alignItems: 'center',
   },
   sponsorLogo:    { width: 120, height: 36 },
-  sponsorName:    { fontSize: 13, fontWeight: '600' },
-  sponsorTapHint: { fontSize: 10, fontWeight: '500', opacity: 0.65 },
+  sponsorName:    { fontSize: 13, fontWeight: '700' },
+  sponsorTagline: { fontSize: 11, fontWeight: '600', fontStyle: 'italic', textAlign: 'center' },
+  sponsorTapHint: { fontSize: 10, fontWeight: '500', opacity: 0.55 },
 
   infoRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8,
