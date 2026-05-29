@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, Pressable, TextInput, Modal,
+  View, Text, Pressable, TextInput,
   ActivityIndicator, ScrollView, StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -10,6 +10,11 @@ import {
   leagueApi, SeasonDashboard, LeagueMember, LeagueRound,
   StandingRow, SkinRow, PairingGroup, HandicapHistoryRow, RoundAbsence,
 } from '@/lib/api';
+import {
+  PairingsPreviewModal, HandicapHistoryModal, OverrideHandicapModal,
+  AddMemberModal, AbsencesModal, AddSubModal, AddRoundModal,
+  type AddMemberFields, type AddSubFields,
+} from './seasonModals';
 
 type Tab = 'overview' | 'roster' | 'rounds' | 'handicaps' | 'standings' | 'skins';
 
@@ -38,11 +43,8 @@ export default function SeasonDashboardScreen() {
   const [overrideSaving, setOverrideSaving] = useState(false);
 
   const [showAddMember, setShowAddMember] = useState(false);
-  const [mFirst, setMFirst] = useState('');
-  const [mLast, setMLast]   = useState('');
-  const [mEmail, setMEmail] = useState('');
-  const [mHC, setMHC]       = useState('0');
-  const [mSaving, setMSaving] = useState(false);
+  const [memberFields, setMemberFields]   = useState<AddMemberFields>({ firstName: '', lastName: '', email: '', handicap: '0' });
+  const [mSaving, setMSaving]             = useState(false);
 
   const [showAddRound, setShowAddRound] = useState(false);
   const [rDate, setRDate]   = useState('');
@@ -55,13 +57,10 @@ export default function SeasonDashboardScreen() {
   const [selAbsenceMemberId, setSelAbsenceMemberId]   = useState('');
   const [absenceLoading, setAbsenceLoading]           = useState(false);
 
-  const [showSubModal, setShowSubModal]     = useState(false);
+  const [showSubModal, setShowSubModal]           = useState(false);
   const [subAbsentMemberId, setSubAbsentMemberId] = useState('');
-  const [subFirst, setSubFirst]             = useState('');
-  const [subLast, setSubLast]               = useState('');
-  const [subEmail, setSubEmail]             = useState('');
-  const [subHC, setSubHC]                   = useState('0');
-  const [subSaving, setSubSaving]           = useState(false);
+  const [subFields, setSubFields]                 = useState<AddSubFields>({ firstName: '', lastName: '', email: '', handicap: '0' });
+  const [subSaving, setSubSaving]                 = useState(false);
 
   const [syncSaving, setSyncSaving] = useState(false);
 
@@ -147,15 +146,17 @@ export default function SeasonDashboardScreen() {
   }
 
   async function handleAddMember() {
-    if (!id || !sid || !mFirst || !mLast || !mEmail) return;
+    if (!id || !sid || !memberFields.firstName || !memberFields.lastName || !memberFields.email) return;
     setMSaving(true);
     try {
       await leagueApi.addMember(id, sid, {
-        firstName: mFirst, lastName: mLast, email: mEmail,
-        handicapIndex: parseFloat(mHC) || 0,
+        firstName: memberFields.firstName,
+        lastName:  memberFields.lastName,
+        email:     memberFields.email,
+        handicapIndex: parseFloat(memberFields.handicap) || 0,
       });
       setShowAddMember(false);
-      setMFirst(''); setMLast(''); setMEmail(''); setMHC('0');
+      setMemberFields({ firstName: '', lastName: '', email: '', handicap: '0' });
       await load();
     } catch (e: unknown) { setError((e as Error).message); }
     finally { setMSaving(false); }
@@ -186,18 +187,21 @@ export default function SeasonDashboardScreen() {
   }
 
   async function handleAddSub() {
-    if (!id || !sid || !absenceRound || !subAbsentMemberId || !subFirst || !subLast || !subEmail) return;
+    if (!id || !sid || !absenceRound || !subAbsentMemberId) return;
+    if (!subFields.firstName || !subFields.lastName || !subFields.email) return;
     setSubSaving(true);
     try {
       await leagueApi.addSubstitute(id, sid, absenceRound.id, {
         absentMemberId: subAbsentMemberId,
-        firstName: subFirst, lastName: subLast, email: subEmail,
-        handicapIndex: parseFloat(subHC) || 0,
+        firstName: subFields.firstName,
+        lastName:  subFields.lastName,
+        email:     subFields.email,
+        handicapIndex: parseFloat(subFields.handicap) || 0,
       });
       const updated = await leagueApi.getAbsences(id, sid, absenceRound.id);
       setAbsences(updated);
       setShowSubModal(false);
-      setSubFirst(''); setSubLast(''); setSubEmail(''); setSubHC('0');
+      setSubFields({ firstName: '', lastName: '', email: '', handicap: '0' });
     } catch (e: unknown) { setError((e as Error).message); }
     finally { setSubSaving(false); }
   }
@@ -548,267 +552,79 @@ export default function SeasonDashboardScreen() {
         )}
       </ScrollView>
 
-      {/* Pairing preview modal */}
-      <Modal visible={!!selRound && pairings.length > 0 && tab === 'rounds'} transparent animationType="slide">
-        <View style={styles.overlay}>
-          <View style={[styles.modal, { backgroundColor: theme.colors.surface, maxHeight: '80%' as unknown as number }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
-              Proposed Pairings — {selRound?.roundDate}
-            </Text>
-            <ScrollView>
-              {pairings.map((g: PairingGroup) => (
-                <View key={g.id} style={[styles.pairingGroup, { borderColor: theme.colors.accent }]}>
-                  <Text style={[styles.groupLabel, { color: theme.colors.primary }]}>Group {g.groupNumber}</Text>
-                  {g.memberNames.map((n, i) => (
-                    <Text key={i} style={[styles.groupMember, { color: theme.colors.primary }]}>· {n}</Text>
-                  ))}
-                </View>
-              ))}
-            </ScrollView>
-            <View style={styles.modalActions}>
-              <Pressable style={styles.cancelBtn} onPress={() => { setSelRound(null); setPairings([]); }}>
-                <Text style={{ color: theme.colors.accent }}>Discard</Text>
-              </Pressable>
-              <Pressable style={[styles.btn, { backgroundColor: theme.colors.primary }]}
-                onPress={async () => {
-                  if (!id || !sid || !selRound) return;
-                  await leagueApi.savePairings(id, sid, selRound.id,
-                    pairings.map(g => ({ memberIds: g.memberIds })), true);
-                  setSelRound(null); setPairings([]); await load();
-                }}>
-                <Text style={{ color: theme.colors.surface }}>Lock Pairings</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <PairingsPreviewModal
+        visible={!!selRound && pairings.length > 0 && tab === 'rounds'}
+        round={selRound}
+        groups={pairings}
+        onDiscard={() => { setSelRound(null); setPairings([]); }}
+        onLock={async () => {
+          if (!id || !sid || !selRound) return;
+          await leagueApi.savePairings(id, sid, selRound.id,
+            pairings.map(g => ({ memberIds: g.memberIds })), true);
+          setSelRound(null); setPairings([]); await load();
+        }}
+      />
 
-      {/* Handicap History Modal */}
-      <Modal visible={showHcModal} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={[styles.modal, { backgroundColor: theme.colors.surface, maxHeight: '70%' as unknown as number }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
-              HC History — {selMember?.firstName} {selMember?.lastName}
-            </Text>
-            <ScrollView>
-              {hcHistory.length === 0
-                ? <Text style={{ color: theme.colors.accent }}>No history yet.</Text>
-                : hcHistory.map((h: HandicapHistoryRow) => (
-                  <View key={h.id} style={[styles.histRow, { borderColor: theme.colors.accent }]}>
-                    <Text style={[styles.histDate, { color: theme.colors.accent }]}>
-                      {h.roundDate ?? h.createdAt.slice(0, 10)}{h.adminOverride ? ' (Admin)' : ''}
-                    </Text>
-                    <Text style={[styles.histChg, { color: theme.colors.primary }]}>
-                      {h.oldIndex.toFixed(1)} → {h.newIndex.toFixed(1)}
-                    </Text>
-                    <Text style={[styles.histDiff, { color: theme.colors.accent }]}>
-                      diff {h.differential.toFixed(1)}
-                    </Text>
-                  </View>
-                ))
-              }
-            </ScrollView>
-            <Pressable style={[styles.btn, { backgroundColor: theme.colors.primary, marginTop: 12, alignSelf: 'flex-end' }]}
-              onPress={() => setShowHcModal(false)}>
-              <Text style={{ color: theme.colors.surface }}>Close</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      <HandicapHistoryModal
+        visible={showHcModal}
+        member={selMember}
+        history={hcHistory}
+        onClose={() => setShowHcModal(false)}
+      />
 
-      {/* Override Handicap Modal */}
-      <Modal visible={showOverride} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={[styles.modal, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
-              Override HC — {selMember?.firstName} {selMember?.lastName}
-            </Text>
-            <Text style={[styles.label, { color: theme.colors.accent }]}>New Handicap Index</Text>
-            <TextInput
-              style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-              value={overrideIdx} onChangeText={setOverrideIdx} keyboardType="numeric"
-              placeholderTextColor={theme.colors.accent}
-            />
-            <Text style={[styles.label, { color: theme.colors.accent }]}>Reason (required)</Text>
-            <TextInput
-              style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-              value={overrideReason} onChangeText={setOverrideReason}
-              placeholder="e.g. Course adjustment" placeholderTextColor={theme.colors.accent}
-            />
-            <View style={styles.modalActions}>
-              <Pressable style={styles.cancelBtn} onPress={() => setShowOverride(false)}>
-                <Text style={{ color: theme.colors.accent }}>Cancel</Text>
-              </Pressable>
-              <Pressable style={[styles.btn, { backgroundColor: '#f59e0b', opacity: overrideSaving ? 0.6 : 1 }]}
-                onPress={handleOverrideHandicap} disabled={overrideSaving}>
-                <Text style={{ color: '#fff' }}>{overrideSaving ? 'Saving…' : 'Override'}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <OverrideHandicapModal
+        visible={showOverride}
+        member={selMember}
+        overrideIdx={overrideIdx}
+        overrideReason={overrideReason}
+        saving={overrideSaving}
+        setOverrideIdx={setOverrideIdx}
+        setOverrideReason={setOverrideReason}
+        onCancel={() => setShowOverride(false)}
+        onSave={handleOverrideHandicap}
+      />
 
-      {/* Add Member Modal */}
-      <Modal visible={showAddMember} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={[styles.modal, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Add Member</Text>
-            <View style={styles.row}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={[styles.label, { color: theme.colors.accent }]}>First Name</Text>
-                <TextInput style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-                  value={mFirst} onChangeText={setMFirst} placeholderTextColor={theme.colors.accent} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.label, { color: theme.colors.accent }]}>Last Name</Text>
-                <TextInput style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-                  value={mLast} onChangeText={setMLast} placeholderTextColor={theme.colors.accent} />
-              </View>
-            </View>
-            <Text style={[styles.label, { color: theme.colors.accent }]}>Email</Text>
-            <TextInput style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-              value={mEmail} onChangeText={setMEmail} keyboardType="email-address"
-              placeholderTextColor={theme.colors.accent} />
-            <Text style={[styles.label, { color: theme.colors.accent }]}>Starting Handicap</Text>
-            <TextInput style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-              value={mHC} onChangeText={setMHC} keyboardType="numeric" placeholder="0"
-              placeholderTextColor={theme.colors.accent} />
-            <View style={styles.modalActions}>
-              <Pressable style={styles.cancelBtn} onPress={() => setShowAddMember(false)}>
-                <Text style={{ color: theme.colors.accent }}>Cancel</Text>
-              </Pressable>
-              <Pressable style={[styles.btn, { backgroundColor: theme.colors.primary, opacity: mSaving ? 0.6 : 1 }]}
-                onPress={handleAddMember} disabled={mSaving}>
-                <Text style={{ color: theme.colors.surface }}>{mSaving ? 'Adding…' : 'Add Member'}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <AddMemberModal
+        visible={showAddMember}
+        fields={memberFields}
+        saving={mSaving}
+        onChange={setMemberFields}
+        onCancel={() => setShowAddMember(false)}
+        onSave={handleAddMember}
+      />
 
-      {/* Absences Modal */}
-      <Modal visible={showAbsenceModal} transparent animationType="slide">
-        <View style={styles.overlay}>
-          <View style={[styles.modal, { backgroundColor: theme.colors.surface, maxHeight: '80%' as unknown as number }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
-              Absences — {absenceRound?.roundDate}
-            </Text>
-            <ScrollView style={{ maxHeight: 260 }}>
-              {absences.length === 0
-                ? <Text style={{ color: theme.colors.accent, fontSize: 13 }}>No absences reported yet.</Text>
-                : absences.map(a => (
-                  <View key={a.id} style={[styles.absenceRow, { borderColor: theme.colors.accent }]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '600' }}>{a.memberName}</Text>
-                      {a.subMemberName
-                        ? <Text style={{ color: '#16a34a', fontSize: 12 }}>Sub: {a.subMemberName}</Text>
-                        : <Text style={{ color: theme.colors.accent, fontSize: 12 }}>No sub assigned</Text>}
-                    </View>
-                    {!a.subMemberId && (
-                      <Pressable style={[styles.iconBtn, { borderColor: theme.colors.accent }]}
-                        onPress={() => { setSubAbsentMemberId(a.memberId); setShowSubModal(true); }}>
-                        <Text style={{ fontSize: 12, color: theme.colors.action }}>Add Sub</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                ))
-              }
-            </ScrollView>
-            <Text style={[styles.label, { color: theme.colors.accent }]}>Report New Absence</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: theme.colors.accent, fontSize: 11, marginBottom: 4 }}>Select Member</Text>
-                <ScrollView style={{ maxHeight: 100, borderWidth: 1, borderColor: theme.colors.accent, borderRadius: 8 }}>
-                  {(dashboard?.roster ?? []).filter(m => m.status === 'Active').map(m => (
-                    <Pressable key={m.id}
-                      style={{ padding: 8, backgroundColor: selAbsenceMemberId === m.id ? theme.colors.primary + '22' : 'transparent' }}
-                      onPress={() => setSelAbsenceMemberId(m.id)}>
-                      <Text style={{ color: theme.colors.primary, fontSize: 12 }}>
-                        {m.lastName}, {m.firstName}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-            <View style={styles.modalActions}>
-              <Pressable style={styles.cancelBtn} onPress={() => { setShowAbsenceModal(false); setSelAbsenceMemberId(''); }}>
-                <Text style={{ color: theme.colors.accent }}>Close</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.btn, { backgroundColor: '#ef4444', opacity: (!selAbsenceMemberId || absenceLoading) ? 0.5 : 1 }]}
-                onPress={handleReportAbsence}
-                disabled={!selAbsenceMemberId || absenceLoading}>
-                <Text style={{ color: '#fff' }}>{absenceLoading ? 'Saving…' : 'Report Absent'}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <AbsencesModal
+        visible={showAbsenceModal}
+        round={absenceRound}
+        absences={absences}
+        roster={dashboard?.roster ?? []}
+        selMemberId={selAbsenceMemberId}
+        saving={absenceLoading}
+        onSelectMember={setSelAbsenceMemberId}
+        onClose={() => { setShowAbsenceModal(false); setSelAbsenceMemberId(''); }}
+        onReportAbsent={handleReportAbsence}
+        onAddSub={memberId => { setSubAbsentMemberId(memberId); setShowSubModal(true); }}
+      />
 
-      {/* Add Sub Modal */}
-      <Modal visible={showSubModal} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={[styles.modal, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Add Substitute</Text>
-            <View style={styles.row}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={[styles.label, { color: theme.colors.accent }]}>First Name</Text>
-                <TextInput style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-                  value={subFirst} onChangeText={setSubFirst} placeholderTextColor={theme.colors.accent} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.label, { color: theme.colors.accent }]}>Last Name</Text>
-                <TextInput style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-                  value={subLast} onChangeText={setSubLast} placeholderTextColor={theme.colors.accent} />
-              </View>
-            </View>
-            <Text style={[styles.label, { color: theme.colors.accent }]}>Email</Text>
-            <TextInput style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-              value={subEmail} onChangeText={setSubEmail} keyboardType="email-address"
-              placeholderTextColor={theme.colors.accent} />
-            <Text style={[styles.label, { color: theme.colors.accent }]}>Handicap Index</Text>
-            <TextInput style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-              value={subHC} onChangeText={setSubHC} keyboardType="numeric" placeholder="0"
-              placeholderTextColor={theme.colors.accent} />
-            <View style={styles.modalActions}>
-              <Pressable style={styles.cancelBtn} onPress={() => setShowSubModal(false)}>
-                <Text style={{ color: theme.colors.accent }}>Cancel</Text>
-              </Pressable>
-              <Pressable style={[styles.btn, { backgroundColor: theme.colors.primary, opacity: subSaving ? 0.6 : 1 }]}
-                onPress={handleAddSub} disabled={subSaving}>
-                <Text style={{ color: theme.colors.surface }}>{subSaving ? 'Adding…' : 'Add Sub'}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <AddSubModal
+        visible={showSubModal}
+        fields={subFields}
+        saving={subSaving}
+        onChange={setSubFields}
+        onCancel={() => setShowSubModal(false)}
+        onSave={handleAddSub}
+      />
 
-      {/* Add Round Modal */}
-      <Modal visible={showAddRound} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={[styles.modal, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Add Round</Text>
-            <Text style={[styles.label, { color: theme.colors.accent }]}>Round Date (YYYY-MM-DD)</Text>
-            <TextInput style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-              value={rDate} onChangeText={setRDate} placeholder="2026-06-15"
-              placeholderTextColor={theme.colors.accent} />
-            <Text style={[styles.label, { color: theme.colors.accent }]}>Notes (optional)</Text>
-            <TextInput style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-              value={rNotes} onChangeText={setRNotes} placeholder="Rain makeup round"
-              placeholderTextColor={theme.colors.accent} />
-            <View style={styles.modalActions}>
-              <Pressable style={styles.cancelBtn} onPress={() => setShowAddRound(false)}>
-                <Text style={{ color: theme.colors.accent }}>Cancel</Text>
-              </Pressable>
-              <Pressable style={[styles.btn, { backgroundColor: theme.colors.primary, opacity: rSaving ? 0.6 : 1 }]}
-                onPress={handleAddRound} disabled={rSaving}>
-                <Text style={{ color: theme.colors.surface }}>{rSaving ? 'Adding…' : 'Add Round'}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <AddRoundModal
+        visible={showAddRound}
+        date={rDate}
+        notes={rNotes}
+        saving={rSaving}
+        setDate={setRDate}
+        setNotes={setRNotes}
+        onCancel={() => setShowAddRound(false)}
+        onSave={handleAddRound}
+      />
     </View>
   );
 }
@@ -862,23 +678,6 @@ const styles = StyleSheet.create({
   skinWinner:    { fontSize: 14 },
   skinCarry:     { fontSize: 11, marginTop: 2 },
   skinPot:       { fontSize: 14, fontWeight: '700' },
-  overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
-  modal:         { width: '92%', maxWidth: 500, borderRadius: 16, padding: 24 },
-  modalTitle:    { fontSize: 17, fontWeight: '700', marginBottom: 8 },
-  label:         { fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 4 },
-  input:         { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 14 },
-  row:           { flexDirection: 'row' },
-  modalActions:  { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 20 },
-  cancelBtn:     { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  btn:           { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  pairingGroup:  { borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 8 },
-  groupLabel:    { fontSize: 13, fontWeight: '700', marginBottom: 4 },
-  groupMember:   { fontSize: 13, paddingLeft: 4 },
-  histRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, gap: 8 },
-  histDate:      { fontSize: 12, flex: 1 },
-  histChg:       { fontSize: 14, fontWeight: '600' },
-  histDiff:      { fontSize: 12, width: 60, textAlign: 'right' },
   syncRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, marginBottom: 8 },
   syncToggle:    { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, minWidth: 48, alignItems: 'center' },
-  absenceRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
 });
