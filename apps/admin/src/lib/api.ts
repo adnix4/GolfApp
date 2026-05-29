@@ -1,124 +1,12 @@
+import { ApiError, createApiClient } from '@gfp/shared-types';
 import { storage } from './storage';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
 
-export function resolveUrl(url: string): string {
-  return url.startsWith('/') ? `${BASE}${url}` : url;
-}
+const client = createApiClient({ baseUrl: BASE, storage });
 
-type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
-
-interface RequestOptions {
-  method?:  HttpMethod;
-  body?:    unknown;
-  public?:  boolean; // skip auth header
-}
-
-class ApiError extends Error {
-  constructor(
-    public status: number,
-    public code:   string,
-    message:       string,
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
-
-async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, public: isPublic = false } = opts;
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  if (!isPublic) {
-    const token = storage.getAccessToken();
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-
-  // Attempt silent token refresh on 401
-  if (res.status === 401 && !isPublic) {
-    const refreshed = await tryRefresh();
-    if (refreshed) {
-      headers['Authorization'] = `Bearer ${storage.getAccessToken()}`;
-      const retry = await fetch(`${BASE}${path}`, {
-        method,
-        headers,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
-      });
-      if (retry.ok) return retry.json() as Promise<T>;
-      // Retry returned a non-2xx that isn't 401 — it's a real API error, not an auth issue.
-      // Do NOT clear tokens: the session is still valid, the request itself failed.
-      if (retry.status !== 401) {
-        let code = 'UNKNOWN_ERROR';
-        let msg  = `HTTP ${retry.status}`;
-        try {
-          const e = await retry.json();
-          code = e.code ?? code;
-          if (e.error) { msg = e.error; }
-          else if (e.title) {
-            const fe = e.errors ? Object.entries(e.errors as Record<string, string[]>).map(([f, m]) => `${f}: ${(m as string[]).join(', ')}`).join('; ') : null;
-            msg = fe ? `${e.title} — ${fe}` : e.title;
-          }
-        } catch { /* not JSON */ }
-        throw new ApiError(retry.status, code, msg);
-      }
-    }
-    // Refresh failed or retry returned 401 — session is gone, force re-login.
-    storage.clearTokens();
-    throw new ApiError(401, 'UNAUTHORIZED', 'Session expired. Please log in again.');
-  }
-
-  if (!res.ok) {
-    let code = 'UNKNOWN_ERROR';
-    let message = `HTTP ${res.status}`;
-    try {
-      const err = await res.json();
-      code = err.code ?? code;
-      if (err.error) {
-        message = err.error;
-      } else if (err.title) {
-        // ASP.NET Core ValidationProblemDetails format
-        const fieldErrors = err.errors
-          ? Object.entries(err.errors as Record<string, string[]>)
-              .map(([f, msgs]) => `${f}: ${(msgs as string[]).join(', ')}`)
-              .join('; ')
-          : null;
-        message = fieldErrors ? `${err.title} — ${fieldErrors}` : err.title;
-      }
-    } catch { /* non-JSON error body */ }
-    throw new ApiError(res.status, code, message);
-  }
-
-  if (res.status === 204) return undefined as unknown as T;
-  return res.json() as Promise<T>;
-}
-
-async function tryRefresh(): Promise<boolean> {
-  const refreshToken = storage.getRefreshToken();
-  if (!refreshToken) return false;
-  try {
-    const res = await fetch(`${BASE}/api/v1/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
-    if (!res.ok) return false;
-    const data = await res.json();
-    storage.setAccessToken(data.accessToken);
-    if (data.refreshToken) storage.setRefreshToken(data.refreshToken);
-    return true;
-  } catch {
-    return false;
-  }
-}
+const request = client.request;
+export const resolveUrl = client.resolveUrl;
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 

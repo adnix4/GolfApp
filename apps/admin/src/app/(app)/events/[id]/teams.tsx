@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Pressable, FlatList, Modal, TextInput,
-  StyleSheet, ActivityIndicator, ScrollView, Alert, Platform,
+  StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme, StatusPill, FormModal } from '@gfp/ui';
@@ -10,6 +10,7 @@ import {
   teamsApi, eventsApi, playersApi,
   type Team, type Player, type RegisterTeamPayload, type AddPlayerPayload,
 } from '@/lib/api';
+import { confirmAction } from '@/lib/confirmAction';
 
 function fmtAgeGroup(v: string | null | undefined): string | null {
   if (!v) return null;
@@ -17,17 +18,6 @@ function fmtAgeGroup(v: string | null | undefined): string | null {
   if (v === 'From30To50') return '30–50';
   if (v === 'Over50')     return 'Over 50';
   return v;
-}
-
-function confirmAction(title: string, message: string, onConfirm: () => void) {
-  if (Platform.OS === 'web') {
-    if ((globalThis as any).window?.confirm(`${title}\n\n${message}`)) onConfirm();
-  } else {
-    Alert.alert(title, message, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Confirm', style: 'destructive', onPress: onConfirm },
-    ]);
-  }
 }
 
 const CHECK_IN_STATUS_COLOR: Record<string, string> = {

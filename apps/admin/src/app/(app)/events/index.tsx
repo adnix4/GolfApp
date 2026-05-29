@@ -17,6 +17,7 @@ import {
   buildIsoDateTime,
 } from '@/lib/dateTime';
 import { eventStatusColor } from '@/lib/eventStatus';
+import { friendlyApiError } from '@/lib/errors';
 
 export default function EventsScreen() {
   const theme  = useTheme();
@@ -167,22 +168,6 @@ interface FieldErrors {
   name?:      string;
   startDate?: string;
   startTime?: string;
-}
-
-// Map API errors to messages a non-technical user can act on
-function friendlyApiError(e: unknown): string {
-  if (e && typeof e === 'object') {
-    const err = e as { status?: number; code?: string; message?: string };
-    if (err.status === 401) return 'Your session has expired. Please log in again.';
-    if (err.status === 409) return 'An event with that name already exists for your organization.';
-    if (err.status === 400) return 'Some entries are invalid. Check the form and try again.';
-    if (err.status && err.status >= 500) return 'The server encountered an error. Please try again in a moment.';
-    if (err.message) return err.message;
-  }
-  if (e instanceof TypeError && String(e.message).toLowerCase().includes('fetch')) {
-    return 'Unable to reach the server. Check your internet connection.';
-  }
-  return 'Something went wrong. Please try again.';
 }
 
 function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps) {

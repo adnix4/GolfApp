@@ -43,6 +43,7 @@ export type ISOTimestamp = string;
 export * from './money';
 export * from './phone';
 export * from './eventOptions';
+export * from './apiClient';
 
 // ── ENUMS ─────────────────────────────────────────────────────────────────────
 
