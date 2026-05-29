@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import {
   View, Text, Pressable, FlatList, TextInput,
   StyleSheet, ActivityIndicator,
@@ -18,6 +18,80 @@ import {
 } from '@/lib/dateTime';
 import { eventStatusColor } from '@/lib/eventStatus';
 import { friendlyApiError } from '@/lib/errors';
+
+// ── Row component (memoized) ──────────────────────────────────────────────────
+// Hoisted so the FlatList renderItem closure doesn't recreate the row tree on
+// every parent render. Memo with default referential equality skips the render
+// when item + isOpeningReg + handler refs are unchanged — handler refs are
+// stable thanks to useCallback in the parent, so a row only re-renders when
+// its own EventSummary or its loading flag actually changes.
+
+interface EventRowProps {
+  item:               EventSummary;
+  isOpeningReg:       boolean;
+  onOpenEvent:        (eventId: string) => void;
+  onOpenRegistration: (item: EventSummary) => void;
+}
+
+const EventRow = memo(function EventRow({
+  item, isOpeningReg, onOpenEvent, onOpenRegistration,
+}: EventRowProps) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      style={[styles.card, { backgroundColor: '#fff', borderColor: '#e8e8e8' }]}
+      onPress={() => onOpenEvent(item.id)}
+      accessibilityRole="button"
+      accessibilityLabel={`Open event ${item.name}`}
+    >
+      <View style={styles.cardTop}>
+        <Text style={[styles.cardName, { color: theme.colors.primary }]} numberOfLines={1}>
+          {item.name}
+        </Text>
+        <StatusPill color={eventStatusColor(item.status)} label={item.status} />
+      </View>
+      <View style={styles.cardMeta}>
+        <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
+          {FORMAT_LABELS[item.format] ?? item.format}
+        </Text>
+        <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
+          Code: {item.eventCode}
+        </Text>
+        <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
+          {item.teamCount} team{item.teamCount !== 1 ? 's' : ''}
+        </Text>
+        {item.startAt && (
+          <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
+            {new Date(item.startAt).toLocaleDateString()}
+          </Text>
+        )}
+      </View>
+      {item.status === 'Draft' && (
+        <View style={styles.cardActions}>
+          <Pressable
+            style={[
+              styles.openRegBtn,
+              { backgroundColor: item.startAt ? theme.colors.primary : '#bdbdbd' },
+              isOpeningReg && { opacity: 0.6 },
+            ]}
+            onPress={e => { e.stopPropagation?.(); onOpenRegistration(item); }}
+            disabled={isOpeningReg}
+            accessibilityRole="button"
+            accessibilityLabel="Open registration for this event"
+          >
+            {isOpeningReg
+              ? <ActivityIndicator color="#fff" size="small" />
+              : (
+                <Text style={styles.openRegBtnText}>
+                  {item.startAt ? 'Open Registration' : 'Set Start Date to Open Registration'}
+                </Text>
+              )}
+          </Pressable>
+        </View>
+      )}
+    </Pressable>
+  );
+});
 
 export default function EventsScreen() {
   const theme  = useTheme();
@@ -50,7 +124,7 @@ export default function EventsScreen() {
     router.push(`/(app)/events/${event.id}` as any);
   }
 
-  async function handleOpenRegistration(item: EventSummary) {
+  const handleOpenRegistration = useCallback(async (item: EventSummary) => {
     if (!item.startAt) {
       // No start date — send them to the Overview tab to set one first
       router.push(`/(app)/events/${item.id}` as any);
@@ -65,7 +139,20 @@ export default function EventsScreen() {
     } finally {
       setOpeningReg(null);
     }
-  }
+  }, [router]);
+
+  const handleOpenEvent = useCallback((eventId: string) => {
+    router.push(`/(app)/events/${eventId}` as any);
+  }, [router]);
+
+  const renderRow = useCallback(({ item }: { item: EventSummary }) => (
+    <EventRow
+      item={item}
+      isOpeningReg={openingReg === item.id}
+      onOpenEvent={handleOpenEvent}
+      onOpenRegistration={handleOpenRegistration}
+    />
+  ), [openingReg, handleOpenEvent, handleOpenRegistration]);
 
   return (
     <View style={styles.page}>
@@ -90,60 +177,7 @@ export default function EventsScreen() {
           data={events}
           keyExtractor={e => e.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <Pressable
-              style={[styles.card, { backgroundColor: '#fff', borderColor: '#e8e8e8' }]}
-              onPress={() => router.push(`/(app)/events/${item.id}` as any)}
-              accessibilityRole="button"
-              accessibilityLabel={`Open event ${item.name}`}
-            >
-              <View style={styles.cardTop}>
-                <Text style={[styles.cardName, { color: theme.colors.primary }]} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <StatusPill color={eventStatusColor(item.status)} label={item.status} />
-              </View>
-              <View style={styles.cardMeta}>
-                <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
-                  {FORMAT_LABELS[item.format] ?? item.format}
-                </Text>
-                <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
-                  Code: {item.eventCode}
-                </Text>
-                <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
-                  {item.teamCount} team{item.teamCount !== 1 ? 's' : ''}
-                </Text>
-                {item.startAt && (
-                  <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
-                    {new Date(item.startAt).toLocaleDateString()}
-                  </Text>
-                )}
-              </View>
-              {item.status === 'Draft' && (
-                <View style={styles.cardActions}>
-                  <Pressable
-                    style={[
-                      styles.openRegBtn,
-                      { backgroundColor: item.startAt ? theme.colors.primary : '#bdbdbd' },
-                      openingReg === item.id && { opacity: 0.6 },
-                    ]}
-                    onPress={e => { e.stopPropagation?.(); handleOpenRegistration(item); }}
-                    disabled={openingReg === item.id}
-                    accessibilityRole="button"
-                    accessibilityLabel="Open registration for this event"
-                  >
-                    {openingReg === item.id
-                      ? <ActivityIndicator color="#fff" size="small" />
-                      : (
-                        <Text style={styles.openRegBtnText}>
-                          {item.startAt ? 'Open Registration' : 'Set Start Date to Open Registration'}
-                        </Text>
-                      )}
-                  </Pressable>
-                </View>
-              )}
-            </Pressable>
-          )}
+          renderItem={renderRow}
         />
       </AsyncSection>
 

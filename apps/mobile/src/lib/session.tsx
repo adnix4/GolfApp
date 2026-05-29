@@ -1,6 +1,6 @@
 import React, {
   createContext, useCallback, useContext,
-  useEffect, useState, type ReactNode,
+  useEffect, useMemo, useState, type ReactNode,
 } from 'react';
 import type { JoinEventResponse, PendingScore, BatchSyncResponse } from './api';
 import { batchSync } from './api';
@@ -152,11 +152,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     syncScores(); // release to leaderboard immediately
   }, [session, syncScores]);
 
+  // Memoize the context value so consumers only re-render when one of these
+  // slots actually changes. Without this, every render of SessionProvider
+  // (the foreground poll fires every 10–30s) re-runs every useSession() caller.
+  const value = useMemo<SessionContextValue>(() => ({
+    session, deviceId, loading, pendingScores, completedHoles, syncStatus, networkTier,
+    setSession, clearSession: clear, upsertScore, completeHole, syncScores, updateEventStatus,
+  }), [
+    session, deviceId, loading, pendingScores, completedHoles, syncStatus, networkTier,
+    setSession, clear, upsertScore, completeHole, syncScores, updateEventStatus,
+  ]);
+
   return (
-    <SessionContext.Provider value={{
-      session, deviceId, loading, pendingScores, completedHoles, syncStatus, networkTier,
-      setSession, clearSession: clear, upsertScore, completeHole, syncScores, updateEventStatus,
-    }}>
+    <SessionContext.Provider value={value}>
       {children}
     </SessionContext.Provider>
   );

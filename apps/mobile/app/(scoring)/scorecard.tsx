@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
 import type { ThemeContextValue } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
-import { fetchPublicChallenges, type ChallengeCacheDto, type PlayerShotBreakdown, type SponsorCacheDto } from '@/lib/api';
+import { fetchPublicChallenges, type ChallengeCacheDto, type HoleCacheDto, type PlayerShotBreakdown, type SponsorCacheDto } from '@/lib/api';
 
 // ── INLINE SUB-COMPONENTS ─────────────────────────────────────────────────────
 
@@ -530,6 +530,15 @@ export default function ScorecardScreen() {
     return map;
   }, [session?.sponsors]);
 
+  // hole number → HoleCacheDto. Pre-scoring summary iterates every hole and
+  // looked it up with `.find()` per row — O(holes²) per render (small at 18
+  // but recomputed on every state update). The Map is built once per course.
+  const holeByNumber = useMemo(() => {
+    const map = new Map<number, HoleCacheDto>();
+    session?.course?.holes.forEach(h => map.set(h.holeNumber, h));
+    return map;
+  }, [session?.course]);
+
   // hole number → hole-specific challenge
   const challengeMap = useMemo(() => {
     const map = new Map<number, ChallengeCacheDto>();
@@ -610,7 +619,7 @@ export default function ScorecardScreen() {
           )}
 
           {allHoles.map((holeNum, idx) => {
-            const holeData  = session.course?.holes.find(h => h.holeNumber === holeNum);
+            const holeData  = holeByNumber.get(holeNum);
             const par       = holeData?.par ?? 4;
             const challenge = challengeMap.get(holeNum);
             const sponsor   = holeSponsorMap.get(holeNum);
@@ -697,7 +706,7 @@ export default function ScorecardScreen() {
 
   // ── ACTIVE SCORING VIEW ───────────────────────────────────────────────────────
   const currentHoleNumber    = holeOrder[holeIndex] ?? 1;
-  const hole                 = session.course?.holes.find(h => h.holeNumber === currentHoleNumber) ?? null;
+  const hole                 = holeByNumber.get(currentHoleNumber) ?? null;
   const par                  = hole?.par ?? 4;
   const currentScore         = pendingScores.find(s => s.holeNumber === currentHoleNumber) ?? null;
   const isLastHole           = holeIndex === holeOrder.length - 1;

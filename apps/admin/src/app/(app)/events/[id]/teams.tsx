@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import {
   View, Text, Pressable, FlatList, Modal, TextInput,
   StyleSheet, ActivityIndicator, ScrollView,
@@ -25,6 +25,149 @@ const CHECK_IN_STATUS_COLOR: Record<string, string> = {
   checked_in: '#2ecc71',
   complete:   '#27ae60',
 };
+
+// ── Team row (memoized) ───────────────────────────────────────────────────────
+// Hoisted out of the FlatList renderItem so the closure doesn't recreate the
+// row tree on every parent render. The handler refs are stable thanks to
+// useCallback in the parent, so a row only re-renders when its own Team or
+// eventStatus actually changes.
+
+interface TeamRowProps {
+  team:           Team;
+  eventStatus:    string | null;
+  onEditTeam:     (team: Team) => void;
+  onRemoveTeam:   (team: Team) => void;
+  onCheckIn:      (teamId: string) => void;
+  onEditPlayer:   (player: Player, team: Team) => void;
+  onRemovePlayer: (teamId: string, playerId: string) => void;
+  onAddPlayer:    (team: Team) => void;
+}
+
+const TeamRow = memo(function TeamRow({
+  team, eventStatus,
+  onEditTeam, onRemoveTeam, onCheckIn,
+  onEditPlayer, onRemovePlayer, onAddPlayer,
+}: TeamRowProps) {
+  const theme = useTheme();
+  return (
+    <View style={[styles.card, { borderColor: '#e8e8e8' }]}>
+      {/* Team header */}
+      <View style={styles.cardHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.teamName, { color: theme.colors.primary }]}>{team.name}</Text>
+          <Text style={[styles.meta, { color: theme.colors.accent }]}>
+            {team.players.length}/{team.maxPlayers} players
+            {team.startingHole ? ` · Hole ${team.startingHole}` : ''}
+            {team.teeTime ? ` · ${new Date(team.teeTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+          </Text>
+        </View>
+        <View style={styles.cardRight}>
+          <StatusPill
+            color={CHECK_IN_STATUS_COLOR[team.checkInStatus] ?? '#aaa'}
+            label={team.checkInStatus.replace('_', ' ')}
+            textTransform="capitalize"
+            size="sm"
+          />
+          <View style={styles.actionBtns}>
+            <Pressable
+              style={[styles.editBtn, { borderColor: theme.colors.accent }]}
+              onPress={() => onEditTeam(team)}
+            >
+              <Text style={[styles.editBtnText, { color: theme.colors.accent }]}>Edit</Text>
+            </Pressable>
+            {team.players.length === 0 && (
+              <Pressable
+                style={[styles.editBtn, { borderColor: '#e74c3c' }]}
+                onPress={() => onRemoveTeam(team)}
+              >
+                <Text style={[styles.editBtnText, { color: '#e74c3c' }]}>Remove</Text>
+              </Pressable>
+            )}
+            {team.checkInStatus === 'pending' && eventStatus === 'Active' && (
+              <Pressable
+                style={[styles.checkInBtn, { backgroundColor: theme.colors.action }]}
+                onPress={() => onCheckIn(team.id)}
+              >
+                <Text style={styles.checkInText}>Check In</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      </View>
+
+      {/* Players */}
+      {team.players.length > 0 && (
+        <View style={styles.players}>
+          {team.players.map(p => (
+            <View key={p.id} style={styles.playerRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.playerName, { color: theme.colors.primary }]}>
+                  {p.firstName} {p.lastName}
+                </Text>
+                {!!p.email && (
+                  <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>{p.email}</Text>
+                )}
+                {!!p.phone && (
+                  <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>{fmtPhone(p.phone)}</Text>
+                )}
+                {(p.handicapIndex != null || p.skillLevel || p.ageGroup) && (
+                  <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>
+                    {[
+                      p.handicapIndex != null ? `HCP ${p.handicapIndex}` : null,
+                      p.skillLevel ?? null,
+                      fmtAgeGroup(p.ageGroup),
+                    ].filter(Boolean).join(' · ')}
+                  </Text>
+                )}
+                {!!p.pairingNote && (
+                  <Text style={[styles.playerNote, { color: theme.colors.accent }]}>
+                    Note: {p.pairingNote}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.playerActions}>
+                <Pressable
+                  style={[styles.smallBtn, { borderColor: theme.colors.accent }]}
+                  onPress={() => onEditPlayer(p, team)}
+                >
+                  <Text style={[styles.smallBtnText, { color: theme.colors.accent }]}>Edit</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.smallBtn, { borderColor: '#e74c3c' }]}
+                  onPress={() => confirmAction(
+                    'Remove Player',
+                    `Remove ${p.firstName} ${p.lastName} from this team?`,
+                    () => onRemovePlayer(team.id, p.id),
+                  )}
+                >
+                  <Text style={[styles.smallBtnText, { color: '#e74c3c' }]}>Remove</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Add player row */}
+      <View style={styles.cardFooter}>
+        <Text style={[styles.feePill, {
+          color: team.entryFeePaid ? '#27ae60' : '#e74c3c',
+          borderColor: team.entryFeePaid ? '#27ae60' : '#e74c3c',
+        }]}>
+          {team.entryFeePaid ? 'Fee Paid' : 'Fee Unpaid'}
+        </Text>
+        {team.players.length < team.maxPlayers && (
+          <Pressable
+            style={[styles.addPlayerBtn, { borderColor: theme.colors.action }]}
+            onPress={() => onAddPlayer(team)}
+          >
+            <Text style={[styles.addPlayerBtnText, { color: theme.colors.action }]}>+ Add Player</Text>
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+});
 
 export default function TeamsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
@@ -64,14 +207,14 @@ export default function TeamsScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function handleCheckIn(teamId: string) {
+  const handleCheckIn = useCallback(async (teamId: string) => {
     try {
       const updated = await teamsApi.checkIn(id, teamId);
       setTeams(prev => prev.map(t => t.id === teamId ? updated : t));
     } catch (e: any) {
       setError(e.message ?? 'Check-in failed.');
     }
-  }
+  }, [id]);
 
   function handleRegistered(team: Team, inviteUrl?: string | null) {
     setTeams(prev => [...prev, team]);
@@ -115,7 +258,7 @@ export default function TeamsScreen() {
     }
   }
 
-  async function handleRemovePlayer(teamId: string, playerId: string) {
+  const handleRemovePlayer = useCallback(async (teamId: string, playerId: string) => {
     try {
       await playersApi.remove(id, playerId);
       setTeams(prev => prev.map(t =>
@@ -124,7 +267,31 @@ export default function TeamsScreen() {
     } catch (e: any) {
       setError(e.message ?? 'Failed to remove player.');
     }
-  }
+  }, [id]);
+
+  // Stable handlers for the FlatList row. Wrapping in useCallback lets the
+  // memoized TeamRow skip its render when only an unrelated piece of parent
+  // state (e.g. modal visibility) changes.
+  const onEditTeam     = useCallback((team: Team) => setEditing(team), []);
+  const onRemoveTeam   = useCallback((team: Team) => setRemoveTeamTarget(team), []);
+  const onEditPlayer   = useCallback(
+    (player: Player, team: Team) => setEditingPlayer({ player, team }),
+    [],
+  );
+  const onAddPlayer    = useCallback((team: Team) => setAddPlayerTeam(team), []);
+
+  const renderRow = useCallback(({ item }: { item: Team }) => (
+    <TeamRow
+      team={item}
+      eventStatus={eventStatus}
+      onEditTeam={onEditTeam}
+      onRemoveTeam={onRemoveTeam}
+      onCheckIn={handleCheckIn}
+      onEditPlayer={onEditPlayer}
+      onRemovePlayer={handleRemovePlayer}
+      onAddPlayer={onAddPlayer}
+    />
+  ), [eventStatus, onEditTeam, onRemoveTeam, handleCheckIn, onEditPlayer, handleRemovePlayer, onAddPlayer]);
 
   return (
     <View style={styles.page}>
@@ -180,124 +347,7 @@ export default function TeamsScreen() {
           data={teams}
           keyExtractor={t => t.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item: team }) => (
-            <View style={[styles.card, { borderColor: '#e8e8e8' }]}>
-              {/* Team header */}
-              <View style={styles.cardHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.teamName, { color: theme.colors.primary }]}>{team.name}</Text>
-                  <Text style={[styles.meta, { color: theme.colors.accent }]}>
-                    {team.players.length}/{team.maxPlayers} players
-                    {team.startingHole ? ` · Hole ${team.startingHole}` : ''}
-                    {team.teeTime ? ` · ${new Date(team.teeTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
-                  </Text>
-                </View>
-                <View style={styles.cardRight}>
-                  <StatusPill
-                    color={CHECK_IN_STATUS_COLOR[team.checkInStatus] ?? '#aaa'}
-                    label={team.checkInStatus.replace('_', ' ')}
-                    textTransform="capitalize"
-                    size="sm"
-                  />
-                  <View style={styles.actionBtns}>
-                    <Pressable
-                      style={[styles.editBtn, { borderColor: theme.colors.accent }]}
-                      onPress={() => setEditing(team)}
-                    >
-                      <Text style={[styles.editBtnText, { color: theme.colors.accent }]}>Edit</Text>
-                    </Pressable>
-                    {team.players.length === 0 && (
-                      <Pressable
-                        style={[styles.editBtn, { borderColor: '#e74c3c' }]}
-                        onPress={() => setRemoveTeamTarget(team)}
-                      >
-                        <Text style={[styles.editBtnText, { color: '#e74c3c' }]}>Remove</Text>
-                      </Pressable>
-                    )}
-                    {team.checkInStatus === 'pending' && eventStatus === 'Active' && (
-                      <Pressable
-                        style={[styles.checkInBtn, { backgroundColor: theme.colors.action }]}
-                        onPress={() => handleCheckIn(team.id)}
-                      >
-                        <Text style={styles.checkInText}>Check In</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                </View>
-              </View>
-
-              {/* Players */}
-              {team.players.length > 0 && (
-                <View style={styles.players}>
-                  {team.players.map(p => (
-                    <View key={p.id} style={styles.playerRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.playerName, { color: theme.colors.primary }]}>
-                          {p.firstName} {p.lastName}
-                        </Text>
-                        {!!p.email && (
-                          <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>{p.email}</Text>
-                        )}
-                        {!!p.phone && (
-                          <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>{fmtPhone(p.phone)}</Text>
-                        )}
-                        {(p.handicapIndex != null || p.skillLevel || p.ageGroup) && (
-                          <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>
-                            {[
-                              p.handicapIndex != null ? `HCP ${p.handicapIndex}` : null,
-                              p.skillLevel ?? null,
-                              fmtAgeGroup(p.ageGroup),
-                            ].filter(Boolean).join(' · ')}
-                          </Text>
-                        )}
-                        {!!p.pairingNote && (
-                          <Text style={[styles.playerNote, { color: theme.colors.accent }]}>
-                            Note: {p.pairingNote}
-                          </Text>
-                        )}
-                      </View>
-                      <View style={styles.playerActions}>
-                        <Pressable
-                          style={[styles.smallBtn, { borderColor: theme.colors.accent }]}
-                          onPress={() => setEditingPlayer({ player: p, team })}
-                        >
-                          <Text style={[styles.smallBtnText, { color: theme.colors.accent }]}>Edit</Text>
-                        </Pressable>
-                        <Pressable
-                          style={[styles.smallBtn, { borderColor: '#e74c3c' }]}
-                          onPress={() => confirmAction(
-                            'Remove Player',
-                            `Remove ${p.firstName} ${p.lastName} from this team?`,
-                            () => handleRemovePlayer(team.id, p.id),
-                          )}
-                        >
-                          <Text style={[styles.smallBtnText, { color: '#e74c3c' }]}>Remove</Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {/* Add player row */}
-              <View style={styles.cardFooter}>
-                <Text style={[styles.feePill, {
-                  color: team.entryFeePaid ? '#27ae60' : '#e74c3c',
-                  borderColor: team.entryFeePaid ? '#27ae60' : '#e74c3c',
-                }]}>
-                  {team.entryFeePaid ? 'Fee Paid' : 'Fee Unpaid'}
-                </Text>
-                {team.players.length < team.maxPlayers && (
-                  <Pressable
-                    style={[styles.addPlayerBtn, { borderColor: theme.colors.action }]}
-                    onPress={() => setAddPlayerTeam(team)}
-                  >
-                    <Text style={[styles.addPlayerBtnText, { color: theme.colors.action }]}>+ Add Player</Text>
-                  </Pressable>
-                )}
-              </View>
-            </View>
-          )}
+          renderItem={renderRow}
         />
       )}
 
