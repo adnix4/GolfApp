@@ -5,16 +5,8 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { digitsOnly, fmtPhone, fmtPhoneInput } from '@gfp/shared-types';
+import { digitsOnly, fmtAgeGroup, fmtPhone, fmtPhoneInput } from '@gfp/shared-types';
 import { playersApi, teamsApi, type Player, type Team, type AddPlayerPayload } from '@/lib/api';
-
-function fmtAgeGroup(v: string | null | undefined): string | null {
-  if (!v) return null;
-  if (v === 'Under30')    return 'Under 30';
-  if (v === 'From30To50') return '30–50';
-  if (v === 'Over50')     return 'Over 50';
-  return v;
-}
 
 export default function FreeAgentsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();

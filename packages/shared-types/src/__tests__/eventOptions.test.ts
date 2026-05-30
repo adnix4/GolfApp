@@ -3,6 +3,7 @@ import {
   FORMAT_OPTIONS, FORMAT_LABELS, FORMAT_HINTS,
   START_OPTIONS, START_LABELS, START_HINTS,
   HOLES_OPTIONS,
+  fmtAgeGroup,
 } from '../eventOptions';
 
 describe('event option tables', () => {
@@ -32,5 +33,23 @@ describe('event option tables', () => {
 
   it('HOLES_OPTIONS exposes the canonical 9/18 choice', () => {
     expect(HOLES_OPTIONS).toEqual([9, 18]);
+  });
+});
+
+describe('fmtAgeGroup', () => {
+  it('returns null for null/undefined/empty input', () => {
+    expect(fmtAgeGroup(null)).toBeNull();
+    expect(fmtAgeGroup(undefined)).toBeNull();
+    expect(fmtAgeGroup('')).toBeNull();
+  });
+
+  it('formats the three known buckets', () => {
+    expect(fmtAgeGroup('Under30')).toBe('Under 30');
+    expect(fmtAgeGroup('From30To50')).toBe('30–50');
+    expect(fmtAgeGroup('Over50')).toBe('Over 50');
+  });
+
+  it('falls back to the raw value for unknown inputs', () => {
+    expect(fmtAgeGroup('SeniorPro')).toBe('SeniorPro');
   });
 });

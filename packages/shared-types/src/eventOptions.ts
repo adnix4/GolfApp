@@ -52,3 +52,18 @@ export const START_HINTS: Record<string, string> = {
 /** Allowed hole counts for tournament play. */
 export const HOLES_OPTIONS = [9, 18] as const;
 export type HolesOption = (typeof HOLES_OPTIONS)[number];
+
+/**
+ * Display label for the AgeGroup enum used by free-agent registration.
+ *
+ * Returns null for null/empty input so callers can use `&&` rendering.
+ * Falls back to the raw value when the input isn't a known age bucket,
+ * which keeps the UI resilient to API additions before the client updates.
+ */
+export function fmtAgeGroup(v: string | null | undefined): string | null {
+  if (!v) return null;
+  if (v === 'Under30')    return 'Under 30';
+  if (v === 'From30To50') return '30–50';
+  if (v === 'Over50')     return 'Over 50';
+  return v;
+}

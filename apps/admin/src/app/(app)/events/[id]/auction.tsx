@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, FlatList, TextInput,
-  Modal, ScrollView, ActivityIndicator, Alert, Image,
+  Modal, ScrollView, ActivityIndicator, Image,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
@@ -11,6 +11,7 @@ import {
   formatDateInput, formatTimeInput,
   buildIsoDateTime, parseIsoToFields,
 } from '@/lib/dateTime';
+import { confirmAction } from '@/lib/confirmAction';
 
 const AUCTION_TYPES = ['Silent', 'Live', 'DonationSilent', 'DonationLive'] as const;
 const TYPE_LABELS: Record<string, string> = {
@@ -163,23 +164,18 @@ export default function AuctionScreen() {
   }
 
   async function handleDelete(item: AuctionItem) {
-    Alert.alert(
+    confirmAction(
       'Cancel Auction Item',
       `Cancel "${item.title}"? This cannot be undone.`,
-      [
-        { text: 'Keep Item', style: 'cancel' },
-        {
-          text: 'Cancel Item', style: 'destructive',
-          onPress: async () => {
-            try {
-              await auctionApi.deleteItem(eventId, item.id);
-              await load();
-            } catch (e: any) {
-              setError(e.message ?? 'Failed to cancel item. Please try again.');
-            }
-          },
-        },
-      ],
+      async () => {
+        try {
+          await auctionApi.deleteItem(eventId, item.id);
+          await load();
+        } catch (e: any) {
+          setError(e.message ?? 'Failed to cancel item. Please try again.');
+        }
+      },
+      'Cancel Item',
     );
   }
 

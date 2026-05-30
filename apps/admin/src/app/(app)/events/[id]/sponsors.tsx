@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, FlatList, Modal, TextInput,
-  StyleSheet, ActivityIndicator, ScrollView, Alert,
+  StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
 import { centsToDollarsInput, formatCentsShort } from '@gfp/shared-types';
 import { sponsorsApi, type Sponsor, type CreateSponsorPayload, type SponsorPlacements } from '@/lib/api';
+import { confirmAction } from '@/lib/confirmAction';
 
 const TIER_OPTIONS = ['title', 'gold', 'hole', 'silver', 'bronze'] as const;
 const TIER_COLOR: Record<string, string> = {
@@ -102,23 +103,18 @@ export default function SponsorsScreen() {
   useEffect(() => { load(); }, [load]);
 
   function handleDelete(sponsor: Sponsor) {
-    Alert.alert(
+    confirmAction(
       'Remove Sponsor',
       `Remove "${sponsor.name}" from this event? This cannot be undone.`,
-      [
-        { text: 'Keep', style: 'cancel' },
-        {
-          text: 'Remove', style: 'destructive',
-          onPress: async () => {
-            try {
-              await sponsorsApi.delete(id, sponsor.id);
-              setSponsors(prev => prev.filter(s => s.id !== sponsor.id));
-            } catch (e: any) {
-              setError(e.message ?? 'Failed to remove sponsor. Please try again.');
-            }
-          },
-        },
-      ],
+      async () => {
+        try {
+          await sponsorsApi.delete(id, sponsor.id);
+          setSponsors(prev => prev.filter(s => s.id !== sponsor.id));
+        } catch (e: any) {
+          setError(e.message ?? 'Failed to remove sponsor. Please try again.');
+        }
+      },
+      'Remove',
     );
   }
 
