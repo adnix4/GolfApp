@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * useLiveLeaderboard — SignalR-with-polling-fallback hook for the GFP
  * TournamentHub leaderboard stream.
@@ -16,6 +18,12 @@
  * - `disabled` short-circuits both transports (used for offline-mode events).
  *
  * Consumers own the rendering. The hook only manages transport + state.
+ *
+ * The `'use client'` directive at the top of this file is required for
+ * Next.js: the @gfp/shared-types barrel re-exports this module, and without
+ * the directive the bundler would refuse to import the barrel from any
+ * server component (e.g. apps/web/.../page.tsx → EventSidebar → formatCents).
+ * The directive is a no-op in non-Next.js consumers (RN/Expo).
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
