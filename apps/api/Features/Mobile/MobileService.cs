@@ -158,10 +158,11 @@ public class MobileService
                     AwaitingAssignment = true,
                     Player = new PlayerCacheDto
                     {
-                        Id        = freeAgent.Id,
-                        FirstName = freeAgent.FirstName,
-                        LastName  = freeAgent.LastName,
-                        Email     = freeAgent.Email,
+                        Id               = freeAgent.Id,
+                        FirstName        = freeAgent.FirstName,
+                        LastName         = freeAgent.LastName,
+                        Email            = freeAgent.Email,
+                        HasPaymentMethod = freeAgent.HasPaymentMethod,
                     },
                     Event = new EventCacheDto
                     {
@@ -264,10 +265,11 @@ public class MobileService
             },
             Player = new PlayerCacheDto
             {
-                Id        = player.Id,
-                FirstName = player.FirstName,
-                LastName  = player.LastName,
-                Email     = player.Email,
+                Id               = player.Id,
+                FirstName        = player.FirstName,
+                LastName         = player.LastName,
+                Email            = player.Email,
+                HasPaymentMethod = player.HasPaymentMethod,
             },
             Org = new OrgCacheDto
             {
@@ -420,6 +422,36 @@ public class MobileService
             Accepted        = accepted,
             Conflicts       = conflicts.Count,
             ConflictDetails = conflicts,
+        };
+    }
+
+    // ── SELF-SERVICE PROFILE UPDATE ───────────────────────────────────────────
+
+    /// <summary>
+    /// Lets a player update their own first name, last name, and phone number
+    /// without requiring organizer authorization.
+    /// </summary>
+    public async Task<PlayerCacheDto> UpdateSelfAsync(
+        Guid playerId, UpdateSelfRequest request, CancellationToken ct = default)
+    {
+        var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId, ct)
+            ?? throw new NotFoundException("Player", playerId);
+
+        if (request.FirstName is not null) player.FirstName = request.FirstName.Trim();
+        if (request.LastName  is not null) player.LastName  = request.LastName.Trim();
+        if (request.Phone     is not null) player.Phone     = request.Phone.Trim();
+
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Player {PlayerId} updated their own profile", playerId);
+
+        return new PlayerCacheDto
+        {
+            Id               = player.Id,
+            FirstName        = player.FirstName,
+            LastName         = player.LastName,
+            Email            = player.Email,
+            HasPaymentMethod = player.HasPaymentMethod,
         };
     }
 

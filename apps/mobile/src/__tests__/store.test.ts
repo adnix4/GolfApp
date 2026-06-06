@@ -116,7 +116,7 @@ const SESSION: JoinEventResponse = {
               format: 'Scramble', startType: 'Shotgun', status: 'Active', startAt: null,
               logoUrl: null, themeJson: null, missionStatement: null, is501c3: false, offlineMode: false },
   team:    { id: 'tm1', name: 'Eagles', players: [], startingHole: null, teeTime: null },
-  player:  { id: 'pl1', firstName: 'Alice', lastName: 'Smith', email: 'a@b.com' },
+  player:  { id: 'pl1', firstName: 'Alice', lastName: 'Smith', email: 'a@b.com', hasPaymentMethod: false },
   org:     { id: 'org1', name: 'Test Org', slug: 'test-org', logoUrl: null, themeJson: null },
   course:  null,
   sponsors: [],

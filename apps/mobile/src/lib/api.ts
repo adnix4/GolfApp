@@ -13,7 +13,7 @@ function authHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export interface PlayerCacheDto  { id: string; firstName: string; lastName: string; email: string; }
+export interface PlayerCacheDto  { id: string; firstName: string; lastName: string; email: string; hasPaymentMethod: boolean; }
 export interface HoleCacheDto    { holeNumber: number; par: number; handicapIndex: number; yardageWhite: number | null; yardageBlue: number | null; yardageRed: number | null; sponsorName: string | null; sponsorLogoUrl: string | null; }
 export interface CourseCacheDto  { id: string; name: string; city: string; state: string; holes: HoleCacheDto[]; }
 export interface SponsorCacheDto { id: string; name: string; logoUrl: string; websiteUrl: string | null; tagline: string | null; tier: string; holeNumbers: number[]; }
@@ -320,6 +320,22 @@ export async function confirmSetup(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? `Confirm setup failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function updateMyProfile(
+  playerId: string,
+  patch: { firstName?: string; lastName?: string; phone?: string },
+): Promise<PlayerCacheDto> {
+  const res = await fetch(`${BASE}/api/v1/players/${playerId}/self`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `Profile update failed (${res.status})`);
   }
   return res.json();
 }

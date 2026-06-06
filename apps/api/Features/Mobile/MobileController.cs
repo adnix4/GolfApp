@@ -61,6 +61,24 @@ public class MobileController : ControllerBase
         return Ok(response);
     }
 
+    // ── SELF-SERVICE PROFILE UPDATE ───────────────────────────────────────────
+
+    /// <summary>
+    /// Players can update their own first name, last name, and phone.
+    /// No authentication required — identified by playerId stored in the mobile app's local session.
+    /// </summary>
+    [HttpPatch("api/v1/players/{playerId:guid}/self")]
+    [ProducesResponseType(typeof(PlayerCacheDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PlayerCacheDto>> UpdateSelf(
+        [FromRoute] Guid playerId,
+        [FromBody]  UpdateSelfRequest request,
+        CancellationToken ct)
+    {
+        var player = await _mobileService.UpdateSelfAsync(playerId, request, ct);
+        return Ok(player);
+    }
+
     // ── BATCH SCORE SYNC ──────────────────────────────────────────────────────
 
     /// <summary>

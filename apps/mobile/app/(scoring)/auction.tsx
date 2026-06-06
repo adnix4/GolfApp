@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Pressable, StyleSheet, FlatList,
   TextInput, Modal, ScrollView, ActivityIndicator, Alert, Image,
+  useWindowDimensions,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { formatCentsShort } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
@@ -17,7 +19,9 @@ import {
 type Tab = 'items' | 'history' | 'live';
 
 export default function AuctionScreen() {
-  const theme = useTheme();
+  const theme  = useTheme();
+  const router = useRouter();
+  const { width: screenWidth } = useWindowDimensions();
   const { session } = useSession();
   const player = session?.player;
   const eventId = session?.event?.id;
@@ -98,7 +102,11 @@ export default function AuctionScreen() {
       setSelectedItem(null);
       await load();
     } catch (e: unknown) {
-      Alert.alert('Could not place bid', e instanceof Error ? e.message : 'Something went wrong. Please try again.');
+      const raw = e instanceof Error ? e.message : '';
+      const msg = raw === 'NO_PAYMENT_METHOD'
+        ? 'A saved payment method is required to place bids. Please complete entry fee payment first.'
+        : raw || 'Something went wrong. Please try again.';
+      Alert.alert('Could not place bid', msg);
     } finally {
       setBidding(false);
     }
@@ -131,6 +139,22 @@ export default function AuctionScreen() {
         <View style={styles.errorBanner}>
           <Text style={styles.errorBannerText}>{loadError}</Text>
         </View>
+      )}
+
+      {/* No payment method warning */}
+      {!player?.hasPaymentMethod && (
+        <Pressable
+          style={styles.paymentWarning}
+          onPress={() => router.push('/payment-setup')}
+          accessibilityRole="button"
+        >
+          <View style={styles.paymentWarningRow}>
+            <Text style={styles.paymentWarningText}>
+              No payment method on file — bids require a saved card.
+            </Text>
+            <Text style={styles.paymentWarningLink}>Set Up →</Text>
+          </View>
+        </Pressable>
       )}
 
       {/* Live auction banner */}
@@ -174,7 +198,7 @@ export default function AuctionScreen() {
                   <Image
                     source={{ uri: resolveUrl(item.photoUrls[0]) }}
                     style={styles.cardPhoto}
-                    resizeMode="cover"
+                    resizeMode="contain"
                   />
                 )}
                 <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Text>
@@ -319,8 +343,8 @@ export default function AuctionScreen() {
                       <Image
                         key={url}
                         source={{ uri: resolveUrl(url) }}
-                        style={styles.modalPhoto}
-                        resizeMode="cover"
+                        style={[styles.modalPhoto, { width: screenWidth - 96 }]}
+                        resizeMode="contain"
                       />
                     ))}
                   </ScrollView>
@@ -366,9 +390,12 @@ export default function AuctionScreen() {
                     placeholderTextColor="#aaa"
                   />
                   <Pressable
-                    style={[styles.bidBtn, { backgroundColor: theme.colors.primary }]}
+                    style={[
+                      styles.bidBtn,
+                      { backgroundColor: player?.hasPaymentMethod ? theme.colors.primary : '#aaa' },
+                    ]}
                     onPress={() => handleBid(selectedItem)}
-                    disabled={bidding}
+                    disabled={bidding || !player?.hasPaymentMethod}
                   >
                     {bidding
                       ? <ActivityIndicator color="#fff" size="small" />
@@ -402,9 +429,9 @@ const styles = StyleSheet.create({
   tabBtn:      { flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 3, borderBottomColor: 'transparent' },
   tabLabel:    { fontSize: 13, fontWeight: '700' },
   card:        { borderRadius: 12, padding: 14, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2 },
-  cardPhoto:   { width: '100%', height: 160, borderRadius: 8, marginBottom: 10 },
+  cardPhoto:   { width: '100%', aspectRatio: 4 / 3, borderRadius: 8, marginBottom: 10, backgroundColor: '#f0f0f0' },
   photoStrip:  { marginBottom: 12 },
-  modalPhoto:  { width: 200, height: 140, borderRadius: 8, marginRight: 8 },
+  modalPhoto:  { aspectRatio: 4 / 3, borderRadius: 8, marginRight: 8, backgroundColor: '#f0f0f0' },
   itemTitle:   { fontSize: 15, fontWeight: '800', marginBottom: 2 },
   sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: 8 },
   bidRow:      { flexDirection: 'row', gap: 8, marginTop: 12 },
@@ -424,4 +451,8 @@ const styles = StyleSheet.create({
   raiseHandText: { color: '#fff', fontWeight: '800', fontSize: 16 },
   errorBanner: { backgroundColor: '#fdf2f2', borderLeftWidth: 3, borderLeftColor: '#e74c3c', padding: 12 },
   errorBannerText: { color: '#c0392b', fontSize: 13 },
+  paymentWarning:    { backgroundColor: '#fff8e1', borderLeftWidth: 3, borderLeftColor: '#f39c12', padding: 12 },
+  paymentWarningRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  paymentWarningText: { color: '#b7770d', fontSize: 13, flex: 1 },
+  paymentWarningLink: { color: '#e67e22', fontSize: 13, fontWeight: '700' },
 });

@@ -1,4 +1,6 @@
-import { View, Text, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import type { PlayerCacheDto } from '@/lib/api';
@@ -6,11 +8,12 @@ import type { PlayerCacheDto } from '@/lib/api';
 // ── PLAYER ROW ────────────────────────────────────────────────────────────────
 
 function PlayerRow({
-  player, isYou, theme,
+  player, isYou, theme, onEdit,
 }: {
-  player: PlayerCacheDto;
-  isYou:  boolean;
-  theme:  ReturnType<typeof useTheme>;
+  player:  PlayerCacheDto;
+  isYou:   boolean;
+  theme:   ReturnType<typeof useTheme>;
+  onEdit?: () => void;
 }) {
   return (
     <View style={rowStyles.row}>
@@ -34,6 +37,17 @@ function PlayerRow({
           {player.email}
         </Text>
       </View>
+      {isYou && onEdit && (
+        <Pressable
+          onPress={onEdit}
+          style={rowStyles.editBtn}
+          accessibilityLabel="Edit your profile"
+          accessibilityRole="button"
+          hitSlop={8}
+        >
+          <Ionicons name="pencil-outline" size={18} color={theme.colors.primary} />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -48,12 +62,14 @@ const rowStyles = StyleSheet.create({
   email:    { fontSize: 13, marginTop: 2 },
   youBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
   youText:  { fontSize: 11, fontWeight: '700', color: '#fff' },
+  editBtn:  { padding: 6 },
 });
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
 
 export default function TeamScreen() {
   const theme   = useTheme();
+  const router  = useRouter();
   const { session } = useSession();
 
   if (!session?.team) return null;
@@ -107,6 +123,7 @@ export default function TeamScreen() {
               player={p}
               isYou={p.id === me.id}
               theme={theme}
+              onEdit={() => router.push('/edit-profile')}
             />
           ))}
           {team.players.length === 0 && (
