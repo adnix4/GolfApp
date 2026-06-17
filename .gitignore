@@ -109,3 +109,7 @@ Desktop.ini
 # ── TESTING ──────────────────────────────────────────────────────────────────
 # Jest / Vitest coverage output
 coverage/
+
+# ── RUNTIME UPLOADS ──────────────────────────────────────────────────────────
+# User-uploaded files (auction photos, etc.) — runtime data, not source
+apps/api/wwwroot/uploads/

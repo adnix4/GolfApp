@@ -133,7 +133,22 @@
       "Bash(find /c -name \"psql.exe\")",
       "Bash(git *)",
       "Bash(echo \"exit=$?\")",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "PowerShell(scoring *)",
+      "Bash(cp apps/admin/src/lib/api.ts /tmp/api.ts.phase4)",
+      "Bash(cp packages/shared-types/src/index.ts /tmp/shared-types-index.ts.phase4)",
+      "Bash(cp /tmp/api.ts.phase4 apps/admin/src/lib/api.ts)",
+      "Bash(cp /tmp/shared-types-index.ts.phase4 packages/shared-types/src/index.ts)",
+      "Bash(grep -n \"setHioAlert\\\\|leaderboard\\\\\\\\.\" \"C:/GolfApp/apps/web/src/app/e/[orgSlug]/[eventCode]/scores/ScoresPoller.tsx\")",
+      "Bash(grep *)",
+      "Bash(awk '/^const styles = StyleSheet.create/,/^}\\\\\\);/' \"C:/GolfApp/apps/admin/src/app/\\(app\\)/leagues/[id]/seasons/[sid]/index.tsx\")",
+      "Bash(cat C:\\\\\\\\Users\\\\\\\\fshro\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\C--GolfApp\\\\\\\\b2e33ba3-fe9a-461a-8788-facca27ecbe0\\\\\\\\tasks\\\\\\\\bxa7e5v5p.output)",
+      "Bash(head -n 214 \"apps/web/src/app/e/[orgSlug]/[eventCode]/scores/ScoresPoller.tsx\")",
+      "Bash(mv /tmp/ScoresPoller.new \"apps/web/src/app/e/[orgSlug]/[eventCode]/scores/ScoresPoller.tsx\")",
+      "Bash(gh api *)",
+      "PowerShell(gh api *)",
+      "PowerShell(head *)",
+      "Bash(Select-String -Pattern \"test\")"
     ]
   }
 }

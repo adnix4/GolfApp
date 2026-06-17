@@ -44,3 +44,9 @@
 
   10. Mobile polling ignores event.offlineMode — spec §2.4 says offline mode should "disable live leaderboard on mobile to conserve battery". The 15s leaderboard poll runs
   unconditionally; backgroundSync.ts correctly reads offlineModeActive but the leaderboard screen does not.
+
+    One required install step
+
+  npx expo install @stripe/stripe-react-native
+  And add your Stripe publishable key to .env:
+  EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
