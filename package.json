@@ -12,6 +12,7 @@
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "test": "turbo run test",
+    "check-updates": "node scripts/check-updates.js",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
