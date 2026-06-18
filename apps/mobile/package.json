@@ -32,7 +32,7 @@
     "expo-sqlite": "~55.0.16",
     "expo-status-bar": "~55.0.6",
     "expo-task-manager": "~55.0.16",
-    "react": "19.2.0",
+    "react": "19.0.0",
     "react-native": "0.83.6",
     "react-native-image-colors": "^2.6.0",
     "react-native-qrcode-svg": "~6.3.21",
