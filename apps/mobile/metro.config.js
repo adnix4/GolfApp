@@ -22,4 +22,15 @@ config.resolver.unstable_conditionsByPlatform = {
   web: ['browser', 'react-native'],
 };
 
+// Stub native-only packages that can't bundle for web.
+const WEB_EMPTY_MODULES = new Set(['@stripe/stripe-react-native']);
+const defaultResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (platform === 'web' && WEB_EMPTY_MODULES.has(moduleName)) {
+    return { type: 'empty' };
+  }
+  if (defaultResolveRequest) return defaultResolveRequest(context, moduleName, platform);
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 module.exports = config;
