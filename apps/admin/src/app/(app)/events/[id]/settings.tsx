@@ -458,8 +458,7 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: '#fff', borderRadius: 16, padding: 24,
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12,
-    shadowOffset: { width: 0, height: 3 }, elevation: 3,
+    boxShadow: '0px 3px 12px rgba(0, 0, 0, 0.06)', elevation: 3,
   },
   sectionTitle: { fontSize: 17, fontWeight: '800', marginBottom: 4 },
 

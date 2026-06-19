@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
   content:     { padding: 20, paddingBottom: 60, gap: 12 },
   center:      { flex: 1, justifyContent: 'center', alignItems: 'center' },
   heading:     { fontSize: 22, fontWeight: '800' },
-  card:        { backgroundColor: '#fff', borderRadius: 12, padding: 16, elevation: 1, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
+  card:        { backgroundColor: '#fff', borderRadius: 12, padding: 16, boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.06)', elevation: 1 },
   banner:      { borderRadius: 10, padding: 14, alignItems: 'center' },
   bannerText:  { color: '#fff', fontWeight: '800', fontSize: 16, letterSpacing: 0.5 },
   infoText:    { fontSize: 14, color: '#555', marginBottom: 12 },

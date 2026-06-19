@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
 
   // Modal
   modalOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalCard:       { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12 },
+  modalCard:       { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36, boxShadow: '0px 0px 12px rgba(0, 0, 0, 0.15)' },
   modalHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   modalTitle:      { fontSize: 18, fontWeight: '800' },
   modalClose:      { padding: 4 },

@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   backText: { fontSize: 14, fontWeight: '600' },
   logo:     { fontSize: 20, fontWeight: '800' },
 
-  card:       { width: '100%', maxWidth: 520, backgroundColor: '#fff', borderRadius: 20, padding: 32, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+  card:       { width: '100%', maxWidth: 520, backgroundColor: '#fff', borderRadius: 20, padding: 32, boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.08)', elevation: 4 },
   heading:    { fontSize: 24, fontWeight: '900', marginBottom: 8 },
   subheading: { fontSize: 14, lineHeight: 22, marginBottom: 20 },
 

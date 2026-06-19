@@ -536,7 +536,7 @@ const styles = StyleSheet.create({
   header:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
   title:   { fontSize: 18, fontWeight: '800' },
   list:    { paddingHorizontal: 16, paddingBottom: 40 },
-  card:    { borderRadius: 12, padding: 14, marginBottom: 10, elevation: 1, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
+  card:    { borderRadius: 12, padding: 14, marginBottom: 10, boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.06)', elevation: 1 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   listThumb: { width: 64, height: 64, borderRadius: 8 },
   listThumbPlaceholder: { width: 64, height: 64, borderRadius: 8, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' },

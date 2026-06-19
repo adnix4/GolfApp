@@ -111,10 +111,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 36,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
+    boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.08)',
   },
   logoRow: {
     alignItems: 'center',

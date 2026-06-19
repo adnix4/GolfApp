@@ -37,35 +37,41 @@ const EventRow = memo(function EventRow({
   item, isOpeningReg, onOpenEvent, onOpenRegistration,
 }: EventRowProps) {
   const theme = useTheme();
+  // The card container is a plain View — not a Pressable — so the Draft
+  // "Open Registration" button below can be a sibling Pressable rather than a
+  // nested one. On web, RN Pressable renders as <button>, and a <button> nested
+  // inside another <button> is invalid DOM (hydration error). The card's main
+  // tap target is its own Pressable wrapping just the header + meta.
   return (
-    <Pressable
-      style={[styles.card, { backgroundColor: '#fff', borderColor: '#e8e8e8' }]}
-      onPress={() => onOpenEvent(item.id)}
-      accessibilityRole="button"
-      accessibilityLabel={`Open event ${item.name}`}
-    >
-      <View style={styles.cardTop}>
-        <Text style={[styles.cardName, { color: theme.colors.primary }]} numberOfLines={1}>
-          {item.name}
-        </Text>
-        <StatusPill color={eventStatusColor(item.status)} label={item.status} />
-      </View>
-      <View style={styles.cardMeta}>
-        <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
-          {FORMAT_LABELS[item.format] ?? item.format}
-        </Text>
-        <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
-          Code: {item.eventCode}
-        </Text>
-        <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
-          {item.teamCount} team{item.teamCount !== 1 ? 's' : ''}
-        </Text>
-        {item.startAt && (
-          <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
-            {new Date(item.startAt).toLocaleDateString()}
+    <View style={[styles.card, { backgroundColor: '#fff', borderColor: '#e8e8e8' }]}>
+      <Pressable
+        onPress={() => onOpenEvent(item.id)}
+        accessibilityRole="button"
+        accessibilityLabel={`Open event ${item.name}`}
+      >
+        <View style={styles.cardTop}>
+          <Text style={[styles.cardName, { color: theme.colors.primary }]} numberOfLines={1}>
+            {item.name}
           </Text>
-        )}
-      </View>
+          <StatusPill color={eventStatusColor(item.status)} label={item.status} />
+        </View>
+        <View style={styles.cardMeta}>
+          <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
+            {FORMAT_LABELS[item.format] ?? item.format}
+          </Text>
+          <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
+            Code: {item.eventCode}
+          </Text>
+          <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
+            {item.teamCount} team{item.teamCount !== 1 ? 's' : ''}
+          </Text>
+          {item.startAt && (
+            <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
+              {new Date(item.startAt).toLocaleDateString()}
+            </Text>
+          )}
+        </View>
+      </Pressable>
       {item.status === 'Draft' && (
         <View style={styles.cardActions}>
           <Pressable
@@ -74,7 +80,7 @@ const EventRow = memo(function EventRow({
               { backgroundColor: item.startAt ? theme.colors.primary : '#bdbdbd' },
               isOpeningReg && { opacity: 0.6 },
             ]}
-            onPress={e => { e.stopPropagation?.(); onOpenRegistration(item); }}
+            onPress={() => onOpenRegistration(item)}
             disabled={isOpeningReg}
             accessibilityRole="button"
             accessibilityLabel="Open registration for this event"
@@ -89,7 +95,7 @@ const EventRow = memo(function EventRow({
           </Pressable>
         </View>
       )}
-    </Pressable>
+    </View>
   );
 });
 
@@ -542,10 +548,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.05)',
   },
   cardTop: {
     flexDirection: 'row',
@@ -623,10 +626,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 28,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
+    boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.15)',
   },
   modalTitle: {
     fontSize: 20,

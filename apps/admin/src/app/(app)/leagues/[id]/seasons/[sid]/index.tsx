@@ -14,7 +14,7 @@ import {
   PairingsPreviewModal, HandicapHistoryModal, OverrideHandicapModal,
   AddMemberModal, AbsencesModal, AddSubModal, AddRoundModal,
   type AddMemberFields, type AddSubFields,
-} from './seasonModals';
+} from '@/components/seasonModals';
 
 type Tab = 'overview' | 'roster' | 'rounds' | 'handicaps' | 'standings' | 'skins';
 

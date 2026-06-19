@@ -371,8 +371,7 @@ const styles = StyleSheet.create({
 
   card:       {
     borderRadius: 12, padding: 20, gap: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+    boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.06)', elevation: 2,
   },
   cardTitle:  { fontSize: 16, fontWeight: '700', marginBottom: 2 },
   cardSub:    { fontSize: 13, lineHeight: 20 },
