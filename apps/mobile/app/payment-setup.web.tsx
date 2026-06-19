@@ -6,7 +6,7 @@ export default function PaymentSetupScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.pageBackground }]}>
       <Text style={[styles.title, { color: theme.colors.primary }]}>Not Available on Web</Text>
-      <Text style={[styles.body, { color: theme.colors.onSurface }]}>
+      <Text style={[styles.body, { color: theme.colors.primary }]}>
         Card payment setup is only available in the mobile app.
       </Text>
     </View>
