@@ -148,7 +148,15 @@
       "Bash(gh api *)",
       "PowerShell(gh api *)",
       "PowerShell(head *)",
-      "Bash(Select-String -Pattern \"test\")"
+      "Bash(Select-String -Pattern \"test\")",
+      "Bash(gh --version)",
+      "Bash(gh auth *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(npm outdated *)",
+      "Bash(echo \"exit=$? bytes=$\\(wc -c < /tmp/o1.json\\)\")",
+      "Bash(echo \"exit=$? bytes=$\\(wc -c < /tmp/o2.json\\)\")",
+      "Skill(schedule)",
+      "Bash(PGPASSWORD=gfp_local psql -h localhost -p 5432 -U gfp -d golf_fundraiser -c \"\\\\dt\")"
     ]
   }
 }
