@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   tabRow:      { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
   tabBtn:      { flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 3, borderBottomColor: 'transparent' },
   tabLabel:    { fontSize: 13, fontWeight: '700' },
-  card:        { borderRadius: 12, padding: 14, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2 },
+  card:        { borderRadius: 12, padding: 14, marginBottom: 10, boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.06)', elevation: 2 },
   cardPhoto:   { width: '100%', aspectRatio: 4 / 3, borderRadius: 8, marginBottom: 10, backgroundColor: '#f0f0f0' },
   photoStrip:  { marginBottom: 12 },
   modalPhoto:  { aspectRatio: 4 / 3, borderRadius: 8, marginRight: 8, backgroundColor: '#f0f0f0' },

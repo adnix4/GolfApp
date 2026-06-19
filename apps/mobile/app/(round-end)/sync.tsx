@@ -39,14 +39,17 @@ function ChallengeModal({
       animationType="slide"
       onRequestClose={onDismiss}
     >
-      <Pressable
-        style={modalStyles.backdrop}
-        onPress={onDismiss}
-        accessibilityLabel="Close challenge detail"
-        accessibilityRole="button"
-      >
-        {/* Inner Pressable prevents tapping the card from closing the modal */}
-        <Pressable style={[modalStyles.card, { backgroundColor: theme.colors.surface }]} onPress={() => {}}>
+      <View style={modalStyles.backdrop}>
+        {/* Dismiss layer behind the card — a sibling, not a parent, so the
+            card's buttons aren't nested inside another Pressable (invalid
+            <button>-in-<button> on web). */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onDismiss}
+          accessibilityLabel="Close challenge detail"
+          accessibilityRole="button"
+        />
+        <View style={[modalStyles.card, { backgroundColor: theme.colors.surface }]}>
           <View style={[modalStyles.header, { backgroundColor: theme.colors.primary }]}>
             <Text style={modalStyles.headerText}>
               {challenge.holeNumber != null
@@ -87,8 +90,8 @@ function ChallengeModal({
           >
             <Text style={modalStyles.closeBtnText}>Got It</Text>
           </Pressable>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -494,8 +497,7 @@ const styles = StyleSheet.create({
   // Totals card
   totalsCard: {
     borderRadius: 14, padding: 20, marginBottom: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 8, elevation: 3,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.07)', elevation: 3,
   },
   totalsRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
   totalItem:    { alignItems: 'center', flex: 1 },

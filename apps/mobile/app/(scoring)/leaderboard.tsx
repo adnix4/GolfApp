@@ -87,7 +87,16 @@ function HoleInOneOverlay({
 
   return (
     <Modal transparent animationType="fade" onRequestClose={onDismiss}>
-      <Pressable style={hioStyles.backdrop} onPress={onDismiss}>
+      <View style={hioStyles.backdrop}>
+        {/* Dismiss layer behind the card — a sibling, not a parent, so the
+            "Amazing!" button isn't a <button> nested inside another Pressable's
+            <button> (invalid DOM on web). */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onDismiss}
+          accessibilityLabel="Dismiss hole-in-one alert"
+          accessibilityRole="button"
+        />
         <View style={[hioStyles.card, { backgroundColor: theme.colors.highlight }]}>
           <Text style={hioStyles.flag}>⛳</Text>
           <Text style={[hioStyles.headline, { color: theme.colors.primary }]}>HOLE-IN-ONE!</Text>
@@ -97,7 +106,7 @@ function HoleInOneOverlay({
             <Text style={hioStyles.btnText}>Amazing!</Text>
           </Pressable>
         </View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }

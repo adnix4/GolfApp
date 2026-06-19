@@ -165,8 +165,7 @@ const hioStyles = StyleSheet.create({
     backgroundColor: '#1a1a2e', borderRadius: 24, padding: 40,
     alignItems: 'center', marginHorizontal: 32,
     borderWidth: 3, borderColor: '#f1c40f',
-    shadowColor: '#f1c40f', shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6, shadowRadius: 20, elevation: 20,
+    boxShadow: '0px 0px 20px rgba(241, 196, 15, 0.6)', elevation: 20,
   },
   emoji:    { fontSize: 64, marginBottom: 12 },
   headline: { fontSize: 34, fontWeight: '900', color: '#f1c40f', letterSpacing: 2, textAlign: 'center' },
@@ -201,13 +200,17 @@ export function ChallengeDetailModal({
       animationType="slide"
       onRequestClose={onDismiss}
     >
-      <Pressable
-        style={chalModalStyles.backdrop}
-        onPress={onDismiss}
-        accessibilityLabel="Close challenge detail"
-        accessibilityRole="button"
-      >
-        <Pressable style={[chalModalStyles.card, { backgroundColor: theme.colors.surface }]} onPress={() => {}}>
+      <View style={chalModalStyles.backdrop}>
+        {/* Dismiss layer behind the card — a sibling, not a parent, so the
+            card's buttons aren't nested inside another Pressable (invalid
+            <button>-in-<button> on web). */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onDismiss}
+          accessibilityLabel="Close challenge detail"
+          accessibilityRole="button"
+        />
+        <View style={[chalModalStyles.card, { backgroundColor: theme.colors.surface }]}>
           <View style={[chalModalStyles.header, { backgroundColor: theme.colors.primary }]}>
             <Text style={chalModalStyles.headerText}>
               {challenge.holeNumber != null
@@ -243,8 +246,8 @@ export function ChallengeDetailModal({
           >
             <Text style={chalModalStyles.closeBtnText}>Got It</Text>
           </Pressable>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -289,16 +292,23 @@ export function SponsorModal({
       animationType="slide"
       onRequestClose={onDismiss}
     >
-      <Pressable
-        style={sponModalStyles.backdrop}
-        onPress={onDismiss}
-        accessibilityLabel="Close sponsor info"
-        accessibilityRole="button"
-      >
+      <View style={sponModalStyles.backdrop}>
+        {/*
+          Full-screen dismiss layer rendered as a sibling *behind* the card —
+          not a parent of it. The card's own buttons must not be nested inside
+          another Pressable, since RN-web renders Pressable as <button> and a
+          <button> inside a <button> is invalid DOM.
+        */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onDismiss}
+          accessibilityLabel="Close sponsor info"
+          accessibilityRole="button"
+        />
         {/*
           Two-layer approach:
           • cardShell  — outer View owns the visible border + shadow (not clipped)
-          • card       — inner Pressable uses overflow:hidden to clip the header bg
+          • card       — inner View uses overflow:hidden to clip the header bg
                          neatly to the top rounded corners
         */}
         <View
@@ -310,10 +320,7 @@ export function SponsorModal({
             },
           ]}
         >
-          <Pressable
-            style={[sponModalStyles.card, { backgroundColor: '#ffffff' }]}
-            onPress={() => {}}
-          >
+          <View style={[sponModalStyles.card, { backgroundColor: '#ffffff' }]}>
             {/* Header */}
             <View style={[sponModalStyles.header, { backgroundColor: theme.colors.primary }]}>
               <Text style={sponModalStyles.headerText}>🤝 Hole Sponsor</Text>
@@ -378,9 +385,9 @@ export function SponsorModal({
             >
               <Text style={sponModalStyles.closeBtnText}>Got It</Text>
             </Pressable>
-          </Pressable>
+          </View>
         </View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }
@@ -401,7 +408,7 @@ const sponModalStyles = StyleSheet.create({
     elevation: 18,
   },
 
-  // card — inner Pressable with overflow:hidden so the coloured header is
+  // card — inner View with overflow:hidden so the coloured header is
   // clipped cleanly to the rounded top corners. Slightly smaller radius so
   // it sits flush inside the shell border.
   card: {

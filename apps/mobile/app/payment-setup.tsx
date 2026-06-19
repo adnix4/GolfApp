@@ -169,8 +169,7 @@ const styles = StyleSheet.create({
 
   infoCard: {
     borderRadius: 12, padding: 16, alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+    boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.05)', elevation: 2,
   },
   infoText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
 

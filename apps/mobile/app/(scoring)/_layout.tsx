@@ -312,8 +312,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 32,
     alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
+    boxShadow: '0px 2px 12px rgba(0, 0, 0, 0.08)', elevation: 4,
   },
 
   waitSpinner:   { marginBottom: 24 },

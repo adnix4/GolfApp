@@ -514,8 +514,7 @@ const styles = StyleSheet.create({
 
   card: {
     borderRadius: 16, padding: 20, marginBottom: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 10, elevation: 3,
+    boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.07)', elevation: 3,
   },
   heading: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
   sub:     { fontSize: 14, marginBottom: 18, lineHeight: 20 },

@@ -159,8 +159,7 @@ const styles = StyleSheet.create({
 
   readonlyRow: {
     borderRadius: 10, padding: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+    boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.04)', elevation: 1,
   },
   readonlyLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   readonlyValue: { fontSize: 16, fontWeight: '500', marginTop: 4 },

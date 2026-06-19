@@ -181,8 +181,7 @@ const styles = StyleSheet.create({
   infoCard: {
     borderRadius: 14, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 4,
     marginBottom: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+    boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.05)', elevation: 2,
   },
   sectionTitle: {
     fontSize: 13, fontWeight: '700', textTransform: 'uppercase',
@@ -190,8 +189,7 @@ const styles = StyleSheet.create({
   },
   rosterCard: {
     borderRadius: 14, paddingHorizontal: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+    boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.05)', elevation: 2,
   },
   emptyRoster: { fontSize: 14, textAlign: 'center', paddingVertical: 20 },
 });

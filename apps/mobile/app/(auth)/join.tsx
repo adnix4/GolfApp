@@ -512,8 +512,7 @@ const styles = StyleSheet.create({
   eventCard: {
     borderRadius: 14, padding: 16, marginBottom: 12,
     flexDirection: 'row', alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+    boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.06)', elevation: 2,
   },
   eventCardBody: { flex: 1 },
   eventName:     { fontSize: 16, fontWeight: '700', marginBottom: 3 },
@@ -536,8 +535,7 @@ const styles = StyleSheet.create({
   selectedCard: {
     borderRadius: 12, padding: 14, marginBottom: 16,
     borderWidth: 1,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+    boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)', elevation: 1,
   },
   selectedCardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 4 },
   selectedName:    { fontSize: 16, fontWeight: '700', flex: 1 },
@@ -549,8 +547,7 @@ const styles = StyleSheet.create({
   // Email entry card
   card: {
     borderRadius: 16, padding: 24, marginBottom: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 10, elevation: 3,
+    boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.07)', elevation: 3,
   },
   heading: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
   sub:     { fontSize: 14, marginBottom: 18 },

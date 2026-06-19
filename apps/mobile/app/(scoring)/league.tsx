@@ -307,8 +307,7 @@ const promoStyles = StyleSheet.create({
   stepsSection: {
     marginHorizontal: 16, borderRadius: 16, marginTop: 28,
     paddingHorizontal: 20, paddingVertical: 22,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+    boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.06)', elevation: 2,
   },
   sectionLabel: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
 
@@ -316,8 +315,7 @@ const promoStyles = StyleSheet.create({
   featureCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 14,
     borderRadius: 14, padding: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+    boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)', elevation: 1,
   },
   featureIcon:  { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   featureText:  { flex: 1, gap: 3 },
