@@ -128,7 +128,9 @@ describe('LeaderboardEntrySchema', () => {
   const validEntry = {
     rank: 1, teamId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     teamName: 'Team Alpha', toPar: -6, grossTotal: 66,
-    holesComplete: 18, isComplete: true, sponsorBadge: null,
+    holesComplete: 18, isComplete: true,
+    strokesBack: 0, bestHole: 7, bestHoleScore: 3,
+    sponsorBadge: null,
   };
 
   it('accepts a valid leaderboard entry', () => {
@@ -174,7 +176,9 @@ describe('LeaderboardSchema', () => {
   const entry = {
     rank: 1, teamId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     teamName: 'Team Alpha', toPar: -2, grossTotal: 70,
-    holesComplete: 18, isComplete: true, sponsorBadge: null,
+    holesComplete: 18, isComplete: true,
+    strokesBack: 0, bestHole: 7, bestHoleScore: 3,
+    sponsorBadge: null,
   };
 
   it('accepts an empty array', () => {

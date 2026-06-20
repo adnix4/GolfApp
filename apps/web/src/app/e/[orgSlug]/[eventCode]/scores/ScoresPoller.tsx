@@ -160,6 +160,9 @@ export default function ScoresPoller({
                     <th style={{ ...st.th, width: 48, textAlign: 'center' }}>#</th>
                     <th style={{ ...st.th, textAlign: 'left' }}>Team</th>
                     <th style={{ ...st.th, width: 90, textAlign: 'right' }}>To Par</th>
+                    <th style={{ ...st.th, width: 70, textAlign: 'right' }}>Back</th>
+                    <th style={{ ...st.th, width: 70, textAlign: 'right' }}>Best Hole</th>
+                    <th style={{ ...st.th, width: 70, textAlign: 'right' }}>Best Score</th>
                     <th style={{ ...st.th, width: 80, textAlign: 'right' }}>Gross</th>
                     <th style={{ ...st.th, width: 70, textAlign: 'right' }}>Thru</th>
                   </tr>

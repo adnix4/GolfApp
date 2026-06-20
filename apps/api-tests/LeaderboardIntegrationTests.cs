@@ -146,6 +146,63 @@ public class LeaderboardIntegrationTests
         Assert.Equal(2, board[1].Rank);
     }
 
+    // ── Strokes back / best hole ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetLeaderboardAsync_computes_strokes_back_and_best_hole()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId) = await SeedEventAsync(db, holes: 3);
+
+        var leader   = AddTeam(db, eventId, "Leader");   // -3
+        var chaser   = AddTeam(db, eventId, "Chaser");   // E (0)
+
+        // Leader: 3,3,3 → all -1, total -3. Best hole = first one shot (hole 1, gross 3).
+        AddScore(db, eventId, leader.Id, 1, 3);
+        AddScore(db, eventId, leader.Id, 2, 3);
+        AddScore(db, eventId, leader.Id, 3, 3);
+        // Chaser: 5,4,3 → +1, 0, -1 → total 0. Best hole = hole 3 (gross 3, -1).
+        AddScore(db, eventId, chaser.Id, 1, 5);
+        AddScore(db, eventId, chaser.Id, 2, 4);
+        AddScore(db, eventId, chaser.Id, 3, 3);
+        await db.SaveChangesAsync();
+
+        var board   = await svc.GetLeaderboardAsync(orgId, eventId);
+        var leaderE = board.Single(e => e.TeamName == "Leader");
+        var chaserE = board.Single(e => e.TeamName == "Chaser");
+
+        // Strokes back: leader is 0, chaser is 0 - (-3) = 3.
+        Assert.Equal(0, leaderE.StrokesBack);
+        Assert.Equal(3, chaserE.StrokesBack);
+
+        // Best hole: chaser's best is hole 3 (gross 3, one under).
+        Assert.Equal((short)3, chaserE.BestHole);
+        Assert.Equal((short)3, chaserE.BestHoleScore);
+
+        // Best hole for an unscored-free leader is still populated.
+        Assert.Equal((short)3, leaderE.BestHoleScore);
+    }
+
+    [Fact]
+    public async Task GetLeaderboardAsync_unscored_team_has_null_best_hole_and_zero_strokes_back()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId) = await SeedEventAsync(db, holes: 2);
+
+        var scored   = AddTeam(db, eventId, "Scored");
+        AddTeam(db, eventId, "Unscored");
+
+        AddScore(db, eventId, scored.Id, 1, 5); AddScore(db, eventId, scored.Id, 2, 5);
+        await db.SaveChangesAsync();
+
+        var board    = await svc.GetLeaderboardAsync(orgId, eventId);
+        var unscored = board.Single(e => e.TeamName == "Unscored");
+
+        Assert.Equal(0, unscored.StrokesBack);
+        Assert.Null(unscored.BestHole);
+        Assert.Null(unscored.BestHoleScore);
+    }
+
     // ── Tie handling ──────────────────────────────────────────────────────────
 
     [Fact]

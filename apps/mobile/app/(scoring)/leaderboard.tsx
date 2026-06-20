@@ -31,12 +31,18 @@ const StandingRow = memo(function StandingRow({ entry }: { entry: PublicLeaderbo
     entry.toPar > 0 ? '#e74c3c' :
                       theme.colors.primary;
   const thru = entry.isComplete ? 'F' : `${entry.holesComplete}`;
+  const back = entry.holesComplete === 0 || entry.strokesBack === 0 ? '—' : `${entry.strokesBack}`;
+  const bestHole  = entry.bestHole == null ? '—' : `${entry.bestHole}`;
+  const bestScore = entry.bestHoleScore == null ? '—' : `${entry.bestHoleScore}`;
 
   return (
     <View style={[rowStyles.row, { borderBottomColor: '#f0f0f0' }]}>
       <Text style={[rowStyles.rank,  { color: theme.colors.accent   }]}>{entry.rank}</Text>
       <Text style={[rowStyles.team,  { color: theme.colors.primary  }]} numberOfLines={1}>{entry.teamName}</Text>
       <Text style={[rowStyles.toPar, { color: toParColor            }]} numberOfLines={1}>{toParLabel}</Text>
+      <Text style={[rowStyles.back,  { color: theme.colors.primary  }]}>{back}</Text>
+      <Text style={[rowStyles.num,   { color: theme.colors.primary  }]}>{bestHole}</Text>
+      <Text style={[rowStyles.num,   { color: theme.colors.primary  }]}>{bestScore}</Text>
       <Text style={[rowStyles.thru,  { color: theme.colors.accent   }]}>{thru}</Text>
     </View>
   );
@@ -47,6 +53,8 @@ const rowStyles = StyleSheet.create({
   rank:  { width: 32,  fontSize: 13, fontWeight: '700', textAlign: 'center' },
   team:  { flex: 1,    fontSize: 14, fontWeight: '600', marginHorizontal: 8 },
   toPar: { width: 44,  fontSize: 15, fontWeight: '800', textAlign: 'right' },
+  back:  { width: 40,  fontSize: 13, textAlign: 'right', marginLeft: 8 },
+  num:   { width: 44,  fontSize: 13, textAlign: 'right', marginLeft: 8 },
   thru:  { width: 36,  fontSize: 13, textAlign: 'right', marginLeft: 8 },
 });
 
@@ -59,6 +67,9 @@ function TableHeader() {
       <Text style={[rowStyles.rank,  headerStyles.th, { color: theme.colors.primary }]}>#</Text>
       <Text style={[rowStyles.team,  headerStyles.th, { color: theme.colors.primary }]}>Team</Text>
       <Text style={[rowStyles.toPar, headerStyles.th, { color: theme.colors.primary }]}>To Par</Text>
+      <Text style={[rowStyles.back,  headerStyles.th, { color: theme.colors.primary }]}>Back</Text>
+      <Text style={[rowStyles.num,   headerStyles.th, { color: theme.colors.primary }]}>Best</Text>
+      <Text style={[rowStyles.num,   headerStyles.th, { color: theme.colors.primary }]}>Score</Text>
       <Text style={[rowStyles.thru,  headerStyles.th, { color: theme.colors.primary }]}>Thru</Text>
     </View>
   );

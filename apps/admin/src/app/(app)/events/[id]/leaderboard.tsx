@@ -99,6 +99,9 @@ export default function LeaderboardScreen() {
             {isStableford
               ? <Text style={[styles.colScore, { color: theme.colors.primary }]}>Pts</Text>
               : <Text style={[styles.colScore, { color: theme.colors.primary }]}>To Par</Text>}
+            <Text style={[styles.colNum,   { color: theme.colors.primary }]}>Back</Text>
+            <Text style={[styles.colNum,   { color: theme.colors.primary }]}>Best</Text>
+            <Text style={[styles.colNum,   { color: theme.colors.primary }]}>Score</Text>
             <Text style={[styles.colThru,  { color: theme.colors.primary }]}>Thru</Text>
           </View>
 
@@ -130,6 +133,15 @@ export default function LeaderboardScreen() {
                     : isStableford
                       ? `${item.stablefordPoints}`
                       : formatScore(item.toPar)}
+                </Text>
+                <Text style={[styles.colNum, styles.numText, { color: theme.colors.primary }]}>
+                  {item.holesComplete === 0 || item.strokesBack === 0 ? '—' : item.strokesBack}
+                </Text>
+                <Text style={[styles.colNum, styles.numText, { color: theme.colors.primary }]}>
+                  {item.bestHole == null ? '—' : item.bestHole}
+                </Text>
+                <Text style={[styles.colNum, styles.numText, { color: theme.colors.primary }]}>
+                  {item.bestHoleScore == null ? '—' : item.bestHoleScore}
                 </Text>
                 <Text style={[styles.colThru, styles.thruText, { color: theme.colors.accent }]}>
                   {item.holesComplete === 0 ? '—' : item.isComplete ? 'F' : item.holesComplete}
@@ -168,6 +180,7 @@ const styles = StyleSheet.create({
   colRank:  { width: 36, alignItems: 'center' },
   colName:  { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10 },
   colScore: { width: 52, textAlign: 'right', fontSize: 12, fontWeight: '700' },
+  colNum:   { width: 48, textAlign: 'right', fontSize: 12, fontWeight: '700', marginLeft: 8 },
   colThru:  { width: 44, textAlign: 'right', fontSize: 12, fontWeight: '700', marginLeft: 8 },
 
   rankBadge: { fontSize: 13, fontWeight: '700', textAlign: 'center', width: 28 },
@@ -178,5 +191,6 @@ const styles = StyleSheet.create({
   teamName:   { fontSize: 15, fontWeight: '600', flex: 1 },
   finishedTag:{ fontSize: 11, fontWeight: '700' },
   scoreText:  { fontSize: 15, fontWeight: '800' },
+  numText:    { fontSize: 14, fontWeight: '600' },
   thruText:   { fontSize: 14 },
 });

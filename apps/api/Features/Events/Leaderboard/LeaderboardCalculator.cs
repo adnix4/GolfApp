@@ -29,6 +29,18 @@ public static class LeaderboardCalculator
         public bool     IsComplete       { get; init; }
         public short?   StartingHole     { get; init; }
         public DateTime? TeeTime         { get; init; }
+
+        /// <summary>
+        /// Strokes (or, for Stableford, points) behind the leader. 0 for the
+        /// leader and for any team tied at the top. Always &gt;= 0.
+        /// </summary>
+        public int      StrokesBack      { get; init; }
+
+        /// <summary>Hole number of the team's best hole (lowest score relative to par). Null until the team has a score.</summary>
+        public short?   BestHole         { get; init; }
+
+        /// <summary>Gross score recorded on <see cref="BestHole"/>. Null until the team has a score.</summary>
+        public short?   BestHoleScore    { get; init; }
     }
 
     public static List<StandingEntry> Compute(
@@ -59,6 +71,25 @@ public static class LeaderboardCalculator
                 ? ts.Sum(s => Math.Max(0, parByHole.GetValueOrDefault(s.HoleNumber, 4) - (int)s.GrossScore + 2))
                 : 0;
 
+            // Best hole = lowest score relative to par. Ties break on lower
+            // gross, then lower hole number, so the result is deterministic.
+            short? bestHole      = null;
+            short? bestHoleScore = null;
+            var    bestRel       = int.MaxValue;
+            foreach (var s in ts)
+            {
+                var rel    = (int)s.GrossScore - parByHole.GetValueOrDefault(s.HoleNumber, 4);
+                var better = rel < bestRel
+                    || (rel == bestRel && s.GrossScore <  bestHoleScore)
+                    || (rel == bestRel && s.GrossScore == bestHoleScore && s.HoleNumber < bestHole);
+                if (bestHole is null || better)
+                {
+                    bestRel       = rel;
+                    bestHole      = s.HoleNumber;
+                    bestHoleScore = s.GrossScore;
+                }
+            }
+
             rows.Add(new StandingEntry
             {
                 TeamId           = t.Id,
@@ -70,6 +101,8 @@ public static class LeaderboardCalculator
                 IsComplete       = holesComplete >= defaultHoles,
                 StartingHole     = t.StartingHole,
                 TeeTime          = t.TeeTime,
+                BestHole         = bestHole,
+                BestHoleScore    = bestHoleScore,
             });
         }
 
@@ -86,6 +119,10 @@ public static class LeaderboardCalculator
                 .ThenByDescending(e => e.HolesComplete)
                 .ToList();
 
+        // The leader is the first scored team after sorting (best ToPar, or
+        // best Stableford points). StrokesBack is each team's gap from it.
+        var leader = sorted.FirstOrDefault(e => e.HolesComplete > 0);
+
         var ranked = new List<StandingEntry>(sorted.Count);
         var rank   = 1;
         for (int i = 0; i < sorted.Count; i++)
@@ -98,7 +135,17 @@ public static class LeaderboardCalculator
                 if (!tied) rank = i + 1;
             }
 
-            ranked.Add(sorted[i] with { Rank = sorted[i].HolesComplete == 0 ? 0 : rank });
+            var strokesBack = sorted[i].HolesComplete == 0 || leader is null
+                ? 0
+                : isStableford
+                    ? leader.StablefordPoints - sorted[i].StablefordPoints
+                    : sorted[i].ToPar          - leader.ToPar;
+
+            ranked.Add(sorted[i] with
+            {
+                Rank        = sorted[i].HolesComplete == 0 ? 0 : rank,
+                StrokesBack = strokesBack,
+            });
         }
 
         return ranked;

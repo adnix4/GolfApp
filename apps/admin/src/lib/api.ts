@@ -376,6 +376,9 @@ export interface LeaderboardEntry {
   toPar: number; grossTotal: number; stablefordPoints: number;
   holesComplete: number; isComplete: boolean;
   startingHole: number | null; teeTime: string | null;
+  strokesBack: number;
+  bestHole: number | null;
+  bestHoleScore: number | null;
 }
 
 export interface FundraisingTotals {

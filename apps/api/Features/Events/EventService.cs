@@ -437,6 +437,9 @@ public class EventService
             IsComplete       = s.IsComplete,
             StartingHole     = s.StartingHole,
             TeeTime          = s.TeeTime,
+            StrokesBack      = s.StrokesBack,
+            BestHole         = s.BestHole,
+            BestHoleScore    = s.BestHoleScore,
         }).ToList();
     }
 
@@ -691,6 +694,9 @@ public class EventService
                 StablefordPoints = s.StablefordPoints,
                 HolesComplete    = s.HolesComplete,
                 IsComplete       = s.IsComplete,
+                StrokesBack      = s.StrokesBack,
+                BestHole         = s.BestHole,
+                BestHoleScore    = s.BestHoleScore,
             }).ToList(),
             ResolvedLogoUrl   = meta.LogoUrl   ?? org?.LogoUrl,
             ResolvedThemeJson = meta.ThemeJson ?? org?.ThemeJson,

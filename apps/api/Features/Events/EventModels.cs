@@ -385,6 +385,15 @@ public record LeaderboardEntryResponse
     /// <summary>The team's starting hole (shotgun) or tee time, for display.</summary>
     public short?  StartingHole   { get; init; }
     public DateTime? TeeTime      { get; init; }
+
+    /// <summary>Strokes (Stableford: points) behind the leader. 0 for the leader.</summary>
+    public int     StrokesBack    { get; init; }
+
+    /// <summary>Hole number of the team's best hole (lowest relative to par). Null until scored.</summary>
+    public short?  BestHole       { get; init; }
+
+    /// <summary>Gross score on the team's best hole. Null until scored.</summary>
+    public short?  BestHoleScore  { get; init; }
 }
 
 /// <summary>
@@ -507,6 +516,15 @@ public record PublicLeaderboardEntry
     public int     StablefordPoints { get; init; }
     public int     HolesComplete    { get; init; }
     public bool    IsComplete       { get; init; }
+
+    /// <summary>Strokes (Stableford: points) behind the leader. 0 for the leader.</summary>
+    public int     StrokesBack      { get; init; }
+
+    /// <summary>Hole number of the team's best hole (lowest relative to par). Null until scored.</summary>
+    public short?  BestHole         { get; init; }
+
+    /// <summary>Gross score on the team's best hole. Null until scored.</summary>
+    public short?  BestHoleScore    { get; init; }
 }
 
 // ── PUBLIC CHALLENGES ────────────────────────────────────────────────────────

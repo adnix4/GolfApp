@@ -49,6 +49,9 @@ export interface PublicLeaderboardEntry {
   grossTotal:    number;
   holesComplete: number;
   isComplete:    boolean;
+  strokesBack:   number;
+  bestHole:      number | null;
+  bestHoleScore: number | null;
 }
 
 export interface PublicLeaderboard {

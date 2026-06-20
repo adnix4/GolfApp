@@ -314,6 +314,12 @@ export interface LeaderboardEntryDTO {
   holesComplete: number;
   /** true if the team has finished all holes */
   isComplete:    boolean;
+  /** Strokes (Stableford: points) behind the leader; 0 for the leader */
+  strokesBack:   number;
+  /** Hole number of the team's best hole (lowest relative to par); null until scored */
+  bestHole:      number | null;
+  /** Gross score on the team's best hole; null until scored */
+  bestHoleScore: number | null;
   /** Sponsor badge to display next to team name, if any */
   sponsorBadge:  SponsorBadgeDTO | null;
 }
@@ -474,6 +480,9 @@ export const LeaderboardEntrySchema = z.object({
   grossTotal:    z.number().int().nonnegative(),
   holesComplete: z.number().int().min(0).max(18),
   isComplete:    z.boolean(),
+  strokesBack:   z.number().int().nonnegative(),
+  bestHole:      z.number().int().min(1).max(18).nullable(),
+  bestHoleScore: z.number().int().positive().nullable(),
   sponsorBadge:  z.unknown().nullable(),
 });
 

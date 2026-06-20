@@ -60,6 +60,15 @@ export function LeaderboardRow({ entry, isCurrentTeam = false }: LeaderboardRowP
    */
   const thruLabel = entry.isComplete ? 'F' : `${entry.holesComplete}`;
 
+  /** Strokes (Stableford: points) behind the leader. Leader shows "—". */
+  const backLabel = entry.holesComplete === 0 || entry.strokesBack === 0
+    ? '—'
+    : `${entry.strokesBack}`;
+
+  /** Best hole number + the gross score recorded on it. */
+  const bestHoleLabel  = entry.bestHole == null ? '—' : `${entry.bestHole}`;
+  const bestScoreLabel = entry.bestHoleScore == null ? '—' : `${entry.bestHoleScore}`;
+
   /**
    * Row background — highlighted (lime) for the current user's team,
    * alternating surface white otherwise.
@@ -117,6 +126,21 @@ export function LeaderboardRow({ entry, isCurrentTeam = false }: LeaderboardRowP
       {/* ── TO PAR ── */}
       <Text style={[styles.toPar, { color: toParColor }]}>
         {toParLabel}
+      </Text>
+
+      {/* ── STROKES BACK FROM LEADER ── */}
+      <Text style={[styles.num, { color: theme.colors.primary }]}>
+        {backLabel}
+      </Text>
+
+      {/* ── BEST HOLE ── */}
+      <Text style={[styles.num, { color: theme.colors.primary }]}>
+        {bestHoleLabel}
+      </Text>
+
+      {/* ── BEST HOLE SCORE ── */}
+      <Text style={[styles.num, { color: theme.colors.primary }]}>
+        {bestScoreLabel}
       </Text>
 
       {/* ── THRU (holes completed) ── */}
@@ -177,6 +201,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     textAlign: 'right',
+  },
+  num: {
+    width: 44,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'right',
+    marginLeft: 8,
   },
   thru: {
     width: 36,

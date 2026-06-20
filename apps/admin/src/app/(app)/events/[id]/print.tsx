@@ -240,10 +240,16 @@ function buildLeaderboardHtml(event: EventDetail, entries: LeaderboardEntry[]): 
   const rows = entries.map((e, _i) => {
     const toPar = e.toPar === 0 ? 'E' : e.toPar > 0 ? `+${e.toPar}` : `${e.toPar}`;
     const color = e.toPar < 0 ? '#27ae60' : e.toPar > 0 ? '#e74c3c' : '#111';
+    const back  = e.holesComplete === 0 || e.strokesBack === 0 ? '—' : `${e.strokesBack}`;
+    const best  = e.bestHole == null ? '—' : `${e.bestHole}`;
+    const bestScore = e.bestHoleScore == null ? '—' : `${e.bestHoleScore}`;
     return `<tr>
       <td style="font-weight:700;text-align:center">${e.rank}</td>
       <td style="font-weight:700">${e.teamName}</td>
       <td style="text-align:right; font-weight:900; font-size:16px; color:${color}">${toPar}</td>
+      <td style="text-align:right">${back}</td>
+      <td style="text-align:right">${best}</td>
+      <td style="text-align:right">${bestScore}</td>
       <td style="text-align:right">${e.grossTotal}</td>
       <td style="text-align:right">${e.isComplete ? 'F' : e.holesComplete}</td>
     </tr>`;
@@ -269,6 +275,9 @@ function buildLeaderboardHtml(event: EventDetail, entries: LeaderboardEntry[]): 
           <th style="width:48px;text-align:center">#</th>
           <th>Team</th>
           <th style="text-align:right">To Par</th>
+          <th style="text-align:right">Back</th>
+          <th style="text-align:right">Best Hole</th>
+          <th style="text-align:right">Best Score</th>
           <th style="text-align:right">Gross</th>
           <th style="text-align:right">Thru</th>
         </tr></thead>
