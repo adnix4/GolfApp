@@ -507,6 +507,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         {
             season.Property(s => s.Id).ValueGeneratedNever();
 
+            // DB-level default mirrors the backfill default the column was added
+            // with (Phase8) so the model, snapshot, and database all agree.
+            season.Property(s => s.SyncHandicapToPlayer).HasDefaultValue(false);
+
             season.HasIndex(s => s.LeagueId)
                   .HasDatabaseName("IX_seasons_league_id");
 
@@ -621,6 +625,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<Standing>(standing =>
         {
             standing.Property(s => s.Id).ValueGeneratedNever();
+
+            // DB-level defaults mirror the backfill defaults these columns were
+            // added with (Phase8) so the model, snapshot, and database all agree.
+            standing.Property(s => s.MatchWins).HasDefaultValue(0);
+            standing.Property(s => s.MatchLosses).HasDefaultValue(0);
+            standing.Property(s => s.MatchHalves).HasDefaultValue(0);
 
             standing.HasIndex(s => new { s.SeasonId, s.MemberId })
                     .IsUnique()

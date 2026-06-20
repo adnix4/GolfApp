@@ -4,53 +4,12 @@
 
 namespace GolfFundraiserPro.Api.Data.Migrations
 {
-    /// <summary>
-    /// Reconciles model drift the snapshot had silently accumulated: adds the
-    /// FK indexes EF's model implies for the league tables (never created by the
-    /// hand-written Phase5/Phase8 migrations) and drops the migration-time column
-    /// defaults on standings/seasons that the model does not declare.
-    /// </summary>
+    /// <inheritdoc />
     public partial class Phase10_ReconcileModelDrift : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterColumn<int>(
-                name: "match_wins",
-                table: "standings",
-                type: "integer",
-                nullable: false,
-                oldClrType: typeof(int),
-                oldType: "integer",
-                oldDefaultValue: 0);
-
-            migrationBuilder.AlterColumn<int>(
-                name: "match_losses",
-                table: "standings",
-                type: "integer",
-                nullable: false,
-                oldClrType: typeof(int),
-                oldType: "integer",
-                oldDefaultValue: 0);
-
-            migrationBuilder.AlterColumn<int>(
-                name: "match_halves",
-                table: "standings",
-                type: "integer",
-                nullable: false,
-                oldClrType: typeof(int),
-                oldType: "integer",
-                oldDefaultValue: 0);
-
-            migrationBuilder.AlterColumn<bool>(
-                name: "sync_handicap_to_player",
-                table: "seasons",
-                type: "boolean",
-                nullable: false,
-                oldClrType: typeof(bool),
-                oldType: "boolean",
-                oldDefaultValue: false);
-
             migrationBuilder.CreateIndex(
                 name: "IX_standings_flight_id",
                 table: "standings",
@@ -135,42 +94,6 @@ namespace GolfFundraiserPro.Api.Data.Migrations
             migrationBuilder.DropIndex(
                 name: "IX_handicap_history_round_id",
                 table: "handicap_history");
-
-            migrationBuilder.AlterColumn<int>(
-                name: "match_wins",
-                table: "standings",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0,
-                oldClrType: typeof(int),
-                oldType: "integer");
-
-            migrationBuilder.AlterColumn<int>(
-                name: "match_losses",
-                table: "standings",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0,
-                oldClrType: typeof(int),
-                oldType: "integer");
-
-            migrationBuilder.AlterColumn<int>(
-                name: "match_halves",
-                table: "standings",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0,
-                oldClrType: typeof(int),
-                oldType: "integer");
-
-            migrationBuilder.AlterColumn<bool>(
-                name: "sync_handicap_to_player",
-                table: "seasons",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false,
-                oldClrType: typeof(bool),
-                oldType: "boolean");
         }
     }
 }

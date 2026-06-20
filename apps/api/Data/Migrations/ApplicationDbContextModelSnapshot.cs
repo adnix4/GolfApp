@@ -1388,7 +1388,9 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnName("status");
 
                     b.Property<bool>("SyncHandicapToPlayer")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
+                        .HasDefaultValue(false)
                         .HasColumnName("sync_handicap_to_player");
 
                     b.Property<short>("TotalRounds")
@@ -1503,15 +1505,21 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnName("flight_id");
 
                     b.Property<int>("MatchHalves")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
+                        .HasDefaultValue(0)
                         .HasColumnName("match_halves");
 
                     b.Property<int>("MatchLosses")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
+                        .HasDefaultValue(0)
                         .HasColumnName("match_losses");
 
                     b.Property<int>("MatchWins")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
+                        .HasDefaultValue(0)
                         .HasColumnName("match_wins");
 
                     b.Property<Guid>("MemberId")
