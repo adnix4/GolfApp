@@ -563,6 +563,14 @@ public class Score
     [Column("is_conflicted")]
     public bool IsConflicted { get; set; } = false;
 
+    /// <summary>
+    /// The value a golfer's device proposed that disagrees with the authoritative
+    /// (admin-kept) <see cref="GrossScore"/>. Set alongside <see cref="IsConflicted"/>
+    /// so the admin can see and approve the proposed change; cleared on resolution.
+    /// </summary>
+    [Column("proposed_score")]
+    public short? ProposedScore { get; set; }
+
     /// <summary>True for admin-generated test data; cleared when moving to Active.</summary>
     [Column("is_test")]
     public bool IsTest { get; set; } = false;

@@ -71,7 +71,8 @@ public class ScoreService
                     existing.DeviceId, existing.GrossScore,
                     request.DeviceId,  request.GrossScore))
             {
-                existing.IsConflicted = true;
+                existing.IsConflicted  = true;
+                existing.ProposedScore = request.GrossScore; // surfaced to the admin for approval
                 _logger.LogWarning(
                     "Score conflict on event {EventId} team {TeamId} hole {Hole}: " +
                     "device {OldDevice}={Old} vs device {NewDevice}={New}",
@@ -87,6 +88,7 @@ public class ScoreService
                 existing.DeviceId        = request.DeviceId;
                 existing.SubmittedAt     = DateTime.UtcNow;
                 existing.IsConflicted    = false;
+                existing.ProposedScore   = null;
             }
 
             score = existing;
@@ -189,6 +191,7 @@ public class ScoreService
                 Putts           = s?.Putts,
                 PlayerShotsJson = s?.PlayerShotsJson,
                 HasConflict     = s?.IsConflicted ?? false,
+                ProposedScore   = s?.ProposedScore,
             };
         }).ToList();
 
@@ -231,10 +234,15 @@ public class ScoreService
         if (request.Putts.HasValue)            score.Putts           = request.Putts;
         if (request.PlayerShotsJson is not null) score.PlayerShotsJson = request.PlayerShotsJson;
 
-        // Admin correction clears any conflict flag
-        score.IsConflicted = false;
+        // Admin correction is authoritative — clears any conflict and proposed value
+        score.IsConflicted  = false;
+        score.ProposedScore = null;
 
         await _db.SaveChangesAsync(ct);
+
+        // Push the correction so the leaderboard and the team's device reflect it.
+        await PublishScoreChangeAsync(score, ct);
+
         return MapToScoreResponse(score, score.Team.Name);
     }
 
@@ -261,15 +269,19 @@ public class ScoreService
         if (!eventBelongs)
             throw new ForbiddenException();
 
-        score.GrossScore   = request.AcceptedScore;
-        score.IsConflicted = false;
-        score.SubmittedAt  = DateTime.UtcNow;
+        score.GrossScore    = request.AcceptedScore;
+        score.IsConflicted  = false;
+        score.ProposedScore = null;
+        score.SubmittedAt   = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation(
             "Resolved score conflict on event {EventId} team {TeamId} hole {Hole}: accepted {Score}",
             eventId, score.TeamId, score.HoleNumber, request.AcceptedScore);
+
+        // Push the resolution so the leaderboard and the team's device reflect it.
+        await PublishScoreChangeAsync(score, ct);
 
         return MapToScoreResponse(score, score.Team.Name);
     }
@@ -445,20 +457,43 @@ public class ScoreService
 
     // ── PRIVATE ────────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Broadcasts a ScoreUpdated for an admin correction/resolution so the live
+    /// leaderboard and the team's mobile devices pick it up. Skips conflicted
+    /// scores (they're excluded from standings until resolved).
+    /// </summary>
+    private async Task PublishScoreChangeAsync(Score score, CancellationToken ct)
+    {
+        if (score.IsConflicted) return;
+
+        var evt = await _db.Events
+            .Where(e => e.Id == score.EventId)
+            .Select(e => new { e.EventCode })
+            .FirstOrDefaultAsync(ct);
+
+        if (evt is null || string.IsNullOrEmpty(evt.EventCode)) return;
+
+        await _realTime.PublishScoreAsync(
+            evt.EventCode, score.EventId,
+            score.TeamId, score.HoleNumber, score.GrossScore,
+            score.Team.Name, ct);
+    }
+
     private static ScoreResponse MapToScoreResponse(Score s, string teamName) => new()
     {
-        Id           = s.Id,
-        EventId      = s.EventId,
-        TeamId       = s.TeamId,
-        TeamName     = teamName,
-        HoleNumber   = s.HoleNumber,
-        GrossScore   = s.GrossScore,
-        Putts        = s.Putts,
-        DeviceId     = s.DeviceId,
-        SubmittedAt  = s.SubmittedAt,
-        SyncedAt     = s.SyncedAt,
-        Source       = s.Source.ToString(),
-        IsConflicted = s.IsConflicted,
+        Id            = s.Id,
+        EventId       = s.EventId,
+        TeamId        = s.TeamId,
+        TeamName      = teamName,
+        HoleNumber    = s.HoleNumber,
+        GrossScore    = s.GrossScore,
+        Putts         = s.Putts,
+        DeviceId      = s.DeviceId,
+        SubmittedAt   = s.SubmittedAt,
+        SyncedAt      = s.SyncedAt,
+        Source        = s.Source.ToString(),
+        IsConflicted  = s.IsConflicted,
+        ProposedScore = s.ProposedScore,
     };
 
     // ── QR PAYLOAD PRIVATE TYPES ───────────────────────────────────────────────

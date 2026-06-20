@@ -62,7 +62,8 @@ export function getDb(): Promise<Db> {
             created_at     TEXT NOT NULL,
             synced_at      TEXT,
             sync_attempts  INTEGER NOT NULL DEFAULT 0,
-            completed_at   TEXT
+            completed_at   TEXT,
+            conflict       INTEGER NOT NULL DEFAULT 0
           );
           CREATE TABLE IF NOT EXISTS leaderboard_cache (
             key       TEXT PRIMARY KEY,
@@ -75,6 +76,7 @@ export function getDb(): Promise<Db> {
         try { await db.runAsync('ALTER TABLE pending_scores ADD COLUMN drive_shots INTEGER', []); } catch { /* already exists */ }
         try { await db.runAsync('ALTER TABLE pending_scores ADD COLUMN approach_shots INTEGER', []); } catch { /* already exists */ }
         try { await db.runAsync('ALTER TABLE pending_scores ADD COLUMN completed_at TEXT', []); } catch { /* already exists */ }
+        try { await db.runAsync('ALTER TABLE pending_scores ADD COLUMN conflict INTEGER NOT NULL DEFAULT 0', []); } catch { /* already exists */ }
         return db;
       })();
     }

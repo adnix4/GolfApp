@@ -362,11 +362,12 @@ export interface Score {
   id: string; eventId: string; teamId: string; teamName: string;
   holeNumber: number; grossScore: number; putts: number | null;
   deviceId: string; submittedAt: string; source: string; isConflicted: boolean;
+  proposedScore: number | null;
 }
 
 export interface Scorecard {
   teamId: string; teamName: string;
-  holes: { holeNumber: number; par: number; grossScore: number | null; putts: number | null; playerShotsJson: string | null; hasConflict: boolean }[];
+  holes: { holeNumber: number; par: number; grossScore: number | null; putts: number | null; playerShotsJson: string | null; hasConflict: boolean; proposedScore: number | null }[];
   grossTotal: number; parTotal: number; toPar: number;
   holesComplete: number; hasConflicts: boolean;
 }

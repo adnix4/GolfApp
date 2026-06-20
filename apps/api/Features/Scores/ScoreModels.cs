@@ -110,6 +110,9 @@ public record ScoreResponse
     public DateTime? SyncedAt   { get; init; }
     public string   Source       { get; init; } = string.Empty;
     public bool     IsConflicted { get; init; }
+
+    /// <summary>The golfer-proposed value awaiting admin approval, if any.</summary>
+    public short?   ProposedScore { get; init; }
 }
 
 /// <summary>
@@ -136,4 +139,7 @@ public record ScorecardHoleEntry
     public short?  Putts           { get; init; }
     public string? PlayerShotsJson { get; init; }
     public bool    HasConflict     { get; init; }
+
+    /// <summary>The golfer-proposed value awaiting admin approval, if any.</summary>
+    public short?  ProposedScore   { get; init; }
 }

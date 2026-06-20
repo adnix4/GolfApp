@@ -79,6 +79,8 @@ export interface PendingScore {
   putts:             number | null;
   playerShots?:      Record<string, PlayerShotBreakdown>; // playerId → { drive, approach, putt }
   clientTimestampMs: number;
+  /** True when the golfer's value for this hole is awaiting admin approval (server-flagged conflict). */
+  conflict?:         boolean;
 }
 
 export interface ActiveEventSummary {
@@ -150,6 +152,37 @@ export async function fetchLeaderboard(eventCode: string): Promise<PublicLeaderb
     throw new Error(err.error ?? `Leaderboard fetch failed (${res.status})`);
   }
   return res.json();
+}
+
+// ── TEAM SCORECARD PULL (server → device) ────────────────────────────────────
+// Lets admin corrections and resolved conflicts flow back to the golfer's
+// local scorecard. See store.mergeServerScores for the reconciliation rules.
+
+export interface TeamHoleScore {
+  holeNumber:    number;
+  grossScore:    number;
+  putts:         number | null;
+  isConflicted:  boolean;
+  proposedScore: number | null;
+}
+
+export interface TeamScorecard {
+  teamId: string;
+  holes:  TeamHoleScore[];
+}
+
+/** Returns the authoritative server scores for a team, or null on failure. */
+export async function fetchTeamScores(
+  eventCode: string,
+  teamId:    string,
+): Promise<TeamScorecard | null> {
+  try {
+    const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/teams/${teamId}/scorecard`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchEventStatus(eventCode: string): Promise<string> {

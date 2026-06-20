@@ -294,6 +294,7 @@ export default function ScoringScreen() {
             const scoredHole = scorecard?.holes.find(h => h.holeNumber === holeNum);
             const score = scoredHole?.grossScore ?? null;
             const isConflicted = scoredHole?.hasConflict ?? false;
+            const proposedScore = scoredHole?.proposedScore ?? null;
             const isSaving = saving === holeNum;
             const holeChallenge = challenges.find(c => c.holeNumber === holeNum) ?? null;
 
@@ -315,12 +316,34 @@ export default function ScoringScreen() {
                   challenge={holeChallenge}
                 />
                 {isConflicted && score != null && (
-                  <Pressable
-                    style={[styles.resolveBtn, { backgroundColor: '#e67e22' }]}
-                    onPress={() => handleResolveConflict(holeNum, score)}
-                  >
-                    <Text style={styles.resolveBtnText}>Accept {score}</Text>
-                  </Pressable>
+                  proposedScore != null ? (
+                    <View style={styles.resolveRow}>
+                      <Text style={styles.resolvePrompt}>
+                        Golfer proposes {proposedScore} (recorded {score})
+                      </Text>
+                      <View style={styles.resolveBtnRow}>
+                        <Pressable
+                          style={[styles.resolveBtn, styles.resolveBtnHalf, { backgroundColor: '#27ae60' }]}
+                          onPress={() => handleResolveConflict(holeNum, proposedScore)}
+                        >
+                          <Text style={styles.resolveBtnText}>Approve {proposedScore}</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.resolveBtn, styles.resolveBtnHalf, { backgroundColor: '#7f8c8d' }]}
+                          onPress={() => handleResolveConflict(holeNum, score)}
+                        >
+                          <Text style={styles.resolveBtnText}>Keep {score}</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ) : (
+                    <Pressable
+                      style={[styles.resolveBtn, { backgroundColor: '#e67e22' }]}
+                      onPress={() => handleResolveConflict(holeNum, score)}
+                    >
+                      <Text style={styles.resolveBtnText}>Accept {score}</Text>
+                    </Pressable>
+                  )
                 )}
                 {/* Per-player shot entry */}
                 {selectedTeamPlayers.length > 0 && (
@@ -428,6 +451,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   resolveBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  resolveRow:     { marginTop: 4 },
+  resolvePrompt:  { fontSize: 11, fontWeight: '600', color: '#c0392b', textAlign: 'center', marginBottom: 4 },
+  resolveBtnRow:  { flexDirection: 'row', gap: 6 },
+  resolveBtnHalf: { flex: 1, marginTop: 0 },
   emptyText: { fontSize: 15 },
 
   playerShotsBox: {

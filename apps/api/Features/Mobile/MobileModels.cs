@@ -244,3 +244,27 @@ public record SyncConflictDto
     public short  SubmittedScore  { get; init; }
     public string ExistingDeviceId { get; init; } = string.Empty;
 }
+
+/// <summary>
+/// Response to GET /api/v1/pub/events/{eventCode}/teams/{teamId}/scorecard.
+/// The authoritative server scores the mobile app merges into its local scorecard
+/// so admin corrections and resolved conflicts flow back to the golfer's device.
+/// </summary>
+public record TeamScorecardResponse
+{
+    public Guid TeamId { get; init; }
+    public List<TeamHoleScoreDto> Holes { get; init; } = new();
+}
+
+public record TeamHoleScoreDto
+{
+    public short  HoleNumber    { get; init; }
+    public short  GrossScore    { get; init; }
+    public short? Putts         { get; init; }
+
+    /// <summary>True when a golfer-proposed value is awaiting admin approval.</summary>
+    public bool   IsConflicted  { get; init; }
+
+    /// <summary>The golfer-proposed value awaiting admin approval, if any.</summary>
+    public short? ProposedScore { get; init; }
+}

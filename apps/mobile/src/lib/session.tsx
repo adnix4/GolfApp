@@ -3,8 +3,8 @@ import React, {
   useEffect, useMemo, useState, type ReactNode,
 } from 'react';
 import type { JoinEventResponse, PendingScore, BatchSyncResponse } from './api';
-import { batchSync } from './api';
-import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsyncedScores, upsertPendingScore, markScoresSynced, markHoleComplete, loadCompletedHoleNumbers, clearPendingScores, getDeviceId } from './store';
+import { batchSync, fetchTeamScores } from './api';
+import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsyncedScores, upsertPendingScore, markScoresSynced, markHoleComplete, loadCompletedHoleNumbers, clearPendingScores, mergeServerScores, getDeviceId } from './store';
 import { attemptSync } from './backgroundSync';
 import { useNetworkTier, POLL_INTERVAL_MS, type NetworkTier } from './useNetworkTier';
 
@@ -21,6 +21,7 @@ interface SessionContextValue {
   upsertScore:        (score: PendingScore) => Promise<void>;
   completeHole:       (holeNumber: number) => Promise<void>;
   syncScores:         () => Promise<BatchSyncResponse | null>;
+  refreshFromServer:  () => Promise<void>;
   updateEventStatus:  (status: string) => void;
 }
 
@@ -67,9 +68,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     const poll = async () => {
       const synced = await attemptSync();
-      if (synced && !cancelled) {
-        const updated = await loadPendingScores(session.event.id, session.team!.id);
+      // Pull authoritative server scores so admin corrections / resolved
+      // conflicts flow back into the local scorecard (preserving unsynced edits).
+      const sc     = await fetchTeamScores(session.event.eventCode, session.team!.id);
+      const merged = sc ? await mergeServerScores(session.event.id, session.team!.id, sc.holes) : false;
+      if (cancelled) return;
+      if (synced || merged) {
+        const [updated, completedNums] = await Promise.all([
+          loadPendingScores(session.event.id, session.team!.id),
+          loadCompletedHoleNumbers(session.event.id, session.team!.id),
+        ]);
         setPendingScores(updated);
+        setCompletedHoles(new Set(completedNums));
         setSyncStatus('synced');
       }
     };
@@ -145,6 +155,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [session, deviceId]);
 
+  // Pull the team's authoritative scorecard from the server and merge admin
+  // corrections / resolved conflicts in. Called on a focus from the scorecard
+  // screen for an immediate refresh (the foreground poll covers the rest).
+  const refreshFromServer = useCallback(async (): Promise<void> => {
+    if (!session?.team) return;
+    const { event, team } = session;
+    const sc = await fetchTeamScores(event.eventCode, team.id);
+    if (!sc) return;
+    const changed = await mergeServerScores(event.id, team.id, sc.holes);
+    if (!changed) return;
+    const [updated, completedNums] = await Promise.all([
+      loadPendingScores(event.id, team.id),
+      loadCompletedHoleNumbers(event.id, team.id),
+    ]);
+    setPendingScores(updated);
+    setCompletedHoles(new Set(completedNums));
+  }, [session]);
+
   const completeHole = useCallback(async (holeNumber: number): Promise<void> => {
     if (!session?.team) return;
     await markHoleComplete(session.event.id, session.team.id, holeNumber);
@@ -157,10 +185,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // (the foreground poll fires every 10–30s) re-runs every useSession() caller.
   const value = useMemo<SessionContextValue>(() => ({
     session, deviceId, loading, pendingScores, completedHoles, syncStatus, networkTier,
-    setSession, clearSession: clear, upsertScore, completeHole, syncScores, updateEventStatus,
+    setSession, clearSession: clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus,
   }), [
     session, deviceId, loading, pendingScores, completedHoles, syncStatus, networkTier,
-    setSession, clear, upsertScore, completeHole, syncScores, updateEventStatus,
+    setSession, clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus,
   ]);
 
   return (

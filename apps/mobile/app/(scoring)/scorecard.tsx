@@ -3,7 +3,7 @@ import {
   View, Text, Pressable, StyleSheet, ActivityIndicator,
   ScrollView, Image, Platform, SafeAreaView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
 import { fetchPublicChallenges, type ChallengeCacheDto, type HoleCacheDto, type PlayerShotBreakdown, type SponsorCacheDto } from '@/lib/api';
@@ -33,7 +33,7 @@ export default function ScorecardScreen() {
   const {
     session, loading,
     pendingScores, completedHoles, syncStatus,
-    upsertScore, completeHole, syncScores,
+    upsertScore, completeHole, syncScores, refreshFromServer,
   } = useSession();
 
   const [holeIndex,         setHoleIndex]         = useState(0);
@@ -83,6 +83,12 @@ export default function ScorecardScreen() {
     if (!session) return;
     fetchPublicChallenges(session.event.eventCode).then(setChallenges);
   }, [session?.event.eventCode]);
+
+  // Pull admin corrections / resolved conflicts whenever the scorecard is
+  // focused so the golfer sees changes to their own scores immediately.
+  useFocusEffect(
+    useCallback(() => { refreshFromServer(); }, [refreshFromServer]),
+  );
 
   const handleSync = useCallback(() => { syncScores(); }, [syncScores]);
 
@@ -216,6 +222,13 @@ export default function ScorecardScreen() {
                     <Text style={[summaryCol.chal, styles.summaryCellDash, { color: theme.colors.accent }]}>—</Text>
                   )}
                 </View>
+                {pending?.conflict && (
+                  <View style={styles.summarySubRow}>
+                    <Text style={[styles.summarySubText, { color: '#a67100' }]}>
+                      ⚠ Your score is waiting for admin approval
+                    </Text>
+                  </View>
+                )}
               </View>
             );
           })}
@@ -248,8 +261,11 @@ export default function ScorecardScreen() {
   const grossScore      = Object.values(playerBreakdown).reduce(
     (sum, b) => sum + b.drive + b.approach + b.putt, 0,
   );
-  const displayScore = grossScore > 0 ? grossScore : null;
+  // Fall back to the stored gross when there's no per-player breakdown — e.g.
+  // an admin-corrected score pulled from the server has a total but no shots.
+  const displayScore = grossScore > 0 ? grossScore : (currentScore?.grossScore ?? null);
   const hasShots     = grossScore > 0;
+  const holeConflict = currentScore?.conflict ?? false;
 
   function changePlayerShots(
     playerId: string,
@@ -389,6 +405,16 @@ export default function ScorecardScreen() {
                 🏆 {holeChallenge.prizeDescription}
               </Text>
             )}
+          </View>
+        )}
+
+        {/* ── CONFLICT / PENDING-APPROVAL NOTICE ── */}
+        {holeConflict && (
+          <View style={[styles.conflictNotice, { backgroundColor: '#fff7e6', borderColor: '#f0a500' }]}>
+            <Text style={styles.conflictNoticeText}>
+              ⚠ Your score for this hole is waiting for admin approval. The score shown is the
+              organizer's current record.
+            </Text>
           </View>
         )}
 
@@ -588,6 +614,12 @@ const styles = StyleSheet.create({
     padding: 12, marginBottom: 12, alignItems: 'center',
   },
   readOnlyText: { fontSize: 13, textAlign: 'center', lineHeight: 18 },
+
+  conflictNotice: {
+    borderWidth: 1, borderRadius: 10,
+    padding: 12, marginBottom: 12,
+  },
+  conflictNoticeText: { fontSize: 13, lineHeight: 18, color: '#a67100', fontWeight: '600' },
 
   header: {
     paddingTop:    Platform.OS === 'android' ? 12 : 0,

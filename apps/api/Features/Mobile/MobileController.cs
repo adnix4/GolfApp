@@ -61,6 +61,26 @@ public class MobileController : ControllerBase
         return Ok(response);
     }
 
+    // ── TEAM SCORECARD PULL ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the authoritative server scores for a team so the mobile app can
+    /// merge admin corrections and resolved conflicts into its local scorecard.
+    ///
+    /// NOT authenticated — identified by event code + team id, like batch sync.
+    /// </summary>
+    [HttpGet("api/v1/pub/events/{eventCode}/teams/{teamId:guid}/scorecard")]
+    [ProducesResponseType(typeof(TeamScorecardResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TeamScorecardResponse>> GetTeamScores(
+        [FromRoute] string eventCode,
+        [FromRoute] Guid   teamId,
+        CancellationToken ct)
+    {
+        var response = await _mobileService.GetTeamScoresAsync(eventCode, teamId, ct);
+        return Ok(response);
+    }
+
     // ── SELF-SERVICE PROFILE UPDATE ───────────────────────────────────────────
 
     /// <summary>

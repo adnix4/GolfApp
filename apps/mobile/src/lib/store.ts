@@ -83,8 +83,9 @@ export async function loadPendingScores(
     putts:        number | null;
     player_shots: string | null;
     created_at:   string;
+    conflict:     number | null;
   }>(
-    `SELECT hole_number, gross_score, putts, player_shots, created_at
+    `SELECT hole_number, gross_score, putts, player_shots, created_at, conflict
        FROM pending_scores
       WHERE event_id = ? AND team_id = ?
       ORDER BY hole_number`,
@@ -96,6 +97,7 @@ export async function loadPendingScores(
     putts:             r.putts,
     playerShots:       r.player_shots ? JSON.parse(r.player_shots) : undefined,
     clientTimestampMs: new Date(r.created_at).getTime(),
+    conflict:          r.conflict === 1,
   }));
 }
 
@@ -184,6 +186,58 @@ export async function markScoresSynced(
       WHERE event_id = ? AND team_id = ?`,
     [new Date().toISOString(), eventId, teamId],
   );
+}
+
+// Merges authoritative server scores (admin corrections / resolved conflicts)
+// into the local pending_scores table.
+//
+// Reconciliation rule: a hole with an unsynced local edit (synced_at IS NULL)
+// is left untouched so the golfer never loses a score they just entered — the
+// push sync sends it up and the server's conflict detection takes over. Every
+// other hole adopts the server's value, marked synced + completed, with the
+// conflict flag tracking whether the golfer's proposed value awaits approval.
+// Returns true when at least one local row changed (so callers can refresh UI).
+export async function mergeServerScores(
+  eventId: string,
+  teamId:  string,
+  holes:   { holeNumber: number; grossScore: number; putts: number | null; isConflicted: boolean }[],
+): Promise<boolean> {
+  const db = await getDb();
+  let changed = false;
+
+  for (const h of holes) {
+    const id = `${teamId}:${h.holeNumber}`;
+    const existing = await db.getFirstAsync<{
+      gross_score: number;
+      conflict:    number | null;
+      synced_at:   string | null;
+    }>(
+      'SELECT gross_score, conflict, synced_at FROM pending_scores WHERE id = ?',
+      [id],
+    );
+
+    // Protect an unpushed local edit — keep the golfer's value.
+    if (existing && existing.synced_at === null) continue;
+
+    const newConflict = h.isConflicted ? 1 : 0;
+    // Already in sync — nothing to write.
+    if (existing && existing.gross_score === h.grossScore && (existing.conflict ?? 0) === newConflict) {
+      continue;
+    }
+
+    const now = new Date().toISOString();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO pending_scores
+         (id, event_id, team_id, hole_number, gross_score, putts,
+          drive_shots, approach_shots, player_shots,
+          created_at, synced_at, sync_attempts, completed_at, conflict)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, 0, ?, ?)`,
+      [id, eventId, teamId, h.holeNumber, h.grossScore, h.putts ?? null, now, now, now, newConflict],
+    );
+    changed = true;
+  }
+
+  return changed;
 }
 
 export async function clearPendingScores(

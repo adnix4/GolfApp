@@ -354,8 +354,11 @@ public class MobileService
 
                 if (!sameDevice && !sameValue)
                 {
-                    // Genuine conflict — flag it and let the admin resolve
-                    current.IsConflicted = true;
+                    // Genuine conflict — the existing (admin/first) value stays
+                    // authoritative; record the golfer's proposed value so the
+                    // admin can approve it and the device can warn the golfer.
+                    current.IsConflicted  = true;
+                    current.ProposedScore = pending.GrossScore;
                     conflicts.Add(new SyncConflictDto
                     {
                         HoleNumber       = pending.HoleNumber,
@@ -379,6 +382,7 @@ public class MobileService
                     current.PlayerShotsJson = pending.PlayerShotsJson;
                     current.SyncedAt      = DateTime.UtcNow;
                     current.IsConflicted  = false;
+                    current.ProposedScore = null;
                     accepted++;
                     acceptedScores.Add((request.TeamId, team.Name, pending.HoleNumber, pending.GrossScore));
                 }
@@ -423,6 +427,46 @@ public class MobileService
             Conflicts       = conflicts.Count,
             ConflictDetails = conflicts,
         };
+    }
+
+    // ── TEAM SCORECARD PULL ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the authoritative server-side scores for a team so the mobile app
+    /// can merge admin corrections (and resolved conflicts) back into its local
+    /// scorecard. Anonymous, like the other mobile endpoints — identified by
+    /// event code + team id. Only holes that have a score row are returned.
+    /// </summary>
+    public async Task<TeamScorecardResponse> GetTeamScoresAsync(
+        string eventCode, Guid teamId, CancellationToken ct = default)
+    {
+        var evt = await _db.Events
+            .FirstOrDefaultAsync(e => e.EventCode == eventCode.ToUpperInvariant(), ct);
+
+        if (evt is null)
+            throw new NotFoundException($"No event found with code '{eventCode}'.");
+
+        var teamExists = await _db.Teams
+            .AnyAsync(t => t.Id == teamId && t.EventId == evt.Id, ct);
+
+        if (!teamExists)
+            throw new NotFoundException("Team", teamId);
+
+        var holes = await _db.Scores
+            .AsNoTracking()
+            .Where(s => s.EventId == evt.Id && s.TeamId == teamId)
+            .OrderBy(s => s.HoleNumber)
+            .Select(s => new TeamHoleScoreDto
+            {
+                HoleNumber    = s.HoleNumber,
+                GrossScore    = s.GrossScore,
+                Putts         = s.Putts,
+                IsConflicted  = s.IsConflicted,
+                ProposedScore = s.ProposedScore,
+            })
+            .ToListAsync(ct);
+
+        return new TeamScorecardResponse { TeamId = teamId, Holes = holes };
     }
 
     // ── SELF-SERVICE PROFILE UPDATE ───────────────────────────────────────────
