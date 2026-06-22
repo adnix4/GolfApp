@@ -19,6 +19,14 @@ export default [
   {
     ...js.configs.recommended,
     files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+      },
+    },
   },
   {
     files: ['**/*.{ts,tsx}'],

@@ -382,7 +382,7 @@ async function doActive(state, token) {
   const card = await api('GET', `/api/v1/events/${state.event.id}/teams/${conflictTeam.id}/scorecard`, { token });
   const adminGross    = card.holes.find(h => h.holeNumber === 3)?.grossScore ?? PARS[2];
   const mobileGross   = adminGross + 3 <= 12 ? adminGross + 3 : adminGross - 3;
-  const r2 = await mobileSync(state, conflictTeam.id, 'phone-conflict-9f2a', [{ holeNumber: 3, grossScore: mobileGross }]);
+  await mobileSync(state, conflictTeam.id, 'phone-conflict-9f2a', [{ holeNumber: 3, grossScore: mobileGross }]);
   state.conflict = { team: conflictTeam.name, hole: 3, adminGross, mobileGross };
   saveState(state);
 
@@ -458,7 +458,7 @@ async function doScoring(state, token) {
   log('  All holes scored; challenge results in.');
 }
 
-async function doCompleted(state, token) {
+async function doCompleted(state) {
   log('▶ Recording final round-day donations…');
   await api('POST', `/api/v1/pub/events/${state.event.code}/donate`, {
     body: { donorName: 'Anonymous Patron', donorEmail: `patron.${state.runId}@example.com`, amountCents: 100000 },
