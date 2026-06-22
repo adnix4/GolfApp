@@ -13,8 +13,10 @@
 //   setup (Draft) ....... org+admin, event, course, custom colors, sponsors,
 //                         hole challenges, entry fee / free-agent config
 //   → Registration ...... 10–15 teams (2–4 players each) + public donations
-//   → Active ............ team check-ins + first 6 holes scored (live board)
-//   → Scoring ........... remaining holes scored + hole-challenge results
+//   → Active ............ team check-ins + auction bids (scoring NOT open yet)
+//   → Scoring ........... all 18 holes scored (admin + one team via mobile
+//                         sync) + a deliberate conflict + hole-challenge
+//                         results — the mobile scorecard unlocks here
 //   → Completed ......... final donations; round closed
 //
 // All rows are created under a throwaway org (unique slug/email per run), so a
@@ -358,37 +360,18 @@ async function doRegistration(state, token) {
 
 async function doActive(state, token) {
   // Check-in requires the event to already be Active (done before this runs).
+  // NOTE: no scoring happens here. The mobile scorecard stays locked until the
+  // organizer hits "Open Scoring" (→ Scoring status); the API gate and the
+  // mobile UI agree on that. Scoring is seeded in doScoring, below.
   const checkIn = Math.ceil(state.teams.length * 0.8);
   log(`▶ Checking in ${checkIn}/${state.teams.length} teams…`);
   for (let i = 0; i < checkIn; i++) {
     await api('POST', `/api/v1/events/${state.event.id}/teams/${state.teams[i].id}/check-in`, { token });
   }
-  const mobileTeam   = state.teams[0];
-  const conflictTeam = state.teams[1];
-
-  log('▶ Admin-scoring front holes 1–6 (every team except the mobile-scored one)…');
-  await scoreHoles(state, token, 1, 6, [mobileTeam.id]);
-
-  log(`▶ Mobile sync: "${mobileTeam.name}" posts holes 1–6 from the app (Source=MobileSync)…`);
-  const mobileScores = [];
-  for (let h = 1; h <= 6; h++) mobileScores.push({ holeNumber: h, grossScore: scrambleGross(h) });
-  const r1 = await mobileSync(state, mobileTeam.id, `phone-${mobileTeam.id.slice(0, 8)}`, mobileScores);
-
-  // Deliberate conflict: the admin already entered hole 3 for conflictTeam; the
-  // mobile app now syncs a DIFFERENT value from a different device → the server
-  // flags that score IsConflicted (and drops it from the live leaderboard until
-  // an admin resolves it).
-  log(`▶ Mobile sync: deliberate conflict for "${conflictTeam.name}" on hole 3…`);
-  const card = await api('GET', `/api/v1/events/${state.event.id}/teams/${conflictTeam.id}/scorecard`, { token });
-  const adminGross    = card.holes.find(h => h.holeNumber === 3)?.grossScore ?? PARS[2];
-  const mobileGross   = adminGross + 3 <= 12 ? adminGross + 3 : adminGross - 3;
-  await mobileSync(state, conflictTeam.id, 'phone-conflict-9f2a', [{ holeNumber: 3, grossScore: mobileGross }]);
-  state.conflict = { team: conflictTeam.name, hole: 3, adminGross, mobileGross };
-  saveState(state);
 
   await doAuctionBids(state, token);
-  log(`  Front 6 scored (${r1.accepted} via mobile sync), 1 deliberate conflict ` +
-      `(${conflictTeam.name} h3: admin ${adminGross} vs mobile ${mobileGross}), auction bids posted.`);
+  log(`  ${checkIn}/${state.teams.length} teams checked in; auction bids posted. ` +
+      `(Scoring opens in the next phase.)`);
 }
 
 // Bidding requires CheckedIn players (no Stripe payment method locally) and Open
@@ -437,8 +420,33 @@ async function doAuctionBids(state, token) {
 }
 
 async function doScoring(state, token) {
-  log('▶ Scoring remaining holes 7–18…');
-  await scoreHoles(state, token, 7, 18);
+  // Mobile scoring is now open (Scoring status). This is where the full round
+  // is entered, including the one team scored entirely through the real mobile
+  // sync endpoint and the deliberate mobile-vs-admin conflict.
+  const mobileTeam   = state.teams[0];
+  const conflictTeam = state.teams[1];
+
+  log('▶ Admin-scoring all 18 holes (every team except the mobile-scored one)…');
+  await scoreHoles(state, token, 1, 18, [mobileTeam.id]);
+
+  log(`▶ Mobile sync: "${mobileTeam.name}" posts all 18 holes from the app (Source=MobileSync)…`);
+  const mobileScores = [];
+  for (let h = 1; h <= 18; h++) mobileScores.push({ holeNumber: h, grossScore: scrambleGross(h) });
+  const r1 = await mobileSync(state, mobileTeam.id, `phone-${mobileTeam.id.slice(0, 8)}`, mobileScores);
+
+  // Deliberate conflict: the admin already entered hole 3 for conflictTeam; the
+  // mobile app now syncs a DIFFERENT value from a different device → the server
+  // flags that score IsConflicted (and drops it from the live leaderboard until
+  // an admin resolves it).
+  log(`▶ Mobile sync: deliberate conflict for "${conflictTeam.name}" on hole 3…`);
+  const card = await api('GET', `/api/v1/events/${state.event.id}/teams/${conflictTeam.id}/scorecard`, { token });
+  const adminGross    = card.holes.find(h => h.holeNumber === 3)?.grossScore ?? PARS[2];
+  const mobileGross   = adminGross + 3 <= 12 ? adminGross + 3 : adminGross - 3;
+  await mobileSync(state, conflictTeam.id, 'phone-conflict-9f2a', [{ holeNumber: 3, grossScore: mobileGross }]);
+  state.conflict = { team: conflictTeam.name, hole: 3, adminGross, mobileGross };
+  saveState(state);
+  log(`  All 18 holes scored (${r1.accepted} via mobile sync), 1 deliberate conflict ` +
+      `(${conflictTeam.name} h3: admin ${adminGross} vs mobile ${mobileGross}).`);
 
   log('▶ Recording hole-challenge results…');
   for (const ch of state.challenges) {
@@ -507,8 +515,8 @@ const PHASE_ACTIONS = {
 
 const PHASE_REVIEW = {
   Registration: 'Public landing page is now LIVE — open it to see custom colors, sponsors, mission, donation thermometer, and team registration.',
-  Active:       'Event is day-of: teams checked in and the front-6 leaderboard is live. One team was scored through the MOBILE sync path (Source=MobileSync) and there is ONE deliberate mobile-vs-admin conflict to resolve on the admin scorecard. Auction has live bids too.',
-  Scoring:      'All 18 holes scored — full leaderboard ranks every team; hole-challenge results recorded.',
+  Active:       'Event is day-of: teams are checked in and the auction has live bids. Scoring is NOT open yet — the mobile scorecard stays locked until you advance to Scoring (the admin "Open Scoring" action). Review check-ins and the live auction now.',
+  Scoring:      'Scoring is now OPEN and the mobile scorecard has unlocked. All 18 holes scored — full leaderboard ranks every team. One team was scored through the MOBILE sync path (Source=MobileSync) and there is ONE deliberate mobile-vs-admin conflict to resolve on the admin scorecard. Hole-challenge results recorded.',
   Completed:    'Final standings published; thank-you flow triggered. Review the completed leaderboard.',
 };
 

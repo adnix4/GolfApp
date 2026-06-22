@@ -55,8 +55,8 @@ Optional: `TEAM_COUNT=15 node ... setup` (clamped to 10–15; default 12).
 | Phase entered | Data added | Review |
 |---------------|-----------|--------|
 | **Registration** | 10–15 teams (2–4 players each), entry fee enabled + ~75% teams marked paid, public donations | Public landing page is now live: colors, sponsors, mission, donation thermometer |
-| **Active** | ~80% of teams checked in; holes 1–6 scored — **one team's scores arrive via the real mobile sync endpoint** (`/sync/scores`, Source=MobileSync) and **one deliberate mobile-vs-admin conflict** is created; ~12 players checked in and **auction bids placed** | Live leaderboard begins; admin scorecard shows mobile + admin scores side by side and a conflict to resolve; admin Auction tab shows live high bids |
-| **Scoring** | Holes 7–18 scored, hole-challenge results recorded | Full ranked leaderboard; challenges view |
+| **Active** | ~80% of teams checked in; ~12 players checked in and **auction bids placed**. **No scoring yet** — the mobile scorecard stays locked until Scoring | Check-in roster fills; admin Auction tab shows live high bids. The mobile app correctly shows "Scoring Not Open Yet" |
+| **Scoring** | All 18 holes scored — **one team's scores arrive via the real mobile sync endpoint** (`/sync/scores`, Source=MobileSync) and **one deliberate mobile-vs-admin conflict** is created; hole-challenge results recorded | Mobile scorecard unlocks; full ranked leaderboard; admin scorecard shows mobile + admin scores side by side and a conflict to resolve; challenges view |
 | **Completed** | Final round-day donation; round closed | Final standings / thank-you flow |
 
 ## Procedure (follow this)
@@ -84,7 +84,13 @@ Always surface the exact `…/e/{slug}/{code}` and `…/scores` URLs after each 
 - **Custom colors** are applied via the event branding endpoint (`themeJson`), a
   flat `{primary,action,accent,highlight,surface}` GFP palette the web reads as
   `--color-*` CSS variables.
-- **Mobile sync path + conflict (Active phase):** one team (`teams[0]`) is scored
+- **Scoring opens at the Scoring phase, not Active.** The API allows score entry
+  in Active *or* Scoring, but the mobile scorecard (and the admin "Open Scoring"
+  action) deliberately keep player scoring locked until the event reaches
+  **Scoring**. So the demo seeds all scoring in the Scoring phase — during Active
+  the mobile app correctly shows "Scoring Not Open Yet" and only check-ins +
+  auction are reviewable.
+- **Mobile sync path + conflict (Scoring phase):** one team (`teams[0]`) is scored
   through the real `/api/v1/sync/scores` endpoint (Source=MobileSync) instead of
   the admin endpoint, proving mobile scores feed the admin scorecard and both
   leaderboards. A second team (`teams[1]`) gets a deliberate conflict on hole 3:
