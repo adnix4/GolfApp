@@ -26,10 +26,16 @@ public class PaymentsService
     /// the client_secret for Stripe Elements on the client.
     /// Also ensures a Stripe Customer exists for this player.
     /// </summary>
-    public async Task<string> CreateSetupIntentAsync(Guid playerId, CancellationToken ct = default)
+    public async Task<string> CreateSetupIntentAsync(
+        Guid playerId, string sessionToken, CancellationToken ct = default)
     {
         var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId, ct)
             ?? throw new Common.Middleware.NotFoundException("Player", playerId);
+
+        // Authorization: only the player themselves (proven by the /join session
+        // token) may attach a card to their Stripe customer.
+        if (!Common.PlayerSessionAuth.Matches(player.SessionToken, sessionToken))
+            throw new Common.Middleware.NotFoundException("Player", playerId);
 
         StripeConfiguration.ApiKey = _config["STRIPE_SECRET_KEY"]
             ?? throw new InvalidOperationException("STRIPE_SECRET_KEY not configured");
@@ -69,10 +75,15 @@ public class PaymentsService
     /// Confirms a SetupIntent after client-side card entry, saves the PaymentMethod
     /// to the stripe_customers table, and marks the player as having a payment method.
     /// </summary>
-    public async Task ConfirmSetupAsync(Guid playerId, string setupIntentId, CancellationToken ct = default)
+    public async Task ConfirmSetupAsync(
+        Guid playerId, string setupIntentId, string sessionToken, CancellationToken ct = default)
     {
         var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId, ct)
             ?? throw new Common.Middleware.NotFoundException("Player", playerId);
+
+        // Authorization: same session-token gate as CreateSetupIntent.
+        if (!Common.PlayerSessionAuth.Matches(player.SessionToken, sessionToken))
+            throw new Common.Middleware.NotFoundException("Player", playerId);
 
         StripeConfiguration.ApiKey = _config["STRIPE_SECRET_KEY"]
             ?? throw new InvalidOperationException("STRIPE_SECRET_KEY not configured");

@@ -485,6 +485,17 @@ public class Player
     [MaxLength(500)]
     public string? ExpoPushToken { get; set; }
 
+    /// <summary>
+    /// Phase 11: opaque per-player session token, minted at /join and held by the
+    /// mobile app (the golfer has no account/password). Required to authorize the
+    /// player's own actions — self profile edit, score sync, auction bids, and the
+    /// Stripe payment endpoints — so a known/guessed playerId alone can't act as
+    /// (or charge) the player. Null until first join.
+    /// </summary>
+    [Column("session_token")]
+    [MaxLength(64)]
+    public string? SessionToken { get; set; }
+
     // Navigation
     [ForeignKey(nameof(TeamId))]
     public Team? Team { get; set; }

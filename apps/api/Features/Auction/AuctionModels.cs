@@ -74,6 +74,11 @@ public record PlaceBidRequest
     public Guid PlayerId    { get; init; }
     [Required]
     public int  AmountCents { get; init; }
+    /// <summary>Session token of the bidding player (minted at /join). Verified
+    /// server-side so nobody can bid — and incur an off-session charge — in
+    /// another player's name.</summary>
+    [Required]
+    public string SessionToken { get; init; } = string.Empty;
 }
 
 public record BidResponse
@@ -93,6 +98,10 @@ public record PledgeRequest
     public Guid PlayerId    { get; init; }
     [Required]
     public int  AmountCents { get; init; }
+    /// <summary>Session token of the pledging player (minted at /join), verified
+    /// server-side.</summary>
+    [Required]
+    public string SessionToken { get; init; } = string.Empty;
 }
 
 public record AwardRequest

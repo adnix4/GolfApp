@@ -26,9 +26,9 @@ Findings from the security review, ordered for remediation. Mark [x] when done.
        DONE 2026-06-22: UpdateSelfRequest now requires EventCode + Email; the service verifies them
        against the player record (case-insensitive) before applying the edit and throws the same
        NotFound on mismatch (no existence leak). Mobile client (api.ts updateMyProfile + edit-profile.tsx)
-       sends the join email/eventCode as proof. NOTE: this stops external/random-Guid IDOR; a teammate
-       who can see the roster still knows a co-player's email — a per-team/per-player JOIN TOKEN (see #5)
-       would fully close that and authorize score sync too.
+       sends the join email/eventCode as proof.
+       FULLY CLOSED 2026-06-22 by the join token (Phase11): UpdateSelf now requires the per-player
+       session_token minted at /join (email/eventCode proof removed), closing teammate-to-teammate too.
        Original: PATCH /api/v1/players/{playerId}/self was anonymous, loaded the player by id with
        NO binding to the caller, and playerIds are exposed in join/scorecard/team responses, so
        anyone could edit any player's firstName/lastName/phone.
@@ -41,17 +41,24 @@ Findings from the security review, ordered for remediation. Mark [x] when done.
        name is registry-sourced (not user input) so risk is low, but switch to execFileSync /
        validate name against /^@?[a-z0-9._/-]+$/i for defense-in-depth.
 
-[ ] 5. (LOW/by-design) Anonymous score injection — /api/v1/sync/scores trusts
+[x] 5. (LOW/by-design) Anonymous score injection — /api/v1/sync/scores trusts
        eventId+teamId+deviceId from the body (golfers have no accounts). Anyone knowing a
        team's public ids can submit/perturb scores; conflict-detection limits silent overwrites
-       but not injection. Optional hardening: per-team/per-event join token required on sync.
+       but not injection.
+       DONE 2026-06-22 (Phase11 join token): BatchSyncRequest now requires a session_token that must
+       belong to a player ON THAT TEAM; mismatch throws NotFound (no existence leak).
 
 [ ] 6. (LOW) Dependency vulnerabilities — npm audit: 54 total (2 critical, 1 high, 51 moderate).
        The critical/high are all dev/test tooling (vitest, vite, @vitest/coverage-v8) and not
        shipped to the production API runtime; 51 moderate are mostly Expo build tooling. Bump
        vitest + @vitest/coverage-v8 to 4.x and add `npm audit --omit=dev` to CI.
 
-[ ] 7. (HIGH) Financial IDOR on auction bidding + payment endpoints — all [AllowAnonymous] with
+[x] 7. (HIGH) Financial IDOR on auction bidding + payment endpoints — all [AllowAnonymous] with
+       DONE 2026-06-22 (Phase11 join token): bid/buy-now/pledge (PlaceBidRequest/PledgeRequest) and
+       setup-intent/confirm-setup (PaymentsController/Service) now require the player's session_token,
+       verified constant-time (Common.PlayerSessionAuth) before any bid or Stripe call; mismatch throws
+       NotFound. Entry-fee intent is created during team registration (pre-join, no session yet) so it
+       is not token-gated — that path is registration-time, not a player self-service action.
        playerId in the body: POST /auction/items/{id}/bid, /buy-now, /pledge (BidController) and
        /payments/setup-intent, /confirm-setup, entry-fee intent (PaymentsController/PaymentsService).
        Anyone who knows a player's Guid can BID IN THAT PLAYER'S NAME; auction winners are charged

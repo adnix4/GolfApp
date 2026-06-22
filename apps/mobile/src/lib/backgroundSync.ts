@@ -55,7 +55,7 @@ export async function attemptSync(): Promise<boolean> {
     if (unsynced.length === 0) { isSyncing = false; return false; }
 
     await incrementSyncAttempts(event.id, team.id);
-    const result = await batchSync(event.id, team.id, deviceId, unsynced);
+    const result = await batchSync(event.id, team.id, deviceId, unsynced, session.sessionToken);
 
     // Accept conflicts as "resolved by server" — mark synced so we don't retry
     if (result.accepted > 0 || result.conflicts > 0) {

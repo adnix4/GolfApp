@@ -52,6 +52,12 @@ export interface JoinEventResponse {
    * The join screen shows a "Check Again" button that re-polls until assigned.
    */
   awaitingAssignment?: boolean;
+  /**
+   * Opaque per-player session token minted by the server at join. Stored in the
+   * session and sent back to authorize this player's own actions (profile edit,
+   * score sync, auction bids, card setup) — golfers have no password.
+   */
+  sessionToken: string;
 }
 
 export interface SyncConflictDto {
@@ -301,11 +307,12 @@ export async function placeBid(
   itemId: string,
   playerId: string,
   amountCents: number,
+  sessionToken: string,
 ): Promise<BidResponse> {
   const res = await fetch(`${BASE}/api/v1/auction/items/${itemId}/bid`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, amountCents }),
+    body: JSON.stringify({ playerId, amountCents, sessionToken }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -318,11 +325,12 @@ export async function pledge(
   itemId: string,
   playerId: string,
   amountCents: number,
+  sessionToken: string,
 ): Promise<BidResponse> {
   const res = await fetch(`${BASE}/api/v1/auction/items/${itemId}/pledge`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, amountCents }),
+    body: JSON.stringify({ playerId, amountCents, sessionToken }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -331,11 +339,14 @@ export async function pledge(
   return res.json();
 }
 
-export async function createSetupIntent(playerId: string): Promise<{ clientSecret: string }> {
+export async function createSetupIntent(
+  playerId: string,
+  sessionToken: string,
+): Promise<{ clientSecret: string }> {
   const res = await fetch(`${BASE}/api/v1/payments/setup-intent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId }),
+    body: JSON.stringify({ playerId, sessionToken }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -347,11 +358,12 @@ export async function createSetupIntent(playerId: string): Promise<{ clientSecre
 export async function confirmSetup(
   playerId: string,
   setupIntentId: string,
+  sessionToken: string,
 ): Promise<{ hasPaymentMethod: boolean }> {
   const res = await fetch(`${BASE}/api/v1/payments/confirm-setup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, setupIntentId }),
+    body: JSON.stringify({ playerId, setupIntentId, sessionToken }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -362,15 +374,15 @@ export async function confirmSetup(
 
 export async function updateMyProfile(
   playerId: string,
-  // Identity proof — the event code + email used to join, verified server-side
-  // so only the real player can edit their own profile (see UpdateSelfRequest).
-  auth: { eventCode: string; email: string },
+  // Identity proof — the session token minted at join, verified server-side so
+  // only the real player can edit their own profile (see UpdateSelfRequest).
+  sessionToken: string,
   patch: { firstName?: string; lastName?: string; phone?: string },
 ): Promise<PlayerCacheDto> {
   const res = await fetch(`${BASE}/api/v1/players/${playerId}/self`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...auth, ...patch }),
+    body: JSON.stringify({ sessionToken, ...patch }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -528,6 +540,7 @@ export async function batchSync(
   teamId: string,
   deviceId: string,
   scores: PendingScore[],
+  sessionToken: string,
 ): Promise<BatchSyncResponse> {
   const res = await fetch(`${BASE}/api/v1/sync/scores`, {
     method: 'POST',
@@ -535,6 +548,7 @@ export async function batchSync(
     body: JSON.stringify({
       eventId,
       teamId,
+      sessionToken,
       deviceId,
       scores: scores.map(s => ({
         holeNumber:        s.holeNumber,

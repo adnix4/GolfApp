@@ -41,7 +41,7 @@ function PaymentSetupContent() {
 
   useEffect(() => {
     if (!player?.id) return;
-    createSetupIntent(player.id)
+    createSetupIntent(player.id, session!.sessionToken)
       .then(({ clientSecret: cs }) => setClientSecret(cs))
       .catch(e => setInitError(e instanceof Error ? e.message : 'Could not initialize payment setup.'))
       .finally(() => setLoading(false));
@@ -58,7 +58,7 @@ function PaymentSetupContent() {
       if (error) throw new Error(error.message);
       if (!setupIntent?.id) throw new Error('Setup did not complete.');
 
-      await confirmSetup(player.id, setupIntent.id);
+      await confirmSetup(player.id, setupIntent.id, session!.sessionToken);
 
       if (session) {
         await setSession({

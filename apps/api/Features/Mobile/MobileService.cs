@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Common.Middleware;
@@ -153,9 +154,12 @@ public class MobileService
                     "Free agent '{Email}' checked in for event '{Code}' — awaiting assignment",
                     request.Email, eventCode);
 
+                var freeAgentToken = await EnsureSessionTokenAsync(freeAgent, ct);
+
                 return new JoinEventResponse
                 {
                     AwaitingAssignment = true,
+                    SessionToken = freeAgentToken,
                     Player = new PlayerCacheDto
                     {
                         Id               = freeAgent.Id,
@@ -210,6 +214,8 @@ public class MobileService
             "Golfer '{Email}' joined event '{Code}' on device '{Device}'",
             request.Email, eventCode, request.DeviceId);
 
+        var sessionToken = await EnsureSessionTokenAsync(player, ct);
+
         // Build sponsor data — map hole numbers from JSONB placements
         var sponsors = evt.Sponsors
             .Select(s => new SponsorCacheDto
@@ -233,6 +239,7 @@ public class MobileService
 
         return new JoinEventResponse
         {
+            SessionToken = sessionToken,
             Event = new EventCacheDto
             {
                 Id               = evt.Id,
@@ -332,6 +339,20 @@ public class MobileService
 
         if (team is null)
             throw new NotFoundException("Team", request.TeamId);
+
+        // Authorization (anti-injection): the caller must present the session token
+        // of a player ON THIS TEAM (minted at /join). Otherwise a known
+        // eventId+teamId alone could inject or perturb the team's scores. Mismatch
+        // throws the same NotFound as a missing team (no existence leak).
+        var teamTokens = await _db.Players
+            .Where(p => p.TeamId == request.TeamId && p.SessionToken != null)
+            .Select(p => p.SessionToken)
+            .ToListAsync(ct);
+        if (!teamTokens.Any(t => TokenMatches(t, request.SessionToken)))
+        {
+            _logger.LogWarning("Score sync session token mismatch for team {TeamId}", request.TeamId);
+            throw new NotFoundException("Team", request.TeamId);
+        }
 
         // Load all existing scores for this team in one query
         var existing = await _db.Scores
@@ -481,21 +502,14 @@ public class MobileService
         var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId, ct)
             ?? throw new NotFoundException("Player", playerId);
 
-        // Authorization-by-proof (anti-IDOR): the caller must supply the email +
-        // event code used to join as this player. Without it, anyone could PATCH
-        // any playerId (Guids are handed out in join/scorecard/team responses). On
-        // mismatch we throw the SAME NotFound as a missing player so the endpoint
-        // never reveals whether a given id exists.
-        var evt = await _db.Events.FirstOrDefaultAsync(e => e.Id == player.EventId, ct);
-        var proofOk =
-            !string.IsNullOrWhiteSpace(request.Email)
-            && !string.IsNullOrWhiteSpace(request.EventCode)
-            && string.Equals(player.Email, request.Email.Trim(), StringComparison.OrdinalIgnoreCase)
-            && evt is not null
-            && string.Equals(evt.EventCode, request.EventCode.Trim(), StringComparison.OrdinalIgnoreCase);
-        if (!proofOk)
+        // Authorization (anti-IDOR): the caller must present this player's session
+        // token (minted at /join). Without it, anyone could PATCH any playerId
+        // (Guids are handed out in join/scorecard/team responses). On mismatch we
+        // throw the SAME NotFound as a missing player so the endpoint never reveals
+        // whether a given id exists.
+        if (!TokenMatches(player.SessionToken, request.SessionToken))
         {
-            _logger.LogWarning("Self-update identity proof failed for player {PlayerId}", playerId);
+            _logger.LogWarning("Self-update session token mismatch for player {PlayerId}", playerId);
             throw new NotFoundException("Player", playerId);
         }
 
@@ -518,6 +532,26 @@ public class MobileService
     }
 
     // ── PRIVATE ───────────────────────────────────────────────────────────────
+
+    // Mint a player's session token on first join (golfers have no password — this
+    // opaque token is what later authorizes their own actions). Reused on re-join
+    // so an already-issued device keeps working through the event; only ever
+    // returned to a caller who already proved the join secret (event code + email).
+    private async Task<string> EnsureSessionTokenAsync(Player player, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(player.SessionToken))
+        {
+            player.SessionToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+                .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+            await _db.SaveChangesAsync(ct);
+        }
+        return player.SessionToken;
+    }
+
+    // Thin alias for the shared session-token check (Common.PlayerSessionAuth),
+    // kept local so the call sites in this file read cleanly.
+    private static bool TokenMatches(string? stored, string? provided)
+        => Common.PlayerSessionAuth.Matches(stored, provided);
 
     private static List<int> ExtractHoleNumbers(string placementsJson)
     {

@@ -30,7 +30,7 @@ export default function EditProfileScreen() {
     try {
       const updated = await updateMyProfile(
         player.id,
-        { eventCode: session!.event.eventCode, email: player.email },
+        session!.sessionToken,
         {
           firstName: firstName.trim(),
           lastName:  lastName.trim(),

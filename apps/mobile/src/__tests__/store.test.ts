@@ -120,6 +120,7 @@ const SESSION: JoinEventResponse = {
   org:     { id: 'org1', name: 'Test Org', slug: 'test-org', logoUrl: null, themeJson: null },
   course:  null,
   sponsors: [],
+  sessionToken: 'tok-1',
 };
 
 const SCORE = {

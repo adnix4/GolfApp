@@ -26,7 +26,8 @@ public class PaymentsController : ControllerBase
     public async Task<IActionResult> CreateSetupIntent(
         [FromBody] SetupIntentRequest request, CancellationToken ct)
     {
-        var clientSecret = await _payments.CreateSetupIntentAsync(request.PlayerId, ct);
+        var clientSecret = await _payments.CreateSetupIntentAsync(
+            request.PlayerId, request.SessionToken, ct);
         return Ok(new { clientSecret });
     }
 
@@ -39,10 +40,13 @@ public class PaymentsController : ControllerBase
     public async Task<IActionResult> ConfirmSetup(
         [FromBody] ConfirmSetupRequest request, CancellationToken ct)
     {
-        await _payments.ConfirmSetupAsync(request.PlayerId, request.SetupIntentId, ct);
+        await _payments.ConfirmSetupAsync(
+            request.PlayerId, request.SetupIntentId, request.SessionToken, ct);
         return Ok(new { hasPaymentMethod = true });
     }
 }
 
-public record SetupIntentRequest(Guid PlayerId);
-public record ConfirmSetupRequest(Guid PlayerId, string SetupIntentId);
+// SessionToken (minted at /join) authorizes the call so nobody can attach a card
+// to — or flip has_payment_method on — another player's account.
+public record SetupIntentRequest(Guid PlayerId, string SessionToken);
+public record ConfirmSetupRequest(Guid PlayerId, string SetupIntentId, string SessionToken);

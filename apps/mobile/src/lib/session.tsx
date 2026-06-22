@@ -145,7 +145,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try {
       const unsynced = await loadUnsyncedScores(session.event.id, session.team.id);
       if (unsynced.length === 0) { setSyncStatus('synced'); return null; }
-      const result = await batchSync(session.event.id, session.team.id, deviceId, unsynced);
+      const result = await batchSync(
+        session.event.id, session.team.id, deviceId, unsynced, session.sessionToken);
       await markScoresSynced(session.event.id, session.team.id);
       setSyncStatus('synced');
       return result;

@@ -197,6 +197,11 @@ public class AuctionService
         var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == req.PlayerId, ct)
             ?? throw new NotFoundException("Player", req.PlayerId);
 
+        // Authorization: bids (and thus the off-session charge if won) must be made
+        // by the player themselves — verify the session token minted at /join.
+        if (!Common.PlayerSessionAuth.Matches(player.SessionToken, req.SessionToken))
+            throw new NotFoundException("Player", req.PlayerId);
+
         if (AuctionBidRules.NeedsPaymentMethod(player.HasPaymentMethod, player.CheckInStatus))
             throw new ValidationException("NO_PAYMENT_METHOD");
 
@@ -302,8 +307,9 @@ public class AuctionService
     public async Task<BidResponse> PledgeAsync(Guid itemId, PledgeRequest req, CancellationToken ct)
         => await PlaceBidAsync(itemId, new PlaceBidRequest
         {
-            PlayerId    = req.PlayerId,
-            AmountCents = req.AmountCents,
+            PlayerId     = req.PlayerId,
+            AmountCents  = req.AmountCents,
+            SessionToken = req.SessionToken,
         }, ct);
 
     public async Task AwardItemAsync(Guid itemId, AwardRequest req, CancellationToken ct)

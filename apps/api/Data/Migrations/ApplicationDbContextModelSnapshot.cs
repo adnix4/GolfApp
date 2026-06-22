@@ -1167,6 +1167,11 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("registration_type");
 
+                    b.Property<string>("SessionToken")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("session_token");
+
                     b.Property<string>("SkillLevel")
                         .HasColumnType("text")
                         .HasColumnName("skill_level");

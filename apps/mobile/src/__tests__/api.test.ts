@@ -134,20 +134,21 @@ describe('batchSync', () => {
 
   it('sends POST to /sync/scores with correct envelope', async () => {
     mockOk(syncResponse);
-    await batchSync('ev1', 'tm1', 'dev-001', scores);
+    await batchSync('ev1', 'tm1', 'dev-001', scores, 'tok-1');
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('/sync/scores');
     expect(opts.method).toBe('POST');
     const body = JSON.parse(opts.body as string);
     expect(body.eventId).toBe('ev1');
     expect(body.teamId).toBe('tm1');
+    expect(body.sessionToken).toBe('tok-1');
     expect(body.deviceId).toBe('dev-001');
     expect(body.scores).toHaveLength(2);
   });
 
   it('includes playerShots in the score payload (Bug #1 regression)', async () => {
     mockOk(syncResponse);
-    await batchSync('ev1', 'tm1', 'dev-001', scores);
+    await batchSync('ev1', 'tm1', 'dev-001', scores, 'tok-1');
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     // Hole 2 has playerShots
     const hole2 = body.scores.find((s: { holeNumber: number }) => s.holeNumber === 2);
@@ -156,7 +157,7 @@ describe('batchSync', () => {
 
   it('sends null for playerShots when not provided', async () => {
     mockOk(syncResponse);
-    await batchSync('ev1', 'tm1', 'dev-001', scores);
+    await batchSync('ev1', 'tm1', 'dev-001', scores, 'tok-1');
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const hole1 = body.scores.find((s: { holeNumber: number }) => s.holeNumber === 1);
     expect(hole1.playerShots).toBeNull();
@@ -164,14 +165,14 @@ describe('batchSync', () => {
 
   it('returns the batch sync response', async () => {
     mockOk(syncResponse);
-    const result = await batchSync('ev1', 'tm1', 'dev-001', scores);
+    const result = await batchSync('ev1', 'tm1', 'dev-001', scores, 'tok-1');
     expect(result.accepted).toBe(2);
     expect(result.conflicts).toBe(0);
   });
 
   it('throws when the server returns a sync error', async () => {
     mockErr(409, { error: 'Score conflict detected' });
-    await expect(batchSync('ev1', 'tm1', 'dev-001', scores)).rejects.toThrow('Score conflict detected');
+    await expect(batchSync('ev1', 'tm1', 'dev-001', scores, 'tok-1')).rejects.toThrow('Score conflict detected');
   });
 });
 
@@ -267,33 +268,33 @@ const BID_RESPONSE = {
 describe('placeBid', () => {
   it('sends POST to /auction/items/{id}/bid with playerId and amountCents', async () => {
     mockOk(BID_RESPONSE);
-    await placeBid('item1', 'pl1', 8000);
+    await placeBid('item1', 'pl1', 8000, 'tok-1');
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('/auction/items/item1/bid');
     expect(opts.method).toBe('POST');
-    expect(JSON.parse(opts.body as string)).toMatchObject({ playerId: 'pl1', amountCents: 8000 });
+    expect(JSON.parse(opts.body as string)).toMatchObject({ playerId: 'pl1', amountCents: 8000, sessionToken: 'tok-1' });
   });
 
   it('returns the bid response on success', async () => {
     mockOk(BID_RESPONSE);
-    const result = await placeBid('item1', 'pl1', 8000);
+    const result = await placeBid('item1', 'pl1', 8000, 'tok-1');
     expect(result.isWinning).toBe(true);
     expect(result.amountCents).toBe(8000);
   });
 
   it('throws BID_TOO_LOW when server rejects the amount', async () => {
     mockErr(400, { error: 'BID_TOO_LOW:8500' });
-    await expect(placeBid('item1', 'pl1', 500)).rejects.toThrow('BID_TOO_LOW:8500');
+    await expect(placeBid('item1', 'pl1', 500, 'tok-1')).rejects.toThrow('BID_TOO_LOW:8500');
   });
 
   it('throws AUCTION_CLOSED when bidding on a closed item', async () => {
     mockErr(400, { error: 'AUCTION_CLOSED' });
-    await expect(placeBid('item1', 'pl1', 9000)).rejects.toThrow('AUCTION_CLOSED');
+    await expect(placeBid('item1', 'pl1', 9000, 'tok-1')).rejects.toThrow('AUCTION_CLOSED');
   });
 
   it('includes newClosesAt in response when bid triggered an extension', async () => {
     mockOk({ ...BID_RESPONSE, newClosesAt: '2026-06-01T20:00:30Z' });
-    const result = await placeBid('item1', 'pl1', 8000);
+    const result = await placeBid('item1', 'pl1', 8000, 'tok-1');
     expect(result.newClosesAt).toBe('2026-06-01T20:00:30Z');
   });
 });
@@ -303,7 +304,7 @@ describe('placeBid', () => {
 describe('pledge', () => {
   it('sends POST to /auction/items/{id}/pledge (not /bid)', async () => {
     mockOk(BID_RESPONSE);
-    await pledge('item1', 'pl1', 10000);
+    await pledge('item1', 'pl1', 10000, 'tok-1');
     const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('/auction/items/item1/pledge');
     expect(url).not.toContain('/bid');
@@ -311,14 +312,14 @@ describe('pledge', () => {
 
   it('sends playerId and amountCents in body', async () => {
     mockOk(BID_RESPONSE);
-    await pledge('item1', 'pl1', 10000);
+    await pledge('item1', 'pl1', 10000, 'tok-1');
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
-    expect(body).toMatchObject({ playerId: 'pl1', amountCents: 10000 });
+    expect(body).toMatchObject({ playerId: 'pl1', amountCents: 10000, sessionToken: 'tok-1' });
   });
 
   it('throws when the pledge amount is below the minimum', async () => {
     mockErr(400, { error: 'BID_TOO_LOW:2500' });
-    await expect(pledge('item1', 'pl1', 100)).rejects.toThrow('BID_TOO_LOW:2500');
+    await expect(pledge('item1', 'pl1', 100, 'tok-1')).rejects.toThrow('BID_TOO_LOW:2500');
   });
 });
 
@@ -327,22 +328,22 @@ describe('pledge', () => {
 describe('createSetupIntent', () => {
   it('sends POST to /payments/setup-intent with playerId', async () => {
     mockOk({ clientSecret: 'seti_abc_secret_xyz' });
-    await createSetupIntent('pl1');
+    await createSetupIntent('pl1', 'tok-1');
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('/payments/setup-intent');
     expect(opts.method).toBe('POST');
-    expect(JSON.parse(opts.body as string)).toMatchObject({ playerId: 'pl1' });
+    expect(JSON.parse(opts.body as string)).toMatchObject({ playerId: 'pl1', sessionToken: 'tok-1' });
   });
 
   it('returns the clientSecret on success', async () => {
     mockOk({ clientSecret: 'seti_abc_secret_xyz' });
-    const result = await createSetupIntent('pl1');
+    const result = await createSetupIntent('pl1', 'tok-1');
     expect(result.clientSecret).toBe('seti_abc_secret_xyz');
   });
 
   it('throws when player is not found', async () => {
     mockErr(404, { error: 'Player not found' });
-    await expect(createSetupIntent('bad-id')).rejects.toThrow('Player not found');
+    await expect(createSetupIntent('bad-id', 'tok-1')).rejects.toThrow('Player not found');
   });
 });
 
@@ -351,24 +352,24 @@ describe('createSetupIntent', () => {
 describe('confirmSetup', () => {
   it('sends POST to /payments/confirm-setup with playerId and setupIntentId', async () => {
     mockOk({ hasPaymentMethod: true });
-    await confirmSetup('pl1', 'seti_abc123');
+    await confirmSetup('pl1', 'seti_abc123', 'tok-1');
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('/payments/confirm-setup');
     expect(opts.method).toBe('POST');
     expect(JSON.parse(opts.body as string)).toMatchObject({
-      playerId: 'pl1', setupIntentId: 'seti_abc123',
+      playerId: 'pl1', setupIntentId: 'seti_abc123', sessionToken: 'tok-1',
     });
   });
 
   it('returns hasPaymentMethod: true on success', async () => {
     mockOk({ hasPaymentMethod: true });
-    const result = await confirmSetup('pl1', 'seti_abc123');
+    const result = await confirmSetup('pl1', 'seti_abc123', 'tok-1');
     expect(result.hasPaymentMethod).toBe(true);
   });
 
   it('throws when the SetupIntent has not succeeded yet', async () => {
     mockErr(400, { error: "SetupIntent status is 'requires_action', expected 'succeeded'." });
-    await expect(confirmSetup('pl1', 'seti_abc123')).rejects.toThrow("requires_action");
+    await expect(confirmSetup('pl1', 'seti_abc123', 'tok-1')).rejects.toThrow("requires_action");
   });
 });
 

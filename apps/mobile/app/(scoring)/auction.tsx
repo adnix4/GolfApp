@@ -93,9 +93,9 @@ export default function AuctionScreen() {
     try {
       const isDonation = item.auctionType.includes('Donation');
       if (isDonation) {
-        await pledge(item.id, player.id, cents);
+        await pledge(item.id, player.id, cents, session!.sessionToken);
       } else {
-        await placeBid(item.id, player.id, cents);
+        await placeBid(item.id, player.id, cents, session!.sessionToken);
       }
       Alert.alert('Success', isDonation ? 'Pledge recorded!' : 'Bid placed!');
       setBidAmt('');

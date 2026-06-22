@@ -36,6 +36,13 @@ public record BatchSyncRequest
     [Required]
     public Guid TeamId { get; init; }
 
+    /// <summary>
+    /// Session token of a player on this team (minted at /join). Authorizes the
+    /// team's score sync so a known eventId+teamId alone can't inject scores.
+    /// </summary>
+    [Required]
+    public string SessionToken { get; init; } = string.Empty;
+
     [MaxLength(100)]
     public string DeviceId { get; init; } = "mobile-app";
 
@@ -94,6 +101,14 @@ public record JoinEventResponse
     public List<SponsorCacheDto>  Sponsors { get; init; } = new();
 
     /// <summary>
+    /// Opaque per-player session token the app must store (expo-secure-store) and
+    /// send back to authorize this player's own actions — profile edit, score sync,
+    /// auction bids, and Stripe payment endpoints. Golfers have no password; this
+    /// token is their capability. Minted/returned on join.
+    /// </summary>
+    public string                 SessionToken { get; init; } = string.Empty;
+
+    /// <summary>
     /// True when the golfer registered as a free agent and the organizer has not
     /// yet assigned them to a team. Team will be null in this case.
     /// The mobile app should show a "waiting for assignment" screen and offer a
@@ -142,15 +157,11 @@ public record PlayerCacheDto
 public record UpdateSelfRequest
 {
     // Identity proof — golfers have no accounts, so the caller proves "I am this
-    // player" by echoing the event code + email they used to join. The server
-    // verifies these against the player record before applying the edit, which
-    // stops anyone from PATCHing an arbitrary playerId (IDOR).
+    // player" with the session token minted at /join. The server verifies it
+    // against the player record before applying the edit, which stops anyone from
+    // PATCHing an arbitrary playerId (IDOR).
     [Required]
-    public string EventCode { get; init; } = string.Empty;
-
-    [Required]
-    [EmailAddress]
-    public string Email { get; init; } = string.Empty;
+    public string SessionToken { get; init; } = string.Empty;
 
     [MaxLength(100)]
     public string? FirstName { get; init; }
