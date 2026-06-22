@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using GolfFundraiserPro.Api.Common.Middleware;
 
 namespace GolfFundraiserPro.Api.Features.Mobile;
@@ -46,9 +47,11 @@ public class MobileController : ControllerBase
     /// pre-populate its SQLite database so scoring can proceed fully offline.
     ///
     /// NOT authenticated — golfers do not have user accounts.
-    /// Rate-limited by event code (prevents brute-force email enumeration).
+    /// Rate-limited per client IP (the "join" policy) to slow brute-force email
+    /// enumeration. See AddGfpRateLimiting in ServiceCollectionExtensions.
     /// </summary>
     [HttpPost("api/v1/events/{eventCode}/join")]
+    [EnableRateLimiting("join")]
     [ProducesResponseType(typeof(JoinEventResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]

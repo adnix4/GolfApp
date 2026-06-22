@@ -17,12 +17,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 using System.Text;
+using System.Threading.RateLimiting;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
@@ -48,6 +51,7 @@ public static class ServiceCollectionExtensions
             .AddGfpBackgroundJobs(configuration)
             .AddGfpValidation()
             .AddGfpCors()
+            .AddGfpRateLimiting()
             .AddGfpSwagger();
 
         // HTTP client factory used by PushNotificationService and EmailBuilderService
@@ -174,6 +178,14 @@ public static class ServiceCollectionExtensions
                 "JWT_SECRET is not set. Run `openssl rand -hex 64` and add to .env.local");
 
         var jwtKey = Encoding.UTF8.GetBytes(jwtSecret);
+
+        // HMAC-SHA256 signing keys must be at least 256 bits (32 bytes). A shorter
+        // secret materially weakens token signatures (and SymmetricSecurityKey will
+        // happily accept one), so refuse to start with an undersized key.
+        if (jwtKey.Length < 32)
+            throw new InvalidOperationException(
+                $"JWT_SECRET is too short ({jwtKey.Length} bytes). Use at least 32 bytes "
+                + "(256 bits) — e.g. `openssl rand -hex 64`.");
 
         services
             .AddAuthentication(options =>
@@ -353,6 +365,84 @@ public static class ServiceCollectionExtensions
         });
 
         return services;
+    }
+
+    // ── RATE LIMITING ─────────────────────────────────────────────────────────
+    // Built-in .NET rate limiter (no extra package). A generous per-client GLOBAL
+    // limiter backstops every endpoint against floods, plus stricter named
+    // policies on the anonymous credential / public-write endpoints that were
+    // previously unthrottled (login brute force, join email-enumeration, donate
+    // and score-sync flooding).
+    //
+    // NOTE on shared NAT: at a live event dozens of devices poll from one venue
+    // IP, so limits are deliberately generous. Tune PermitLimit if a busy event
+    // trips 429s — or, once per-team join tokens exist, partition by that instead
+    // of client IP for fairness behind NAT.
+    private static IServiceCollection AddGfpRateLimiting(this IServiceCollection services)
+    {
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            // Global anti-flood backstop: per client, sliding window.
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(http =>
+                RateLimitPartition.GetSlidingWindowLimiter(
+                    ClientKey(http),
+                    _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit       = 600,
+                        Window            = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6,
+                        QueueLimit        = 0,
+                    }));
+
+            // Credentials: login / register / refresh — slow brute force.
+            options.AddPolicy("auth", http =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    ClientKey(http),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 20,
+                        Window      = TimeSpan.FromMinutes(1),
+                        QueueLimit  = 0,
+                    }));
+
+            // Event join — slows email enumeration without blocking venue arrivals.
+            options.AddPolicy("join", http =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    ClientKey(http),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 60,
+                        Window      = TimeSpan.FromMinutes(1),
+                        QueueLimit  = 0,
+                    }));
+
+            // Public donation submit — curbs fake-donation flooding.
+            options.AddPolicy("donate", http =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    ClientKey(http),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 30,
+                        Window      = TimeSpan.FromMinutes(1),
+                        QueueLimit  = 0,
+                    }));
+        });
+
+        return services;
+    }
+
+    // Partition key for rate limiting: the client's IP. Behind a PaaS load
+    // balancer the socket IP is the proxy, so prefer the platform-set
+    // X-Forwarded-For (leftmost hop = original client). For strict anti-spoofing
+    // behind a proxy, configure ForwardedHeaders with known proxies/networks.
+    private static string ClientKey(HttpContext http)
+    {
+        var forwarded = http.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(forwarded))
+            return forwarded.Split(',')[0].Trim();
+        return http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
 
     // ── SWAGGER ───────────────────────────────────────────────────────────────

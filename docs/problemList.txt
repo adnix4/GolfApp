@@ -1,4 +1,47 @@
-add auction items and bid data to test data 
-The data from the mobile app scorer should feed into the admin score card with the admin score card to be only for adjustments, monitoring, and adding in scores if there is no service for mobile devices. Web leader board should also be based off the same information.
-Add strokes back, best hole, and best hole score columns to the web leader board.
-Golfers should see admin corrections to their OWN scores on the mobile scorecard. Today the mobile scorecard renders only from local device state (pending_scores in SQLite) and sync is push-only — admin edits to the scores table never flow back to the device. The mobile LEADERBOARD already reflects admin changes (SignalR /hubs/tournament + 15s poll), but the golfer's own hole-by-hole scorecard does not. Fix: add a server-to-device score pull/merge so admin adjustments (and resolved conflicts) update the golfer's local scorecard — e.g. broadcast the corrected score over the tournament hub to the team's device and/or refetch the team scorecard on poll, reconciling against unsynced local edits.
+# Problem List
+
+## Security review (2026-06-22)
+Findings from the security review, ordered for remediation. Mark [x] when done.
+
+[x] 1. (HIGH) Stripe webhook signature bypass — apps/api/Features/Webhooks/StripeWebhookController.cs:39-52.
+       DONE 2026-06-22: webhook now fails closed (500) outside Development when the secret is unset.
+       When STRIPE_WEBHOOK_SECRET is unset the [AllowAnonymous] webhook parses the
+       event WITHOUT verifying the Stripe-Signature. payment_intent.succeeded flips
+       an AuctionWinner to ChargeStatus.Succeeded + ReceiptSent, so an attacker can
+       forge that event (with winner_id metadata) and mark auction items paid with
+       no money moved. Fix: fail closed outside Development when the secret is unset.
+
+[x] 2. (MEDIUM) No rate limiting on the API — AddRateLimiter/UseRateLimiter appear
+       DONE 2026-06-22: added .NET rate limiter — global 600/min per-IP backstop + named policies
+       (auth 20/min on login/register/refresh, join 60/min, donate 30/min); UseRateLimiter wired
+       after UseRouting; JoinEvent's false comment corrected. (sync covered by global backstop.)
+       nowhere. Unthrottled anonymous POSTs: /events/{code}/join (email enumeration),
+       /auth/login (brute force; only per-account Identity lockout exists), /auth/register
+       (org spam), /sync/scores (score flooding), /pub/events/{code}/donate (fake-donation
+       flooding). MobileController.JoinEvent's doc-comment FALSELY claims "Rate-limited by
+       event code." Fix: add a global per-IP limiter + stricter named policies on the
+       anonymous POSTs (UseRateLimiter after UseRouting); then implement-or-delete the comment.
+
+[ ] 3. (MEDIUM) IDOR on player self-update — apps/api/Features/Mobile/MobileService.cs:481
+       (PATCH /api/v1/players/{playerId}/self). Anonymous; loads the player by id with NO
+       binding to the caller, and playerIds are exposed in join/scorecard/team responses, so
+       anyone can edit any player's firstName/lastName/phone. Fix: require join-session proof
+       (deviceId/email used at join, or a short-lived join token minted by /join).
+
+[x] 4. (LOW/hardening) JWT_SECRET length unchecked — apps/api/Common/Extensions/ServiceCollectionExtensions.cs:172.
+       DONE 2026-06-22: startup now throws if JWT_SECRET < 32 bytes; check-updates.js validates the
+       package name against /^@?[a-z0-9._/-]+$/i before the shell `npm view` call.
+       A short secret weakens HMAC-SHA256. Enforce >= 32 bytes at startup (throw otherwise).
+       Also harden scripts/check-updates.js: the `npm view ${name}` call runs through a shell;
+       name is registry-sourced (not user input) so risk is low, but switch to execFileSync /
+       validate name against /^@?[a-z0-9._/-]+$/i for defense-in-depth.
+
+[ ] 5. (LOW/by-design) Anonymous score injection — /api/v1/sync/scores trusts
+       eventId+teamId+deviceId from the body (golfers have no accounts). Anyone knowing a
+       team's public ids can submit/perturb scores; conflict-detection limits silent overwrites
+       but not injection. Optional hardening: per-team/per-event join token required on sync.
+
+[ ] 6. (LOW) Dependency vulnerabilities — npm audit: 54 total (2 critical, 1 high, 51 moderate).
+       The critical/high are all dev/test tooling (vitest, vite, @vitest/coverage-v8) and not
+       shipped to the production API runtime; 51 moderate are mostly Expo build tooling. Bump
+       vitest + @vitest/coverage-v8 to 4.x and add `npm audit --omit=dev` to CI.

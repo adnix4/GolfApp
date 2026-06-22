@@ -16,17 +16,20 @@ public class StripeWebhookController : ControllerBase
     private readonly ApplicationDbContext _db;
     private readonly IConfiguration _config;
     private readonly EmailService _email;
+    private readonly IWebHostEnvironment _env;
     private readonly ILogger<StripeWebhookController> _logger;
 
     public StripeWebhookController(
         ApplicationDbContext db,
         IConfiguration config,
         EmailService email,
+        IWebHostEnvironment env,
         ILogger<StripeWebhookController> logger)
     {
         _db     = db;
         _config = config;
         _email  = email;
+        _env    = env;
         _logger = logger;
     }
 
@@ -39,7 +42,19 @@ public class StripeWebhookController : ControllerBase
         var webhookSecret = _config["STRIPE_WEBHOOK_SECRET"];
         if (string.IsNullOrEmpty(webhookSecret))
         {
-            _logger.LogWarning("STRIPE_WEBHOOK_SECRET not configured — skipping signature validation");
+            // Fail CLOSED outside Development. Without the secret we cannot verify
+            // the Stripe-Signature, so an anonymous caller could forge a
+            // payment_intent.succeeded event and mark an AuctionWinner as paid.
+            // Only Development is allowed to parse unsigned events (local testing).
+            if (!_env.IsDevelopment())
+            {
+                _logger.LogError(
+                    "STRIPE_WEBHOOK_SECRET is not configured — rejecting webhook in {Env}. "
+                    + "Set the secret to enable signature verification.", _env.EnvironmentName);
+                return StatusCode(StatusCodes.Status500InternalServerError, "Webhook secret not configured");
+            }
+            _logger.LogWarning(
+                "STRIPE_WEBHOOK_SECRET not configured — skipping signature validation (Development only)");
         }
 
         Event stripeEvent;

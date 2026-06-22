@@ -29,6 +29,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using GolfFundraiserPro.Api.Common.Middleware;
 
 namespace GolfFundraiserPro.Api.Features.Events;
@@ -363,6 +364,7 @@ public class EventController : ControllerBase
     /// </summary>
     [HttpPost("api/v1/pub/events/{eventCode}/donate")]
     [AllowAnonymous]
+    [EnableRateLimiting("donate")]
     [ProducesResponseType(typeof(PublicDonateResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]

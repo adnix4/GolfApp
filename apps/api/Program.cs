@@ -164,6 +164,10 @@ app.UseStaticFiles();
 // 6. Routing — must come before auth middleware
 app.UseRouting();
 
+// 6b. Rate limiting — after routing so endpoint-specific [EnableRateLimiting]
+// policies resolve; a global per-client limiter backstops every endpoint.
+app.UseRateLimiter();
+
 // 6. Authentication — validates JWT Bearer tokens, sets HttpContext.User
 app.UseAuthentication();
 
