@@ -114,6 +114,32 @@ jobs:
         # Runs xUnit tests in apps/api-tests against the in-memory database.
         run: dotnet test GolfApp.sln --no-build -c Release --verbosity normal
 
+  # ── DEPENDENCY AUDIT ──────────────────────────────────────────────────────
+  # Surfaces vulnerable dependencies on every PR/push. Fails ONLY on high or
+  # critical severity in PRODUCTION deps (--omit=dev) so the existing dev/test
+  # tooling vulns (vitest/vite) and the Expo build-tool moderates — none of which
+  # ship in the API or app runtime, and can't be fixed without major upgrades —
+  # are reported but don't block. Runs against the committed lockfile; no install.
+  dependency-audit:
+    name: Dependency Audit (prod, high+)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: npm audit (production deps, high+ fails)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Full audit report (informational, never fails)
+        if: always()
+        run: npm audit || true
+
   # ── REQUIRED STATUS CHECK GATE ──────────────────────────────────────────
   # This job runs only after both above jobs succeed.
   # GitHub branch protection can require THIS single job instead of
@@ -121,7 +147,7 @@ jobs:
   all-checks-passed:
     name: All CI Checks Passed
     runs-on: ubuntu-latest
-    needs: [typescript-checks, dotnet-build]
+    needs: [typescript-checks, dotnet-build, dependency-audit]
     if: always()
 
     steps:
@@ -135,6 +161,10 @@ jobs:
           fi
           if [[ "${{ needs.dotnet-build.result }}" != "success" ]]; then
             echo ".NET build failed"
+            exit 1
+          fi
+          if [[ "${{ needs.dependency-audit.result }}" != "success" ]]; then
+            echo "Dependency audit failed (high/critical in production deps)"
             exit 1
           fi
           echo "All CI checks passed ✓"

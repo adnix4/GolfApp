@@ -48,10 +48,21 @@ Findings from the security review, ordered for remediation. Mark [x] when done.
        DONE 2026-06-22 (Phase11 join token): BatchSyncRequest now requires a session_token that must
        belong to a player ON THAT TEAM; mismatch throws NotFound (no existence leak).
 
-[ ] 6. (LOW) Dependency vulnerabilities — npm audit: 54 total (2 critical, 1 high, 51 moderate).
-       The critical/high are all dev/test tooling (vitest, vite, @vitest/coverage-v8) and not
-       shipped to the production API runtime; 51 moderate are mostly Expo build tooling. Bump
-       vitest + @vitest/coverage-v8 to 4.x and add `npm audit --omit=dev` to CI.
+[x] 6. (LOW) Dependency vulnerabilities — npm audit: 54 total (2 critical, 1 high, 51 moderate).
+       The critical/high were all dev/test tooling (vitest, vite, @vitest/coverage-v8), not
+       shipped to the production API runtime; the moderates are mostly Expo build tooling.
+       DONE 2026-06-22:
+       - Bumped vitest + @vitest/coverage-v8 ^2.1.9 -> ^4.1.9. Clears ALL critical/high AND every
+         dev-tree vuln. All test workspaces still green with NO code changes (mobile 100, admin 103,
+         shared-types, theme). Audit now 48 moderate / 0 high / 0 critical — and full==prod, i.e. the
+         remaining 48 are ALL the production (Expo) tree; the dev tree is clean.
+       - Added a CI dependency-audit job (.github/workflows/ci.yml): fails on high/critical in
+         PRODUCTION deps (`npm audit --omit=dev --audit-level=high`), wired into the required gate;
+         full `npm audit` runs informationally. Passes today (prod = moderate only).
+       REMAINING (deferred, tracked): 23 moderate are transitive Expo build-tooling
+       (@expo/config-plugins, metro-config, prebuild-config) pulled via expo. Fixing them needs the
+       Expo SDK 55 -> 56 major upgrade, which is out of the careful version-pinning policy — do it
+       as part of a deliberate SDK bump, not a security patch. They are build-time, not app runtime.
 
 [x] 7. (HIGH) Financial IDOR on auction bidding + payment endpoints — all [AllowAnonymous] with
        DONE 2026-06-22 (Phase11 join token): bid/buy-now/pledge (PlaceBidRequest/PledgeRequest) and
