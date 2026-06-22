@@ -481,6 +481,24 @@ public class MobileService
         var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId, ct)
             ?? throw new NotFoundException("Player", playerId);
 
+        // Authorization-by-proof (anti-IDOR): the caller must supply the email +
+        // event code used to join as this player. Without it, anyone could PATCH
+        // any playerId (Guids are handed out in join/scorecard/team responses). On
+        // mismatch we throw the SAME NotFound as a missing player so the endpoint
+        // never reveals whether a given id exists.
+        var evt = await _db.Events.FirstOrDefaultAsync(e => e.Id == player.EventId, ct);
+        var proofOk =
+            !string.IsNullOrWhiteSpace(request.Email)
+            && !string.IsNullOrWhiteSpace(request.EventCode)
+            && string.Equals(player.Email, request.Email.Trim(), StringComparison.OrdinalIgnoreCase)
+            && evt is not null
+            && string.Equals(evt.EventCode, request.EventCode.Trim(), StringComparison.OrdinalIgnoreCase);
+        if (!proofOk)
+        {
+            _logger.LogWarning("Self-update identity proof failed for player {PlayerId}", playerId);
+            throw new NotFoundException("Player", playerId);
+        }
+
         if (request.FirstName is not null) player.FirstName = request.FirstName.Trim();
         if (request.LastName  is not null) player.LastName  = request.LastName.Trim();
         if (request.Phone     is not null) player.Phone     = request.Phone.Trim();

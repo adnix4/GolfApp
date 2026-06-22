@@ -28,11 +28,15 @@ export default function EditProfileScreen() {
     }
     setSaving(true);
     try {
-      const updated = await updateMyProfile(player.id, {
-        firstName: firstName.trim(),
-        lastName:  lastName.trim(),
-        ...(phone.trim() ? { phone: phone.trim() } : {}),
-      });
+      const updated = await updateMyProfile(
+        player.id,
+        { eventCode: session!.event.eventCode, email: player.email },
+        {
+          firstName: firstName.trim(),
+          lastName:  lastName.trim(),
+          ...(phone.trim() ? { phone: phone.trim() } : {}),
+        },
+      );
 
       if (session) {
         const updatedSession = {

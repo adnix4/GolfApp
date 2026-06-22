@@ -362,12 +362,15 @@ export async function confirmSetup(
 
 export async function updateMyProfile(
   playerId: string,
+  // Identity proof — the event code + email used to join, verified server-side
+  // so only the real player can edit their own profile (see UpdateSelfRequest).
+  auth: { eventCode: string; email: string },
   patch: { firstName?: string; lastName?: string; phone?: string },
 ): Promise<PlayerCacheDto> {
   const res = await fetch(`${BASE}/api/v1/players/${playerId}/self`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(patch),
+    body: JSON.stringify({ ...auth, ...patch }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

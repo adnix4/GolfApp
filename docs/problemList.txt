@@ -22,11 +22,16 @@ Findings from the security review, ordered for remediation. Mark [x] when done.
        event code." Fix: add a global per-IP limiter + stricter named policies on the
        anonymous POSTs (UseRateLimiter after UseRouting); then implement-or-delete the comment.
 
-[ ] 3. (MEDIUM) IDOR on player self-update — apps/api/Features/Mobile/MobileService.cs:481
-       (PATCH /api/v1/players/{playerId}/self). Anonymous; loads the player by id with NO
-       binding to the caller, and playerIds are exposed in join/scorecard/team responses, so
-       anyone can edit any player's firstName/lastName/phone. Fix: require join-session proof
-       (deviceId/email used at join, or a short-lived join token minted by /join).
+[x] 3. (MEDIUM) IDOR on player self-update — apps/api/Features/Mobile/MobileService.cs:481
+       DONE 2026-06-22: UpdateSelfRequest now requires EventCode + Email; the service verifies them
+       against the player record (case-insensitive) before applying the edit and throws the same
+       NotFound on mismatch (no existence leak). Mobile client (api.ts updateMyProfile + edit-profile.tsx)
+       sends the join email/eventCode as proof. NOTE: this stops external/random-Guid IDOR; a teammate
+       who can see the roster still knows a co-player's email — a per-team/per-player JOIN TOKEN (see #5)
+       would fully close that and authorize score sync too.
+       Original: PATCH /api/v1/players/{playerId}/self was anonymous, loaded the player by id with
+       NO binding to the caller, and playerIds are exposed in join/scorecard/team responses, so
+       anyone could edit any player's firstName/lastName/phone.
 
 [x] 4. (LOW/hardening) JWT_SECRET length unchecked — apps/api/Common/Extensions/ServiceCollectionExtensions.cs:172.
        DONE 2026-06-22: startup now throws if JWT_SECRET < 32 bytes; check-updates.js validates the
@@ -45,3 +50,16 @@ Findings from the security review, ordered for remediation. Mark [x] when done.
        The critical/high are all dev/test tooling (vitest, vite, @vitest/coverage-v8) and not
        shipped to the production API runtime; 51 moderate are mostly Expo build tooling. Bump
        vitest + @vitest/coverage-v8 to 4.x and add `npm audit --omit=dev` to CI.
+
+[ ] 7. (HIGH) Financial IDOR on auction bidding + payment endpoints — all [AllowAnonymous] with
+       playerId in the body: POST /auction/items/{id}/bid, /buy-now, /pledge (BidController) and
+       /payments/setup-intent, /confirm-setup, entry-fee intent (PaymentsController/PaymentsService).
+       Anyone who knows a player's Guid can BID IN THAT PLAYER'S NAME; auction winners are charged
+       OFF-SESSION to their saved card (PaymentsService.ChargeWinnerAsync), so a forced/forged high
+       bid can charge a victim for something they never bid on (plus chargeback/dispute exposure with
+       no auth trail). Note: card data itself is safe — Stripe Elements tokenizes client-side; the
+       server stores only Stripe customer/payment-method ids + brand/last4, never the PAN. Fix: gate
+       these endpoints with the same per-team/per-player JOIN TOKEN that closes #3 (full) and #5.
+       This is the security-critical reason to add the join token. Player passwords are NOT needed —
+       Stripe already holds the card; the gap is authorizing the ACTION, which a token does without
+       a login UX and works offline.

@@ -141,6 +141,17 @@ public record PlayerCacheDto
 
 public record UpdateSelfRequest
 {
+    // Identity proof — golfers have no accounts, so the caller proves "I am this
+    // player" by echoing the event code + email they used to join. The server
+    // verifies these against the player record before applying the edit, which
+    // stops anyone from PATCHing an arbitrary playerId (IDOR).
+    [Required]
+    public string EventCode { get; init; } = string.Empty;
+
+    [Required]
+    [EmailAddress]
+    public string Email { get; init; } = string.Empty;
+
     [MaxLength(100)]
     public string? FirstName { get; init; }
 
