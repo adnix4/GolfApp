@@ -18,7 +18,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@vitest/coverage-v8": "^4.1.9",
-    "babel-preset-expo": "~55.0.8",
+    "babel-preset-expo": "~56.0.15",
     "eslint": "^9.39.4",
     "globals": "^17.5.0",
     "prettier": "^3.2.5",
@@ -28,9 +28,9 @@
     "vitest": "^4.1.9"
   },
   "overrides": {
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "react-native": "0.83.6"
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.85.3"
   },
   "packageManager": "npm@10.0.0",
   "engines": {

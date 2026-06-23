@@ -81,3 +81,56 @@ Findings from the security review, ordered for remediation. Mark [x] when done.
        This is the security-critical reason to add the join token. Player passwords are NOT needed —
        Stripe already holds the card; the gap is authorizing the ACTION, which a token does without
        a login UX and works offline.
+
+## SDK 56 modernization opportunities (2026-06-23)
+Captured right after the Expo SDK 55 -> 56 upgrade (RN 0.83.6 -> 0.85.3, React
+19.2.0 -> 19.2.3). These are enhancements, not bugs — new SDK-56 capabilities worth
+wrapping into the apps to modernize the look, improve functionality, or simplify
+code. Ordered by leverage. Mark [x] when adopted. Ref: https://expo.dev/changelog/sdk-56
+NOTE: this upgrade also clears the 23 moderate transitive Expo build-tooling vulns
+that item #6 deferred until the SDK bump.
+
+TOP PICKS (high payoff)
+[ ] M1. expo-sqlite session changesets -> simplify offline sync (SIMPLIFY CODE).
+        Best fit. We hand-roll offline reconciliation: pending_scores +
+        backgroundSync.ts + mergeServerScores + the admin-wins / proposed_score
+        conflict flow. SQLite session changesets capture local mutations as a
+        changeset and apply/rebase server changesets natively, replacing much of the
+        custom merge logic with DB primitives. Core data-path change — spike first.
+
+[ ] M2. @expo/ui universal components -> modernize the scorer look (LOOK).
+        Production-ready native primitives (Button, Switch, Slider, Checkbox,
+        BottomSheet, SegmentedControl) + Material 3 (useMaterialColors). Direct
+        replacements for parts of hand-rolled @gfp/ui (Button, FormModal-as-sheet,
+        test-mode Switch).
+        CAVEAT: @expo/ui renders NATIVE views — does NOT work under react-native-web,
+        so the admin/web app cannot use it. Mobile-only layer; web keeps current
+        @gfp/ui components. Accept the divergence before adopting.
+
+[ ] M3. expo-router Native Stack v5 + Suspense fallbacks -> nav polish + less
+        boilerplate (LOOK + SIMPLIFY). Material-style headers + Android predictive-
+        back modernize the (scoring) flows. SuspenseFallback in _layout routes can
+        replace manual loading spinners, likely thinning the AsyncSection component.
+        Both experimental in 56, low risk for the scorer.
+
+WORTH CONSIDERING
+[ ] M4. expo/fetch is now the default WinterTC fetch (SIMPLIFY + FUNCTIONALITY).
+        AbortSignal.timeout/.any() + Android brotli/gzip/zstd decompression. apiClient
+        can likely drop custom timeout/abort plumbing; leaderboard payloads shrink.
+
+[ ] M5. NavigationBar + status-bar consistency (LOOK). Extends per-event branding
+        (SessionThemeProvider) to the system bars for a fully-themed branded event.
+
+[ ] M6. expo-file-system createUploadTask/createDownloadTask with progress
+        (FUNCTIONALITY). Only if we add sponsor-logo / branding-image uploads —
+        gives real upload progress + cancellation UI.
+
+FREE WINS (already active on SDK 56, no code changes)
+[ ] M7. Hermes v1 by default (faster startup, less memory), ~58% smaller OTA update
+        bundles, ~5x faster CLI / 6x faster Metro crawl. Verify in practice.
+
+WATCH-OUT (constraint on iOS adoption, not a code task)
+- SDK 56 bumps build requirements: Xcode 26.4, iOS/tvOS min 16.4, macOS 13.4. EAS
+  Build's cloud macOS runners handle the iOS compile, so Windows dev is unaffected;
+  but shipped builds drop iOS 15 / older devices. Confirm EAS image + minimum-OS
+  commitment before releasing a 56 build.
