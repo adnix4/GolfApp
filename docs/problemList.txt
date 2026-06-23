@@ -151,9 +151,15 @@ TOP PICKS (high payoff)
           (only admin/web), so there is no mobile boilerplate to thin out.
 
 WORTH CONSIDERING
-[ ] M4. expo/fetch is now the default WinterTC fetch (SIMPLIFY + FUNCTIONALITY).
-        AbortSignal.timeout/.any() + Android brotli/gzip/zstd decompression. apiClient
-        can likely drop custom timeout/abort plumbing; leaderboard payloads shrink.
+[x] M4. expo/fetch is now the default WinterTC fetch (SIMPLIFY + FUNCTIONALITY).
+        DONE 2026-06-23. The only custom fetch-timeout plumbing in the codebase was
+        api.checkConnectivity (Promise.race against setTimeout). Replaced with
+        AbortSignal.timeout(5000) — simpler, AND it cancels the request on expiry
+        (the old race left the ping fetch running in the background after timing out).
+        Tests unchanged + green. The shared packages/shared-types apiClient has no
+        timeout/abort plumbing, so nothing to change there.
+        Android brotli/gzip/zstd response decompression (smaller leaderboard payloads)
+        comes for free with expo/fetch as the default — no code change.
 
 [ ] M5. NavigationBar + status-bar consistency (LOOK). Extends per-event branding
         (SessionThemeProvider) to the system bars for a fully-themed branded event.
