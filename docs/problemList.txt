@@ -91,12 +91,35 @@ NOTE: this upgrade also clears the 23 moderate transitive Expo build-tooling vul
 that item #6 deferred until the SDK bump.
 
 TOP PICKS (high payoff)
-[ ] M1. expo-sqlite session changesets -> simplify offline sync (SIMPLIFY CODE).
-        Best fit. We hand-roll offline reconciliation: pending_scores +
-        backgroundSync.ts + mergeServerScores + the admin-wins / proposed_score
-        conflict flow. SQLite session changesets capture local mutations as a
-        changeset and apply/rebase server changesets natively, replacing much of the
-        custom merge logic with DB primitives. Core data-path change — spike first.
+[-] M1. expo-sqlite session changesets -> simplify offline sync (SIMPLIFY CODE).
+        SPIKED 2026-06-23: REJECTED — does not fit this architecture.
+        Original idea: capture local mutations as a changeset and apply/rebase server
+        changesets natively, replacing pending_scores + backgroundSync.ts +
+        mergeServerScores + the admin-wins / proposed_score conflict flow with DB
+        primitives. Findings:
+        - Session changesets are a SQLite<->SQLite BINARY replication format
+          (create/applyChangesetAsync exchange an ArrayBuffer of SQLite's changeset
+          format; see node_modules/expo-sqlite/build/NativeSession.d.ts). The headline
+          benefit "apply server changesets natively" requires the server to be a SQLite
+          peer. Ours is ASP.NET Core + PostgreSQL with JSON-REST sync
+          (POST /api/v1/sync/scores {scores:[...]} -> {accepted,conflicts}; pull-back
+          via TeamScorecard JSON). It cannot emit/consume SQLite changesets, so that
+          benefit is unreachable without rebuilding backend sync around SQLite — a
+          non-starter for a Postgres backend.
+        - store.mergeServerScores is domain-specific bookkeeping: protect unsynced
+          local edits (synced_at IS NULL), else adopt server value, set the `conflict`
+          flag for the proposed_score approval flow, manage completed_at. A changeset
+          conflict handler only does generic row/column ops (OMIT/REPLACE/ABORT) and
+          can't express those rules, so the app logic stays either way.
+        - Dataset is ~18 rows (1/hole/team), single table, deterministic PK, already a
+          clean INSERT OR REPLACE upsert. No large multi-table mutation set for
+          changeset replication to optimize.
+        Net: adds a native session-extension dependency + binary-blob plumbing while
+        removing none of the REST protocol or domain rules. Not worth it.
+        Orthogonal note: if offline sync ever needs simplifying, the real smell is
+        pending_scores multiplexing 3 roles (editable scorecard / outbound queue /
+        server cache) via flag columns — a manual table-split refactor, unrelated to
+        changesets.
 
 [ ] M2. @expo/ui universal components -> modernize the scorer look (LOOK).
         Production-ready native primitives (Button, Switch, Slider, Checkbox,
