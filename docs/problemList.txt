@@ -161,8 +161,27 @@ WORTH CONSIDERING
         Android brotli/gzip/zstd response decompression (smaller leaderboard payloads)
         comes for free with expo/fetch as the default — no code change.
 
-[ ] M5. NavigationBar + status-bar consistency (LOOK). Extends per-event branding
-        (SessionThemeProvider) to the system bars for a fully-themed branded event.
+[-] M5. NavigationBar + status-bar consistency (LOOK).
+        SPIKED 2026-06-23: REJECTED — edge-to-edge removes the core idea (color the
+        system bars with the brand), and what's left is poor cost/benefit here.
+        - SDK 54+ enforces Android edge-to-edge. SDK 56's expo-status-bar dropped the
+          backgroundColor prop / setStatusBarBackgroundColor entirely, and
+          expo-navigation-bar's setBackgroundColorAsync (+ most color APIs) are
+          @deprecated. The bars are transparent and content draws behind them — there
+          is no bar background to brand on either bar.
+        - What remains is only the icon STYLE (light/dark) for contrast against whatever
+          sits behind the transparent bar — that is not branding. And it is PER-SCREEN:
+          the app mixes dark (primary header) and light (surface page) backgrounds
+          behind the bars, so no single global value is correct (light icons vanish on
+          the light leaderboard page; dark icons vanish on a dark header). Doing it
+          right means touching many screens with real invisible-icon regression risk
+          and little visible payoff.
+        - The app currently renders no <StatusBar> and relies on style="auto" (dark
+          icons in light mode) over SafeAreaView-inset light backgrounds, which already
+          reads fine. No reported problem to fix.
+        Not worth it. Revisit only under a deliberate edge-to-edge redesign (headers
+        drawn behind the bars), where per-screen StatusBar style would then matter.
+        No deps added (expo-navigation-bar intentionally NOT installed).
 
 [ ] M6. expo-file-system createUploadTask/createDownloadTask with progress
         (FUNCTIONALITY). Only if we add sponsor-logo / branding-image uploads —
