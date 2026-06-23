@@ -112,6 +112,12 @@ export default function EventSettingsScreen() {
   const [freeAgentEnabled,  setFreeAgentEnabled]  = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
 
+  // Brand-from-website (optional convenience — pre-fills the editors below)
+  const [websiteUrl,    setWebsiteUrl]    = useState('');
+  const [extracting,    setExtracting]    = useState(false);
+  const [extractErr,    setExtractErr]    = useState<string | null>(null);
+  const [extractedFrom, setExtractedFrom] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -173,6 +179,27 @@ export default function EventSettingsScreen() {
     }
   }
 
+  async function handleExtract() {
+    if (!id || extracting) return;
+    const url = websiteUrl.trim();
+    if (!url) { setExtractErr('Enter your website address first.'); return; }
+    setExtracting(true);
+    setExtractErr(null);
+    try {
+      const result = await eventBrandingApi.extractFromWebsite(id, url);
+      // Pre-fill the existing editors — the organizer reviews/edits, then Saves.
+      setHasTheme(true);
+      setColors({ ...ECO_GREEN_DEFAULT, ...result.theme });
+      if (result.logoUrl) setLogoUrl(result.logoUrl);
+      setExtractedFrom(result.sourceUrl);
+    } catch (e: any) {
+      setExtractedFrom(null);
+      setExtractErr(e.message ?? 'Could not read brand details from that website.');
+    } finally {
+      setExtracting(false);
+    }
+  }
+
   function openFilePicker() {
     if (Platform.OS !== 'web' || !id) return;
     const input = document.createElement('input');
@@ -213,8 +240,47 @@ export default function EventSettingsScreen() {
       {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
       {saved  && <View style={styles.successBox}><Text style={styles.successText}>Branding saved.</Text></View>}
 
-      {/* ── PROFILE CARD ── */}
+      {/* ── BRAND FROM WEBSITE ── */}
       <View style={styles.card}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Brand from Website</Text>
+        <Text style={[styles.hint, { color: theme.colors.accent, marginBottom: 10 }]}>
+          Optional — enter your organization's website and we'll suggest a color palette and logo.
+          Review and edit everything below before saving.
+        </Text>
+        <View style={styles.extractRow}>
+          <TextInput
+            style={[styles.input, { borderColor: theme.colors.accent, flex: 1 }]}
+            value={websiteUrl}
+            onChangeText={setWebsiteUrl}
+            placeholder="yourcharity.org"
+            placeholderTextColor="#aaa"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            editable={!extracting}
+            onSubmitEditing={handleExtract}
+          />
+          <Pressable
+            style={[styles.extractBtn, { backgroundColor: theme.colors.primary }, extracting && { opacity: 0.6 }]}
+            onPress={handleExtract}
+            disabled={extracting}
+            accessibilityRole="button"
+          >
+            {extracting
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.extractBtnText}>Fetch Brand</Text>}
+          </Pressable>
+        </View>
+        {extractErr && <Text style={[styles.uploadErr, { marginTop: 8 }]}>{extractErr}</Text>}
+        {extractedFrom && !extractErr && (
+          <Text style={[styles.hint, { color: '#1e8449', marginTop: 8 }]}>
+            ✓ Suggested from {extractedFrom}. Review the logo and colors below, then Save.
+          </Text>
+        )}
+      </View>
+
+      {/* ── PROFILE CARD ── */}
+      <View style={[styles.card, { marginTop: 20 }]}>
         <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Event Identity</Text>
 
         {/* Logo */}
@@ -467,6 +533,10 @@ const styles = StyleSheet.create({
   input:        { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, backgroundColor: '#fafafa' },
   textArea:     { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, backgroundColor: '#fafafa', minHeight: 100, textAlignVertical: 'top' },
   hint:         { fontSize: 12, marginTop: 4, color: '#888' },
+
+  extractRow:    { flexDirection: 'row', alignItems: 'stretch', gap: 8 },
+  extractBtn:    { paddingHorizontal: 18, borderRadius: 8, alignItems: 'center', justifyContent: 'center', minWidth: 120 },
+  extractBtnText:{ fontSize: 14, fontWeight: '800', color: '#fff' },
 
   logoPreview:  { marginTop: 8, marginBottom: 8, height: 80, backgroundColor: '#f5f5f5', borderRadius: 8, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoImg:      { width: '100%', height: 80 },

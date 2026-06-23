@@ -1,4 +1,5 @@
 import { ApiError, createApiClient } from '@gfp/shared-types';
+import type { GFPTheme } from '@gfp/theme';
 import { storage } from './storage';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
@@ -88,9 +89,22 @@ export interface UpdateEventBrandingPayload {
   is501c3?: boolean;
 }
 
+/** Suggested branding derived from a website (not yet persisted — review + save). */
+export interface BrandExtractionResult {
+  theme: GFPTheme;
+  logoUrl: string | null;
+  sourceUrl: string;
+}
+
 export const eventBrandingApi = {
   update: (id: string, payload: UpdateEventBrandingPayload) =>
     request<EventDetail>(`/api/v1/events/${id}/branding`, { method: 'PATCH', body: payload }),
+
+  /** Derive a palette + logo from a website URL. Server fetch is SSRF-guarded. */
+  extractFromWebsite: (id: string, websiteUrl: string) =>
+    request<BrandExtractionResult>(`/api/v1/events/${id}/branding/extract`, {
+      method: 'POST', body: { websiteUrl },
+    }),
 
   uploadLogo: async (id: string, file: File): Promise<{ url: string }> => {
     const token   = storage.getAccessToken();
