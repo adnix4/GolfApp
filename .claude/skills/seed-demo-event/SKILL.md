@@ -101,6 +101,12 @@ Always surface the exact `…/e/{slug}/{code}` and `…/scores` URLs after each 
   prints a "Scores by source" breakdown and the unresolved-conflict count. Use
   the `resolve-conflict` command (or the admin UI) to clear it and watch the team
   rejoin the standings.
+- **Session tokens (security model):** golfers have no password, so the player
+  endpoints (`/sync/scores`, auction `bid`/`pledge`, profile/payment) require an
+  opaque **session token** minted by the real `/join` flow. The seeder therefore
+  JOINs as actual players (`joinForToken`) to obtain each player's token before
+  syncing scores or bidding — exactly what the Expo app does. A call with a
+  missing/wrong token is rejected (`400`/`404`), so this also exercises the auth.
 - **Auction items stay Open** for the whole demo. Closing/awarding/buy-now would
   trigger `ChargeWinnerAsync` (Stripe), which 500s with no `STRIPE_SECRET_KEY`.
   So the seeder only creates items + bids/pledges; it never produces winners or

@@ -334,7 +334,10 @@ async function doRegistration(state, token) {
     const res = await api('POST', `/api/v1/events/${state.event.id}/register/team`, {
       body: { teamName: TEAM_NAMES[t], players },
     });
-    state.teams.push({ id: res.team.id, name: res.team.name });
+    // Keep player emails so we can later JOIN as a real player (mobile flow) to
+    // mint that player's session token — required to authorize mobile sync and
+    // auction bids since the security update.
+    state.teams.push({ id: res.team.id, name: res.team.name, playerEmails: players.map(p => p.email) });
   }
 
   // Now that all teams exist, turn on the entry fee and mark most teams paid.
@@ -380,19 +383,22 @@ async function doActive(state, token) {
 async function doAuctionBids(state, token) {
   if (!state.auction || state.auction.length === 0) return;
 
-  log('▶ Checking in players + placing auction bids…');
-  const teams = await api('GET', `/api/v1/events/${state.event.id}/teams`, { token });
-  const candidatePlayers = teams
-    .filter(t => t.checkInStatus === 'CheckedIn' || t.checkInStatus === 'Complete')
-    .flatMap(t => t.players.map(p => p.id));
-
+  log('▶ Joining players (mint tokens) + checking them in + placing auction bids…');
+  // Build a bidder pool of { playerId, token }: JOIN each player (mints their
+  // session token — required to bid since the security update), then player-level
+  // check-in (bidding eligibility waives the payment method for CheckedIn players).
+  const checkedInTeams = state.teams.slice(0, Math.ceil(state.teams.length * 0.8));
   const bidders = [];
-  for (const pid of candidatePlayers) {
+  for (const team of checkedInTeams) {
+    for (const email of (team.playerEmails || [])) {
+      if (bidders.length >= 12) break;
+      try {
+        const { playerId, token: sess } = await joinForToken(state, email);
+        await api('POST', `/api/v1/events/${state.event.id}/players/${playerId}/check-in`, { token });
+        bidders.push({ playerId, token: sess });
+      } catch { /* skip any player that can't join / check in */ }
+    }
     if (bidders.length >= 12) break;
-    try {
-      await api('POST', `/api/v1/events/${state.event.id}/players/${pid}/check-in`, { token });
-      bidders.push(pid);
-    } catch { /* skip any player that can't be checked in */ }
   }
   if (bidders.length < 2) { log('  (not enough eligible players to bid — skipped)'); return; }
 
@@ -402,15 +408,17 @@ async function doAuctionBids(state, token) {
     if (item.auctionType.startsWith('Donation')) {
       const denoms = [2500, 5000, 10000, 25000, 5000];
       for (const amountCents of denoms) {
+        const bidder = bidders[b++ % bidders.length];
         await api('POST', `/api/v1/auction/items/${item.id}/pledge`, {
-          body: { playerId: bidders[b++ % bidders.length], amountCents },
+          body: { playerId: bidder.playerId, amountCents, sessionToken: bidder.token },
         });
         bidCount++;
       }
     } else {
       for (let k = 0; k < 4; k++) {
+        const bidder = bidders[b++ % bidders.length];
         await api('POST', `/api/v1/auction/items/${item.id}/bid`, {
-          body: { playerId: bidders[b++ % bidders.length], amountCents: item.startingBidCents + k * item.bidIncrementCents },
+          body: { playerId: bidder.playerId, amountCents: item.startingBidCents + k * item.bidIncrementCents, sessionToken: bidder.token },
         });
         bidCount++;
       }
@@ -430,19 +438,23 @@ async function doScoring(state, token) {
   await scoreHoles(state, token, 1, 18, [mobileTeam.id]);
 
   log(`▶ Mobile sync: "${mobileTeam.name}" posts all 18 holes from the app (Source=MobileSync)…`);
+  const mobileAuth = await joinForToken(state, mobileTeam.playerEmails[0]);
   const mobileScores = [];
   for (let h = 1; h <= 18; h++) mobileScores.push({ holeNumber: h, grossScore: scrambleGross(h) });
-  const r1 = await mobileSync(state, mobileTeam.id, `phone-${mobileTeam.id.slice(0, 8)}`, mobileScores);
+  const r1 = await mobileSync(
+    state, mobileTeam.id, `phone-${mobileTeam.id.slice(0, 8)}`, mobileScores, mobileAuth.token);
 
   // Deliberate conflict: the admin already entered hole 3 for conflictTeam; the
   // mobile app now syncs a DIFFERENT value from a different device → the server
   // flags that score IsConflicted (and drops it from the live leaderboard until
   // an admin resolves it).
   log(`▶ Mobile sync: deliberate conflict for "${conflictTeam.name}" on hole 3…`);
+  const conflictAuth  = await joinForToken(state, conflictTeam.playerEmails[0]);
   const card = await api('GET', `/api/v1/events/${state.event.id}/teams/${conflictTeam.id}/scorecard`, { token });
   const adminGross    = card.holes.find(h => h.holeNumber === 3)?.grossScore ?? PARS[2];
   const mobileGross   = adminGross + 3 <= 12 ? adminGross + 3 : adminGross - 3;
-  await mobileSync(state, conflictTeam.id, 'phone-conflict-9f2a', [{ holeNumber: 3, grossScore: mobileGross }]);
+  await mobileSync(state, conflictTeam.id, 'phone-conflict-9f2a',
+    [{ holeNumber: 3, grossScore: mobileGross }], conflictAuth.token);
   state.conflict = { team: conflictTeam.name, hole: 3, adminGross, mobileGross };
   saveState(state);
   log(`  All 18 holes scored (${r1.accepted} via mobile sync), 1 deliberate conflict ` +
@@ -497,12 +509,22 @@ async function scoreHoles(state, token, from, to, skipTeamIds = []) {
   }
 }
 
+// Joins as a real player (the mobile join flow) to mint that player's session
+// token. Golfers have no password — this opaque token authorizes their own
+// actions (mobile score sync, auction bids/pledges). Returns { playerId, token }.
+async function joinForToken(state, email) {
+  const resp = await api('POST', `/api/v1/events/${state.event.code}/join`, {
+    body: { email, deviceId: `seed-${email}` },
+  });
+  return { playerId: resp.player.id, token: resp.sessionToken };
+}
+
 // Posts scores through the REAL mobile sync endpoint — same path the Expo app's
-// backgroundSync uses. Writes Score rows with Source=MobileSync. No auth (the
-// app has no user account; eventId + teamId + deviceId identify the batch).
-async function mobileSync(state, teamId, deviceId, scores) {
+// backgroundSync uses. Writes Score rows with Source=MobileSync. Requires the
+// session token of a player ON THIS TEAM (minted via joinForToken).
+async function mobileSync(state, teamId, deviceId, scores, sessionToken) {
   return api('POST', '/api/v1/sync/scores', {
-    body: { eventId: state.event.id, teamId, deviceId, scores },
+    body: { eventId: state.event.id, teamId, sessionToken, deviceId, scores },
   });
 }
 
