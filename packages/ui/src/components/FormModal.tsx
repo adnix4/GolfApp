@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   cancelBtn: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     flex: 2,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',

@@ -102,6 +102,9 @@ export function Button({
           paddingHorizontal: dims.padH,
           minHeight: dims.minH,
         },
+        // Filled variants get a soft depth shadow; outline (secondary) stays flat.
+        // Dropped while disabled so a non-actionable button reads as inert.
+        variant !== 'secondary' && !isDisabled && styles.elevated,
         fullWidth && styles.fullWidth,
         pressed && styles.pressed,
         isDisabled && styles.disabled,
@@ -132,20 +135,29 @@ export function DangerButton(props: Omit<ButtonProps, 'variant'>) {
 
 const styles = StyleSheet.create({
   btn: {
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Soft, brand-neutral depth for filled buttons (color still comes from theme).
+  elevated: {
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.16)',
+    elevation: 3,
   },
   fullWidth: {
     alignSelf: 'stretch',
   },
+  // Tactile press: a small scale-down + slight fade reads more modern than a
+  // flat opacity change.
   pressed: {
-    opacity: 0.85,
+    transform: [{ scale: 0.97 }],
+    opacity: 0.92,
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.45,
   },
   text: {
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

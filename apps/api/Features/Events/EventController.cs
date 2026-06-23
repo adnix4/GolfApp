@@ -31,6 +31,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using GolfFundraiserPro.Api.Common.Middleware;
+using GolfFundraiserPro.Api.Features.Events.Branding;
 
 namespace GolfFundraiserPro.Api.Features.Events;
 
@@ -40,17 +41,20 @@ public class EventController : ControllerBase
 {
     private readonly EventService       _eventService;
     private readonly TestDataService    _testDataService;
+    private readonly BrandExtractionService _brandExtraction;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<EventController> _logger;
 
     public EventController(
         EventService eventService,
         TestDataService testDataService,
+        BrandExtractionService brandExtraction,
         IWebHostEnvironment env,
         ILogger<EventController> logger)
     {
         _eventService    = eventService;
         _testDataService = testDataService;
+        _brandExtraction = brandExtraction;
         _env             = env;
         _logger          = logger;
     }
@@ -274,6 +278,29 @@ public class EventController : ControllerBase
         var orgId = GetOrgId();
         var url   = await _eventService.UploadEventLogoAsync(orgId, id, file, _env, ct);
         return Ok(new LogoUploadResponse { Url = url });
+    }
+
+    /// <summary>
+    /// Suggests a colour palette + logo derived from a website URL — an optional
+    /// convenience for branding setup. Does NOT persist: returns a suggestion the
+    /// organizer reviews and edits, then saves via PATCH /branding.
+    /// Fetch is SSRF-guarded (blocks private/loopback/metadata addresses),
+    /// OrgAdmin-only, and rate-limited.
+    /// </summary>
+    [HttpPost("api/v1/events/{id:guid}/branding/extract")]
+    [Authorize(Policy = "OrgAdmin")]
+    [EnableRateLimiting("brandExtract")]
+    [ProducesResponseType(typeof(BrandExtractionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BrandExtractionResponse>> ExtractBranding(
+        [FromRoute] Guid id,
+        [FromBody] ExtractBrandRequest request,
+        CancellationToken ct)
+    {
+        var orgId  = GetOrgId();
+        var result = await _brandExtraction.ExtractAsync(orgId, id, request.WebsiteUrl, ct);
+        return Ok(result);
     }
 
     // ── PUBLIC LANDING PAGE (no auth) ─────────────────────────────────────────

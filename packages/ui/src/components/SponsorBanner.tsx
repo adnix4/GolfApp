@@ -105,19 +105,21 @@ const styles = StyleSheet.create({
   // Full variant
   fullContainer: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 20,
     alignItems: 'center',
     marginVertical: 8,
     position: 'relative',
+    boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.06)',
+    elevation: 2,
   },
   tierBadge: {
     position: 'absolute',
     top: 10,
     right: 10,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 999,
   },
   tierText: {
     fontSize: 10,
@@ -143,9 +145,9 @@ const styles = StyleSheet.create({
 
   // Compact variant
   compactContainer: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 6,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },

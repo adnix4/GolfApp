@@ -142,6 +142,7 @@ export function ScoreCard({
               minHeight: touchTarget,
               borderRadius: touchTarget / 2,
             },
+            pressed && styles.buttonPressed,
             disabled && styles.buttonDisabled,
           ]}
           accessibilityLabel={`Decrease score for hole ${holeNumber}`}
@@ -187,6 +188,7 @@ export function ScoreCard({
               minHeight: touchTarget,
               borderRadius: touchTarget / 2,
             },
+            pressed && styles.buttonPressed,
             disabled && styles.buttonDisabled,
           ]}
           accessibilityLabel={`Increase score for hole ${holeNumber}`}
@@ -202,9 +204,11 @@ export function ScoreCard({
 const styles = StyleSheet.create({
   card: {
     borderWidth: 2,
-    borderRadius: 12,
+    borderRadius: 16,
     marginVertical: 8,
     marginHorizontal: 4,
+    boxShadow: '0px 2px 12px rgba(0, 0, 0, 0.07)',
+    elevation: 2,
   },
   header: {
     flexDirection: 'row',
@@ -222,7 +226,7 @@ const styles = StyleSheet.create({
   },
   challengeBadge: {
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 10,
     paddingVertical: 6,
     paddingHorizontal: 8,
     marginBottom: 8,
@@ -250,7 +254,7 @@ const styles = StyleSheet.create({
   },
   conflictBanner: {
     backgroundColor: '#fdf2e3',
-    borderRadius: 6,
+    borderRadius: 10,
     paddingVertical: 6,
     paddingHorizontal: 10,
     marginBottom: 10,
@@ -269,6 +273,10 @@ const styles = StyleSheet.create({
   button: {
     justifyContent: 'center',
     alignItems:     'center',
+  },
+  // Tactile press feedback to match the modernized @gfp/ui Button.
+  buttonPressed: {
+    transform: [{ scale: 0.94 }],
   },
   buttonText: {
     fontWeight: '300',

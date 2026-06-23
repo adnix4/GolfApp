@@ -199,13 +199,16 @@ export async function fetchEventStatus(eventCode: string): Promise<string> {
 }
 
 // Returns true if the API server is reachable within 5 s.
+// AbortSignal.timeout (standard via expo/fetch, SDK 56) bounds the request AND
+// cancels it when the deadline passes — the old Promise.race left the fetch
+// running in the background after the timeout won.
 export async function checkConnectivity(): Promise<boolean> {
-  return Promise.race<boolean>([
-    fetch(`${BASE}/api/v1/pub/events/PING`)
-      .then(() => true)
-      .catch(() => false),
-    new Promise<boolean>(resolve => setTimeout(() => resolve(false), 5000)),
-  ]);
+  try {
+    await fetch(`${BASE}/api/v1/pub/events/PING`, { signal: AbortSignal.timeout(5000) });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function registerPushToken(playerId: string, token: string | null): Promise<void> {

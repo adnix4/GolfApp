@@ -88,9 +88,11 @@ export function TeamCard({ team, showCheckIn: _showCheckIn = false }: TeamCardPr
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginVertical: 8,
+    boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.06)',
+    elevation: 2,
   },
   header: {
     flexDirection: 'row',
@@ -131,8 +133,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   playerStatus: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 3,
-    borderRadius: 4,
+    borderRadius: 999,
   },
 });

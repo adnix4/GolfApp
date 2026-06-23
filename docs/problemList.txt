@@ -91,35 +91,139 @@ NOTE: this upgrade also clears the 23 moderate transitive Expo build-tooling vul
 that item #6 deferred until the SDK bump.
 
 TOP PICKS (high payoff)
-[ ] M1. expo-sqlite session changesets -> simplify offline sync (SIMPLIFY CODE).
-        Best fit. We hand-roll offline reconciliation: pending_scores +
-        backgroundSync.ts + mergeServerScores + the admin-wins / proposed_score
-        conflict flow. SQLite session changesets capture local mutations as a
-        changeset and apply/rebase server changesets natively, replacing much of the
-        custom merge logic with DB primitives. Core data-path change — spike first.
+[-] M1. expo-sqlite session changesets -> simplify offline sync (SIMPLIFY CODE).
+        SPIKED 2026-06-23: REJECTED — does not fit this architecture.
+        Original idea: capture local mutations as a changeset and apply/rebase server
+        changesets natively, replacing pending_scores + backgroundSync.ts +
+        mergeServerScores + the admin-wins / proposed_score conflict flow with DB
+        primitives. Findings:
+        - Session changesets are a SQLite<->SQLite BINARY replication format
+          (create/applyChangesetAsync exchange an ArrayBuffer of SQLite's changeset
+          format; see node_modules/expo-sqlite/build/NativeSession.d.ts). The headline
+          benefit "apply server changesets natively" requires the server to be a SQLite
+          peer. Ours is ASP.NET Core + PostgreSQL with JSON-REST sync
+          (POST /api/v1/sync/scores {scores:[...]} -> {accepted,conflicts}; pull-back
+          via TeamScorecard JSON). It cannot emit/consume SQLite changesets, so that
+          benefit is unreachable without rebuilding backend sync around SQLite — a
+          non-starter for a Postgres backend.
+        - store.mergeServerScores is domain-specific bookkeeping: protect unsynced
+          local edits (synced_at IS NULL), else adopt server value, set the `conflict`
+          flag for the proposed_score approval flow, manage completed_at. A changeset
+          conflict handler only does generic row/column ops (OMIT/REPLACE/ABORT) and
+          can't express those rules, so the app logic stays either way.
+        - Dataset is ~18 rows (1/hole/team), single table, deterministic PK, already a
+          clean INSERT OR REPLACE upsert. No large multi-table mutation set for
+          changeset replication to optimize.
+        Net: adds a native session-extension dependency + binary-blob plumbing while
+        removing none of the REST protocol or domain rules. Not worth it.
+        Orthogonal note: if offline sync ever needs simplifying, the real smell is
+        pending_scores multiplexing 3 roles (editable scorecard / outbound queue /
+        server cache) via flag columns — a manual table-split refactor, unrelated to
+        changesets.
 
-[ ] M2. @expo/ui universal components -> modernize the scorer look (LOOK).
-        Production-ready native primitives (Button, Switch, Slider, Checkbox,
-        BottomSheet, SegmentedControl) + Material 3 (useMaterialColors). Direct
-        replacements for parts of hand-rolled @gfp/ui (Button, FormModal-as-sheet,
-        test-mode Switch).
-        CAVEAT: @expo/ui renders NATIVE views — does NOT work under react-native-web,
-        so the admin/web app cannot use it. Mobile-only layer; web keeps current
-        @gfp/ui components. Accept the divergence before adopting.
+[-] M2. @expo/ui universal components -> modernize the scorer look (LOOK).
+        REJECTED 2026-06-23 — wrong tool given branding is a priority/selling feature.
+        @expo/ui renders NATIVE SYSTEM controls (iOS SwiftUI / Android Material) that
+        follow the OS look and only accept a tint — they do NOT fully honor a per-event
+        custom palette, so adopting them fights the branding requirement. Also native-
+        only (every use needs a .web.tsx fallback since the scorer targets web too) and
+        not locally verifiable on the Windows/web dev setup. @expo/ui ~56.0.18 is
+        available if a future non-branded surface ever wants it, but not for branded UI.
+        PIVOTED to M2c (modernize the branded components instead).
 
-[ ] M3. expo-router Native Stack v5 + Suspense fallbacks -> nav polish + less
-        boilerplate (LOOK + SIMPLIFY). Material-style headers + Android predictive-
-        back modernize the (scoring) flows. SuspenseFallback in _layout routes can
-        replace manual loading spinners, likely thinning the AsyncSection component.
-        Both experimental in 56, low risk for the scorer.
+[x] M2c. Modernize the look/feel of branded components (LOOK). DONE 2026-06-23.
+        Kept 100% brand control (all colors from theme.colors) while modernizing
+        buttons + graphics. Lands in BOTH mobile + admin via shared @gfp/ui; API of
+        every component unchanged (no call-site edits); web-verifiable; type-check +
+        all tests green (no component snapshot tests exist).
+        Design language applied consistently: card radius ->16, soft depth shadow
+        (boxShadow 0 2 10-12 rgba(0,0,0,.06-.08) + elevation 2), pills/badges ->fully
+        rounded (999), inner badges ->10-12, tactile press (scale) on buttons.
+        Components touched:
+        - @gfp/ui Button: radius 12, depth shadow on filled (dropped when disabled),
+          press scale 0.97 + fade, letter-spaced labels.
+        - @gfp/ui StatusPill: true pill (radius 999).
+        - @gfp/ui ScoreCard: radius 16 + soft shadow, press-scale on +/- buttons,
+          rounded challenge badge / conflict banner.
+        - @gfp/ui LeaderboardRow: more row padding, softer divider, rounded sponsor badge.
+        - @gfp/ui TeamCard: radius 16 + shadow, pill player-status chips.
+        - @gfp/ui SponsorBanner: radius 16 + shadow, pill tier/compact badges.
+        - @gfp/ui FormModal: action buttons radius ->12 (card already modern).
+        - mobile scorecardComponents: HoleInfoChip/ScoreChip/SyncStatusBar radius ->12.
+
+[x] M2b. Brand-from-website (AI-ready) — admin branding convenience. DONE 2026-06-23.
+        Replaces the manual "enter a color scheme" step with an optional website URL:
+        the API scrapes the site and suggests a 5-token palette + logo, pre-filling the
+        existing manual editors (which stay as the edit UI; WCAG save-gate intact).
+        - Endpoint: POST /api/v1/events/{id}/branding/extract (OrgAdmin, rate-limited
+          "brandExtract" 10/min). Returns a SUGGESTION; persists nothing until the
+          organizer Saves via PATCH /branding.
+        - Security: SSRF-guarded fetch (apps/api/Features/Events/Branding/
+          PrivateNetworkGuard.cs) validates the resolved IP at CONNECT time on every
+          redirect hop — blocks loopback/private/link-local/169.254.169.254-metadata;
+          scheme allow-list; 2 MB + 10s caps. Logo downloaded server-side, stored at
+          /uploads/event-logos/{id}-fetched.* (distinct name, never clobbers a saved logo).
+        - SWAP SEAM for AI later: IBrandPaletteSynthesizer (BrandPaletteContracts.cs)
+          is the ONLY strategy-specific step. Today = HeuristicBrandPaletteSynthesizer
+          (no API key, no per-use cost). To use Claude instead, add a synthesizer impl
+          + change one DI line in ServiceCollectionExtensions; fetch/parse/logo/endpoint/
+          UI are untouched. (Heuristic chosen over Haiku to avoid a paid Anthropic API
+          dependency; Haiku would have been ~$0.003-0.005/extraction.)
+        - No .NET test project exists, so the SSRF guard + heuristic are not unit-tested
+          yet; worth adding if a test project is introduced.
+
+[x] M3. expo-router Native Stack v5 + Suspense fallbacks -> nav polish + less
+        boilerplate (LOOK + SIMPLIFY).
+        DONE 2026-06-23 (scoped down after review). Shipped the one part that fits:
+        - Android predictive-back gesture: set android.predictiveBackGestureEnabled
+          = true in apps/mobile/app.json (CNG/managed — prebuild writes
+          android:enableOnBackInvokedCallback). Safe: no screen intercepts back
+          (no BackHandler / usePreventRemove / beforeRemove), so nothing to break;
+          modernizes the router.push flows (edit-profile, payment-setup, qr-transfer).
+        REJECTED sub-parts (do not pursue for this app):
+        - Material-style native headers (Native Stack v5): N/A. The app sets
+          headerShown:false everywhere and renders its own branded in-screen headers
+          (e.g. _layout waitHeader, custom back buttons). Native headers are
+          deliberately off, so material headers add nothing.
+        - Suspense fallbacks: poor fit. Screens fetch via useEffect+useState(loading)
+          or the live useLiveLeaderboard hook (SignalR + 15s poll); none SUSPEND, so a
+          SuspenseFallback never fires without rewriting each screen's data layer to a
+          Suspense source — which would also lose the live-connection status UI
+          ("Live · Updated 3s ago"). AsyncSection (@gfp/ui) isn't even used in mobile
+          (only admin/web), so there is no mobile boilerplate to thin out.
 
 WORTH CONSIDERING
-[ ] M4. expo/fetch is now the default WinterTC fetch (SIMPLIFY + FUNCTIONALITY).
-        AbortSignal.timeout/.any() + Android brotli/gzip/zstd decompression. apiClient
-        can likely drop custom timeout/abort plumbing; leaderboard payloads shrink.
+[x] M4. expo/fetch is now the default WinterTC fetch (SIMPLIFY + FUNCTIONALITY).
+        DONE 2026-06-23. The only custom fetch-timeout plumbing in the codebase was
+        api.checkConnectivity (Promise.race against setTimeout). Replaced with
+        AbortSignal.timeout(5000) — simpler, AND it cancels the request on expiry
+        (the old race left the ping fetch running in the background after timing out).
+        Tests unchanged + green. The shared packages/shared-types apiClient has no
+        timeout/abort plumbing, so nothing to change there.
+        Android brotli/gzip/zstd response decompression (smaller leaderboard payloads)
+        comes for free with expo/fetch as the default — no code change.
 
-[ ] M5. NavigationBar + status-bar consistency (LOOK). Extends per-event branding
-        (SessionThemeProvider) to the system bars for a fully-themed branded event.
+[-] M5. NavigationBar + status-bar consistency (LOOK).
+        SPIKED 2026-06-23: REJECTED — edge-to-edge removes the core idea (color the
+        system bars with the brand), and what's left is poor cost/benefit here.
+        - SDK 54+ enforces Android edge-to-edge. SDK 56's expo-status-bar dropped the
+          backgroundColor prop / setStatusBarBackgroundColor entirely, and
+          expo-navigation-bar's setBackgroundColorAsync (+ most color APIs) are
+          @deprecated. The bars are transparent and content draws behind them — there
+          is no bar background to brand on either bar.
+        - What remains is only the icon STYLE (light/dark) for contrast against whatever
+          sits behind the transparent bar — that is not branding. And it is PER-SCREEN:
+          the app mixes dark (primary header) and light (surface page) backgrounds
+          behind the bars, so no single global value is correct (light icons vanish on
+          the light leaderboard page; dark icons vanish on a dark header). Doing it
+          right means touching many screens with real invisible-icon regression risk
+          and little visible payoff.
+        - The app currently renders no <StatusBar> and relies on style="auto" (dark
+          icons in light mode) over SafeAreaView-inset light backgrounds, which already
+          reads fine. No reported problem to fix.
+        Not worth it. Revisit only under a deliberate edge-to-edge redesign (headers
+        drawn behind the bars), where per-screen StatusBar style would then matter.
+        No deps added (expo-navigation-bar intentionally NOT installed).
 
 [ ] M6. expo-file-system createUploadTask/createDownloadTask with progress
         (FUNCTIONALITY). Only if we add sponsor-logo / branding-image uploads —

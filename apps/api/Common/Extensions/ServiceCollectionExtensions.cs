@@ -139,6 +139,31 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Features.Auth.AuthService>();
         services.AddScoped<Features.Events.EventService>();
         services.AddScoped<Features.Events.TestDataService>();
+
+        // Brand-from-website extraction. The synthesizer is the one swappable step:
+        // the heuristic (no-key) implementation is registered today; an AI version
+        // can replace this single line later without touching the fetch/parse
+        // pipeline. The fetch uses a dedicated SSRF-guarded HttpClient that
+        // validates the resolved IP at connect time (blocks loopback/private/
+        // link-local/metadata) on every hop, with bounded redirects + timeouts.
+        services.AddScoped<Features.Events.Branding.IBrandPaletteSynthesizer,
+                           Features.Events.Branding.HeuristicBrandPaletteSynthesizer>();
+        services.AddScoped<Features.Events.Branding.BrandExtractionService>();
+        services.AddHttpClient("brand-extract")
+            .ConfigureHttpClient(c =>
+            {
+                c.Timeout = TimeSpan.FromSeconds(10);
+                c.MaxResponseContentBufferSize = 4 * 1024 * 1024;
+                c.DefaultRequestHeaders.UserAgent.ParseAdd("GolfFundraiserPro-BrandBot/1.0");
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new System.Net.Http.SocketsHttpHandler
+            {
+                AllowAutoRedirect        = true,
+                MaxAutomaticRedirections = 3,
+                AutomaticDecompression   = System.Net.DecompressionMethods.All,
+                ConnectTimeout           = TimeSpan.FromSeconds(5),
+                ConnectCallback          = Features.Events.Branding.PrivateNetworkGuard.GuardedConnectAsync,
+            });
         services.AddScoped<Features.Teams.TeamService>();
         services.AddScoped<Features.Players.PlayerService>();
         services.AddScoped<Features.Scores.ScoreService>();
@@ -425,6 +450,18 @@ public static class ServiceCollectionExtensions
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 30,
+                        Window      = TimeSpan.FromMinutes(1),
+                        QueueLimit  = 0,
+                    }));
+
+            // Brand-from-website extraction — bounds outbound-fetch abuse (SSRF
+            // probing, cost) on the org-admin branding endpoint.
+            options.AddPolicy("brandExtract", http =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    ClientKey(http),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
                         Window      = TimeSpan.FromMinutes(1),
                         QueueLimit  = 0,
                     }));

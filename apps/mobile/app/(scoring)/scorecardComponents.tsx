@@ -32,7 +32,7 @@ export function HoleInfoChip({ label, value }: { label: string; value: string })
 }
 
 const infoChipStyles = StyleSheet.create({
-  chip:  { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  chip:  { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, alignItems: 'center' },
   label: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   value: { fontSize: 16, fontWeight: '700', marginTop: 2 },
 });
@@ -61,7 +61,7 @@ export function ScoreChip({ grossScore, par }: { grossScore: number | null; par:
 }
 
 const scoreChipStyles = StyleSheet.create({
-  chip:  { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, alignItems: 'center', borderWidth: 1 },
+  chip:  { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, alignItems: 'center', borderWidth: 1 },
   label: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   value: { fontSize: 22, fontWeight: '800', marginTop: 2, lineHeight: 26 },
   rel:   { fontSize: 13, fontWeight: '700', marginTop: 1 },
@@ -115,7 +115,7 @@ export function SyncStatusBar({
 }
 
 const syncStyles = StyleSheet.create({
-  bar:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 8, marginTop: 12 },
+  bar:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 12, marginTop: 12 },
   spinner: { marginRight: 8 },
   text:    { fontSize: 13, fontWeight: '600' },
 });
