@@ -27,6 +27,7 @@
     },
     "android": {
       "package": "pro.golffundraiser.scorer",
+      "predictiveBackGestureEnabled": true,
       "adaptiveIcon": {
         "backgroundColor": "#31572c"
       }

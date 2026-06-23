@@ -130,11 +130,25 @@ TOP PICKS (high payoff)
         so the admin/web app cannot use it. Mobile-only layer; web keeps current
         @gfp/ui components. Accept the divergence before adopting.
 
-[ ] M3. expo-router Native Stack v5 + Suspense fallbacks -> nav polish + less
-        boilerplate (LOOK + SIMPLIFY). Material-style headers + Android predictive-
-        back modernize the (scoring) flows. SuspenseFallback in _layout routes can
-        replace manual loading spinners, likely thinning the AsyncSection component.
-        Both experimental in 56, low risk for the scorer.
+[x] M3. expo-router Native Stack v5 + Suspense fallbacks -> nav polish + less
+        boilerplate (LOOK + SIMPLIFY).
+        DONE 2026-06-23 (scoped down after review). Shipped the one part that fits:
+        - Android predictive-back gesture: set android.predictiveBackGestureEnabled
+          = true in apps/mobile/app.json (CNG/managed — prebuild writes
+          android:enableOnBackInvokedCallback). Safe: no screen intercepts back
+          (no BackHandler / usePreventRemove / beforeRemove), so nothing to break;
+          modernizes the router.push flows (edit-profile, payment-setup, qr-transfer).
+        REJECTED sub-parts (do not pursue for this app):
+        - Material-style native headers (Native Stack v5): N/A. The app sets
+          headerShown:false everywhere and renders its own branded in-screen headers
+          (e.g. _layout waitHeader, custom back buttons). Native headers are
+          deliberately off, so material headers add nothing.
+        - Suspense fallbacks: poor fit. Screens fetch via useEffect+useState(loading)
+          or the live useLiveLeaderboard hook (SignalR + 15s poll); none SUSPEND, so a
+          SuspenseFallback never fires without rewriting each screen's data layer to a
+          Suspense source — which would also lose the live-connection status UI
+          ("Live · Updated 3s ago"). AsyncSection (@gfp/ui) isn't even used in mobile
+          (only admin/web), so there is no mobile boilerplate to thin out.
 
 WORTH CONSIDERING
 [ ] M4. expo/fetch is now the default WinterTC fetch (SIMPLIFY + FUNCTIONALITY).
