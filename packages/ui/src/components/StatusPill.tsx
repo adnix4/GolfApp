@@ -60,7 +60,7 @@ export function StatusPill({
 
 const styles = StyleSheet.create({
   pill: {
-    borderRadius: 12,
+    borderRadius: 999,
     alignSelf: 'flex-start',
   },
   smPad: {

@@ -121,16 +121,35 @@ TOP PICKS (high payoff)
         server cache) via flag columns — a manual table-split refactor, unrelated to
         changesets.
 
-[~] M2. @expo/ui universal components -> modernize the scorer look (LOOK).
-        DEFERRED 2026-06-23 — effort redirected by request into a different branding
-        feature (below). @expo/ui itself is still un-adopted.
-        Production-ready native primitives (Button, Switch, Slider, Checkbox,
-        BottomSheet, SegmentedControl) + Material 3 (useMaterialColors). Direct
-        replacements for parts of hand-rolled @gfp/ui (Button, FormModal-as-sheet,
-        test-mode Switch).
-        CAVEAT: @expo/ui renders NATIVE views — does NOT work under react-native-web,
-        so the admin/web app cannot use it. Mobile-only layer; web keeps current
-        @gfp/ui components. Accept the divergence before adopting.
+[-] M2. @expo/ui universal components -> modernize the scorer look (LOOK).
+        REJECTED 2026-06-23 — wrong tool given branding is a priority/selling feature.
+        @expo/ui renders NATIVE SYSTEM controls (iOS SwiftUI / Android Material) that
+        follow the OS look and only accept a tint — they do NOT fully honor a per-event
+        custom palette, so adopting them fights the branding requirement. Also native-
+        only (every use needs a .web.tsx fallback since the scorer targets web too) and
+        not locally verifiable on the Windows/web dev setup. @expo/ui ~56.0.18 is
+        available if a future non-branded surface ever wants it, but not for branded UI.
+        PIVOTED to M2c (modernize the branded components instead).
+
+[x] M2c. Modernize the look/feel of branded components (LOOK). DONE 2026-06-23.
+        Kept 100% brand control (all colors from theme.colors) while modernizing
+        buttons + graphics. Lands in BOTH mobile + admin via shared @gfp/ui; API of
+        every component unchanged (no call-site edits); web-verifiable; type-check +
+        all tests green (no component snapshot tests exist).
+        Design language applied consistently: card radius ->16, soft depth shadow
+        (boxShadow 0 2 10-12 rgba(0,0,0,.06-.08) + elevation 2), pills/badges ->fully
+        rounded (999), inner badges ->10-12, tactile press (scale) on buttons.
+        Components touched:
+        - @gfp/ui Button: radius 12, depth shadow on filled (dropped when disabled),
+          press scale 0.97 + fade, letter-spaced labels.
+        - @gfp/ui StatusPill: true pill (radius 999).
+        - @gfp/ui ScoreCard: radius 16 + soft shadow, press-scale on +/- buttons,
+          rounded challenge badge / conflict banner.
+        - @gfp/ui LeaderboardRow: more row padding, softer divider, rounded sponsor badge.
+        - @gfp/ui TeamCard: radius 16 + shadow, pill player-status chips.
+        - @gfp/ui SponsorBanner: radius 16 + shadow, pill tier/compact badges.
+        - @gfp/ui FormModal: action buttons radius ->12 (card already modern).
+        - mobile scorecardComponents: HoleInfoChip/ScoreChip/SyncStatusBar radius ->12.
 
 [x] M2b. Brand-from-website (AI-ready) — admin branding convenience. DONE 2026-06-23.
         Replaces the manual "enter a color scheme" step with an optional website URL:
