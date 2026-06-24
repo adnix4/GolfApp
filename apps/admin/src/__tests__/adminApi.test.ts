@@ -15,7 +15,7 @@ const { mockStorage } = vi.hoisted(() => ({
 
 vi.mock('../lib/storage', () => ({ storage: mockStorage }));
 
-import { authApi, eventsApi, teamsApi, challengesApi, auctionApi, ApiError } from '../lib/api';
+import { authApi, eventsApi, teamsApi, challengesApi, auctionApi, eventBrandingApi, ApiError } from '../lib/api';
 
 // ── fetch mock ───────────────────────────────────────────────────────────────
 
@@ -360,5 +360,34 @@ describe('auctionApi.nextItem', () => {
     const result = await auctionApi.nextItem('ev1');
     expect(result.currentItemId).toBe('item2');
     expect(result.currentCalledAmountCents).toBe(5000);
+  });
+});
+
+// ── eventBrandingApi.extractFromWebsite ───────────────────────────────────────
+
+describe('eventBrandingApi.extractFromWebsite', () => {
+  const SUGGESTION = {
+    theme: {
+      primary: '#31572c', action: '#409151', accent: '#8ba955',
+      highlight: '#ecf39e', surface: '#f4f7de',
+    },
+    logoUrl: '/uploads/event-logos/ev1-fetched.png',
+    sourceUrl: 'https://example.org/',
+  };
+
+  it('sends POST to /branding/extract with the website URL', async () => {
+    mockOk(SUGGESTION);
+    const result = await eventBrandingApi.extractFromWebsite('ev1', 'example.org');
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/events/ev1/branding/extract');
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body as string)).toMatchObject({ websiteUrl: 'example.org' });
+    expect(result.theme.primary).toBe('#31572c');
+    expect(result.logoUrl).toBe('/uploads/event-logos/ev1-fetched.png');
+  });
+
+  it('throws ApiError when the site cannot be reached', async () => {
+    mockErr(400, { code: 'VALIDATION_ERROR', error: "Couldn't reach that website." });
+    await expect(eventBrandingApi.extractFromWebsite('ev1', 'bad')).rejects.toBeInstanceOf(ApiError);
   });
 });

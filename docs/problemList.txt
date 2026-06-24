@@ -169,8 +169,13 @@ TOP PICKS (high payoff)
           + change one DI line in ServiceCollectionExtensions; fetch/parse/logo/endpoint/
           UI are untouched. (Heuristic chosen over Haiku to avoid a paid Anthropic API
           dependency; Haiku would have been ~$0.003-0.005/extraction.)
-        - No .NET test project exists, so the SSRF guard + heuristic are not unit-tested
-          yet; worth adding if a test project is introduced.
+        - Unit-tested (2026-06-23) in apps/api-tests/Branding/: PrivateNetworkGuard
+          (SSRF allow/block table), BrandColorMath (parse + WCAG contrast/mix),
+          HeuristicBrandPaletteSynthesizer (valid hex + 4.5:1 guarantee across
+          empty/vivid/light/low-contrast inputs), and BrandExtractionService
+          ParseSignals/NormalizeUrl (made internal + InternalsVisibleTo("WebAPI.Tests")).
+          Admin extractFromWebsite wrapper covered in adminApi.test.ts. The live HTTP
+          path (ExtractAsync end-to-end) is still only exercised manually.
 
 [x] M3. expo-router Native Stack v5 + Suspense fallbacks -> nav polish + less
         boilerplate (LOOK + SIMPLIFY).

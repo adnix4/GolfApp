@@ -87,7 +87,7 @@ public sealed class BrandExtractionService
 
     // ── URL validation ────────────────────────────────────────────────────────
 
-    private static Uri NormalizeUrl(string input)
+    internal static Uri NormalizeUrl(string input)
     {
         var s = (input ?? string.Empty).Trim();
         if (s.Length == 0) throw new ValidationException("Enter a website address.");
@@ -110,7 +110,7 @@ public sealed class BrandExtractionService
     private static readonly Regex RgbRegex =
         new(@"rgba?\([^)]*\)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    private static BrandSignals ParseSignals(string html, Uri baseUri)
+    internal static BrandSignals ParseSignals(string html, Uri baseUri)
     {
         string? themeColor = null;
         var logoOg = new List<Uri>();

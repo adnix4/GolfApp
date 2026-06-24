@@ -83,24 +83,7 @@ public class HandicapEngine
         var differentials = await ComputeDifferentialsAsync(member.Id, isUsga, ct);
         if (differentials.Count == 0) return null;
 
-        double newIndex;
-        if (isUsga)
-        {
-            // USGA: best 8 of last 20 differentials
-            newIndex = ComputeBestNofM(differentials, 8, 20);
-        }
-        else
-        {
-            newIndex = formula.Type switch
-            {
-                "BestNofM" => ComputeBestNofM(differentials, formula.N, formula.M),
-                "Rolling"  => ComputeRolling(differentials, formula.N),
-                "Percent"  => ComputePercent(differentials, formula.N, formula.Pct),
-                _          => ComputeBestNofM(differentials, 5, 10)
-            };
-        }
-
-        newIndex = Math.Round(Math.Min(newIndex, cap), 1);
+        double newIndex = ComputeIndex(differentials, formula, cap, isUsga);
 
         if (Math.Abs(newIndex - member.HandicapIndex) < 0.05) return null;
 
@@ -152,12 +135,50 @@ public class HandicapEngine
             .OrderByDescending(r => r.RoundDate)
             .ToListAsync(ct);
 
-        return rounds.Select(r =>
+        return rounds
+            .Select(r => ComputeDifferential(r.GrossTotal, r.CoursePar, r.CourseRating, r.SlopeRating, isUsga))
+            .ToList();
+    }
+
+    /// <summary>
+    /// One round's scoring differential. USGA uses course rating + slope when both
+    /// are present; otherwise (Club, or missing ratings) it falls back to the simple
+    /// gross-over-par differential.
+    /// </summary>
+    internal static double ComputeDifferential(
+        int grossTotal, int coursePar, double? courseRating, int? slopeRating, bool isUsga)
+    {
+        if (isUsga && courseRating.HasValue && slopeRating is > 0)
+            return (grossTotal - courseRating.Value) * 113.0 / slopeRating.Value;
+        return grossTotal - coursePar;
+    }
+
+    /// <summary>
+    /// Selects the new handicap index from a member's differentials (most-recent-first),
+    /// applies the configured formula (or USGA best-8-of-20), caps it, and rounds to
+    /// one decimal. Pure — extracted so the math is unit-testable without a database.
+    /// </summary>
+    internal static double ComputeIndex(
+        List<double> differentials, HandicapFormula formula, double cap, bool isUsga)
+    {
+        double newIndex;
+        if (isUsga)
         {
-            if (isUsga && r.CourseRating.HasValue && r.SlopeRating is > 0)
-                return (r.GrossTotal - r.CourseRating.Value) * 113.0 / r.SlopeRating.Value;
-            return (double)(r.GrossTotal - r.CoursePar);
-        }).ToList();
+            // USGA: best 8 of last 20 differentials
+            newIndex = ComputeBestNofM(differentials, 8, 20);
+        }
+        else
+        {
+            newIndex = formula.Type switch
+            {
+                "BestNofM" => ComputeBestNofM(differentials, formula.N, formula.M),
+                "Rolling"  => ComputeRolling(differentials, formula.N),
+                "Percent"  => ComputePercent(differentials, formula.N, formula.Pct),
+                _          => ComputeBestNofM(differentials, 5, 10)
+            };
+        }
+
+        return Math.Round(Math.Min(newIndex, cap), 1);
     }
 
     private static double ComputeBestNofM(List<double> diffs, int n, int m)
@@ -180,7 +201,7 @@ public class HandicapEngine
         return recent.Count == 0 ? 0 : recent.Average() * pct;
     }
 
-    private static HandicapFormula ParseFormula(string json)
+    internal static HandicapFormula ParseFormula(string json)
     {
         try
         {
@@ -198,7 +219,7 @@ public class HandicapEngine
         }
     }
 
-    private record HandicapFormula(string Type, int N, int M, double Pct);
+    internal record HandicapFormula(string Type, int N, int M, double Pct);
 
     // ── SANDBAGGER DETECTION ──────────────────────────────────────────────────
     // Returns member IDs where last 5 net scores are all >= 3 strokes better
