@@ -17,6 +17,9 @@ public class NullRealTimeService : IRealTimeService
         IEnumerable<(Guid TeamId, string TeamName, short HoleNumber, short GrossScore)> acceptedScores,
         CancellationToken ct = default) => Task.CompletedTask;
 
+    public virtual Task SendCheckInUpdatedAsync(
+        string eventCode, Guid eventId, CancellationToken ct = default) => Task.CompletedTask;
+
     public Task SendBidPlacedAsync(
         string eventCode, Guid itemId, Guid playerId, int amountCents,
         bool isDonation, CancellationToken ct = default) => Task.CompletedTask;

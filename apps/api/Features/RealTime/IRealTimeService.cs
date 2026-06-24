@@ -16,6 +16,9 @@ public interface IRealTimeService
         IEnumerable<(Guid TeamId, string TeamName, short HoleNumber, short GrossScore)> acceptedScores,
         CancellationToken ct = default);
 
+    Task SendCheckInUpdatedAsync(
+        string eventCode, Guid eventId, CancellationToken ct = default);
+
     Task SendBidPlacedAsync(
         string eventCode, Guid itemId, Guid playerId, int amountCents,
         bool isDonation, CancellationToken ct = default);

@@ -10,10 +10,10 @@ namespace GolfFundraiserPro.Api.Features.Players;
 public class PlayerService
 {
     private readonly ApplicationDbContext _db;
-    private readonly RealTimeService _realTime;
+    private readonly IRealTimeService _realTime;
     private readonly ILogger<PlayerService> _logger;
 
-    public PlayerService(ApplicationDbContext db, RealTimeService realTime, ILogger<PlayerService> logger)
+    public PlayerService(ApplicationDbContext db, IRealTimeService realTime, ILogger<PlayerService> logger)
     {
         _db       = db;
         _realTime = realTime;

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using GolfFundraiserPro.Api.Data;
 
 namespace WebAPI.Tests.Helpers;
@@ -9,12 +10,19 @@ namespace WebAPI.Tests.Helpers;
 /// </summary>
 public static class InMemoryDbFactory
 {
-    public static ApplicationDbContext Create(string? dbName = null)
+    /// <param name="ignoreTransactions">
+    /// When true, suppress the InMemory "transactions are not supported" warning so
+    /// code paths that call BeginTransactionAsync (e.g. AuthService.RegisterAsync)
+    /// run as a no-op transaction instead of throwing.
+    /// </param>
+    public static ApplicationDbContext Create(string? dbName = null, bool ignoreTransactions = false)
     {
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(dbName ?? Guid.NewGuid().ToString())
-            .Options;
+        var builder = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(dbName ?? Guid.NewGuid().ToString());
 
-        return new ApplicationDbContext(options);
+        if (ignoreTransactions)
+            builder.ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning));
+
+        return new ApplicationDbContext(builder.Options);
     }
 }
