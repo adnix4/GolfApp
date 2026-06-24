@@ -47,10 +47,45 @@ public class HandicapEngine
 
         var notices = new List<HandicapUpdateNotice>();
 
+        // Batch-load every member's closed-round results up front (a few queries),
+        // instead of one query per member.
+        var (roundMeta, resultsByMember) =
+            await LoadClosedResultsAsync(seasonId, members.Select(m => m.Id).ToList(), ct);
+
         foreach (var member in members)
         {
-            var notice = await RecalculateMemberAsync(member, roundId, formula, cap, isUsga, ct);
-            if (notice is not null) notices.Add(notice);
+            if (!resultsByMember.TryGetValue(member.Id, out var memberRounds) || memberRounds.Count == 0)
+                continue;
+
+            // Differentials, most-recent-first (drives best-N-of-M and the latest-diff record).
+            var differentials = memberRounds
+                .OrderByDescending(r => roundMeta[r.RoundId].Date)
+                .Select(r =>
+                {
+                    var meta = roundMeta[r.RoundId];
+                    return ComputeDifferential(r.GrossTotal, meta.CoursePar, meta.CourseRating, meta.SlopeRating, isUsga);
+                })
+                .ToList();
+
+            double newIndex = ComputeIndex(differentials, formula, cap, isUsga);
+            if (Math.Abs(newIndex - member.HandicapIndex) < 0.05) continue;
+
+            _db.HandicapHistories.Add(new HandicapHistory
+            {
+                Id            = Guid.NewGuid(),
+                MemberId      = member.Id,
+                RoundId       = roundId,
+                OldIndex      = member.HandicapIndex,
+                NewIndex      = newIndex,
+                Differential  = differentials[0],
+                AdminOverride = false,
+                CreatedAt     = DateTime.UtcNow
+            });
+
+            var oldIndex = member.HandicapIndex;
+            member.HandicapIndex = newIndex;
+            notices.Add(new HandicapUpdateNotice(
+                member.Id, member.Email, $"{member.FirstName} {member.LastName}", oldIndex, newIndex));
         }
 
         await _db.SaveChangesAsync(ct);
@@ -76,68 +111,70 @@ public class HandicapEngine
         await _db.SaveChangesAsync(ct);
     }
 
-    private async Task<HandicapUpdateNotice?> RecalculateMemberAsync(
-        LeagueMember member, Guid roundId,
-        HandicapFormula formula, double cap, bool isUsga, CancellationToken ct)
+    // Per-round metadata shared by the handicap + sandbagger calculations.
+    private sealed record RoundMeta(DateOnly Date, int CoursePar, double? CourseRating, int? SlopeRating);
+    // One member's gross/net totals for a single closed round.
+    private sealed record MemberRound(Guid RoundId, int GrossTotal, int NetTotal);
+
+    /// <summary>
+    /// Batches everything the handicap + sandbagger calculations need for a season into
+    /// a handful of queries instead of one query per member: closed-round metadata (date
+    /// + course par/rating/slope) and each member's per-round gross/net totals. Replaces
+    /// the old per-member GroupBy-with-navigation query — far fewer round-trips, and the
+    /// flat projections translate on every provider (incl. EF InMemory in tests).
+    /// </summary>
+    private async Task<(Dictionary<Guid, RoundMeta> RoundMeta, Dictionary<Guid, List<MemberRound>> ByMember)>
+        LoadClosedResultsAsync(Guid seasonId, List<Guid> memberIds, CancellationToken ct)
     {
-        var differentials = await ComputeDifferentialsAsync(member.Id, isUsga, ct);
-        if (differentials.Count == 0) return null;
-
-        double newIndex = ComputeIndex(differentials, formula, cap, isUsga);
-
-        if (Math.Abs(newIndex - member.HandicapIndex) < 0.05) return null;
-
-        var latestDiff = differentials[0];
-        _db.HandicapHistories.Add(new HandicapHistory
-        {
-            Id            = Guid.NewGuid(),
-            MemberId      = member.Id,
-            RoundId       = roundId,
-            OldIndex      = member.HandicapIndex,
-            NewIndex      = newIndex,
-            Differential  = latestDiff,
-            AdminOverride = false,
-            CreatedAt     = DateTime.UtcNow
-        });
-
-        var oldIndex = member.HandicapIndex;
-        member.HandicapIndex = newIndex;
-
-        return new HandicapUpdateNotice(
-            member.Id, member.Email,
-            $"{member.FirstName} {member.LastName}",
-            oldIndex, newIndex);
-    }
-
-    private async Task<List<double>> ComputeDifferentialsAsync(
-        Guid memberId, bool isUsga, CancellationToken ct)
-    {
-        var rounds = await _db.LeagueScores
-            .Include(s => s.Round)
-            .ThenInclude(r => r.Course)
-            .ThenInclude(c => c!.Holes)
-            .Where(s => s.MemberId == memberId && s.Round.Status == RoundStatus.Closed)
-            .GroupBy(s => s.RoundId)
-            .Select(g => new
-            {
-                RoundDate    = g.First().Round.RoundDate,
-                GrossTotal   = (int)g.Sum(s => s.GrossScore),
-                CoursePar    = g.First().Round.Course != null
-                                   ? g.First().Round.Course!.Holes.Sum(h => (int)h.Par)
-                                   : 72,
-                CourseRating = g.First().Round.Course != null
-                                   ? g.First().Round.Course!.CourseRating
-                                   : null,
-                SlopeRating  = g.First().Round.Course != null
-                                   ? g.First().Round.Course!.SlopeRating
-                                   : null
-            })
-            .OrderByDescending(r => r.RoundDate)
+        var rounds = await _db.LeagueRounds
+            .Where(r => r.SeasonId == seasonId && r.Status == RoundStatus.Closed)
+            .Select(r => new { r.Id, r.RoundDate, r.CourseId })
             .ToListAsync(ct);
 
-        return rounds
-            .Select(r => ComputeDifferential(r.GrossTotal, r.CoursePar, r.CourseRating, r.SlopeRating, isUsga))
-            .ToList();
+        var roundIds  = rounds.Select(r => r.Id).ToList();
+        var courseIds = rounds.Where(r => r.CourseId.HasValue)
+                              .Select(r => r.CourseId!.Value).Distinct().ToList();
+
+        // Course par = sum of hole pars, batched per course (DB-side aggregate).
+        var parByCourse = (await _db.CourseHoles
+                .Where(h => courseIds.Contains(h.CourseId))
+                .GroupBy(h => h.CourseId)
+                .Select(g => new { CourseId = g.Key, Par = g.Sum(h => (int)h.Par) })
+                .ToListAsync(ct))
+            .ToDictionary(x => x.CourseId, x => x.Par);
+
+        var ratingByCourse = (await _db.Courses
+                .Where(c => courseIds.Contains(c.Id))
+                .Select(c => new { c.Id, c.CourseRating, c.SlopeRating })
+                .ToListAsync(ct))
+            .ToDictionary(x => x.Id, x => (x.CourseRating, x.SlopeRating));
+
+        var roundMeta = rounds.ToDictionary(r => r.Id, r =>
+        {
+            int par = 72; double? rating = null; int? slope = null;
+            if (r.CourseId.HasValue)
+            {
+                if (parByCourse.TryGetValue(r.CourseId.Value, out var p)) par = p;
+                if (ratingByCourse.TryGetValue(r.CourseId.Value, out var c)) { rating = c.CourseRating; slope = c.SlopeRating; }
+            }
+            return new RoundMeta(r.RoundDate, par, rating, slope);
+        });
+
+        // All scores for these members in those rounds — flat, then aggregated in memory.
+        var byMember = (await _db.LeagueScores
+                .Where(s => roundIds.Contains(s.RoundId) && memberIds.Contains(s.MemberId))
+                .Select(s => new { s.MemberId, s.RoundId, s.GrossScore, s.NetScore })
+                .ToListAsync(ct))
+            .GroupBy(s => new { s.MemberId, s.RoundId })
+            .Select(g => new
+            {
+                g.Key.MemberId,
+                Round = new MemberRound(g.Key.RoundId, g.Sum(s => (int)s.GrossScore), g.Sum(s => (int)s.NetScore)),
+            })
+            .GroupBy(x => x.MemberId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Round).ToList());
+
+        return (roundMeta, byMember);
     }
 
     /// <summary>
@@ -226,36 +263,25 @@ public class HandicapEngine
     // than handicap suggests (i.e. consistently scoring much lower than expected).
     public async Task<List<Guid>> DetectSandbaggersAsync(Guid seasonId, CancellationToken ct)
     {
-        var members = await _db.LeagueMembers
+        var memberIds = await _db.LeagueMembers
             .Where(m => m.SeasonId == seasonId && m.Status == MemberStatus.Active)
-            .Select(m => new { m.Id, m.HandicapIndex })
+            .Select(m => m.Id)
             .ToListAsync(ct);
 
+        var (roundMeta, byMember) = await LoadClosedResultsAsync(seasonId, memberIds, ct);
+
         var sandbagged = new List<Guid>();
-
-        foreach (var member in members)
+        foreach (var memberId in memberIds)
         {
-            var recentNets = await _db.LeagueScores
-                .Include(s => s.Round)
-                .ThenInclude(r => r.Course)
-                .ThenInclude(c => c!.Holes)
-                .Where(s => s.MemberId == member.Id && s.Round.Status == RoundStatus.Closed)
-                .GroupBy(s => s.RoundId)
-                .Select(g => new
-                {
-                    NetTotal  = (int)g.Sum(s => s.NetScore),
-                    CoursePar = g.First().Round.Course != null
-                                    ? g.First().Round.Course!.Holes.Sum(h => (int)h.Par)
-                                    : 72
-                })
-                .OrderByDescending(r => r.NetTotal)
-                .Take(5)
-                .ToListAsync(ct);
+            if (!byMember.TryGetValue(memberId, out var rounds)) continue;
 
-            if (recentNets.Count < 5) continue;
+            // The 5 WORST net rounds (highest net totals). Flag only if even those are
+            // all >= 3 strokes under par — i.e. consistently scoring well below handicap.
+            var worst5 = rounds.OrderByDescending(r => r.NetTotal).Take(5).ToList();
+            if (worst5.Count < 5) continue;
 
-            var allBetter = recentNets.All(r => (r.NetTotal - r.CoursePar) <= -3);
-            if (allBetter) sandbagged.Add(member.Id);
+            if (worst5.All(r => r.NetTotal - roundMeta[r.RoundId].CoursePar <= -3))
+                sandbagged.Add(memberId);
         }
 
         return sandbagged;

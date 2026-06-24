@@ -153,23 +153,33 @@ public class HandicapEngineTests
         Assert.Equal(0.85, f.Pct); // default
     }
 
-    // ── Integration: season guard + sandbagger detection (InMemory) ───────────────
+    // ── Integration: full RecalculateAsync + sandbagger + season guard (InMemory) ──
+    // The batching refactor (single flat-projection load instead of a per-member
+    // GroupBy-with-navigation query) made RecalculateAsync translatable on the EF
+    // InMemory provider, so the end-to-end DB path is now covered here too.
 
     private sealed class Ctx
     {
         public ApplicationDbContext Db = null!;
         public Guid SeasonId;
         public HandicapEngine Engine = null!;
+        public Guid? CourseId;
     }
 
-    private static Ctx Build()
+    private static Ctx Build(
+        HandicapSystem system = HandicapSystem.Club,
+        string? formulaJson = null,
+        double cap = 36.0,
+        bool syncToPlayer = false)
     {
         var db       = InMemoryDbFactory.Create();
         var leagueId = Guid.NewGuid();
         var seasonId = Guid.NewGuid();
 
-        db.Leagues.Add(new League { Id = leagueId, Name = "L" });
-        db.Seasons.Add(new Season { Id = seasonId, LeagueId = leagueId, Name = "S1" });
+        var league = new League { Id = leagueId, Name = "L", HandicapSystem = system, HandicapCap = cap };
+        if (formulaJson is not null) league.HandicapFormulaJson = formulaJson;
+        db.Leagues.Add(league);
+        db.Seasons.Add(new Season { Id = seasonId, LeagueId = leagueId, Name = "S1", SyncHandicapToPlayer = syncToPlayer });
         db.SaveChanges();
 
         return new Ctx
@@ -179,25 +189,42 @@ public class HandicapEngineTests
         };
     }
 
-    private static Guid AddMember(Ctx c)
+    private static Guid AddMember(Ctx c, double handicap = 0, Guid? playerId = null)
     {
         var id = Guid.NewGuid();
         c.Db.LeagueMembers.Add(new LeagueMember
         {
             Id = id, SeasonId = c.SeasonId, FirstName = "P", LastName = "Q",
-            Email = $"{id:N}@x.com", Status = MemberStatus.Active,
+            Email = $"{id:N}@x.com", HandicapIndex = handicap, PlayerId = playerId,
+            Status = MemberStatus.Active,
         });
         c.Db.SaveChanges();
         return id;
     }
 
-    /// <summary>Seeds a closed round with one net score for a specific member.</summary>
-    private static void SeedNet(Ctx c, Guid memberId, short net, int daysAgo)
+    private static Guid AddCourse(Ctx c, double rating, int slope)
+    {
+        var courseId = Guid.NewGuid();
+        var course = new Course { Id = courseId, OrgId = Guid.NewGuid(), Name = "C", CourseRating = rating, SlopeRating = slope };
+        for (short h = 1; h <= 18; h++)
+            course.Holes.Add(new CourseHole { Id = Guid.NewGuid(), CourseId = courseId, HoleNumber = h, Par = 4 });
+        c.Db.Courses.Add(course);
+        c.Db.SaveChanges();
+        c.CourseId = courseId;
+        return courseId;
+    }
+
+    /// <summary>
+    /// Seeds a closed round with one aggregate score for a member. gross == net, so
+    /// the same value drives both the par-relative differential (gross) and the
+    /// sandbagger check (net). Optionally attaches a course (for USGA differentials).
+    /// </summary>
+    private static void SeedNet(Ctx c, Guid memberId, short net, int daysAgo, Guid? courseId = null)
     {
         var roundId = Guid.NewGuid();
         c.Db.LeagueRounds.Add(new LeagueRound
         {
-            Id = roundId, SeasonId = c.SeasonId, Status = RoundStatus.Closed,
+            Id = roundId, SeasonId = c.SeasonId, Status = RoundStatus.Closed, CourseId = courseId,
             RoundDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-daysAgo)),
         });
         c.Db.LeagueScores.Add(new LeagueScore
@@ -205,6 +232,96 @@ public class HandicapEngineTests
             Id = Guid.NewGuid(), RoundId = roundId, MemberId = memberId,
             HoleNumber = 1, GrossScore = net, NetScore = net,
         });
+    }
+
+    // ── RecalculateAsync end-to-end ───────────────────────────────────────────────
+
+    [Fact]
+    public async Task Recalculate_updates_every_member_in_one_batched_pass()
+    {
+        var c = Build(); // default Club best-5-of-10, no course -> par 72
+        var m1 = AddMember(c);
+        var m2 = AddMember(c);
+        // m1 diffs 8,10,18 -> avg 12.0 ; m2 diffs 28,28,28 -> 28.0
+        SeedNet(c, m1, 80, 3); SeedNet(c, m1, 82, 2); SeedNet(c, m1, 90, 1);
+        SeedNet(c, m2, 100, 3); SeedNet(c, m2, 100, 2); SeedNet(c, m2, 100, 1);
+        await c.Db.SaveChangesAsync();
+
+        var notices = await c.Engine.RecalculateAsync(c.SeasonId, Guid.NewGuid(), default);
+
+        Assert.Equal(2, notices.Count);
+        Assert.Equal(12.0, c.Db.LeagueMembers.Single(m => m.Id == m1).HandicapIndex);
+        Assert.Equal(28.0, c.Db.LeagueMembers.Single(m => m.Id == m2).HandicapIndex);
+        Assert.Equal(2, c.Db.HandicapHistories.Count());
+    }
+
+    [Fact]
+    public async Task Recalculate_caps_the_new_index()
+    {
+        var c = Build(cap: 20.0);
+        var m = AddMember(c);
+        SeedNet(c, m, 130, 1); // diff 58 -> capped to 20.0
+        await c.Db.SaveChangesAsync();
+
+        await c.Engine.RecalculateAsync(c.SeasonId, Guid.NewGuid(), default);
+
+        Assert.Equal(20.0, c.Db.LeagueMembers.Single(x => x.Id == m).HandicapIndex);
+    }
+
+    [Fact]
+    public async Task Recalculate_uses_usga_rating_and_slope_when_course_is_rated()
+    {
+        var c = Build(system: HandicapSystem.USGA);
+        var courseId = AddCourse(c, rating: 72.0, slope: 113);
+        var m = AddMember(c);
+        SeedNet(c, m, 90, 1, courseId); // diff = (90-72)*113/113 = 18 -> 18.0
+        await c.Db.SaveChangesAsync();
+
+        await c.Engine.RecalculateAsync(c.SeasonId, Guid.NewGuid(), default);
+
+        Assert.Equal(18.0, c.Db.LeagueMembers.Single(x => x.Id == m).HandicapIndex);
+    }
+
+    [Fact]
+    public async Task Recalculate_skips_members_with_no_meaningful_change()
+    {
+        var c = Build();
+        var m = AddMember(c, handicap: 12.0); // already 12.0
+        SeedNet(c, m, 80, 3); SeedNet(c, m, 82, 2); SeedNet(c, m, 90, 1); // recomputes to 12.0
+        await c.Db.SaveChangesAsync();
+
+        var notices = await c.Engine.RecalculateAsync(c.SeasonId, Guid.NewGuid(), default);
+
+        Assert.Empty(notices);
+        Assert.Empty(c.Db.HandicapHistories);
+    }
+
+    [Fact]
+    public async Task Recalculate_skips_members_with_no_closed_rounds()
+    {
+        var c = Build();
+        var m = AddMember(c, handicap: 9.0);
+
+        var notices = await c.Engine.RecalculateAsync(c.SeasonId, Guid.NewGuid(), default);
+
+        Assert.Empty(notices);
+        Assert.Equal(9.0, c.Db.LeagueMembers.Single(x => x.Id == m).HandicapIndex); // untouched
+    }
+
+    [Fact]
+    public async Task Recalculate_syncs_to_linked_player_when_season_opts_in()
+    {
+        var c = Build(syncToPlayer: true);
+        var playerId = Guid.NewGuid();
+        c.Db.Players.Add(new Player { Id = playerId, EventId = Guid.NewGuid(), FirstName = "P", LastName = "Q", Email = "p@x.com", HandicapIndex = 0 });
+        c.Db.SaveChanges();
+        var m = AddMember(c, playerId: playerId);
+        SeedNet(c, m, 80, 3); SeedNet(c, m, 82, 2); SeedNet(c, m, 90, 1); // -> 12.0
+        await c.Db.SaveChangesAsync();
+
+        await c.Engine.RecalculateAsync(c.SeasonId, Guid.NewGuid(), default);
+
+        Assert.Equal(12.0, c.Db.Players.Single(p => p.Id == playerId).HandicapIndex);
     }
 
     [Fact]
