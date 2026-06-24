@@ -29,7 +29,7 @@ namespace GolfFundraiserPro.Api.Features.Mobile;
 public class MobileService
 {
     private readonly ApplicationDbContext _db;
-    private readonly RealTimeService _realTime;
+    private readonly IRealTimeService _realTime;
     private readonly ILogger<MobileService> _logger;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -37,7 +37,7 @@ public class MobileService
         PropertyNameCaseInsensitive = true,
     };
 
-    public MobileService(ApplicationDbContext db, RealTimeService realTime, ILogger<MobileService> logger)
+    public MobileService(ApplicationDbContext db, IRealTimeService realTime, ILogger<MobileService> logger)
     {
         _db       = db;
         _realTime = realTime;

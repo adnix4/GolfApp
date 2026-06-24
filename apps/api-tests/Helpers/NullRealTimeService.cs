@@ -5,11 +5,16 @@ namespace WebAPI.Tests.Helpers;
 /// <summary>
 /// No-op IRealTimeService stub for integration tests — swallows all SignalR calls.
 /// </summary>
-public sealed class NullRealTimeService : IRealTimeService
+public class NullRealTimeService : IRealTimeService
 {
     public Task PublishScoreAsync(
         string eventCode, Guid eventId, Guid teamId,
         short holeNumber, short grossScore, string teamName,
+        CancellationToken ct = default) => Task.CompletedTask;
+
+    public virtual Task PublishLeaderboardAsync(
+        string eventCode, Guid eventId,
+        IEnumerable<(Guid TeamId, string TeamName, short HoleNumber, short GrossScore)> acceptedScores,
         CancellationToken ct = default) => Task.CompletedTask;
 
     public Task SendBidPlacedAsync(

@@ -47,6 +47,7 @@ public class ScoreServiceIntegrationTests
             return Task.CompletedTask;
         }
 
+        public Task PublishLeaderboardAsync(string eventCode, Guid eventId, IEnumerable<(Guid TeamId, string TeamName, short HoleNumber, short GrossScore)> acceptedScores, CancellationToken ct = default) => Task.CompletedTask;
         public Task SendBidPlacedAsync(string eventCode, Guid itemId, Guid playerId, int amountCents, bool isDonation, CancellationToken ct = default) => Task.CompletedTask;
         public Task SendAuctionExtendedAsync(string eventCode, Guid itemId, DateTime newClosesAt, CancellationToken ct = default) => Task.CompletedTask;
         public Task SendItemClosedAsync(string eventCode, Guid itemId, Guid? winnerId, int finalAmountCents, CancellationToken ct = default) => Task.CompletedTask;
