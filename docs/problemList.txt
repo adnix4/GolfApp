@@ -237,9 +237,66 @@ WORTH CONSIDERING
 FREE WINS (already active on SDK 56, no code changes)
 [ ] M7. Hermes v1 by default (faster startup, less memory), ~58% smaller OTA update
         bundles, ~5x faster CLI / 6x faster Metro crawl. Verify in practice.
+        CONFIRMED ENABLED 2026-06-24 (static check): apps/mobile has NO jsEngine
+        override in app.json/app.config (and no "jsc"), so it uses the SDK-56 default
+        = Hermes v1; expo ~56.0.12, react-native 0.85.3. So the engine is on.
+        STILL OPEN: the empirical "in practice" numbers (cold-start, memory, OTA
+        bundle size, Metro crawl) need a device/simulator profiling session — not
+        doable from the Windows/web dev box. Note Hermes is native-only: the admin
+        app run as Expo *web* uses the browser engine, so M7's gains apply to the
+        native mobile build only.
 
 WATCH-OUT (constraint on iOS adoption, not a code task)
 - SDK 56 bumps build requirements: Xcode 26.4, iOS/tvOS min 16.4, macOS 13.4. EAS
   Build's cloud macOS runners handle the iOS compile, so Windows dev is unaffected;
   but shipped builds drop iOS 15 / older devices. Confirm EAS image + minimum-OS
   commitment before releasing a 56 build.
+
+## Test coverage & performance (2026-06-24)
+Captured while filling API test-coverage holes. Mark [x] when done. Branches are
+LOCAL (unpushed) unless noted.
+
+[x] T1. (COVERAGE) API service layer was largely untested. Added unit/integration
+        tests (InMemory EF Core) across the API; suite went 183 -> 368 green.
+        - League engines: SkinsCalculator, StandingsCalculator (all 4 formats),
+          PairingEngine, HandicapEngine (apps/api-tests/League/).
+        - MobileService (join / batch-sync anti-injection + conflict / scorecard /
+          self-update IDOR) + PlayerSessionAuth (apps/api-tests/Mobile/).
+        - TokenService, AuthService (real Identity stack), PaymentsService (pre-Stripe
+          guards), OrgService (WCAG theme), SponsorService, PlayerService, TeamService
+          (auto-pair / invite tokens), LeagueService (apps/api-tests/Services/).
+        Behaviour-preserving prod tweaks made for testability: MobileService +
+        PlayerService now depend on IRealTimeService (added PublishLeaderboardAsync +
+        SendCheckInUpdatedAsync to the interface); HandicapEngine pure math extracted
+        to internal statics (InternalsVisibleTo); InMemoryDbFactory gained an
+        ignoreTransactions option (for AuthService.RegisterAsync's transaction).
+        Committed on feat/sdk56-modernization (merged via PR #8/#9).
+
+[x] T2. (PERF) HandicapEngine ran ONE heavy GroupBy-with-navigation query PER member
+        in both RecalculateAsync and DetectSandbaggersAsync (N+1 on every round close;
+        ~30+ correlated round-trips for a 30-member league). Replaced with a single
+        shared LoadClosedResultsAsync that batches into a few flat-projection queries
+        and aggregates in memory — O(1) queries regardless of member count, behaviour-
+        preserving. Side benefits: the flat projections translate on EF InMemory (the
+        old g.First().Round.RoundDate / .Course.Holes.Sum() form did not), so
+        RecalculateAsync's full DB path is now covered (6 new integration tests), AND
+        this removes the prior "unverified whether the differential query translates on
+        Npgsql/Postgres" risk. Suite 362 -> 368.
+        On LOCAL branch chore/handicap-batching (unpushed).
+
+[x] T3. (TOOLING) Added /seed-league-season skill — the league-play counterpart to
+        /seed-demo-event. Seeds a league + season + flights + members via the real API
+        and plays it one round at a time (pairings -> scoring -> close) so handicaps /
+        standings / skins recalculation is reviewable per round. Self-contained (no
+        course/event/Stripe). On LOCAL branch feat/seed-league-skill (unpushed).
+        Offline-verified (syntax / usage / API-down); live end-to-end run still pending
+        (needs the API + Postgres up).
+
+[ ] T4. (COVERAGE, low ROI) Thin services still without direct tests: QrService,
+        EmailService, EmailBuilderService, PushNotificationService, TestDataService,
+        EventService. Mostly IO / formatting / orchestration — low payoff; defer.
+
+[ ] T5. (COVERAGE, optional) A Postgres-backed integration test (e.g. Testcontainers)
+        for the league round-close path would be belt-and-suspenders. Lower priority
+        now that T2 made RecalculateAsync InMemory-testable; only worth it if other
+        Npgsql-specific translation concerns surface.
