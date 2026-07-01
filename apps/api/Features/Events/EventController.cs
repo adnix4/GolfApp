@@ -362,6 +362,25 @@ public class EventController : ControllerBase
         return Ok(response);
     }
 
+    // ── PUBLIC SPONSORS (no auth) ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Public sponsor list, keyed by event code. Lets the mobile scorer refetch
+    /// sponsors mid-event (after a SponsorsChanged signal) without a rejoin.
+    /// No authentication required. 404 for Draft and Cancelled events.
+    /// </summary>
+    [HttpGet("api/v1/pub/events/{eventCode}/sponsors")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(PublicSponsorsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PublicSponsorsResponse>> GetPublicSponsors(
+        [FromRoute] string eventCode,
+        CancellationToken ct)
+    {
+        var response = await _eventService.GetPublicSponsorsAsync(eventCode, ct);
+        return Ok(response);
+    }
+
     // ── PUBLIC FUNDRAISING (no auth) ──────────────────────────────────────────
 
     /// <summary>

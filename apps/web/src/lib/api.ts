@@ -39,6 +39,7 @@ export interface PublicEventData {
   resolvedThemeJson: string | null;
   missionStatement:  string | null;
   is501c3:           boolean;
+  sponsorsVersion:   number;
 }
 
 export interface PublicLeaderboardEntry {
@@ -71,6 +72,23 @@ export async function fetchPublicEvent(eventCode: string): Promise<PublicEventDa
     });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`API ${res.status}`);
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Client-side, cache-bypassing refetch of the public event. Used by the live
+ * scoreboard to pull a fresh sponsor list (and sponsorsVersion) after a
+ * SponsorsChanged signal or a poll-fallback tick. Unlike fetchPublicEvent,
+ * this never serves a cached response, so a mid-event sponsor edit lands
+ * immediately.
+ */
+export async function fetchPublicEventFresh(eventCode: string): Promise<PublicEventData | null> {
+  try {
+    const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}`, { cache: 'no-store' });
+    if (!res.ok) return null;
     return res.json();
   } catch {
     return null;

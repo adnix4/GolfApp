@@ -172,6 +172,15 @@ public class Event
     [Column("is_501c3")]
     public bool Is501c3 { get; set; }
 
+    /// <summary>
+    /// Monotonic counter bumped whenever this event's sponsor set changes
+    /// (create/update/delete/logo). Clients poll or receive it via the
+    /// SponsorsChanged broadcast to cheaply detect when their cached sponsor
+    /// list is stale, avoiding a full refetch on every tick.
+    /// </summary>
+    [Column("sponsors_version")]
+    public int SponsorsVersion { get; set; }
+
     // Foreign key + navigation
     [ForeignKey(nameof(OrgId))]
     public Organization Organization { get; set; } = null!;

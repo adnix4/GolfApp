@@ -15,10 +15,24 @@ namespace WebAPI.Tests.Services;
 /// </summary>
 public class SponsorServiceTests
 {
+    /// <summary>Captures SponsorsChanged broadcasts so tests can assert the version bump fired.</summary>
+    private sealed class CapturingRealTimeService : NullRealTimeService
+    {
+        public int Count { get; private set; }
+        public int LastVersion { get; private set; }
+        public override Task SendSponsorsChangedAsync(string eventCode, int version, CancellationToken ct = default)
+        {
+            Count++;
+            LastVersion = version;
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class Ctx
     {
         public ApplicationDbContext Db = null!;
         public SponsorService Svc = null!;
+        public CapturingRealTimeService RealTime = null!;
         public Guid OrgId;
         public Guid EventId;
     }
@@ -36,7 +50,8 @@ public class SponsorServiceTests
             Holes = 18, Status = EventStatus.Registration, ConfigJson = "{}",
         });
         db.SaveChanges();
-        return new Ctx { Db = db, Svc = new SponsorService(db, new NullWebHostEnvironment(), NullLogger<SponsorService>.Instance), OrgId = orgId, EventId = eventId };
+        var realTime = new CapturingRealTimeService();
+        return new Ctx { Db = db, Svc = new SponsorService(db, new NullWebHostEnvironment(), NullLogger<SponsorService>.Instance, realTime), RealTime = realTime, OrgId = orgId, EventId = eventId };
     }
 
     // ── Ownership ─────────────────────────────────────────────────────────────────
@@ -67,6 +82,29 @@ public class SponsorServiceTests
         Assert.Equal("Big Co", fetched.Name);
         Assert.Equal(new[] { 7, 14 }, fetched.Placements.HoleNumbers!.ToArray());
         Assert.True(fetched.Placements.Leaderboard);
+    }
+
+    [Fact]
+    public async Task Sponsor_mutations_bump_version_and_broadcast()
+    {
+        var c = Build();
+
+        var created = await c.Svc.CreateSponsorAsync(c.OrgId, c.EventId,
+            new CreateSponsorRequest { Name = "Big Co", Tier = SponsorTier.Title });
+
+        // Create bumps 0 → 1 and broadcasts the new version.
+        Assert.Equal(1, c.Db.Events.Single(e => e.Id == c.EventId).SponsorsVersion);
+        Assert.Equal(1, c.RealTime.Count);
+        Assert.Equal(1, c.RealTime.LastVersion);
+
+        await c.Svc.UpdateSponsorAsync(c.OrgId, c.EventId, created.Id,
+            new UpdateSponsorRequest { Name = "Renamed" });
+        await c.Svc.DeleteSponsorAsync(c.OrgId, c.EventId, created.Id);
+
+        // Update and delete each bump + broadcast again.
+        Assert.Equal(3, c.Db.Events.Single(e => e.Id == c.EventId).SponsorsVersion);
+        Assert.Equal(3, c.RealTime.Count);
+        Assert.Equal(3, c.RealTime.LastVersion);
     }
 
     [Fact]

@@ -58,6 +58,7 @@ public class ScoreServiceIntegrationTests
         public Task SendAuctionTotalUpdatedAsync(string eventCode, Guid itemId, int totalCents, CancellationToken ct = default) => Task.CompletedTask;
         public Task SendAuctionAmountUpdatedAsync(string eventCode, Guid? itemId, int amountCents, CancellationToken ct = default) => Task.CompletedTask;
         public Task SendBidderCountUpdatedAsync(string eventCode, int count, CancellationToken ct = default) => Task.CompletedTask;
+        public Task SendSponsorsChangedAsync(string eventCode, int version, CancellationToken ct = default) => Task.CompletedTask;
     }
 
     private static async Task<(Guid orgId, Guid eventId, Guid teamId)> SeedAsync(

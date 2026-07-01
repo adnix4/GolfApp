@@ -50,4 +50,7 @@ public class NullRealTimeService : IRealTimeService
 
     public Task SendBidderCountUpdatedAsync(
         string eventCode, int count, CancellationToken ct = default) => Task.CompletedTask;
+
+    public virtual Task SendSponsorsChangedAsync(
+        string eventCode, int version, CancellationToken ct = default) => Task.CompletedTask;
 }

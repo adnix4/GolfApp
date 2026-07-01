@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLiveLeaderboard } from '@gfp/shared-types';
 import type { PublicEventData, PublicLeaderboard, PublicLeaderboardEntry } from '@/lib/api';
+import { fetchPublicEventFresh } from '@/lib/api';
 import {
   buildThemeCss, cssKeyframes, hio, nm, tv,
 } from './scoresPollerStyles';
@@ -37,6 +38,20 @@ export default function ScoresPoller({
   eventCode:          string;
   tvMode?:            boolean;
 }) {
+  // Live sponsor list — seeded from SSR, refreshed when the event's
+  // SponsorsVersion bumps (via the SponsorsChanged signal, or the poll
+  // fallback while the socket is down) so a sponsor added mid-event appears
+  // on the board without a page reload.
+  const [sponsors, setSponsors]     = useState(event.sponsors);
+  const sponsorsVersionRef          = useRef(event.sponsorsVersion);
+
+  const refreshSponsors = useCallback(async () => {
+    const fresh = await fetchPublicEventFresh(eventCode);
+    if (!fresh || fresh.sponsorsVersion === sponsorsVersionRef.current) return;
+    sponsorsVersionRef.current = fresh.sponsorsVersion;
+    setSponsors(fresh.sponsors);
+  }, [eventCode]);
+
   const {
     standings: liveStandings,
     connected,
@@ -50,7 +65,20 @@ export default function ScoresPoller({
     initialStandings: initialLeaderboard?.standings ?? null,
     pollIntervalMs:   FALLBACK_POLL_MS,
     fetchStandings,
+    // Signal carries the new version; refetch only when it's ahead of ours.
+    onSponsorsChanged: (version) => {
+      if (version !== sponsorsVersionRef.current) refreshSponsors();
+    },
   });
+
+  // Poll fallback: while the hub is disconnected, check for a sponsor change
+  // on the same cadence as the standings fallback. No-op while connected —
+  // the SponsorsChanged signal covers that case.
+  useEffect(() => {
+    if (connected) return;
+    const id = setInterval(refreshSponsors, FALLBACK_POLL_MS);
+    return () => clearInterval(id);
+  }, [connected, refreshSponsors]);
 
   const tableRef = useRef<HTMLDivElement>(null);
 
@@ -195,8 +223,8 @@ export default function ScoresPoller({
         )}
 
         {/* ── TV SPONSOR TICKER ── */}
-        {tvMode && event.sponsors.length > 0 && (
-          <SponsorTicker sponsors={event.sponsors} />
+        {tvMode && sponsors.length > 0 && (
+          <SponsorTicker sponsors={sponsors} />
         )}
 
         {/* ── TV STATUS BAR ── */}

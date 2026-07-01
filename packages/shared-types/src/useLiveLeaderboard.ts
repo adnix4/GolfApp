@@ -51,6 +51,13 @@ export interface UseLiveLeaderboardOptions<TStanding> {
    * hook can flag an error state without forcing the caller to throw.
    */
   fetchStandings: (eventCode: string) => Promise<TStanding[] | null>;
+  /**
+   * Called when the hub emits 'SponsorsChanged' with the event's new
+   * SponsorsVersion. Lets a consumer refetch the sponsor list only when it
+   * actually changed, reusing this hook's existing SignalR connection instead
+   * of opening a second socket. No-op when omitted.
+   */
+  onSponsorsChanged?: (version: number) => void;
 }
 
 export interface UseLiveLeaderboardResult<TStanding> {
@@ -82,6 +89,7 @@ export function useLiveLeaderboard<TStanding>(
     initialStandings = null,
     pollIntervalMs = DEFAULT_POLL_MS,
     fetchStandings,
+    onSponsorsChanged,
   } = opts;
 
   const [standings, setStandings]     = useState<TStanding[] | null>(initialStandings);
@@ -97,6 +105,11 @@ export function useLiveLeaderboard<TStanding>(
   // caller passes a new closure on every render.
   const fetchRef = useRef(fetchStandings);
   useEffect(() => { fetchRef.current = fetchStandings; }, [fetchStandings]);
+
+  // Keep the sponsors-changed callback in a ref too, so passing a fresh closure
+  // each render doesn't tear down and rebuild the SignalR connection below.
+  const sponsorsChangedRef = useRef(onSponsorsChanged);
+  useEffect(() => { sponsorsChangedRef.current = onSponsorsChanged; }, [onSponsorsChanged]);
 
   const refresh = useCallback(() => {
     if (!eventCode || disabled) return;
@@ -135,6 +148,10 @@ export function useLiveLeaderboard<TStanding>(
     });
 
     hub.on('HoleInOneAlert', (alert: HoleInOneAlert) => setHioAlert(alert));
+
+    hub.on('SponsorsChanged', (payload: { version?: number }) => {
+      sponsorsChangedRef.current?.(payload?.version ?? 0);
+    });
 
     hub.onreconnecting(() => setConnected(false));
     hub.onreconnected(() => {

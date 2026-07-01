@@ -48,4 +48,12 @@ public interface IRealTimeService
 
     Task SendBidderCountUpdatedAsync(
         string eventCode, int count, CancellationToken ct = default);
+
+    /// <summary>
+    /// Announces that an event's sponsor set changed. Carries the new
+    /// SponsorsVersion so clients can ignore stale/duplicate signals and
+    /// refetch the sponsor list only when their cached version is behind.
+    /// </summary>
+    Task SendSponsorsChangedAsync(
+        string eventCode, int version, CancellationToken ct = default);
 }

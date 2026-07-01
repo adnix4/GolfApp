@@ -1,9 +1,9 @@
 import React, {
-  createContext, useCallback, useContext,
+  createContext, useCallback, useContext, useRef,
   useEffect, useMemo, useState, type ReactNode,
 } from 'react';
-import type { JoinEventResponse, PendingScore, BatchSyncResponse } from './api';
-import { batchSync, fetchTeamScores } from './api';
+import type { JoinEventResponse, PendingScore, BatchSyncResponse, SponsorCacheDto } from './api';
+import { batchSync, fetchTeamScores, fetchEventStatus, fetchPublicSponsors } from './api';
 import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsyncedScores, upsertPendingScore, markScoresSynced, markHoleComplete, loadCompletedHoleNumbers, clearPendingScores, mergeServerScores, getDeviceId } from './store';
 import { attemptSync } from './backgroundSync';
 import { useNetworkTier, POLL_INTERVAL_MS, type NetworkTier } from './useNetworkTier';
@@ -23,6 +23,7 @@ interface SessionContextValue {
   syncScores:         () => Promise<BatchSyncResponse | null>;
   refreshFromServer:  () => Promise<void>;
   updateEventStatus:  (status: string, themeJson?: string | null) => void;
+  updateSponsors:     (sponsors: SponsorCacheDto[]) => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -35,6 +36,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [completedHoles,  setCompletedHoles]  = useState<Set<number>>(new Set());
   const [syncStatus,      setSyncStatus]      = useState<'idle' | 'syncing' | 'error' | 'synced'>('idle');
   const networkTier = useNetworkTier();
+
+  // Last SponsorsVersion the foreground poll has seen. Seeded (no refetch) on
+  // the first poll after a session loads; a later change triggers one sponsor
+  // refetch. null means "not yet observed this session".
+  const lastSponsorsVersion = useRef<number | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -82,6 +88,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setCompletedHoles(new Set(completedNums));
         setSyncStatus('synced');
       }
+
+      // Sponsor refresh — cheap version check on the same tick; refetch the
+      // full list only when it changed, so a sponsor added mid-event reaches
+      // the scorecard without a rejoin. Seeds silently on the first observation.
+      try {
+        const { sponsorsVersion } = await fetchEventStatus(session.event.eventCode);
+        if (cancelled) return;
+        if (lastSponsorsVersion.current === null) {
+          lastSponsorsVersion.current = sponsorsVersion;
+        } else if (sponsorsVersion !== lastSponsorsVersion.current) {
+          const fresh = await fetchPublicSponsors(session.event.eventCode);
+          if (cancelled) return;
+          if (fresh) {
+            lastSponsorsVersion.current = sponsorsVersion;
+            await updateSponsors(fresh);
+          }
+        }
+      } catch { /* ignore — retry next tick */ }
     };
     poll();
     const id = setInterval(poll, POLL_INTERVAL_MS[networkTier]);
@@ -90,6 +114,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [session?.event.id, session?.team?.id, networkTier]);
 
   const setSession = useCallback(async (data: JoinEventResponse) => {
+    lastSponsorsVersion.current = null;   // new event → re-seed on next poll
     try {
       await saveSession(data);
       const scores = data.team
@@ -107,6 +132,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clear = useCallback(async () => {
+    lastSponsorsVersion.current = null;
     try {
       if (session?.team) await clearPendingScores(session.event.id, session.team.id);
       await clearSession();
@@ -115,6 +141,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setPendingScores([]);
     setSyncStatus('idle');
   }, [session]);
+
+  // Swap the cached sponsor list (in-memory + SQLite) after a mid-event change.
+  // The scorecard reads session.sponsors directly, so this repaints it; saving
+  // keeps the new list across app restarts until the next join overwrites it.
+  const updateSponsors = useCallback(async (sponsors: SponsorCacheDto[]) => {
+    let toSave: JoinEventResponse | null = null;
+    setSessionState(prev => {
+      if (!prev) return prev;
+      toSave = { ...prev, sponsors };
+      return toSave;
+    });
+    if (toSave) {
+      try { await saveSession(toSave); } catch { /* keep in-memory update on DB failure */ }
+    }
+  }, []);
 
   const upsertScore = useCallback(async (score: PendingScore) => {
     if (!session?.team) return;
@@ -203,10 +244,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // (the foreground poll fires every 10–30s) re-runs every useSession() caller.
   const value = useMemo<SessionContextValue>(() => ({
     session, deviceId, loading, pendingScores, completedHoles, syncStatus, networkTier,
-    setSession, clearSession: clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus,
+    setSession, clearSession: clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors,
   }), [
     session, deviceId, loading, pendingScores, completedHoles, syncStatus, networkTier,
-    setSession, clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus,
+    setSession, clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors,
   ]);
 
   return (

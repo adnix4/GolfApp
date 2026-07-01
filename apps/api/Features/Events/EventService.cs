@@ -639,6 +639,7 @@ public class EventService
             ResolvedThemeJson = evt.ThemeJson  ?? evt.Organization.ThemeJson,
             MissionStatement  = evt.MissionStatement ?? evt.Organization.MissionStatement,
             Is501c3           = evt.Is501c3 || evt.Organization.Is501c3,
+            SponsorsVersion   = evt.SponsorsVersion,
         };
     }
 
@@ -757,6 +758,47 @@ public class EventService
             .ToList();
 
         return new PublicChallengesResponse { Challenges = challenges };
+    }
+
+    // ── PUBLIC SPONSORS ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Public sponsor list for the mobile scorer, keyed by event code. Mirrors
+    /// the sponsor cache built at /join so a client can refetch after a
+    /// SponsorsChanged signal and swap it in place. No auth required.
+    /// 404 for Draft and Cancelled events.
+    /// </summary>
+    public async Task<PublicSponsorsResponse> GetPublicSponsorsAsync(
+        string eventCode,
+        CancellationToken ct = default)
+    {
+        var evt = await _db.Events
+            .Include(e => e.Sponsors)
+            .FirstOrDefaultAsync(e => e.EventCode == eventCode.ToUpperInvariant(), ct);
+
+        if (evt is null || evt.Status is EventStatus.Draft or EventStatus.Cancelled)
+            throw new NotFoundException($"No event found with code '{eventCode}'.");
+
+        var sponsors = evt.Sponsors
+            .OrderBy(s => s.Tier)
+            .ThenBy(s => s.Name)
+            .Select(s => new PublicScorecardSponsorDto
+            {
+                Id          = s.Id,
+                Name        = s.Name,
+                LogoUrl     = s.LogoUrl,
+                WebsiteUrl  = s.WebsiteUrl,
+                Tagline     = s.Tagline,
+                Tier        = s.Tier.ToString(),
+                HoleNumbers = ExtractHoleNumbers(s.PlacementsJson),
+            })
+            .ToList();
+
+        return new PublicSponsorsResponse
+        {
+            SponsorsVersion = evt.SponsorsVersion,
+            Sponsors        = sponsors,
+        };
     }
 
     // ── PUBLIC FUNDRAISING ────────────────────────────────────────────────────
@@ -929,6 +971,30 @@ public class EventService
                    v.GetBoolean();
         }
         catch { return false; }
+    }
+
+    /// <summary>
+    /// Reads the holeNumbers array from a sponsor's placements JSONB.
+    /// Mirrors MobileService.ExtractHoleNumbers so the public sponsor list
+    /// matches the shape cached at /join. Returns empty on missing/bad JSON.
+    /// </summary>
+    private static List<int> ExtractHoleNumbers(string placementsJson)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(placementsJson)) return [];
+            using var doc = JsonDocument.Parse(placementsJson);
+            if (doc.RootElement.TryGetProperty("holeNumbers", out var arr) &&
+                arr.ValueKind == JsonValueKind.Array)
+            {
+                return arr.EnumerateArray()
+                    .Where(e => e.ValueKind == JsonValueKind.Number)
+                    .Select(e => e.GetInt32())
+                    .ToList();
+            }
+        }
+        catch { /* malformed JSONB — treat as no hole numbers */ }
+        return [];
     }
 
     /// <summary>Maps a loaded Event entity to the EventResponse DTO.</summary>

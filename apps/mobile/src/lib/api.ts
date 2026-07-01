@@ -195,6 +195,8 @@ export interface EventStatusResult {
   status:    string;
   /** Resolved branding (event value, else org value). Null when unset. */
   themeJson: string | null;
+  /** Monotonic sponsor-set version — bumps when sponsors change. */
+  sponsorsVersion: number;
 }
 
 export async function fetchEventStatus(eventCode: string): Promise<EventStatusResult> {
@@ -204,7 +206,25 @@ export async function fetchEventStatus(eventCode: string): Promise<EventStatusRe
   return {
     status:    data.status as string,
     themeJson: (data.resolvedThemeJson ?? null) as string | null,
+    sponsorsVersion: (data.sponsorsVersion ?? 0) as number,
   };
+}
+
+/**
+ * Fetches the event's current sponsor list (same shape cached at /join).
+ * Called by the scorer after the SponsorsVersion changes so a sponsor added
+ * mid-event appears without a rejoin. Returns null on failure so the caller
+ * can keep the existing cached list.
+ */
+export async function fetchPublicSponsors(eventCode: string): Promise<SponsorCacheDto[] | null> {
+  try {
+    const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/sponsors`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.sponsors ?? []) as SponsorCacheDto[];
+  } catch {
+    return null;
+  }
 }
 
 // Returns true if the API server is reachable within 5 s.

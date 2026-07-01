@@ -634,6 +634,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("start_type");
 
+                    b.Property<int>("SponsorsVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("sponsors_version");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")

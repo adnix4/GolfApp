@@ -4,6 +4,7 @@ using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
 using GolfFundraiserPro.Api.Domain.Enums;
+using GolfFundraiserPro.Api.Features.RealTime;
 
 namespace GolfFundraiserPro.Api.Features.Sponsors;
 
@@ -12,6 +13,7 @@ public class SponsorService
     private readonly ApplicationDbContext _db;
     private readonly IWebHostEnvironment  _env;
     private readonly ILogger<SponsorService> _logger;
+    private readonly IRealTimeService     _realTime;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -21,11 +23,29 @@ public class SponsorService
         ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
     private const long MaxLogoBytes = 2 * 1024 * 1024;
 
-    public SponsorService(ApplicationDbContext db, IWebHostEnvironment env, ILogger<SponsorService> logger)
+    public SponsorService(
+        ApplicationDbContext db, IWebHostEnvironment env,
+        ILogger<SponsorService> logger, IRealTimeService realTime)
     {
-        _db     = db;
-        _env    = env;
-        _logger = logger;
+        _db       = db;
+        _env      = env;
+        _logger   = logger;
+        _realTime = realTime;
+    }
+
+    /// <summary>
+    /// Bumps the event's SponsorsVersion and broadcasts SponsorsChanged so
+    /// connected scoreboards/scorers know their cached sponsor list is stale.
+    /// Called after any sponsor create/update/delete/logo change.
+    /// </summary>
+    private async Task BumpSponsorsVersionAsync(Guid eventId, CancellationToken ct)
+    {
+        var evt = await _db.Events.FirstOrDefaultAsync(e => e.Id == eventId, ct);
+        if (evt is null) return;
+
+        evt.SponsorsVersion++;
+        await _db.SaveChangesAsync(ct);
+        await _realTime.SendSponsorsChangedAsync(evt.EventCode, evt.SponsorsVersion, ct);
     }
 
     // ── SPONSORS ───────────────────────────────────────────────────────────────
@@ -51,6 +71,7 @@ public class SponsorService
 
         _db.Sponsors.Add(sponsor);
         await _db.SaveChangesAsync(ct);
+        await BumpSponsorsVersionAsync(eventId, ct);
 
         _logger.LogInformation(
             "Created sponsor '{Name}' ({Tier}) for event {EventId}",
@@ -88,6 +109,7 @@ public class SponsorService
         if (request.Placements is not null) sponsor.PlacementsJson = JsonSerializer.Serialize(request.Placements);
 
         await _db.SaveChangesAsync(ct);
+        await BumpSponsorsVersionAsync(eventId, ct);
         return MapToSponsorResponse(sponsor);
     }
 
@@ -97,6 +119,7 @@ public class SponsorService
         var sponsor = await GetSponsorAsync(orgId, eventId, sponsorId, ct);
         _db.Sponsors.Remove(sponsor);
         await _db.SaveChangesAsync(ct);
+        await BumpSponsorsVersionAsync(eventId, ct);
         _logger.LogInformation("Deleted sponsor {SponsorId} from event {EventId}", sponsorId, eventId);
     }
 
@@ -128,6 +151,7 @@ public class SponsorService
 
         sponsor.LogoUrl = $"/uploads/sponsor-logos/{filename}";
         await _db.SaveChangesAsync(ct);
+        await BumpSponsorsVersionAsync(eventId, ct);
 
         _logger.LogInformation("Logo uploaded for sponsor {SponsorId}: {Url}", sponsorId, sponsor.LogoUrl);
         return MapToSponsorResponse(sponsor);

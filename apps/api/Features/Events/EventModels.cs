@@ -461,6 +461,12 @@ public record PublicEventResponse
     public string? ResolvedThemeJson    { get; init; }
     public string? MissionStatement     { get; init; }
     public bool    Is501c3              { get; init; }
+
+    /// <summary>
+    /// Monotonic sponsor-set version. Clients compare it against their cached
+    /// value to detect a stale sponsor list without refetching the full set.
+    /// </summary>
+    public int     SponsorsVersion      { get; init; }
 }
 
 public record PublicCourseInfo
@@ -556,6 +562,29 @@ public record PublicChallengeResultDto
     public string? PlayerName { get; init; }
     public float? Value       { get; init; }
     public string? Notes      { get; init; }
+}
+
+/// <summary>
+/// Public sponsor list for the mobile scorer — same shape the join payload
+/// caches (SponsorCacheDto), so a mid-event refetch is a drop-in replacement.
+/// Carries SponsorsVersion so the client can confirm it matched the change
+/// that prompted the refetch.
+/// </summary>
+public record PublicSponsorsResponse
+{
+    public int SponsorsVersion { get; init; }
+    public List<PublicScorecardSponsorDto> Sponsors { get; init; } = new();
+}
+
+public record PublicScorecardSponsorDto
+{
+    public Guid      Id          { get; init; }
+    public string    Name        { get; init; } = string.Empty;
+    public string    LogoUrl     { get; init; } = string.Empty;
+    public string?   WebsiteUrl  { get; init; }
+    public string?   Tagline     { get; init; }
+    public string    Tier        { get; init; } = string.Empty;
+    public List<int> HoleNumbers { get; init; } = new();
 }
 
 // ── LOGO UPLOAD ───────────────────────────────────────────────────────────────
