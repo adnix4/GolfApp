@@ -344,6 +344,27 @@ LOCAL (unpushed) unless noted.
         golfer off the scorecard). Theme + sponsors now both refresh in all phases
         off a single reused request. tsc clean; mobile 100 green.
 
+[x] S3. Browser verification of S1/S2 (2026-07-01). Drove the real apps in
+        headless Edge (Playwright, system browser channel) against the live
+        API/SignalR/Postgres:
+        - Web scoreboard (TV mode): admin adds a sponsor -> ticker appears/updates
+          live, no page reload (SignalR onSponsorsChanged -> refetch -> re-render).
+        - Mobile scorer (Expo web) on a Scoring event: join -> scorecard, then admin
+          changes theme + renames a sponsor -> scorecard repaints green->purple and
+          shows the renamed sponsor LIVE during scoring, no rejoin (confirms both
+          Option C and the S2 during-scoring theme fix in the RN runtime).
+
+[!] S4. KNOWN LIMITATION (surfaced during S3): mobile live sponsor/theme refresh
+        does NOT work for Draft *test-mode* events. The session poll reads
+        /pub/events/{code} and /pub/events/{code}/sponsors, which 404 for Draft by
+        design (Draft isn't public). So a test-mode scorer keeps the branding +
+        sponsors captured at /join until the player rejoins. Works normally for
+        Registration/Active/Scoring (verified). Acceptable for now (test mode is a
+        transient preview; join seeds current data). If organizers should see live
+        changes while previewing in test mode, options: add an authenticated
+        per-session refresh path, or relax the Draft 404 for test-mode events on a
+        token-gated endpoint. Not scheduled.
+
 [ ] A1. Create a user freindly web landing page that includes advertising geared towrads event organizers. This should include screen shots of test events so they can see what the program looks like and offers. They should be organized as a quick run through of an event. We need to determine the best way to enter the program for a user.
 
 [ ] A2. Expo update 
