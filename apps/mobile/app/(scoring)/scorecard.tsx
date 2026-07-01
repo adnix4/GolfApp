@@ -10,7 +10,7 @@ import { fetchPublicChallenges, type ChallengeCacheDto, type HoleCacheDto, type 
 import {
   HoleInfoChip, ScoreChip, SyncStatusBar,
   HoleInOneModal, ChallengeDetailModal, SponsorModal, ShotColumn,
-} from './scorecardComponents';
+} from '@/components/scorecardComponents';
 
 // ── SUMMARY TABLE (pre-scoring and post-round shared layout) ──────────────────
 
