@@ -293,8 +293,13 @@ LOCAL (unpushed) unless noted.
         (needs the API + Postgres up).
 
 [ ] T4. (COVERAGE, low ROI) Thin services still without direct tests: QrService,
-        EmailService, EmailBuilderService, PushNotificationService, TestDataService,
-        EventService. Mostly IO / formatting / orchestration — low payoff; defer.
+        EmailService, EmailBuilderService, PushNotificationService, TestDataService.
+        Mostly IO / formatting / orchestration — low payoff; defer.
+        EventService: partially covered — EventServiceTests now exercises the
+        public sponsor read path (GetPublicSponsorsAsync: tier/name ordering,
+        hole-number extraction, version pass-through, Draft/Cancelled/unknown →
+        404). Remaining orchestration paths (create/update/status machine,
+        leaderboard, public event/challenges/fundraising) still untested; defer.
 
 [ ] T5. (COVERAGE, optional) A Postgres-backed integration test (e.g. Testcontainers)
         for the league round-close path would be belt-and-suspenders. Lower priority
@@ -302,3 +307,5 @@ LOCAL (unpushed) unless noted.
         Npgsql-specific translation concerns surface.
 
 [ ] A1. Create a user freindly web landing page that includes advertising geared towrads event organizers. This should include screen shots of test events so they can see what the program looks like and offers. They should be organized as a quick run through of an event. We need to determine the best way to enter the program for a user. 
+
+[ ] A2. Expo update 
