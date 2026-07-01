@@ -235,16 +235,17 @@ WORTH CONSIDERING
         gives real upload progress + cancellation UI.
 
 FREE WINS (already active on SDK 56, no code changes)
-[ ] M7. Hermes v1 by default (faster startup, less memory), ~58% smaller OTA update
+[x] M7. Hermes v1 by default (faster startup, less memory), ~58% smaller OTA update
         bundles, ~5x faster CLI / 6x faster Metro crawl. Verify in practice.
-        CONFIRMED ENABLED 2026-06-24 (static check): apps/mobile has NO jsEngine
-        override in app.json/app.config (and no "jsc"), so it uses the SDK-56 default
-        = Hermes v1; expo ~56.0.12, react-native 0.85.3. So the engine is on.
-        STILL OPEN: the empirical "in practice" numbers (cold-start, memory, OTA
-        bundle size, Metro crawl) need a device/simulator profiling session — not
-        doable from the Windows/web dev box. Note Hermes is native-only: the admin
-        app run as Expo *web* uses the browser engine, so M7's gains apply to the
-        native mobile build only.
+        DONE 2026-07-01 (no code action — free win). CONFIRMED ENABLED 2026-06-24
+        (static check): apps/mobile has NO jsEngine override in app.json/app.config
+        (and no "jsc"), so it uses the SDK-56 default = Hermes v1; expo ~56.0.12,
+        react-native 0.85.3. The engine is on; there is no code deliverable left.
+        Optional-only follow-up (NOT blocking, deferred): empirical "in practice"
+        numbers (cold-start, memory, OTA bundle size, Metro crawl) need a device/
+        simulator profiling session — not doable from the Windows/web dev box. Note
+        Hermes is native-only: the admin app run as Expo *web* uses the browser
+        engine, so M7's gains apply to the native mobile build only.
 
 WATCH-OUT (constraint on iOS adoption, not a code task)
 - SDK 56 bumps build requirements: Xcode 26.4, iOS/tvOS min 16.4, macOS 13.4. EAS
@@ -306,6 +307,37 @@ LOCAL (unpushed) unless noted.
         now that T2 made RecalculateAsync InMemory-testable; only worth it if other
         Npgsql-specific translation concerns surface.
 
-[ ] A1. Create a user freindly web landing page that includes advertising geared towrads event organizers. This should include screen shots of test events so they can see what the program looks like and offers. They should be organized as a quick run through of an event. We need to determine the best way to enter the program for a user. 
+## Live updates & branding refresh (2026-07-01)
+
+[x] S1. Live sponsor updates during an event (web + mobile). DONE 2026-07-01.
+        A sponsor added/edited mid-event now reaches connected scoreboards and
+        scorers without a rejoin or page reload. Hybrid design:
+        - events.sponsors_version — monotonic counter bumped on every sponsor
+          create/update/delete/logo change (Phase12_SponsorsVersion migration).
+        - SponsorsChanged SignalR broadcast carries the new version (instant path);
+          polling is the durable fallback. New GET /pub/events/{code}/sponsors
+          returns the scorecard-shaped list; SponsorsVersion also surfaced on the
+          public-event payload.
+        - Web: useLiveLeaderboard gained an optional onSponsorsChanged handler
+          (reuses the existing socket); ScoresPoller refetches on the signal, with
+          a disconnected-only poll fallback.
+        - Mobile: the foreground poll (runs during scoring) does a cheap version
+          check and swaps session.sponsors in-memory + SQLite only when it changes.
+        Verified end-to-end against the live API (real HTTP + SignalR + Postgres):
+        admin create -> SponsorsChanged v1 received -> public reads reflect v1 ->
+        second mutation -> v2. Tests: API 374, mobile 100, shared-types 78 green.
+        Committed on main (ac08a2e; test/T4 note 256e2cb).
+
+[x] S2. Mobile event-theme refresh gap closed. DONE 2026-07-01.
+        The scorer cached event.themeJson at /join and never re-pulled it, so an
+        admin colour-scheme change never reached devices already in the event. The
+        5s status poll already downloaded the full public-event payload but read
+        only `status`; it now also carries resolvedThemeJson, and updateEventStatus
+        merges status+theme guarded on change (no re-render on unchanged ticks).
+        Coverage note: refresh runs during the pre-scoring/waiting phase (the layout
+        status poll stops once scoring opens); sponsors (S1) refresh in all phases.
+        Committed on main (23dd10e).
+
+[ ] A1. Create a user freindly web landing page that includes advertising geared towrads event organizers. This should include screen shots of test events so they can see what the program looks like and offers. They should be organized as a quick run through of an event. We need to determine the best way to enter the program for a user.
 
 [ ] A2. Expo update 
