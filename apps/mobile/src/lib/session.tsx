@@ -22,7 +22,7 @@ interface SessionContextValue {
   completeHole:       (holeNumber: number) => Promise<void>;
   syncScores:         () => Promise<BatchSyncResponse | null>;
   refreshFromServer:  () => Promise<void>;
-  updateEventStatus:  (status: string) => void;
+  updateEventStatus:  (status: string, themeJson?: string | null) => void;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -135,8 +135,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [session, pendingScores, completedHoles]);
 
-  const updateEventStatus = useCallback((status: string) => {
-    setSessionState(prev => prev ? { ...prev, event: { ...prev.event, status } } : null);
+  // Merge a polled status/theme into the session. Both are guarded on change so
+  // an unchanged poll tick returns the same object and triggers no re-render.
+  // `themeJson === undefined` means "not provided" (leave as-is); an explicit
+  // null is a real value (branding cleared → fall back to org default).
+  const updateEventStatus = useCallback((status: string, themeJson?: string | null) => {
+    setSessionState(prev => {
+      if (!prev) return null;
+      const statusChanged = status !== prev.event.status;
+      const themeChanged  = themeJson !== undefined && themeJson !== prev.event.themeJson;
+      if (!statusChanged && !themeChanged) return prev;
+      return {
+        ...prev,
+        event: {
+          ...prev.event,
+          status:    statusChanged ? status    : prev.event.status,
+          themeJson: themeChanged  ? themeJson! : prev.event.themeJson,
+        },
+      };
+    });
   }, []);
 
   const syncScores = useCallback(async (): Promise<BatchSyncResponse | null> => {

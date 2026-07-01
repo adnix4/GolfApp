@@ -191,11 +191,20 @@ export async function fetchTeamScores(
   }
 }
 
-export async function fetchEventStatus(eventCode: string): Promise<string> {
+export interface EventStatusResult {
+  status:    string;
+  /** Resolved branding (event value, else org value). Null when unset. */
+  themeJson: string | null;
+}
+
+export async function fetchEventStatus(eventCode: string): Promise<EventStatusResult> {
   const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}`);
   if (!res.ok) throw new Error(`Status check failed (${res.status})`);
   const data = await res.json();
-  return data.status as string;
+  return {
+    status:    data.status as string,
+    themeJson: (data.resolvedThemeJson ?? null) as string | null,
+  };
 }
 
 // Returns true if the API server is reachable within 5 s.

@@ -16,13 +16,16 @@ export default function ScoringLayout() {
   const { session, networkTier, updateEventStatus, clearSession } = useSession();
 
   const [liveStatus, setLiveStatus] = useState(session?.event.status ?? '');
+  const [liveTheme,  setLiveTheme]  = useState<string | null>(session?.event.themeJson ?? null);
   const [checking,   setChecking]   = useState(false);
   const [dismissed,  setDismissed]  = useState(false);
 
-  // session loads from SQLite asynchronously — seed liveStatus once it's available
-  // so isTestMode / scoringOpen are correct before any poll runs.
+  // session loads from SQLite asynchronously — seed liveStatus/liveTheme once
+  // it's available so isTestMode / scoringOpen / branding are correct before
+  // any poll runs.
   useEffect(() => {
     if (session?.event.status) setLiveStatus(session.event.status);
+    if (session) setLiveTheme(session.event.themeJson ?? null);
   }, [session?.event.id]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -33,12 +36,14 @@ export default function ScoringLayout() {
   // Show tabs when scoring is live, in test mode, or the player dismissed the warning.
   const showTabs = scoringOpen || dismissed;
 
-  // Sync status change back to session so preflight and other screens stay accurate.
+  // Sync status/theme change back to session so preflight, branding, and other
+  // screens stay accurate. updateEventStatus no-ops when nothing actually changed.
   useEffect(() => {
-    if (liveStatus && session && liveStatus !== session.event.status) {
-      updateEventStatus(liveStatus);
+    if (liveStatus && session &&
+        (liveStatus !== session.event.status || liveTheme !== session.event.themeJson)) {
+      updateEventStatus(liveStatus, liveTheme);
     }
-  }, [liveStatus]);
+  }, [liveStatus, liveTheme]);
 
   // Poll for status change regardless of dismissed state — so opening scoring
   // removes the pre-scoring banner automatically without any player action.
@@ -48,8 +53,9 @@ export default function ScoringLayout() {
     async function poll() {
       if (!session) return;
       try {
-        const status = await fetchEventStatus(session.event.eventCode);
+        const { status, themeJson } = await fetchEventStatus(session.event.eventCode);
         setLiveStatus(status);
+        setLiveTheme(themeJson);
       } catch { /* silent — will retry next interval */ }
     }
 
@@ -64,8 +70,9 @@ export default function ScoringLayout() {
     if (!session || checking) return;
     setChecking(true);
     try {
-      const status = await fetchEventStatus(session.event.eventCode);
+      const { status, themeJson } = await fetchEventStatus(session.event.eventCode);
       setLiveStatus(status);
+      setLiveTheme(themeJson);
     } catch { /* ignore */ } finally {
       setChecking(false);
     }
