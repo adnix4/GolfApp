@@ -300,3 +300,5 @@ LOCAL (unpushed) unless noted.
         for the league round-close path would be belt-and-suspenders. Lower priority
         now that T2 made RecalculateAsync InMemory-testable; only worth it if other
         Npgsql-specific translation concerns surface.
+
+[ ] A1. Create a user freindly web landing page that includes advertising geared towrads event organizers. This should include screen shots of test events so they can see what the program looks like and offers. They should be organized as a quick run through of an event. We need to determine the best way to enter the program for a user. 
