@@ -22,7 +22,7 @@ interface SessionContextValue {
   completeHole:       (holeNumber: number) => Promise<void>;
   syncScores:         () => Promise<BatchSyncResponse | null>;
   refreshFromServer:  () => Promise<void>;
-  updateEventStatus:  (status: string, themeJson?: string | null) => void;
+  updateEventStatus:  (status?: string, themeJson?: string | null) => void;
   updateSponsors:     (sponsors: SponsorCacheDto[]) => Promise<void>;
 }
 
@@ -89,12 +89,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setSyncStatus('synced');
       }
 
-      // Sponsor refresh — cheap version check on the same tick; refetch the
-      // full list only when it changed, so a sponsor added mid-event reaches
-      // the scorecard without a rejoin. Seeds silently on the first observation.
+      // Branding + sponsor refresh — one cheap public-event read per tick.
+      // Theme is applied every phase (incl. active scoring) so an admin
+      // colour change repaints without a rejoin; status is deliberately NOT
+      // propagated here (see updateEventStatus) so a mid-round Completed flip
+      // can't yank the golfer off the scorecard. Sponsors refetch only when
+      // the version bumps; seeds silently on the first observation.
       try {
-        const { sponsorsVersion } = await fetchEventStatus(session.event.eventCode);
+        const { themeJson, sponsorsVersion } = await fetchEventStatus(session.event.eventCode);
         if (cancelled) return;
+        updateEventStatus(undefined, themeJson);
         if (lastSponsorsVersion.current === null) {
           lastSponsorsVersion.current = sponsorsVersion;
         } else if (sponsorsVersion !== lastSponsorsVersion.current) {
@@ -176,14 +180,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [session, pendingScores, completedHoles]);
 
-  // Merge a polled status/theme into the session. Both are guarded on change so
-  // an unchanged poll tick returns the same object and triggers no re-render.
-  // `themeJson === undefined` means "not provided" (leave as-is); an explicit
-  // null is a real value (branding cleared → fall back to org default).
-  const updateEventStatus = useCallback((status: string, themeJson?: string | null) => {
+  // Merge a polled status and/or theme into the session. Each arg is guarded on
+  // change so an unchanged poll tick returns the same object and triggers no
+  // re-render. `undefined` for either means "not provided" (leave as-is); an
+  // explicit null theme is a real value (branding cleared → org default).
+  // Passing only a theme (status undefined) lets the in-scoring foreground poll
+  // repaint branding WITHOUT propagating a status change — important because
+  // flipping to Completed mid-round would drop a golfer out of the scorecard.
+  const updateEventStatus = useCallback((status?: string, themeJson?: string | null) => {
     setSessionState(prev => {
       if (!prev) return null;
-      const statusChanged = status !== prev.event.status;
+      const statusChanged = status !== undefined && status !== prev.event.status;
       const themeChanged  = themeJson !== undefined && themeJson !== prev.event.themeJson;
       if (!statusChanged && !themeChanged) return prev;
       return {

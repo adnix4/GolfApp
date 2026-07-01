@@ -334,9 +334,15 @@ LOCAL (unpushed) unless noted.
         5s status poll already downloaded the full public-event payload but read
         only `status`; it now also carries resolvedThemeJson, and updateEventStatus
         merges status+theme guarded on change (no re-render on unchanged ticks).
-        Coverage note: refresh runs during the pre-scoring/waiting phase (the layout
-        status poll stops once scoring opens); sponsors (S1) refresh in all phases.
         Committed on main (23dd10e).
+        FOLLOW-UP DONE 2026-07-01: closed the phase gap. The layout status poll
+        stops once scoring opens, so theme originally refreshed only pre-scoring.
+        The session foreground poll (runs every phase, incl. active scoring, and
+        already fetches the public event for S1's sponsor-version check) now also
+        applies themeJson via updateEventStatus(undefined, themeJson) — theme-only,
+        so a mid-round Completed status is NOT propagated (that would drop the
+        golfer off the scorecard). Theme + sponsors now both refresh in all phases
+        off a single reused request. tsc clean; mobile 100 green.
 
 [ ] A1. Create a user freindly web landing page that includes advertising geared towrads event organizers. This should include screen shots of test events so they can see what the program looks like and offers. They should be organized as a quick run through of an event. We need to determine the best way to enter the program for a user.
 
