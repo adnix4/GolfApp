@@ -230,9 +230,32 @@ WORTH CONSIDERING
         drawn behind the bars), where per-screen StatusBar style would then matter.
         No deps added (expo-navigation-bar intentionally NOT installed).
 
-[ ] M6. expo-file-system createUploadTask/createDownloadTask with progress
-        (FUNCTIONALITY). Only if we add sponsor-logo / branding-image uploads —
-        gives real upload progress + cancellation UI.
+[x] M6. Upload progress + cancellation UI for sponsor-logo / branding-image
+        uploads (FUNCTIONALITY). DONE 2026-07-02.
+        PIVOTED from the originally-named tool: expo-file-system's
+        createUploadTask/createDownloadTask are NATIVE-ONLY, and every upload in
+        this app lives in apps/admin, which is served as Expo WEB (expo start
+        --web; no ios/android). expo-file-system isn't even a dependency, and the
+        mobile native app has no uploads — so the native task API has no valid
+        home here. Delivered M6's actual GOAL (real progress + cancellation) via
+        the web-correct mechanism instead: XMLHttpRequest (fetch can't report
+        upload progress; XHR exposes upload.onprogress + abort()).
+        - apps/admin/src/lib/upload.ts (new): uploadWithProgress<T>(path, file,
+          { fieldName?, onProgress?, signal? }) — multipart POST with Bearer auth,
+          fractional progress, and AbortSignal cancellation; throws ApiError with
+          code UPLOAD_ABORTED on cancel.
+        - apps/admin/src/components/UploadProgress.tsx (new): determinate bar +
+          %-label + Cancel button, themed.
+        - Refactored the two M6-named uploads (eventBrandingApi.uploadLogo,
+          sponsorsApi.uploadLogo) from bespoke fetch+FormData to the helper with
+          optional { onProgress, signal }; wired progress bar + Cancel into the
+          branding screen (settings.tsx) and the sponsor form modal (sponsors.tsx).
+          Cancel is treated as a no-op (not an error): branding keeps the old logo;
+          a cancelled sponsor upload keeps the saved sponsor without the new image.
+        - NOT done (out of M6 scope, still bespoke fetch): orgApi.uploadLogo,
+          auctionApi.uploadPhoto (can adopt uploadWithProgress the same way when
+          desired), and download progress (createDownloadTask → the only download
+          is admin PDF export; low value). admin tsc + 105 tests green.
 
 FREE WINS (already active on SDK 56, no code changes)
 [x] M7. Hermes v1 by default (faster startup, less memory), ~58% smaller OTA update

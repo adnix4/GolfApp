@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView,
   Switch, StyleSheet, ActivityIndicator, Platform, Image,
@@ -8,6 +8,8 @@ import { useTheme } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, type GFPTheme } from '@gfp/theme';
 import { useResponsive } from '@/lib/responsive';
 import { eventsApi, eventBrandingApi, type EventDetail } from '@/lib/api';
+import { UPLOAD_ABORTED } from '@/lib/upload';
+import { UploadProgress } from '@/components/UploadProgress';
 
 const TOKEN_META: { key: keyof GFPTheme; label: string; desc: string }[] = [
   { key: 'primary',   label: 'Primary',   desc: 'Nav, headers, footer, primary buttons' },
@@ -98,6 +100,8 @@ export default function EventSettingsScreen() {
   const [loading,    setLoading]    = useState(true);
   const [saving,     setSaving]     = useState(false);
   const [uploading,  setUploading]  = useState(false);
+  const [uploadPct,  setUploadPct]  = useState(0);
+  const uploadAbortRef              = useRef<AbortController | null>(null);
   const [saved,      setSaved]      = useState(false);
   const [error,      setError]      = useState<string | null>(null);
   const [uploadErr,  setUploadErr]  = useState<string | null>(null);
@@ -209,14 +213,22 @@ export default function EventSettingsScreen() {
       const file = input.files?.[0];
       if (!file) return;
       setUploadErr(null);
+      setUploadPct(0);
       setUploading(true);
+      const ctrl = new AbortController();
+      uploadAbortRef.current = ctrl;
       try {
-        const result = await eventBrandingApi.uploadLogo(id, file);
+        const result = await eventBrandingApi.uploadLogo(id, file, {
+          onProgress: setUploadPct,
+          signal:     ctrl.signal,
+        });
         setLogoUrl(result.url);
       } catch (e: any) {
-        setUploadErr(e.message ?? 'Upload failed.');
+        // A user-initiated cancel isn't an error — just leave the logo unchanged.
+        if (e?.code !== UPLOAD_ABORTED) setUploadErr(e.message ?? 'Upload failed.');
       } finally {
         setUploading(false);
+        uploadAbortRef.current = null;
       }
     };
     input.click();
@@ -300,17 +312,23 @@ export default function EventSettingsScreen() {
           {uploadErr && <Text style={styles.uploadErr}>{uploadErr}</Text>}
 
           {Platform.OS === 'web' && (
-            <Pressable
-              style={[styles.uploadBtn, { borderColor: theme.colors.primary }, uploading && { opacity: 0.6 }]}
-              onPress={openFilePicker}
-              disabled={uploading || saving}
-            >
-              {uploading
-                ? <ActivityIndicator size="small" color={theme.colors.primary} />
-                : <Text style={[styles.uploadBtnText, { color: theme.colors.primary }]}>
-                    {logoUrl ? 'Replace Logo' : 'Upload Logo'}
-                  </Text>}
-            </Pressable>
+            uploading ? (
+              <UploadProgress
+                progress={uploadPct}
+                onCancel={() => uploadAbortRef.current?.abort()}
+                label="Uploading logo"
+              />
+            ) : (
+              <Pressable
+                style={[styles.uploadBtn, { borderColor: theme.colors.primary }]}
+                onPress={openFilePicker}
+                disabled={saving}
+              >
+                <Text style={[styles.uploadBtnText, { color: theme.colors.primary }]}>
+                  {logoUrl ? 'Replace Logo' : 'Upload Logo'}
+                </Text>
+              </Pressable>
+            )
           )}
           <Text style={[styles.hint, { color: theme.colors.accent }]}>PNG, JPEG, SVG or WebP · max 2 MB</Text>
 
