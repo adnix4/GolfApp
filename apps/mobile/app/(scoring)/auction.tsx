@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { formatCentsShort } from '@gfp/shared-types';
+import { formatCentsShort, useLiveAuction } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
 import {
   fetchAuctionItems, placeBid, pledge,
@@ -18,6 +18,13 @@ import {
 
 type Tab = 'items' | 'history' | 'live';
 
+// Phase 3 realtime: SignalR is primary; the 15 s HTTP poll is a fallback that
+// only runs while the hub is disconnected (see useLiveAuction).
+const FALLBACK_POLL_MS = 15_000;
+const BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
+
+type AuctionSnapshot = { items: AuctionItemDto[]; session: AuctionSessionDto | null };
+
 export default function AuctionScreen() {
   const theme  = useTheme();
   const router = useRouter();
@@ -25,36 +32,41 @@ export default function AuctionScreen() {
   const { session } = useSession();
   const player = session?.player;
   const eventId = session?.event?.id;
+  const eventCode = session?.event?.eventCode;
 
   const [tab, setTab]             = useState<Tab>('items');
-  const [items, setItems]         = useState<AuctionItemDto[]>([]);
   const [history, setHistory]     = useState<PlayerBidHistoryItem[]>([]);
-  const [liveSession, setLiveSession] = useState<AuctionSessionDto | null>(null);
-  const [loading, setLoading]     = useState(true);
   const [selectedItem, setSelectedItem] = useState<AuctionItemDto | null>(null);
   const [bidAmt, setBidAmt]       = useState('');
   const [bidding, setBidding]     = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [raisingHand, setRaisingHand] = useState(false);
   const [handRaised,  setHandRaised]  = useState(false);
 
-  const load = useCallback(async () => {
-    if (!eventId) return;
-    setLoading(true);
-    setLoadError(null);
+  // Live auction snapshot: SignalR bid/pledge/close events trigger a coalesced
+  // refetch so amounts update without a manual pull-to-refresh. The hook keys
+  // its hub subscription on eventCode; the fetcher closes over eventId.
+  const fetchAuction = useCallback(async (): Promise<AuctionSnapshot | null> => {
+    if (!eventId) return null;
     try {
-      const [itemsData, sessionData] = await Promise.all([
+      const [items, sessionData] = await Promise.all([
         fetchAuctionItems(eventId),
         fetchActiveAuctionSession(eventId),
       ]);
-      setItems(itemsData);
-      setLiveSession(sessionData);
-    } catch (e: unknown) {
-      setLoadError(e instanceof Error ? e.message : 'Could not load auction data. Pull down to retry.');
-    } finally {
-      setLoading(false);
+      return { items, session: sessionData };
+    } catch {
+      return null;
     }
   }, [eventId]);
+
+  const { data, loading, error: loadError, refresh } = useLiveAuction<AuctionSnapshot>({
+    baseUrl:        BASE,
+    eventCode,
+    fetchAuction,
+    pollIntervalMs: FALLBACK_POLL_MS,
+  });
+
+  const items       = data?.items ?? [];
+  const liveSession = data?.session ?? null;
 
   const loadHistory = useCallback(async () => {
     if (!player?.id) return;
@@ -65,10 +77,6 @@ export default function AuctionScreen() {
       Alert.alert('Could not load bid history', 'Check your connection and try again.');
     }
   }, [player?.id]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   useEffect(() => {
     if (tab === 'history') loadHistory();
@@ -100,7 +108,7 @@ export default function AuctionScreen() {
       Alert.alert('Success', isDonation ? 'Pledge recorded!' : 'Bid placed!');
       setBidAmt('');
       setSelectedItem(null);
-      await load();
+      refresh();
     } catch (e: unknown) {
       const raw = e instanceof Error ? e.message : '';
       const msg = raw === 'NO_PAYMENT_METHOD'
@@ -116,6 +124,12 @@ export default function AuctionScreen() {
 
   const currentLiveItem = liveSession?.currentItemId
     ? items.find(i => i.id === liveSession.currentItemId) ?? null
+    : null;
+
+  // Re-derive the open modal's item from the live list so its "current bid"
+  // reflects incoming bids instead of the snapshot taken when it was tapped.
+  const liveSelectedItem = selectedItem
+    ? items.find(i => i.id === selectedItem.id) ?? selectedItem
     : null;
 
   const openItems = items.filter(i => i.status === 'Open');
@@ -137,7 +151,7 @@ export default function AuctionScreen() {
       {/* Load error banner */}
       {loadError && (
         <View style={styles.errorBanner}>
-          <Text style={styles.errorBannerText}>{loadError}</Text>
+          <Text style={styles.errorBannerText}>Could not load auction data. Pull down to retry.</Text>
         </View>
       )}
 
@@ -186,7 +200,7 @@ export default function AuctionScreen() {
           keyExtractor={i => i.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           refreshing={loading}
-          onRefresh={load}
+          onRefresh={refresh}
           renderItem={({ item }) => {
             const isDonation = item.auctionType.includes('Donation');
             return (
@@ -332,14 +346,14 @@ export default function AuctionScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: theme.colors.surface }]}>
-            {selectedItem && (
+            {liveSelectedItem && (
               <>
                 <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>
-                  {selectedItem.title}
+                  {liveSelectedItem.title}
                 </Text>
-                {selectedItem.photoUrls.length > 0 && (
+                {liveSelectedItem.photoUrls.length > 0 && (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoStrip}>
-                    {selectedItem.photoUrls.map(url => (
+                    {liveSelectedItem.photoUrls.map(url => (
                       <Image
                         key={url}
                         source={{ uri: resolveUrl(url) }}
@@ -349,13 +363,13 @@ export default function AuctionScreen() {
                     ))}
                   </ScrollView>
                 )}
-                <Text style={{ color: '#555', marginBottom: 12 }}>{selectedItem.description}</Text>
+                <Text style={{ color: '#555', marginBottom: 12 }}>{liveSelectedItem.description}</Text>
 
-                {selectedItem.auctionType.includes('Donation') ? (
+                {liveSelectedItem.auctionType.includes('Donation') ? (
                   <>
-                    {selectedItem.donationDenominations ? (
+                    {liveSelectedItem.donationDenominations ? (
                       <View style={styles.denomRow}>
-                        {selectedItem.donationDenominations.map(d => (
+                        {liveSelectedItem.donationDenominations.map(d => (
                           <Pressable
                             key={d}
                             onPress={() => setBidAmt(String(d))}
@@ -375,8 +389,8 @@ export default function AuctionScreen() {
                   </>
                 ) : (
                   <Text style={styles.bidLabel}>
-                    Current bid: {fmt(selectedItem.currentHighBidCents)}
-                    {'\n'}Min bid: {fmt(selectedItem.currentHighBidCents + selectedItem.bidIncrementCents)}
+                    Current bid: {fmt(liveSelectedItem.currentHighBidCents)}
+                    {'\n'}Min bid: {fmt(liveSelectedItem.currentHighBidCents + liveSelectedItem.bidIncrementCents)}
                   </Text>
                 )}
 
@@ -394,13 +408,13 @@ export default function AuctionScreen() {
                       styles.bidBtn,
                       { backgroundColor: player?.hasPaymentMethod ? theme.colors.primary : '#aaa' },
                     ]}
-                    onPress={() => handleBid(selectedItem)}
+                    onPress={() => handleBid(liveSelectedItem)}
                     disabled={bidding || !player?.hasPaymentMethod}
                   >
                     {bidding
                       ? <ActivityIndicator color="#fff" size="small" />
                       : <Text style={styles.bidBtnText}>
-                          {selectedItem.auctionType.includes('Donation') ? 'Pledge' : 'Bid'}
+                          {liveSelectedItem.auctionType.includes('Donation') ? 'Pledge' : 'Bid'}
                         </Text>}
                   </Pressable>
                 </View>
