@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { ADMIN_URL } from '@/lib/api';
 import { L, landingCss } from './landingStyles';
+import Walkthrough from './Walkthrough';
 
 export const metadata: Metadata = {
   title: 'Golf Fundraiser Pro — the all-in-one platform for charity golf events',
@@ -53,17 +54,6 @@ export default function Home() {
       <style dangerouslySetInnerHTML={{ __html: landingCss }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      {/* ── NAV ── */}
-      <nav style={L.nav}>
-        <div style={L.navInner}>
-          <span style={L.navLogo}>⛳ Golf Fundraiser Pro</span>
-          <div style={L.navLinks}>
-            <a href="/events" style={L.navLink} className="gfp-nav-hidesm">Find your event</a>
-            <a href={ADMIN_LOGIN} style={L.navBtn} className="gfp-cta">Organizer Login</a>
-          </div>
-        </div>
-      </nav>
-
       {/* ── HERO ── */}
       <header style={L.hero}>
         <div style={L.heroInner}>
@@ -109,32 +99,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── LIFECYCLE WALKTHROUGH ── */}
-      <section style={{ ...L.section, backgroundColor: '#fff', borderTop: '1px solid #eee', borderBottom: '1px solid #eee' }}>
-        <div style={L.container}>
-          <h2 style={L.sectionTitle}>A quick run through of an event</h2>
-          <p style={L.sectionSub}>From sign-up to the final scorecard — here&apos;s what your tournament looks like, start to finish.</p>
-          <div className="gfp-step-grid">
-            {STEPS.map((s, i) => (
-              <div key={s.phase} style={L.step}>
-                {s.shot
-                  ? <img src={s.shot} alt={`${s.title} — ${s.phase}`} style={L.stepShot} />
-                  : (
-                    <div style={L.stepShotPlaceholder}>
-                      <span style={{ fontSize: '1.6rem', fontWeight: 900 }}>{i + 1}</span>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, opacity: 0.75 }}>Screenshot: {s.phase}</span>
-                    </div>
-                  )}
-                <div style={L.stepBody}>
-                  <span style={L.stepBadge}>{s.phase}</span>
-                  <div style={L.stepTitle}>{s.title}</div>
-                  <div style={L.stepDesc}>{s.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* ── LIFECYCLE WALKTHROUGH (client — click-to-zoom screenshots) ── */}
+      <Walkthrough steps={STEPS} />
 
       {/* ── GOLFER FIND-YOUR-EVENT TEASER ── */}
       <section style={L.golferBand}>

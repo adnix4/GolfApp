@@ -43,11 +43,16 @@ export default async function ScoresPage({
   if (!event) notFound();
 
   return (
-    <ScoresPoller
-      event={event}
-      initialLeaderboard={leaderboard}
-      eventCode={eventCode}
-      tvMode={tvMode}
-    />
+    <>
+      {/* TV/kiosk mode is a full-screen big-display leaderboard — hide the
+          persistent site header there. */}
+      {tvMode && <style>{`.gfp-site-header{display:none}`}</style>}
+      <ScoresPoller
+        event={event}
+        initialLeaderboard={leaderboard}
+        eventCode={eventCode}
+        tvMode={tvMode}
+      />
+    </>
   );
 }

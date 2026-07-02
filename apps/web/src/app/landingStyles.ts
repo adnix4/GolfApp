@@ -16,13 +16,7 @@ export const L: Record<string, CSSProperties> = {
   page:      { minHeight: '100vh' },
   container: { maxWidth: CONTAINER, margin: '0 auto', padding: '0 1.25rem', width: '100%' },
 
-  // ── Nav ──────────────────────────────────────────────────────────────────
-  nav:       { backgroundColor: 'var(--color-primary)' },
-  navInner:  { maxWidth: CONTAINER, margin: '0 auto', padding: '0.9rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' },
-  navLogo:   { color: 'var(--color-surface)', fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' },
-  navLinks:  { display: 'flex', alignItems: 'center', gap: '0.75rem' },
-  navLink:   { color: 'var(--color-highlight)', fontSize: '0.9rem', fontWeight: 600, padding: '0.5rem 0.5rem' },
-  navBtn:    { color: 'var(--color-surface)', fontSize: '0.9rem', fontWeight: 700, padding: '0.5rem 1rem', borderRadius: 8, border: '1.5px solid var(--color-accent)' },
+  // (Top nav lives in the shared SiteHeader rendered by the root layout.)
 
   // ── Hero ──────────────────────────────────────────────────────────────────
   hero:      { backgroundColor: 'var(--color-primary)', paddingBottom: '3.5rem' },
@@ -98,7 +92,6 @@ export const landingCss = `
   .gfp-feature-grid { grid-template-columns: 1fr; }
   .gfp-step-grid    { grid-template-columns: 1fr; }
   .gfp-hero-title   { font-size: 2.1rem !important; }
-  .gfp-nav-hidesm   { display: none !important; }
 }
 .gfp-cta:hover { opacity: 0.92; text-decoration: none; }
 `;

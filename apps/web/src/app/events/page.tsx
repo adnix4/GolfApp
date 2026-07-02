@@ -68,16 +68,6 @@ export default function EventsPage() {
 
   return (
     <main style={L.page}>
-      {/* ── NAV ── */}
-      <nav style={L.nav}>
-        <div style={L.navInner}>
-          <a href="/" style={L.navLogo}>⛳ Golf Fundraiser Pro</a>
-          <div style={L.navLinks}>
-            <a href="/" style={L.navLink}>← Home</a>
-          </div>
-        </div>
-      </nav>
-
       <div style={{ ...L.container, paddingTop: '2.5rem', paddingBottom: '3.5rem' }}>
         <h1 style={{ ...L.sectionTitle, textAlign: 'left', fontSize: '1.9rem' }}>Find your event</h1>
         <p style={{ ...L.sectionSub, textAlign: 'left', marginLeft: 0, marginBottom: '1.75rem' }}>

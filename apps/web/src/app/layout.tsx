@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { buildCSSVars, ECO_GREEN_DEFAULT } from '@gfp/theme';
+import SiteHeader from './SiteHeader';
 
 export const metadata: Metadata = {
   title: { default: 'Golf Fundraiser Pro', template: '%s | Golf Fundraiser Pro' },
@@ -15,7 +16,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <style dangerouslySetInnerHTML={{ __html: cssVars }} />
         <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
       </head>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   );
 }
