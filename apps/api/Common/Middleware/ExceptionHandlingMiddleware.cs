@@ -59,11 +59,6 @@ public class ExceptionHandlingMiddleware
         }
         catch (Exception ex)
         {
-            // Log the full exception with stack trace for server-side debugging.
-            // The client only sees a sanitised version.
-            _logger.LogError(ex, "Unhandled exception for {Method} {Path}",
-                context.Request.Method, context.Request.Path);
-
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -109,6 +104,23 @@ public class ExceptionHandlingMiddleware
             _ => (HttpStatusCode.InternalServerError, "INTERNAL_ERROR",
                     "An unexpected error occurred. Please try again.")
         };
+
+        // Log by severity. Expected domain exceptions (NotFound/Validation/…) map
+        // to 4xx and are normal operation — e.g. a public client polling an event
+        // code that's been deleted or isn't public, or the web front door checking
+        // an unknown code. Log those as a concise warning WITHOUT a stack trace so
+        // they don't masquerade as bugs. Only genuine 5xx failures get an
+        // error-level log with the full exception, so real problems stay visible.
+        if ((int)statusCode >= 500)
+        {
+            _logger.LogError(exception, "Unhandled exception for {Method} {Path}",
+                context.Request.Method, context.Request.Path);
+        }
+        else
+        {
+            _logger.LogWarning("{Code} ({Status}) for {Method} {Path}: {Message}",
+                errorCode, (int)statusCode, context.Request.Method, context.Request.Path, message);
+        }
 
         // Build the response body matching spec Foundation §10 error format:
         // { "error": string, "code": string, "details"?: object }
