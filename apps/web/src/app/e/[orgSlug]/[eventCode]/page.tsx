@@ -130,6 +130,20 @@ export default async function EventPage(
                 />
               )}
 
+              {['active', 'scoring'].includes(event.status) && (
+                <section style={{ ...s.card, borderLeft: '4px solid var(--color-action)' }}>
+                  <h2 style={s.cardTitle}>⛳ Scoring your round?</h2>
+                  <p style={{ color: 'var(--color-accent)', marginTop: '0.5rem', lineHeight: 1.6 }}>
+                    Open the <strong style={{ color: 'var(--color-primary)' }}>Golf Fundraiser Pro</strong> scorer
+                    app and enter this event code with the email you registered with. Your scorecard works even
+                    without a signal and syncs to the live leaderboard automatically.
+                  </p>
+                  <p style={{ color: 'var(--color-accent)', fontSize: '0.9rem', marginTop: '0.85rem', marginBottom: 0 }}>
+                    Event code: <code style={s.code}>{event.eventCode}</code>
+                  </p>
+                </section>
+              )}
+
               <LeaderboardCard
                 showLeaderboard={showLeaderboard}
                 leaderboard={leaderboard}

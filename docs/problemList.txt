@@ -365,6 +365,41 @@ LOCAL (unpushed) unless noted.
         per-session refresh path, or relax the Draft 404 for test-mode events on a
         token-gated endpoint. Not scheduled.
 
-[ ] A1. Create a user freindly web landing page that includes advertising geared towrads event organizers. This should include screen shots of test events so they can see what the program looks like and offers. They should be organized as a quick run through of an event. We need to determine the best way to enter the program for a user.
+[x] A1. Create a user freindly web landing page that includes advertising geared towrads event organizers. This should include screen shots of test events so they can see what the program looks like and offers. They should be organized as a quick run through of an event. We need to determine the best way to enter the program for a user.
+        DONE 2026-07-02 — public "front door" in apps/web (no auth): marketing home
+        (/) with hero/features/3-phase walkthrough using REAL /seed-demo-event
+        screenshots (registration landing / scoring TV leaderboard / completed
+        standings); "Sign up your event" + "Organizer Login" redirect to the admin
+        app (NEXT_PUBLIC_ADMIN_URL). Golfer find-your-event (/events): live directory
+        (search over /pub/events/active, +orgSlug on the DTO) + event-code box →
+        /e/{orgSlug}/{code}. Event page gained a lean "Score in the app" handoff.
+        Browser-verified (CTAs→admin, search filter, code resolve/redirect,
+        unknown-code error); web tsc clean; API 374 tests green. See plan file
+        jolly-stargazing-clover.md.
+        SCOPED 2026-07-01 → built as the public "front door" in apps/web (no auth):
+        (1) marketing home (hero/features/lifecycle-walkthrough w/ screenshots) with
+        "Sign up your event" + "Organizer Login" that REDIRECT to the admin app
+        (new NEXT_PUBLIC_ADMIN_URL; simple link, no SSO); (2) golfer "find your event"
+        (search over /pub/events/active + event-code box → /e/{orgSlug}/{eventCode});
+        (3) event info page keeps web registration, plus a "Score in the app" hand-off.
+        Golfer scoring stays token-gated in mobile (no web auth). See plan file
+        jolly-stargazing-clover.md for the detailed approach.
 
-[ ] A2. Expo update 
+[ ] A2. Expo update
+
+[ ] A3. (SECURITY, optional/proportionate) Golfer email verification at join —
+        magic-link / one-time code. RATIONALE: score submission is already
+        authenticated (Phase11 per-player session_token; BatchSync rejects tokens
+        not belonging to a player on that team) and integrity-backstopped (admin-wins
+        conflict + proposed_score approval + score-source audit). The one residual
+        gap is that the join credential is "event code + a REGISTERED email", so
+        someone who knows a rival player's email + the (semi-public) event code could
+        join in that team's context and perturb its scores (though any tamper trips
+        the conflict/admin-review flow, and the high-stakes money surface —
+        bids/payments — is separately token+Stripe-gated). Proportionate fix WITHOUT
+        adding golfer accounts/passwords (which would hurt the low-friction,
+        offline-first, casual-audience join): send a one-time code / magic link to
+        the player's registered email at /join to prove ownership before minting the
+        session token. Scope = mobile join flow + API (EnsureSessionTokenAsync /
+        JoinAsync in apps/api/Features/Mobile/MobileService.cs) + email delivery;
+        NOT a web-app change. Deferred — decided during A1 planning (2026-07-01).

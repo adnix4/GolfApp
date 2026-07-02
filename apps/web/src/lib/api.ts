@@ -1,5 +1,8 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
+/** Organizer/admin app base URL for Sign-up / Log-in CTAs (separate app; a link, not SSO). */
+export const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'http://localhost:8081';
+
 export interface PublicCourseInfo {
   name:  string;
   city:  string;
@@ -63,6 +66,34 @@ export interface PublicLeaderboard {
   resolvedLogoUrl:   string | null;
   resolvedThemeJson: string | null;
   orgName:           string | null;
+}
+
+/** Lightweight summary of a publicly-listed (Registration/Active/Scoring) event. */
+export interface ActiveEventSummary {
+  id:               string;
+  name:             string;
+  eventCode:        string;
+  format:           string;
+  status:           string;
+  startAt:          string | null;
+  orgName:          string;
+  orgSlug:          string;
+  courseName:       string | null;
+  courseCity:       string | null;
+  courseState:      string | null;
+  logoUrl:          string | null;
+  freeAgentEnabled: boolean;
+}
+
+/** All currently-open events across orgs (for the golfer "find your event" directory). */
+export async function fetchActiveEvents(): Promise<ActiveEventSummary[]> {
+  try {
+    const res = await fetch(`${BASE}/api/v1/pub/events/active`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchPublicEvent(eventCode: string): Promise<PublicEventData | null> {

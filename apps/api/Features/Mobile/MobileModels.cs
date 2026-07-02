@@ -236,6 +236,8 @@ public record ActiveEventSummaryDto
     public string    Status      { get; init; } = string.Empty;
     public DateTime? StartAt     { get; init; }
     public string    OrgName     { get; init; } = string.Empty;
+    /// <summary>Org slug — lets web clients build the public URL /e/{orgSlug}/{eventCode}.</summary>
+    public string    OrgSlug     { get; init; } = string.Empty;
     public string?   CourseName  { get; init; }
     public string?   CourseCity  { get; init; }
     public string?   CourseState { get; init; }

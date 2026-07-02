@@ -1,18 +1,169 @@
+import type { Metadata } from 'next';
+import { ADMIN_URL } from '@/lib/api';
+import { L, landingCss } from './landingStyles';
+
+export const metadata: Metadata = {
+  title: 'Golf Fundraiser Pro — the all-in-one platform for charity golf events',
+  description:
+    'Run beautiful, profitable golf fundraisers. Team registration, offline mobile scoring, a live public leaderboard, silent & live auctions, and sponsor management — in one platform.',
+};
+
+const ADMIN_REGISTER = `${ADMIN_URL}/register`;
+const ADMIN_LOGIN = `${ADMIN_URL}/login`;
+
+const FEATURES = [
+  { icon: '📋', title: 'Event Management',      desc: 'Create and configure tournaments in minutes — format, holes, start type, and course.' },
+  { icon: '👥', title: 'Team Registration',     desc: 'QR check-in, fee tracking, handicap entry, and full roster management.' },
+  { icon: '🏆', title: 'Live Leaderboard',      desc: 'Real-time standings with par tracking, hole-by-hole scorecards, and TV mode.' },
+  { icon: '🎯', title: 'Hole Challenges',       desc: 'Closest to pin, longest drive, and custom contests. Sponsor each hole for extra revenue.' },
+  { icon: '💰', title: 'Auction & Fundraising', desc: 'Silent and live auctions built in. A donation thermometer keeps donors engaged.' },
+  { icon: '📧', title: 'Email Builder',         desc: 'Professional event emails with sponsor logos, QR codes, and registration links.' },
+  { icon: '🏅', title: 'Sponsor Management',    desc: 'Title, Gold, Silver, and custom tiers with logos, links, and hole sponsorships.' },
+  { icon: '📊', title: 'Real-Time Dashboard',   desc: 'Live fundraising totals, check-in progress, and scoring status in one place.' },
+];
+
+const STATS = [
+  { value: 'Free',      label: 'to get started' },
+  { value: 'Minutes',   label: 'to launch your event' },
+  { value: 'Real-Time', label: 'leaderboard' },
+  { value: '100%',      label: 'mobile friendly' },
+];
+
+// The "quick run through of an event" — one card per lifecycle phase. `shot` is a
+// screenshot path under /public; null renders a styled placeholder.
+const STEPS: { phase: string; title: string; desc: string; shot: string | null }[] = [
+  { phase: 'Registration', title: 'Sign up & fundraise', desc: 'Share a branded event page — teams register and pay, while sponsors and donations roll in before the first tee.', shot: '/screenshots/registration.png' },
+  { phase: 'Scoring',       title: 'Live leaderboard',    desc: 'Golfers score on the mobile app, even with no signal. Scores sync to a real-time public leaderboard and big-screen TV mode.', shot: '/screenshots/scoring.png' },
+  { phase: 'Completed',     title: 'Final results',       desc: 'Final standings publish instantly, auction winners are charged automatically, and donation receipts and totals are ready to report.', shot: '/screenshots/completed.png' },
+];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Golf Fundraiser Pro',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web, iOS, Android',
+  description: 'All-in-one platform for charity golf tournaments: registration, offline mobile scoring, live leaderboard, auctions, and sponsor management.',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD', description: 'Free to get started' },
+};
+
 export default function Home() {
   return (
-    <main style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', padding: '2rem' }}>
-      <div style={{ textAlign: 'center' }}>
-        <p style={{ fontSize: '4rem' }}>⛳</p>
-        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: '1rem' }}>
-          Golf Fundraiser Pro
-        </h1>
-        <p style={{ color: 'var(--color-accent)', marginTop: '0.5rem' }}>
-          Enter your event URL to view the event page.
-        </p>
-        <p style={{ color: 'var(--color-accent)', fontSize: '0.875rem', marginTop: '1rem' }}>
-          Format: <code style={{ background: '#e8f0e8', padding: '2px 6px', borderRadius: 4 }}>/e/&#123;org&#125;/&#123;eventCode&#125;</code>
-        </p>
-      </div>
+    <main style={L.page}>
+      <style dangerouslySetInnerHTML={{ __html: landingCss }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+
+      {/* ── NAV ── */}
+      <nav style={L.nav}>
+        <div style={L.navInner}>
+          <span style={L.navLogo}>⛳ Golf Fundraiser Pro</span>
+          <div style={L.navLinks}>
+            <a href="/events" style={L.navLink} className="gfp-nav-hidesm">Find your event</a>
+            <a href={ADMIN_LOGIN} style={L.navBtn} className="gfp-cta">Organizer Login</a>
+          </div>
+        </div>
+      </nav>
+
+      {/* ── HERO ── */}
+      <header style={L.hero}>
+        <div style={L.heroInner}>
+          <p style={L.heroTag}>The all-in-one platform for charity golf events</p>
+          <h1 style={L.heroTitle} className="gfp-hero-title">Run beautiful, profitable golf fundraisers.</h1>
+          <p style={L.heroSub}>
+            From registration to real-time leaderboards, silent auctions to sponsor management —
+            everything your event needs, in one place. Free to get started.
+          </p>
+          <div style={L.heroCtas}>
+            <a href={ADMIN_REGISTER} style={L.ctaPrimary} className="gfp-cta">Sign up your event →</a>
+            <a href="/events" style={L.ctaOutline} className="gfp-cta">Find your event</a>
+          </div>
+        </div>
+      </header>
+
+      {/* ── STATS ── */}
+      <section style={L.stats}>
+        <div style={L.statsInner}>
+          {STATS.map(s => (
+            <div key={s.label} style={L.statItem}>
+              <div style={L.statValue}>{s.value}</div>
+              <div style={L.statLabel}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── FEATURES ── */}
+      <section style={L.section}>
+        <div style={L.container}>
+          <h2 style={L.sectionTitle}>Everything you need to run a great event</h2>
+          <p style={L.sectionSub}>Built for golf event organizers, charities, booster clubs, and fundraising pros.</p>
+          <div className="gfp-feature-grid">
+            {FEATURES.map(f => (
+              <div key={f.title} style={L.featureCard}>
+                <div style={L.featureIcon}>{f.icon}</div>
+                <div style={L.featureTitle}>{f.title}</div>
+                <div style={L.featureDesc}>{f.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── LIFECYCLE WALKTHROUGH ── */}
+      <section style={{ ...L.section, backgroundColor: '#fff', borderTop: '1px solid #eee', borderBottom: '1px solid #eee' }}>
+        <div style={L.container}>
+          <h2 style={L.sectionTitle}>A quick run through of an event</h2>
+          <p style={L.sectionSub}>From sign-up to the final scorecard — here&apos;s what your tournament looks like, start to finish.</p>
+          <div className="gfp-step-grid">
+            {STEPS.map((s, i) => (
+              <div key={s.phase} style={L.step}>
+                {s.shot
+                  ? <img src={s.shot} alt={`${s.title} — ${s.phase}`} style={L.stepShot} />
+                  : (
+                    <div style={L.stepShotPlaceholder}>
+                      <span style={{ fontSize: '1.6rem', fontWeight: 900 }}>{i + 1}</span>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, opacity: 0.75 }}>Screenshot: {s.phase}</span>
+                    </div>
+                  )}
+                <div style={L.stepBody}>
+                  <span style={L.stepBadge}>{s.phase}</span>
+                  <div style={L.stepTitle}>{s.title}</div>
+                  <div style={L.stepDesc}>{s.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── GOLFER FIND-YOUR-EVENT TEASER ── */}
+      <section style={L.golferBand}>
+        <div style={L.golferInner}>
+          <h2 style={L.golferTitle}>Playing in a tournament?</h2>
+          <p style={L.golferSub}>
+            Find your event to register, view the leaderboard, or donate. Have a link or QR code from your
+            organizer? That takes you straight there.
+          </p>
+          <a href="/events" style={L.ctaOnLight} className="gfp-cta">Find your event →</a>
+        </div>
+      </section>
+
+      {/* ── BOTTOM CTA ── */}
+      <section style={L.bottomCta}>
+        <div style={L.bottomCtaInner}>
+          <h2 style={L.bottomCtaTitle}>Ready to run your tournament?</h2>
+          <p style={L.bottomCtaSub}>Create your free account in under two minutes. No credit card required.</p>
+          <a href={ADMIN_REGISTER} style={L.ctaPrimary} className="gfp-cta">Get started — it&apos;s free →</a>
+        </div>
+      </section>
+
+      {/* ── FOOTER ── */}
+      <footer style={L.footer}>
+        <div style={L.footerInner}>
+          <span style={L.footerText}>© {new Date().getFullYear()} Golf Fundraiser Pro · Built for nonprofit golf events</span>
+          <a href={ADMIN_LOGIN} style={L.footerLink} className="gfp-cta">Organizer Login</a>
+        </div>
+      </footer>
     </main>
   );
 }

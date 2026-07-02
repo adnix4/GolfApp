@@ -82,6 +82,7 @@ public class MobileService
                 Status           = e.Status.ToString(),
                 StartAt          = e.StartAt,
                 OrgName          = e.Organization.Name,
+                OrgSlug          = e.Organization.Slug,
                 CourseName       = e.Course?.Name,
                 CourseCity       = e.Course?.City,
                 CourseState      = e.Course?.State,
