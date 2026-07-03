@@ -184,7 +184,11 @@
       "Bash(gh pr create --base main --head feat/sdk56-modernization --title 'Expo SDK 56 upgrade + modernization + brand-from-website' --body ' *)",
       "PowerShell($g = Get-Command gh -ErrorAction SilentlyContinue; if \\($g\\) { \"gh at: $\\($g.Source\\)\" } else { \"gh NOT FOUND\" })",
       "Bash(tasklist)",
-      "Bash(powershell -Command \"Get-Process GolfFundraiserPro.Api -ErrorAction SilentlyContinue | Select-Object Id,ProcessName\")"
+      "Bash(powershell -Command \"Get-Process GolfFundraiserPro.Api -ErrorAction SilentlyContinue | Select-Object Id,ProcessName\")",
+      "Bash(gh repo *)",
+      "PowerShell($g = Get-Command gh -ErrorAction SilentlyContinue; if \\($g\\) { \"FOUND: $\\($g.Source\\)\"; gh --version 2>&1 | Select-Object -First 1; gh auth status 2>&1 | Select-Object -First 3 } else { \"gh not found on PATH\" })",
+      "Bash(npx --yes kill-port 3000)",
+      "Bash(export PGPASSWORD=gfp_local)"
     ]
   }
 }
