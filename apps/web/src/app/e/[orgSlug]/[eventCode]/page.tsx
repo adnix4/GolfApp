@@ -103,7 +103,7 @@ export default async function EventPage(
                     {event.missionStatement}
                   </p>
                   {event.is501c3 && (
-                    <p style={{ fontSize: '0.8rem', color: 'var(--color-accent)', marginTop: '0.75rem', marginBottom: 0 }}>
+                    <p style={{ fontSize: '0.8rem', color: '#4b5563', marginTop: '0.75rem', marginBottom: 0 }}>
                       Donations to {event.orgName} may be tax-deductible as a charitable contribution under IRC § 501(c)(3). Consult your tax advisor.
                     </p>
                   )}
@@ -111,7 +111,7 @@ export default async function EventPage(
               )}
               {!event.missionStatement && event.is501c3 && (
                 <section style={{ ...s.card, borderLeft: '4px solid var(--color-action)' }}>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--color-accent)', margin: 0 }}>
+                  <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: 0 }}>
                     Donations to {event.orgName} may be tax-deductible as a charitable contribution under IRC § 501(c)(3). Consult your tax advisor.
                   </p>
                 </section>
@@ -133,12 +133,12 @@ export default async function EventPage(
               {['active', 'scoring'].includes(event.status) && (
                 <section style={{ ...s.card, borderLeft: '4px solid var(--color-action)' }}>
                   <h2 style={s.cardTitle}>⛳ Scoring your round?</h2>
-                  <p style={{ color: 'var(--color-accent)', marginTop: '0.5rem', lineHeight: 1.6 }}>
+                  <p style={{ color: '#4b5563', marginTop: '0.5rem', lineHeight: 1.6 }}>
                     Open the <strong style={{ color: 'var(--color-primary)' }}>Golf Fundraiser Pro</strong> scorer
                     app and enter this event code with the email you registered with. Your scorecard works even
                     without a signal and syncs to the live leaderboard automatically.
                   </p>
-                  <p style={{ color: 'var(--color-accent)', fontSize: '0.9rem', marginTop: '0.85rem', marginBottom: 0 }}>
+                  <p style={{ color: '#4b5563', fontSize: '0.9rem', marginTop: '0.85rem', marginBottom: 0 }}>
                     Event code: <code style={s.code}>{event.eventCode}</code>
                   </p>
                 </section>
@@ -154,11 +154,11 @@ export default async function EventPage(
 
               <section style={{ ...s.card, textAlign: 'center' }} id="contact">
                 <h2 style={s.cardTitle}>Get Involved</h2>
-                <p style={{ color: 'var(--color-accent)', marginTop: '0.5rem' }}>
+                <p style={{ color: '#4b5563', marginTop: '0.5rem' }}>
                   Questions about registration or the event? Reach out to{' '}
                   <strong style={{ color: 'var(--color-primary)' }}>{event.orgName}</strong>.
                 </p>
-                <p style={{ color: 'var(--color-accent)', fontSize: '0.875rem', marginTop: '1rem' }}>
+                <p style={{ color: '#4b5563', fontSize: '0.875rem', marginTop: '1rem' }}>
                   Event code: <code style={s.code}>{event.eventCode}</code>
                 </p>
               </section>

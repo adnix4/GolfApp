@@ -61,7 +61,7 @@ function FeatureCard({ item, theme }: { item: FeatureItem; theme: ReturnType<typ
       </View>
       <View style={promoStyles.featureText}>
         <Text style={[promoStyles.featureTitle, { color: theme.colors.primary }]}>{item.title}</Text>
-        <Text style={[promoStyles.featureBody,  { color: theme.colors.accent  }]}>{item.body}</Text>
+        <Text style={[promoStyles.featureBody,  { color: theme.mutedText  }]}>{item.body}</Text>
       </View>
     </View>
   );
@@ -75,7 +75,7 @@ function StepCard({ item, theme }: { item: StepItem; theme: ReturnType<typeof us
       </View>
       <View style={promoStyles.stepText}>
         <Text style={[promoStyles.stepTitle, { color: theme.colors.primary }]}>{item.title}</Text>
-        <Text style={[promoStyles.stepBody,  { color: theme.colors.accent  }]}>{item.body}</Text>
+        <Text style={[promoStyles.stepBody,  { color: theme.mutedText  }]}>{item.body}</Text>
       </View>
     </View>
   );
@@ -122,7 +122,7 @@ function LeaguePromo() {
         <Text style={[promoStyles.ctaTitle, { color: theme.colors.primary }]}>
           Interested in League Play?
         </Text>
-        <Text style={[promoStyles.ctaBody, { color: theme.colors.accent }]}>
+        <Text style={[promoStyles.ctaBody, { color: theme.mutedText }]}>
           Ask your event organizer to link this tournament to a league season.
           Once linked, your stats and rankings will appear here automatically.
         </Text>
@@ -182,7 +182,7 @@ export default function LeagueScreen() {
 
   if (!summary) return (
     <View style={styles.center}>
-      <Text style={[styles.emptyText, { color: theme.colors.accent }]}>
+      <Text style={[styles.emptyText, { color: theme.mutedText }]}>
         No league data found.
       </Text>
     </View>
@@ -228,12 +228,12 @@ export default function LeagueScreen() {
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Handicap Trend</Text>
         {summary.handicapTrend.length === 0 ? (
-          <Text style={[styles.emptyText, { color: theme.colors.accent }]}>No rounds played yet.</Text>
+          <Text style={[styles.emptyText, { color: theme.mutedText }]}>No rounds played yet.</Text>
         ) : (
           summary.handicapTrend.map((h) => (
             <View key={h.id} style={[styles.trendRow, { borderColor: theme.colors.accent }]}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.trendDate, { color: theme.colors.accent }]}>
+                <Text style={[styles.trendDate, { color: theme.mutedText }]}>
                   {h.roundDate ?? h.createdAt.slice(0, 10)}
                   {h.adminOverride ? '  (Admin)' : ''}
                 </Text>
@@ -243,7 +243,7 @@ export default function LeagueScreen() {
                   {h.oldIndex.toFixed(1)} → {h.newIndex.toFixed(1)}
                 </Text>
                 <Text style={[styles.trendDiff, {
-                  color: h.differential < 0 ? '#16a34a' : h.differential > 0 ? '#ef4444' : theme.colors.accent
+                  color: h.differential < 0 ? '#16a34a' : h.differential > 0 ? '#ef4444' : theme.mutedText
                 }]}>
                   diff {h.differential > 0 ? '+' : ''}{h.differential.toFixed(1)}
                 </Text>
@@ -257,17 +257,17 @@ export default function LeagueScreen() {
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Round History</Text>
         {summary.roundHistory.length === 0 ? (
-          <Text style={[styles.emptyText, { color: theme.colors.accent }]}>No completed rounds.</Text>
+          <Text style={[styles.emptyText, { color: theme.mutedText }]}>No completed rounds.</Text>
         ) : (
           <>
             <View style={[styles.tableHeader, { backgroundColor: theme.colors.primary + '11' }]}>
               {['Date', 'Gross', 'Net', 'Pts'].map(h => (
-                <Text key={h} style={[styles.tableCell, { color: theme.colors.accent, fontWeight: '700', fontSize: 11 }]}>{h}</Text>
+                <Text key={h} style={[styles.tableCell, { color: theme.mutedText, fontWeight: '700', fontSize: 11 }]}>{h}</Text>
               ))}
             </View>
             {summary.roundHistory.map(r => (
               <View key={r.roundId} style={[styles.tableRow, { borderBottomColor: theme.colors.accent }]}>
-                <Text style={[styles.tableCell, { color: theme.colors.accent }]}>{r.roundDate}</Text>
+                <Text style={[styles.tableCell, { color: theme.mutedText }]}>{r.roundDate}</Text>
                 <Text style={[styles.tableCell, { color: theme.colors.primary }]}>{r.grossTotal}</Text>
                 <Text style={[styles.tableCell, { color: theme.colors.primary, fontWeight: '600' }]}>{r.netTotal}</Text>
                 <Text style={[styles.tableCell, { color: theme.colors.primary, fontWeight: '600' }]}>{r.stablefordPoints}</Text>

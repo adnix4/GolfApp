@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   ECO_GREEN_DEFAULT,
+  MIN_SURFACE_LUMINANCE,
   validateContrast,
   getContrastRatio,
+  readableTextOn,
+  isLightSurface,
   buildCSSVars,
   buildThemeContext,
   buildEmailVars,
@@ -108,8 +111,9 @@ describe('buildThemeContext', () => {
 
   it('maps semantic aliases correctly', () => {
     expect(ctx.buttonBackground).toBe(ECO_GREEN_DEFAULT.primary);
-    expect(ctx.buttonLabel).toBe(ECO_GREEN_DEFAULT.surface);
+    expect(ctx.buttonLabel).toBe(readableTextOn(ECO_GREEN_DEFAULT.primary));
     expect(ctx.ctaBackground).toBe(ECO_GREEN_DEFAULT.action);
+    expect(ctx.ctaLabel).toBe(readableTextOn(ECO_GREEN_DEFAULT.action));
     expect(ctx.pageBackground).toBe(ECO_GREEN_DEFAULT.surface);
     expect(ctx.cardBackground).toBe(ECO_GREEN_DEFAULT.surface);
     expect(ctx.linkColor).toBe(ECO_GREEN_DEFAULT.action);
@@ -117,13 +121,92 @@ describe('buildThemeContext', () => {
     expect(ctx.selectedBackground).toBe(ECO_GREEN_DEFAULT.highlight);
   });
 
+  it('derives per-fill labels for the ECO_GREEN palette', () => {
+    // Dark Forest primary → white label; mid-tone Leaf Green action sits just
+    // above the luminance breakpoint, so dark text contrasts better than white.
+    expect(ctx.buttonLabel).toBe('#ffffff');
+    expect(ctx.ctaLabel).toBe('#1a1a1a');
+  });
+
+  it('derives dark labels when a theme uses light primary/action fills', () => {
+    const lightBrand: GFPTheme = {
+      primary: '#ffd700', action: '#ecf39e', accent: '#8ba955',
+      highlight: '#ecf39e', surface: '#1a1a2e',
+    };
+    const light = buildThemeContext(lightBrand);
+    expect(light.buttonLabel).toBe('#1a1a1a');
+    expect(light.ctaLabel).toBe('#1a1a1a');
+  });
+
   it('covers all ThemeContextValue properties', () => {
     const expectedKeys = [
-      'colors', 'buttonBackground', 'buttonLabel', 'ctaBackground',
+      'colors', 'buttonBackground', 'buttonLabel', 'ctaBackground', 'ctaLabel',
       'pageBackground', 'cardBackground', 'linkColor', 'hoverBackground',
-      'selectedBackground',
+      'selectedBackground', 'mutedText',
     ];
     expectedKeys.forEach(k => expect(ctx).toHaveProperty(k));
+  });
+
+  it('mutedText passes AA on white and on the default surface', () => {
+    expect(getContrastRatio(ctx.mutedText, '#ffffff')).toBeGreaterThanOrEqual(4.5);
+    expect(getContrastRatio(ctx.mutedText, ECO_GREEN_DEFAULT.surface)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+// ── readableTextOn / isLightSurface ─────────────────────────────────────────
+
+describe('readableTextOn', () => {
+  it('returns white for dark fills', () => {
+    expect(readableTextOn('#000000')).toBe('#ffffff');
+    expect(readableTextOn('#31572c')).toBe('#ffffff');
+    expect(readableTextOn('#c0392b')).toBe('#ffffff');
+  });
+
+  it('returns near-black for light fills', () => {
+    expect(readableTextOn('#ffffff')).toBe('#1a1a1a');
+    expect(readableTextOn('#ecf39e')).toBe('#1a1a1a');
+    expect(readableTextOn('#ffd700')).toBe('#1a1a1a');
+  });
+
+  it('always yields at least 4.5:1 contrast for fully saturated fills', () => {
+    ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'].forEach(bg => {
+      expect(getContrastRatio(readableTextOn(bg), bg)).toBeGreaterThanOrEqual(3);
+    });
+  });
+});
+
+describe('isLightSurface', () => {
+  it('accepts white, cream, and light pastels', () => {
+    expect(isLightSurface('#ffffff')).toBe(true);
+    expect(isLightSurface(ECO_GREEN_DEFAULT.surface)).toBe(true);
+    expect(isLightSurface('#ffc0cb')).toBe(true); // light pink
+    expect(isLightSurface('#87ceeb')).toBe(true); // sky blue
+  });
+
+  it('rejects dark and mid-tone surfaces', () => {
+    expect(isLightSurface('#000000')).toBe(false);
+    expect(isLightSurface('#1a1a2e')).toBe(false); // navy
+    expect(isLightSurface('#e74c3c')).toBe(false); // saturated red
+    expect(isLightSurface('#8ba955')).toBe(false); // sage (mid-tone)
+  });
+
+  it('guarantees primary reads on white cards when combined with the AA gate', () => {
+    // Any (primary, surface) pair that passes BOTH gates must give primary
+    // ≥ 4.5:1 on a white card — the layout assumption across all three apps.
+    const pairs: Array<[string, string]> = [
+      ['#31572c', '#f4f7de'],
+      ['#1a1a2e', '#ffc0cb'],
+      ['#4a0d0d', '#87ceeb'],
+    ];
+    pairs.forEach(([primary, surface]) => {
+      expect(validateContrast(primary, surface)).toBe(true);
+      expect(isLightSurface(surface)).toBe(true);
+      expect(getContrastRatio(primary, '#ffffff')).toBeGreaterThanOrEqual(4.5);
+    });
+  });
+
+  it('exports the documented luminance floor', () => {
+    expect(MIN_SURFACE_LUMINANCE).toBe(0.4);
   });
 });
 

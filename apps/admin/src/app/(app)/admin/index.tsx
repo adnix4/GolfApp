@@ -71,7 +71,7 @@ export default function SuperAdminDashboard() {
     >
       {/* Header */}
       <Text style={[styles.pageTitle, { color: theme.colors.primary }]}>Platform Overview</Text>
-      <Text style={[styles.pageSub,   { color: theme.colors.accent }]}>
+      <Text style={[styles.pageSub,   { color: theme.mutedText }]}>
         All organizations and events across Golf Fundraiser Pro
       </Text>
 
@@ -91,7 +91,7 @@ export default function SuperAdminDashboard() {
         ].map(s => (
           <View key={s.label} style={[styles.statCard, isMobile && styles.statCardMobile, { borderColor: theme.colors.accent + '44' }]}>
             <Text style={[styles.statValue, { color: theme.colors.primary }]}>{s.value}</Text>
-            <Text style={[styles.statLabel, { color: theme.colors.accent }]}>{s.label}</Text>
+            <Text style={[styles.statLabel, { color: theme.mutedText }]}>{s.label}</Text>
           </View>
         ))}
       </View>
@@ -102,7 +102,7 @@ export default function SuperAdminDashboard() {
           style={[styles.tab, tab === 'orgs' && { backgroundColor: theme.colors.primary }]}
           onPress={() => setTab('orgs')}
         >
-          <Text style={[styles.tabText, { color: tab === 'orgs' ? '#fff' : theme.colors.accent }]}>
+          <Text style={[styles.tabText, { color: tab === 'orgs' ? '#fff' : theme.mutedText }]}>
             Organizations ({orgs.length})
           </Text>
         </Pressable>
@@ -110,7 +110,7 @@ export default function SuperAdminDashboard() {
           style={[styles.tab, tab === 'events' && { backgroundColor: theme.colors.primary }]}
           onPress={() => setTab('events')}
         >
-          <Text style={[styles.tabText, { color: tab === 'events' ? '#fff' : theme.colors.accent }]}>
+          <Text style={[styles.tabText, { color: tab === 'events' ? '#fff' : theme.mutedText }]}>
             All Events ({totalEvents})
           </Text>
         </Pressable>
@@ -129,7 +129,7 @@ export default function SuperAdminDashboard() {
           </View>
 
           {orgs.length === 0 && (
-            <Text style={[styles.emptyMsg, { color: theme.colors.accent }]}>No organizations yet.</Text>
+            <Text style={[styles.emptyMsg, { color: theme.mutedText }]}>No organizations yet.</Text>
           )}
 
           {orgs.map((org, i) => (
@@ -142,22 +142,22 @@ export default function SuperAdminDashboard() {
                   {org.name}
                 </Text>
                 {isMobile && (
-                  <Text style={[styles.cellSub, { color: theme.colors.accent }]}>{org.slug}</Text>
+                  <Text style={[styles.cellSub, { color: theme.mutedText }]}>{org.slug}</Text>
                 )}
               </View>
               {!isMobile && (
-                <Text style={[styles.tdCell, styles.thSlug, { color: theme.colors.accent }]} numberOfLines={1}>
+                <Text style={[styles.tdCell, styles.thSlug, { color: theme.mutedText }]} numberOfLines={1}>
                   {org.slug}
                 </Text>
               )}
               <Text style={[styles.tdCell, styles.thEvents, { color: theme.colors.primary }]}>
                 {org.eventCount}
               </Text>
-              <Text style={[styles.tdCell, styles.th501, { color: org.is501c3 ? '#27ae60' : theme.colors.accent }]}>
+              <Text style={[styles.tdCell, styles.th501, { color: org.is501c3 ? '#27ae60' : theme.mutedText }]}>
                 {org.is501c3 ? '✓' : '—'}
               </Text>
               {!isMobile && (
-                <Text style={[styles.tdCell, styles.thDate, { color: theme.colors.accent }]}>
+                <Text style={[styles.tdCell, styles.thDate, { color: theme.mutedText }]}>
                   {new Date(org.createdAt).toLocaleDateString()}
                 </Text>
               )}
@@ -178,7 +178,7 @@ export default function SuperAdminDashboard() {
           </View>
 
           {events.length === 0 && (
-            <Text style={[styles.emptyMsg, { color: theme.colors.accent }]}>No events yet.</Text>
+            <Text style={[styles.emptyMsg, { color: theme.mutedText }]}>No events yet.</Text>
           )}
 
           {events.map((ev, i) => (
@@ -191,12 +191,12 @@ export default function SuperAdminDashboard() {
                   {ev.name}
                 </Text>
                 {isMobile && (
-                  <Text style={[styles.cellSub, { color: theme.colors.accent }]}>{ev.orgName}</Text>
+                  <Text style={[styles.cellSub, { color: theme.mutedText }]}>{ev.orgName}</Text>
                 )}
-                <Text style={[styles.cellCode, { color: theme.colors.accent }]}>{ev.eventCode}</Text>
+                <Text style={[styles.cellCode, { color: theme.mutedText }]}>{ev.eventCode}</Text>
               </View>
               {!isMobile && (
-                <Text style={[styles.tdCell, styles.thOrg, { color: theme.colors.accent }]} numberOfLines={1}>
+                <Text style={[styles.tdCell, styles.thOrg, { color: theme.mutedText }]} numberOfLines={1}>
                   {ev.orgName}
                 </Text>
               )}
@@ -207,7 +207,7 @@ export default function SuperAdminDashboard() {
                 {ev.teamCount}
               </Text>
               {!isMobile && (
-                <Text style={[styles.tdCell, styles.thDate, { color: theme.colors.accent }]}>
+                <Text style={[styles.tdCell, styles.thDate, { color: theme.mutedText }]}>
                   {ev.startAt ? new Date(ev.startAt).toLocaleDateString() : '—'}
                 </Text>
               )}

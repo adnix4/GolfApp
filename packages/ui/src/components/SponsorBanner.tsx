@@ -18,6 +18,7 @@
 
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
+import { readableTextOn } from '@gfp/theme';
 import type { SponsorDTO } from '@gfp/shared-types';
 import { useTheme } from './ThemeProvider';
 
@@ -57,7 +58,7 @@ export function SponsorBanner({ sponsor, variant = 'full' }: SponsorBannerProps)
             accessibilityLabel={`${sponsor.name} — ${tierLabel[sponsor.tier]}`}
           />
         ) : (
-          <Text style={[styles.compactText, { color: theme.colors.surface }]}>
+          <Text style={[styles.compactText, { color: readableTextOn(theme.colors.accent) }]}>
             {sponsor.name}
           </Text>
         )}
@@ -72,7 +73,7 @@ export function SponsorBanner({ sponsor, variant = 'full' }: SponsorBannerProps)
     >
       {/* Tier badge in top-right corner */}
       <View style={[styles.tierBadge, { backgroundColor: theme.colors.primary }]}>
-        <Text style={[styles.tierText, { color: theme.colors.highlight }]}>
+        <Text style={[styles.tierText, { color: theme.buttonLabel }]}>
           {tierLabel[sponsor.tier]}
         </Text>
       </View>
@@ -93,7 +94,7 @@ export function SponsorBanner({ sponsor, variant = 'full' }: SponsorBannerProps)
 
       {/* Tagline */}
       {sponsor.tagline && (
-        <Text style={[styles.tagline, { color: theme.colors.accent }]} numberOfLines={2}>
+        <Text style={[styles.tagline, { color: theme.mutedText }]} numberOfLines={2}>
           {sponsor.tagline}
         </Text>
       )}

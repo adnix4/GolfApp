@@ -83,7 +83,7 @@ export function AsyncSection({
   if (empty) {
     return (
       <View style={styles.center}>
-        <Text style={[styles.emptyText, { color: theme.colors.accent }]}>{empty}</Text>
+        <Text style={[styles.emptyText, { color: theme.mutedText }]}>{empty}</Text>
       </View>
     );
   }

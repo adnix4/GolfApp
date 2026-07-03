@@ -55,7 +55,7 @@ export default function QrImportScreen() {
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={[styles.title, { color: theme.colors.primary }]}>QR Score Import</Text>
-      <Text style={[styles.subtitle, { color: theme.colors.accent }]}>
+      <Text style={[styles.subtitle, { color: theme.mutedText }]}>
         Use a USB barcode scanner or paste the QR payload from a player's mobile scorecard.
         The scanner acts as a keyboard — focus the field and scan.
       </Text>

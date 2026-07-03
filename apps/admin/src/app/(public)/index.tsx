@@ -30,16 +30,16 @@ export default function LandingPage() {
       <View style={[styles.nav, { backgroundColor: theme.colors.primary, paddingHorizontal: pagePadding }]}>
         <Text style={[styles.navLogo, { color: theme.colors.surface }]}>⛳ Golf Fundraiser Pro</Text>
         <Pressable
-          style={[styles.navBtn, { borderColor: theme.colors.accent }]}
+          style={[styles.navBtn, { borderColor: theme.buttonLabel }]}
           onPress={() => router.push('/(auth)/login')}
         >
-          <Text style={[styles.navBtnText, { color: theme.colors.accent }]}>Sign In</Text>
+          <Text style={[styles.navBtnText, { color: theme.buttonLabel }]}>Sign In</Text>
         </Pressable>
       </View>
 
       {/* ── HERO ── */}
       <View style={[styles.hero, { paddingHorizontal: pagePadding, backgroundColor: theme.colors.primary }]}>
-        <Text style={[styles.heroTag, { color: theme.colors.accent }]}>
+        <Text style={[styles.heroTag, { color: '#c8dfb0' }]}>
           The all-in-one platform for charity golf events
         </Text>
         <Text style={[styles.heroTitle, { color: theme.colors.surface }]}>
@@ -60,10 +60,10 @@ export default function LandingPage() {
             </Text>
           </Pressable>
           <Pressable
-            style={[styles.ctaSecondary, { borderColor: theme.colors.accent }]}
+            style={[styles.ctaSecondary, { borderColor: theme.buttonLabel }]}
             onPress={() => router.push('/(auth)/login')}
           >
-            <Text style={[styles.ctaSecondaryText, { color: theme.colors.accent }]}>
+            <Text style={[styles.ctaSecondaryText, { color: theme.buttonLabel }]}>
               Sign In to Dashboard
             </Text>
           </Pressable>
@@ -80,7 +80,7 @@ export default function LandingPage() {
         ].map(s => (
           <View key={s.label} style={styles.statItem}>
             <Text style={[styles.statValue, { color: theme.colors.primary }]}>{s.value}</Text>
-            <Text style={[styles.statLabel, { color: theme.colors.accent }]}>{s.label}</Text>
+            <Text style={[styles.statLabel, { color: theme.mutedText }]}>{s.label}</Text>
           </View>
         ))}
       </View>
@@ -90,7 +90,7 @@ export default function LandingPage() {
         <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
           Everything you need to run a great event
         </Text>
-        <Text style={[styles.sectionSub, { color: theme.colors.accent }]}>
+        <Text style={[styles.sectionSub, { color: theme.mutedText }]}>
           Built for golf event organizers, charities, booster clubs, and fundraising pros.
         </Text>
 
@@ -105,7 +105,7 @@ export default function LandingPage() {
             >
               <Text style={styles.featureIcon}>{f.icon}</Text>
               <Text style={[styles.featureTitle, { color: theme.colors.primary }]}>{f.title}</Text>
-              <Text style={[styles.featureDesc, { color: theme.colors.accent }]}>{f.desc}</Text>
+              <Text style={[styles.featureDesc, { color: theme.mutedText }]}>{f.desc}</Text>
             </View>
           ))}
         </View>
@@ -132,7 +132,7 @@ export default function LandingPage() {
 
       {/* ── FOOTER ── */}
       <View style={[styles.footer, { paddingHorizontal: pagePadding }]}>
-        <Text style={[styles.footerText, { color: theme.colors.accent }]}>
+        <Text style={[styles.footerText, { color: theme.mutedText }]}>
           © {new Date().getFullYear()} Golf Fundraiser Pro · Built for nonprofit golf events
         </Text>
         <Pressable onPress={() => router.push('/(auth)/login')}>

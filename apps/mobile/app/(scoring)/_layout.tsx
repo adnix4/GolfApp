@@ -117,7 +117,7 @@ export default function ScoringLayout() {
               {isEnded ? statusLabel : 'Scoring Not Open Yet'}
             </Text>
 
-            <Text style={[styles.waitSub, { color: theme.colors.accent }]}>
+            <Text style={[styles.waitSub, { color: theme.mutedText }]}>
               {isEnded
                 ? 'Scoring for this event is no longer available.'
                 : 'The organizer hasn\'t opened scoring yet. You can browse the event now and the scorecard will unlock automatically when the round begins.'}
@@ -164,7 +164,7 @@ export default function ScoringLayout() {
               onPress={handleLeave}
               accessibilityRole="button"
             >
-              <Text style={[styles.leaveBtnText, { color: theme.colors.accent }]}>
+              <Text style={[styles.leaveBtnText, { color: theme.mutedText }]}>
                 Leave Event
               </Text>
             </Pressable>
@@ -207,7 +207,7 @@ export default function ScoringLayout() {
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor:   theme.colors.primary,
-          tabBarInactiveTintColor: theme.colors.accent,
+          tabBarInactiveTintColor: theme.mutedText,
           tabBarStyle: {
             backgroundColor: theme.colors.surface,
             borderTopColor:  '#e0e0e0',

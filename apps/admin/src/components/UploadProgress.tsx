@@ -20,7 +20,7 @@ export function UploadProgress({
   return (
     <View style={styles.wrap}>
       <View style={styles.headerRow}>
-        <Text style={[styles.label, { color: theme.colors.accent }]}>
+        <Text style={[styles.label, { color: theme.mutedText }]}>
           {label}… {pct}%
         </Text>
         <Pressable

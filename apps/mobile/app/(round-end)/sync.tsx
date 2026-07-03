@@ -60,7 +60,7 @@ function ChallengeModal({
 
           <View style={modalStyles.body}>
             {challenge.challengeType ? (
-              <Text style={[modalStyles.typeLabel, { color: theme.colors.accent }]}>
+              <Text style={[modalStyles.typeLabel, { color: theme.mutedText }]}>
                 {CHALLENGE_TYPE_LABELS[challenge.challengeType] ?? challenge.challengeType}
               </Text>
             ) : null}
@@ -77,7 +77,7 @@ function ChallengeModal({
             ) : null}
 
             {challenge.sponsorName ? (
-              <Text style={[modalStyles.sponsorText, { color: theme.colors.accent }]}>
+              <Text style={[modalStyles.sponsorText, { color: theme.mutedText }]}>
                 Presented by {challenge.sponsorName}
               </Text>
             ) : null}
@@ -209,7 +209,7 @@ export default function SyncScreen() {
   }, 0);
   const toParLabel =
     toPar === 0 ? 'Even' : toPar > 0 ? `+${toPar}` : `${toPar}`;
-  const toParColor = toPar < 0 ? '#27ae60' : toPar > 0 ? '#e74c3c' : theme.colors.accent;
+  const toParColor = toPar < 0 ? '#27ae60' : toPar > 0 ? '#e74c3c' : theme.mutedText;
 
   const holesComplete = pendingScores.length;
   const totalHoles    = session.event.holes;
@@ -251,21 +251,21 @@ export default function SyncScreen() {
           <View style={styles.totalsRow}>
             <View style={styles.totalItem}>
               <Text style={[styles.totalValue, { color: theme.colors.primary }]}>{grossTotal || '—'}</Text>
-              <Text style={[styles.totalLabel, { color: theme.colors.accent }]}>Strokes</Text>
+              <Text style={[styles.totalLabel, { color: theme.mutedText }]}>Strokes</Text>
             </View>
             <View style={[styles.totalDivider, { backgroundColor: '#e0e0e0' }]} />
             <View style={styles.totalItem}>
               <Text style={[styles.totalValue, { color: toParColor }]}>
                 {holesComplete > 0 ? toParLabel : '—'}
               </Text>
-              <Text style={[styles.totalLabel, { color: theme.colors.accent }]}>To Par</Text>
+              <Text style={[styles.totalLabel, { color: theme.mutedText }]}>To Par</Text>
             </View>
             <View style={[styles.totalDivider, { backgroundColor: '#e0e0e0' }]} />
             <View style={styles.totalItem}>
               <Text style={[styles.totalValue, { color: theme.colors.primary }]}>
                 {holesComplete}/{totalHoles}
               </Text>
-              <Text style={[styles.totalLabel, { color: theme.colors.accent }]}>Holes</Text>
+              <Text style={[styles.totalLabel, { color: theme.mutedText }]}>Holes</Text>
             </View>
           </View>
         </View>
@@ -361,9 +361,9 @@ export default function SyncScreen() {
               relative === 0    ? 'E' :
               relative > 0      ? `+${relative}` : `${relative}`;
             const relColor =
-              relative === null ? theme.colors.accent :
+              relative === null ? theme.mutedText :
               relative < 0      ? '#27ae60' :
-              relative > 0      ? '#e74c3c' : theme.colors.accent;
+              relative > 0      ? '#e74c3c' : theme.mutedText;
 
             const rowBg = isConflict
               ? '#fff8f0'
@@ -377,10 +377,10 @@ export default function SyncScreen() {
                   <Text style={[col.hole, styles.cellHole, { color: theme.colors.primary }]}>
                     {holeNum}
                   </Text>
-                  <Text style={[col.yds, styles.cellYds, { color: theme.colors.accent }]}>
+                  <Text style={[col.yds, styles.cellYds, { color: theme.mutedText }]}>
                     {yardage != null ? `${yardage}` : '—'}
                   </Text>
-                  <Text style={[col.par, styles.cellPar, { color: theme.colors.accent }]}>
+                  <Text style={[col.par, styles.cellPar, { color: theme.mutedText }]}>
                     {par}
                   </Text>
                   <Text style={[
@@ -393,11 +393,11 @@ export default function SyncScreen() {
                     {relLabel}{isConflict ? ' ⚠' : ''}
                   </Text>
                   {sponsor ? (
-                    <Text style={[col.spon, styles.cellSpon, { color: theme.colors.accent }]} numberOfLines={1}>
+                    <Text style={[col.spon, styles.cellSpon, { color: theme.mutedText }]} numberOfLines={1}>
                       {sponsor}
                     </Text>
                   ) : (
-                    <Text style={[col.spon, styles.cellDash, { color: theme.colors.accent }]}>—</Text>
+                    <Text style={[col.spon, styles.cellDash, { color: theme.mutedText }]}>—</Text>
                   )}
                   {challenge ? (
                     <Pressable
@@ -410,7 +410,7 @@ export default function SyncScreen() {
                       <Text style={styles.challengeIcon}>🏆</Text>
                     </Pressable>
                   ) : (
-                    <Text style={[col.chal, styles.cellDash, { color: theme.colors.accent }]}>—</Text>
+                    <Text style={[col.chal, styles.cellDash, { color: theme.mutedText }]}>—</Text>
                   )}
                 </View>
               </View>
@@ -448,7 +448,7 @@ export default function SyncScreen() {
           <Text style={[styles.leaveBtnText, { color: theme.colors.primary }]}>Leave Event</Text>
         </Pressable>
 
-        <Text style={[styles.hint, { color: theme.colors.accent }]}>
+        <Text style={[styles.hint, { color: theme.mutedText }]}>
           {scoringLive
             ? 'Your scores are saved locally. Sync ensures the organizer has your latest results.'
             : 'Sync will be available once the organizer opens scoring.'}

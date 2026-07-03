@@ -142,9 +142,9 @@ function Section({ title, subtitle, children, defaultOpen = true }: {
       <Pressable style={styles.cardHeader} onPress={() => setOpen(o => !o)}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>{title}</Text>
-          {subtitle && <Text style={[styles.cardSubtitle, { color: theme.colors.accent }]}>{subtitle}</Text>}
+          {subtitle && <Text style={[styles.cardSubtitle, { color: theme.mutedText }]}>{subtitle}</Text>}
         </View>
-        <Text style={[styles.chevron, { color: theme.colors.accent }]}>{open ? '▲' : '▼'}</Text>
+        <Text style={[styles.chevron, { color: theme.mutedText }]}>{open ? '▲' : '▼'}</Text>
       </Pressable>
       {open && <View style={styles.cardBody}>{children}</View>}
     </View>
@@ -163,7 +163,7 @@ function LifecycleStep({ step, color, title, items }: typeof LIFECYCLE[0]) {
         {items.map((item, i) => (
           <View key={i} style={styles.bullet}>
             <Text style={[styles.bulletDot, { color: color }]}>•</Text>
-            <Text style={[styles.bulletText, { color: theme.colors.accent }]}>{item}</Text>
+            <Text style={[styles.bulletText, { color: theme.mutedText }]}>{item}</Text>
           </View>
         ))}
       </View>
@@ -179,13 +179,13 @@ function TabGroupSection({ group }: { group: typeof TAB_GROUPS[0] }) {
         <View style={[styles.groupDot, { backgroundColor: group.color }]} />
         <View style={{ flex: 1 }}>
           <Text style={[styles.groupLabel, { color: theme.colors.primary }]}>{group.label}</Text>
-          <Text style={[styles.groupDesc, { color: theme.colors.accent }]}>{group.desc}</Text>
+          <Text style={[styles.groupDesc, { color: theme.mutedText }]}>{group.desc}</Text>
         </View>
       </View>
       {group.tabs.map(tab => (
         <View key={tab.name} style={styles.tabItem}>
           <Text style={[styles.tabName, { color: theme.colors.primary }]}>{tab.name}</Text>
-          <Text style={[styles.tabDesc, { color: theme.colors.accent }]}>{tab.desc}</Text>
+          <Text style={[styles.tabDesc, { color: theme.mutedText }]}>{tab.desc}</Text>
         </View>
       ))}
     </View>
@@ -199,7 +199,7 @@ function BulletList({ items, color }: { items: string[]; color: string }) {
       {items.map((item, i) => (
         <View key={i} style={styles.bullet}>
           <Text style={[styles.bulletDot, { color }]}>•</Text>
-          <Text style={[styles.bulletText, { color: theme.colors.accent }]}>{item}</Text>
+          <Text style={[styles.bulletText, { color: theme.mutedText }]}>{item}</Text>
         </View>
       ))}
     </View>
@@ -216,7 +216,7 @@ export default function HelpScreen() {
     <ScrollView style={styles.page} contentContainerStyle={[styles.content, { padding: pagePadding }]}>
       <View style={styles.pageHeader}>
         <Text style={[styles.pageTitle, { color: theme.colors.primary }]}>Help & Guide</Text>
-        <Text style={[styles.pageSubtitle, { color: theme.colors.accent }]}>
+        <Text style={[styles.pageSubtitle, { color: theme.mutedText }]}>
           Everything you need to plan, run, and wrap up a fundraising tournament.
         </Text>
       </View>

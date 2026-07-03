@@ -60,6 +60,9 @@ export function FormModal({
 }: FormModalProps) {
   const theme = useTheme();
   const submitBg = destructive ? '#e74c3c' : theme.colors.primary;
+  // Label derived per-fill: a custom brand may pick a light primary where
+  // hardcoded white would vanish. Danger red always takes white.
+  const submitFg = destructive ? '#fff' : theme.buttonLabel;
 
   return (
     <Modal
@@ -86,7 +89,7 @@ export function FormModal({
                 accessibilityRole="button"
                 accessibilityLabel={cancelLabel}
               >
-                <Text style={[styles.cancelText, { color: theme.colors.accent }]}>
+                <Text style={[styles.cancelText, { color: theme.colors.primary }]}>
                   {cancelLabel}
                 </Text>
               </Pressable>
@@ -104,8 +107,8 @@ export function FormModal({
                   accessibilityLabel={submitLabel}
                 >
                   {loading
-                    ? <ActivityIndicator color="#fff" />
-                    : <Text style={styles.submitText}>{submitLabel}</Text>}
+                    ? <ActivityIndicator color={submitFg} />
+                    : <Text style={[styles.submitText, { color: submitFg }]}>{submitLabel}</Text>}
                 </Pressable>
               )}
             </View>
@@ -169,7 +172,6 @@ const styles = StyleSheet.create({
   submitText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#fff',
   },
   disabled: {
     opacity: 0.6,

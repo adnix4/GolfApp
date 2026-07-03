@@ -38,7 +38,7 @@ export default function EventSidebar({
       {showDonate && (
         <div style={w.card}>
           <h3 style={w.title}>💝 Support This Event</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--color-accent)', marginBottom: '0.5rem' }}>
+          <p style={{ fontSize: '0.8rem', color: '#4b5563', marginBottom: '0.5rem' }}>
             Your donation helps make this event possible.
           </p>
           <DonateWidget

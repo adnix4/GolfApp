@@ -216,7 +216,7 @@ export default function EmailBuilderScreen() {
   if (!builderData) {
     return (
       <View style={styles.center}>
-        <Text style={[styles.errorText, { color: theme.colors.accent }]}>
+        <Text style={[styles.errorText, { color: theme.mutedText }]}>
           Failed to load builder data.
         </Text>
       </View>
@@ -232,7 +232,7 @@ export default function EmailBuilderScreen() {
         {/* ── SECTION ORDER ── */}
         <View style={[styles.card, { backgroundColor: '#fff' }]}>
           <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>Email Sections</Text>
-          <Text style={[styles.cardSub,   { color: theme.colors.accent  }]}>
+          <Text style={[styles.cardSub,   { color: theme.mutedText  }]}>
             Use arrows to reorder sections. Remove sections you don't need.
           </Text>
 
@@ -265,7 +265,7 @@ export default function EmailBuilderScreen() {
 
           {availableToAdd.length > 0 && (
             <View style={styles.addRow}>
-              <Text style={[styles.addLabel, { color: theme.colors.accent }]}>Add section:</Text>
+              <Text style={[styles.addLabel, { color: theme.mutedText }]}>Add section:</Text>
               {availableToAdd.map(sId => (
                 <Pressable
                   key={sId}
@@ -285,7 +285,7 @@ export default function EmailBuilderScreen() {
         <View style={[styles.card, { backgroundColor: '#fff' }]}>
           <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>Send Email</Text>
 
-          <Text style={[styles.label, { color: theme.colors.accent }]}>Subject line *</Text>
+          <Text style={[styles.label, { color: theme.mutedText }]}>Subject line *</Text>
           <TextInput
             style={[styles.input, { borderColor: '#ddd', color: theme.colors.primary }]}
             value={subject}
@@ -293,7 +293,7 @@ export default function EmailBuilderScreen() {
             placeholder="Email subject"
           />
 
-          <Text style={[styles.label, { color: theme.colors.accent }]}>To address *</Text>
+          <Text style={[styles.label, { color: theme.mutedText }]}>To address *</Text>
           <TextInput
             style={[styles.input, { borderColor: '#ddd', color: theme.colors.primary }]}
             value={toAddress}
@@ -348,7 +348,7 @@ export default function EmailBuilderScreen() {
         {/* ── PREVIEW INFO ── */}
         <View style={[styles.card, { backgroundColor: '#f9fafb' }]}>
           <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>Event Info</Text>
-          <Text style={[styles.cardSub,   { color: theme.colors.accent  }]}>
+          <Text style={[styles.cardSub,   { color: theme.mutedText  }]}>
             {builderData.eventName} · {builderData.eventDate}
             {builderData.eventLocation ? `\n${builderData.eventLocation}` : ''}
             {`\n${builderData.sponsors.length} sponsor(s)`}

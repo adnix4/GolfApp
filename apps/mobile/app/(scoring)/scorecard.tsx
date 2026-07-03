@@ -171,9 +171,9 @@ export default function ScorecardScreen() {
               relative === 0    ? 'E' :
               relative > 0      ? `+${relative}` : `${relative}`;
             const relColor =
-              relative === null ? theme.colors.accent :
+              relative === null ? theme.mutedText :
               relative < 0      ? '#27ae60' :
-              relative > 0      ? '#e74c3c' : theme.colors.accent;
+              relative > 0      ? '#e74c3c' : theme.mutedText;
 
             return (
               <View key={holeNum} style={styles.summaryHoleBlock}>
@@ -181,10 +181,10 @@ export default function ScorecardScreen() {
                   <Text style={[summaryCol.hole, styles.summaryCell, { color: theme.colors.primary, fontWeight: '700' }]}>
                     {holeNum}
                   </Text>
-                  <Text style={[summaryCol.yds, styles.summaryCell, { color: theme.colors.accent }]}>
+                  <Text style={[summaryCol.yds, styles.summaryCell, { color: theme.mutedText }]}>
                     {yardage != null ? `${yardage}` : '—'}
                   </Text>
-                  <Text style={[summaryCol.par, styles.summaryCell, { color: theme.colors.accent }]}>
+                  <Text style={[summaryCol.par, styles.summaryCell, { color: theme.mutedText }]}>
                     {par}
                   </Text>
                   <Text style={[summaryCol.scr, styles.summaryCell, { color: theme.colors.primary, opacity: hasScore ? 1 : 0.3, fontWeight: hasScore ? '700' : '400' }]}>
@@ -206,7 +206,7 @@ export default function ScorecardScreen() {
                       </Text>
                     </Pressable>
                   ) : (
-                    <Text style={[summaryCol.spon, styles.summaryCellDash, { color: theme.colors.accent }]}>—</Text>
+                    <Text style={[summaryCol.spon, styles.summaryCellDash, { color: theme.mutedText }]}>—</Text>
                   )}
                   {challenge ? (
                     <Pressable
@@ -219,7 +219,7 @@ export default function ScorecardScreen() {
                       <Text style={styles.summaryChallengeIcon}>🏆</Text>
                     </Pressable>
                   ) : (
-                    <Text style={[summaryCol.chal, styles.summaryCellDash, { color: theme.colors.accent }]}>—</Text>
+                    <Text style={[summaryCol.chal, styles.summaryCellDash, { color: theme.mutedText }]}>—</Text>
                   )}
                 </View>
                 {pending?.conflict && (
@@ -393,7 +393,7 @@ export default function ScorecardScreen() {
         {holeChallenge && (
           <View style={[styles.challengeBadge, { backgroundColor: theme.colors.highlight, borderColor: theme.colors.accent + '44' }]}>
             {holeChallenge.sponsorName && (
-              <Text style={[styles.challengeSponsor, { color: theme.colors.accent }]}>
+              <Text style={[styles.challengeSponsor, { color: theme.mutedText }]}>
                 {holeChallenge.sponsorName}
               </Text>
             )}
@@ -401,7 +401,7 @@ export default function ScorecardScreen() {
               {holeChallenge.description}
             </Text>
             {holeChallenge.prizeDescription && (
-              <Text style={[styles.challengePrize, { color: theme.colors.accent }]}>
+              <Text style={[styles.challengePrize, { color: theme.mutedText }]}>
                 🏆 {holeChallenge.prizeDescription}
               </Text>
             )}
@@ -421,7 +421,7 @@ export default function ScorecardScreen() {
         {/* ── READ-ONLY NOTICE ── */}
         {!scoringEnabled && (
           <View style={[styles.readOnlyNotice, { backgroundColor: theme.colors.surface, borderColor: theme.colors.accent + '55' }]}>
-            <Text style={[styles.readOnlyText, { color: theme.colors.accent }]}>
+            <Text style={[styles.readOnlyText, { color: theme.mutedText }]}>
               Scorecard is read-only — scoring opens when the organizer starts the round
             </Text>
           </View>
@@ -434,7 +434,7 @@ export default function ScorecardScreen() {
           </Text>
 
           {session.team.players.length === 0 && (
-            <Text style={[styles.noPlayersText, { color: theme.colors.accent }]}>
+            <Text style={[styles.noPlayersText, { color: theme.mutedText }]}>
               No players on this team.
             </Text>
           )}
@@ -465,7 +465,7 @@ export default function ScorecardScreen() {
                     {player.firstName} {player.lastName}
                   </Text>
                   {playerTotal > 0 && (
-                    <Text style={[styles.playerTotal, { color: theme.colors.accent }]}>
+                    <Text style={[styles.playerTotal, { color: theme.mutedText }]}>
                       {playerTotal} shots
                     </Text>
                   )}
@@ -555,7 +555,7 @@ export default function ScorecardScreen() {
             accessibilityLabel="Previous hole"
             accessibilityRole="button"
           >
-            <Text style={styles.navBtnText}>← Prev</Text>
+            <Text style={[styles.navBtnText, { color: theme.buttonLabel }]}>← Prev</Text>
           </Pressable>
 
           {/* Complete Hole button */}
@@ -594,7 +594,7 @@ export default function ScorecardScreen() {
             accessibilityLabel={isLastHole ? 'Finish round' : 'Next hole'}
             accessibilityRole="button"
           >
-            <Text style={styles.navBtnText}>{isLastHole ? 'Finish ✓' : 'Next →'}</Text>
+            <Text style={[styles.navBtnText, { color: isLastHole ? theme.ctaLabel : theme.buttonLabel }]}>{isLastHole ? 'Finish ✓' : 'Next →'}</Text>
           </Pressable>
         </View>
       </View>
@@ -714,7 +714,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12,
     borderRadius: 10, minWidth: 80, alignItems: 'center',
   },
-  navBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  navBtnText: { fontSize: 14, fontWeight: '700' },
 
   completeBtn: {
     flex: 1, paddingVertical: 12, borderRadius: 10,

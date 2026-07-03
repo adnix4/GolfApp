@@ -224,9 +224,9 @@ function Section({ title, subtitle, children, defaultOpen = true }: {
       <Pressable style={styles.cardHeader} onPress={() => setOpen(o => !o)}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>{title}</Text>
-          {subtitle && <Text style={[styles.cardSubtitle, { color: theme.colors.accent }]}>{subtitle}</Text>}
+          {subtitle && <Text style={[styles.cardSubtitle, { color: theme.mutedText }]}>{subtitle}</Text>}
         </View>
-        <Text style={[styles.chevron, { color: theme.colors.accent }]}>{open ? '▲' : '▼'}</Text>
+        <Text style={[styles.chevron, { color: theme.mutedText }]}>{open ? '▲' : '▼'}</Text>
       </Pressable>
       {open && <View style={styles.cardBody}>{children}</View>}
     </View>
@@ -244,7 +244,7 @@ function StatusStep({ item }: { item: typeof STATUS_FLOW[0] }) {
         <Text style={[styles.statusWhat, { color: theme.colors.primary }]}>{item.what}</Text>
         {item.next && (
           <View style={[styles.statusNext, { borderColor: item.color + '55', backgroundColor: item.color + '11' }]}>
-            <Text style={[styles.statusNextLabel, { color: theme.colors.accent }]}>
+            <Text style={[styles.statusNextLabel, { color: theme.mutedText }]}>
               To advance:{'  '}
               <Text style={[styles.statusNextReq, { color: theme.colors.primary }]}>{item.req}</Text>
             </Text>
@@ -271,13 +271,13 @@ function TabRefSection({ group }: { group: typeof TAB_REFERENCE[0] }) {
               <Text style={[styles.whenText, { color: theme.colors.primary }]}>{tab.when}</Text>
             </View>
           </View>
-          <Text style={[styles.tabDesc, { color: theme.colors.accent }]}>{tab.desc}</Text>
+          <Text style={[styles.tabDesc, { color: theme.mutedText }]}>{tab.desc}</Text>
           {tab.tips.length > 0 && (
             <View style={styles.tipsBox}>
               {tab.tips.map((tip, i) => (
                 <View key={i} style={styles.tipRow}>
                   <Text style={[styles.tipIcon, { color: group.groupColor }]}>→</Text>
-                  <Text style={[styles.tipText, { color: theme.colors.accent }]}>{tip}</Text>
+                  <Text style={[styles.tipText, { color: theme.mutedText }]}>{tip}</Text>
                 </View>
               ))}
             </View>
@@ -298,7 +298,7 @@ export default function EventHelpScreen() {
     <ScrollView style={styles.page} contentContainerStyle={[styles.content, { padding: pagePadding }]}>
       <View style={styles.pageHeader}>
         <Text style={[styles.pageTitle, { color: theme.colors.primary }]}>Event Help</Text>
-        <Text style={[styles.pageSubtitle, { color: theme.colors.accent }]}>
+        <Text style={[styles.pageSubtitle, { color: theme.mutedText }]}>
           A reference guide for every tab and each stage of your event.
         </Text>
       </View>

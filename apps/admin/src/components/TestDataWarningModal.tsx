@@ -25,7 +25,7 @@ export function TestDataWarningModal({
             <Text style={styles.title}>{title}</Text>
           </View>
 
-          <Text style={[styles.description, { color: theme.colors.accent }]}>{description}</Text>
+          <Text style={[styles.description, { color: theme.mutedText }]}>{description}</Text>
 
           <View style={styles.actions}>
             <Pressable
@@ -33,7 +33,7 @@ export function TestDataWarningModal({
               onPress={onCancel}
               disabled={loading}
             >
-              <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
+              <Text style={[styles.cancelText, { color: theme.mutedText }]}>Cancel</Text>
             </Pressable>
             <Pressable
               style={[styles.confirmBtn, { backgroundColor: '#e67e22' }, loading && styles.disabled]}

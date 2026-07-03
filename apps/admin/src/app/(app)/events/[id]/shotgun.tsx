@@ -88,7 +88,7 @@ export default function ShotgunScreen() {
         <Text style={[styles.notApplicableTitle, { color: theme.colors.primary }]}>
           Tee-Time Event
         </Text>
-        <Text style={[styles.notApplicableText, { color: theme.colors.accent }]}>
+        <Text style={[styles.notApplicableText, { color: theme.mutedText }]}>
           This event uses tee times, not a shotgun start.{'\n'}
           Tee times are set per team during registration.
         </Text>
@@ -103,7 +103,7 @@ export default function ShotgunScreen() {
         <View>
           <Text style={[styles.title, { color: theme.colors.primary }]}>Shotgun Assignment</Text>
           {!loading && event && (
-            <Text style={[styles.subtitle, { color: theme.colors.accent }]}>
+            <Text style={[styles.subtitle, { color: theme.mutedText }]}>
               {teams.length} team{teams.length !== 1 ? 's' : ''} · {event.holes} holes ·{' '}
               {assignedCount} assigned
             </Text>
@@ -160,7 +160,7 @@ export default function ShotgunScreen() {
       {/* Legend */}
       {!loading && teams.length > 0 && (
         <View style={[styles.legend, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.legendText, { color: theme.colors.accent }]}>
+          <Text style={[styles.legendText, { color: theme.mutedText }]}>
             Type a hole number (1–{event?.holes ?? 18}) for each team. Leave blank to skip.
             Duplicate holes are flagged above.
           </Text>
@@ -173,7 +173,7 @@ export default function ShotgunScreen() {
         </View>
       ) : teams.length === 0 ? (
         <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.colors.accent }]}>
+          <Text style={[styles.emptyText, { color: theme.mutedText }]}>
             No teams registered yet. Add teams first.
           </Text>
         </View>
@@ -184,9 +184,9 @@ export default function ShotgunScreen() {
           contentContainerStyle={styles.list}
           ListHeaderComponent={
             <View style={[styles.listHeader, { borderBottomColor: '#e0e0e0' }]}>
-              <Text style={[styles.colTeam, styles.colLabel, { color: theme.colors.accent }]}>Team</Text>
-              <Text style={[styles.colPlayers, styles.colLabel, { color: theme.colors.accent }]}>Players</Text>
-              <Text style={[styles.colHole, styles.colLabel, { color: theme.colors.accent }]}>Hole</Text>
+              <Text style={[styles.colTeam, styles.colLabel, { color: theme.mutedText }]}>Team</Text>
+              <Text style={[styles.colPlayers, styles.colLabel, { color: theme.mutedText }]}>Players</Text>
+              <Text style={[styles.colHole, styles.colLabel, { color: theme.mutedText }]}>Hole</Text>
             </View>
           }
           renderItem={({ item: team }) => {
@@ -202,7 +202,7 @@ export default function ShotgunScreen() {
                     {team.name}
                   </Text>
                 </View>
-                <Text style={[styles.colPlayers, styles.playerCount, { color: theme.colors.accent }]}>
+                <Text style={[styles.colPlayers, styles.playerCount, { color: theme.mutedText }]}>
                   {team.players.length}
                 </Text>
                 <View style={styles.colHole}>

@@ -263,7 +263,7 @@ export default function AuctionScreen() {
               )}
               <View style={{ flex: 1 }}>
                 <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Text>
-                <Text style={{ color: theme.colors.accent, fontSize: 12, marginTop: 2 }}>
+                <Text style={{ color: theme.mutedText, fontSize: 12, marginTop: 2 }}>
                   {TYPE_LABELS[item.auctionType] ?? item.auctionType} · {item.status}
                 </Text>
                 <Text style={{ color: '#555', fontSize: 13, marginTop: 4 }}>
@@ -337,7 +337,7 @@ export default function AuctionScreen() {
                 onPress={() => field('auctionType', t)}
                 style={[styles.typeChip, form.auctionType === t && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]}
               >
-                <Text style={{ color: form.auctionType === t ? '#fff' : theme.colors.accent, fontSize: 12, fontWeight: '600' }}>
+                <Text style={{ color: form.auctionType === t ? '#fff' : theme.mutedText, fontSize: 12, fontWeight: '600' }}>
                   {TYPE_LABELS[t]}
                 </Text>
               </Pressable>
@@ -505,7 +505,7 @@ export default function AuctionScreen() {
             >
               {uploadingPhoto
                 ? <ActivityIndicator size="small" color={theme.colors.accent} />
-                : <Text style={[styles.photoAddText, { color: theme.colors.accent }]}>+ Add Photo</Text>}
+                : <Text style={[styles.photoAddText, { color: theme.mutedText }]}>+ Add Photo</Text>}
             </Pressable>
           </View>
 

@@ -109,6 +109,48 @@ export function getContrastRatio(colorA: string, colorB: string): number {
 }
 
 /**
+ * readableTextOn — picks the text color (white or near-black) with the higher
+ * WCAG contrast against an arbitrary fill color.
+ *
+ * WHY THIS EXISTS:
+ *   Only the primary↔surface pairing is validated at theme-save time.  Any
+ *   component that places text on an UNVALIDATED fill (action, accent,
+ *   highlight, or a legacy theme saved before validation existed) must not
+ *   hardcode '#fff' — a light fill would make the label invisible.
+ *
+ * The luminance breakpoint 0.179 is where white and black text have equal
+ * WCAG contrast against the background: (L+0.05)/0.05 = 1.05/(L+0.05).
+ *
+ * @param background  hex fill color the text will sit on
+ * @returns '#ffffff' for dark fills, '#1a1a1a' for light fills
+ */
+export function readableTextOn(background: string): string {
+  return getRelativeLuminance(background) > 0.179 ? '#1a1a1a' : '#ffffff';
+}
+
+/**
+ * MIN_SURFACE_LUMINANCE — floor for isLightSurface().
+ *
+ * WHY 0.4:
+ *   Cards across all three apps render as WHITE panels with primary-colored
+ *   text on top of the surface background.  That layout only works when the
+ *   surface is light: if surface luminance ≥ 0.4 AND primary↔surface passes
+ *   4.5:1 (the existing save gate), primary luminance is forced ≤ 0.05, which
+ *   guarantees primary text on a white card reads at ≥ 10.5:1 (AAA).  It also
+ *   makes hardcoded white text on primary-filled elements safe by construction.
+ */
+export const MIN_SURFACE_LUMINANCE = 0.4;
+
+/**
+ * isLightSurface — true when a color is light enough to serve as the surface
+ * (page background) token.  Used by the theme save gates (admin editors and
+ * the API) alongside validateContrast; see MIN_SURFACE_LUMINANCE for why.
+ */
+export function isLightSurface(surface: string): boolean {
+  return getRelativeLuminance(surface) >= MIN_SURFACE_LUMINANCE;
+}
+
+/**
  * getRelativeLuminance — computes WCAG relative luminance for a hex color.
  * Returns a value between 0 (absolute black) and 1 (absolute white).
  *
@@ -174,6 +216,8 @@ export function buildCSSVars(theme: GFPTheme): string {
   --color-accent:    ${theme.accent};
   --color-highlight: ${theme.highlight};
   --color-surface:   ${theme.surface};
+  --color-on-primary: ${readableTextOn(theme.primary)};
+  --color-on-action:  ${readableTextOn(theme.action)};
 }
 `.trim();
 }
@@ -193,13 +237,23 @@ export interface ThemeContextValue {
    * don't need to know which token drives, say, the button background.
    */
   buttonBackground:   string;  // = primary
-  buttonLabel:        string;  // = surface  (white text on dark button)
+  buttonLabel:        string;  // = readableTextOn(primary) — never hardcode '#fff'
   ctaBackground:      string;  // = action
+  ctaLabel:           string;  // = readableTextOn(action)
   pageBackground:     string;  // = surface
   cardBackground:     string;  // = surface
   linkColor:          string;  // = action
   hoverBackground:    string;  // = accent
   selectedBackground: string;  // = highlight
+
+  /**
+   * Neutral secondary-text color for hints, captions, and metadata.
+   * Deliberately NOT a brand token: accent (the old choice at many call
+   * sites) is decorative and routinely fails WCAG AA as text — e.g. the
+   * default Sage on white is ~2.7:1.  This slate reads ≥ 4.5:1 on white
+   * and on any surface passing isLightSurface().
+   */
+  mutedText:          string;
 }
 
 /**
@@ -218,15 +272,19 @@ export function buildThemeContext(theme: GFPTheme): ThemeContextValue {
   return {
     colors: theme,
 
-    // Semantic mappings — document the intent, not just the value
+    // Semantic mappings — document the intent, not just the value.
+    // Label colors are derived per-fill (not from surface) so they stay
+    // readable even for legacy themes saved before contrast validation.
     buttonBackground:   theme.primary,
-    buttonLabel:        theme.surface,   // light text reads on dark primary
+    buttonLabel:        readableTextOn(theme.primary),
     ctaBackground:      theme.action,
+    ctaLabel:           readableTextOn(theme.action),
     pageBackground:     theme.surface,
     cardBackground:     theme.surface,
     linkColor:          theme.action,
     hoverBackground:    theme.accent,
     selectedBackground: theme.highlight,
+    mutedText:          '#4b5563',
   };
 }
 

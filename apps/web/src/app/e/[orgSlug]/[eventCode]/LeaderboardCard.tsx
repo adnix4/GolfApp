@@ -89,7 +89,7 @@ function LeaderboardTable({ leaderboard }: { leaderboard: PublicLeaderboard }) {
                 <td style={{ ...s.td, textAlign: 'right', color: 'var(--color-primary)' }}>{back}</td>
                 <td style={{ ...s.td, textAlign: 'right', color: 'var(--color-primary)' }}>{bestHole}</td>
                 <td style={{ ...s.td, textAlign: 'right', color: 'var(--color-primary)' }}>{bestScore}</td>
-                <td style={{ ...s.td, textAlign: 'right', color: 'var(--color-accent)' }}>{thru}</td>
+                <td style={{ ...s.td, textAlign: 'right', color: '#4b5563' }}>{thru}</td>
               </tr>
             );
           })}

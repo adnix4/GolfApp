@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { readableTextOn } from '@gfp/theme';
 import { useTheme } from './ThemeProvider';
 
 const MIN_TOUCH_TARGET         = 56;
@@ -76,6 +77,11 @@ export function ScoreCard({
   const touchTarget = compact ? MIN_TOUCH_TARGET_COMPACT : MIN_TOUCH_TARGET;
   const cardPadding = compact ? 12 : 16;
 
+  // The +/- buttons flip from primary to accent while pressed; the label must
+  // stay readable on whichever fill is showing (neither white nor surface is
+  // guaranteed to contrast with accent).
+  const pressedLabel = readableTextOn(theme.colors.accent);
+
   return (
     <View
       style={[
@@ -106,7 +112,7 @@ export function ScoreCard({
               accessibilityLabel={challenge.sponsorName ?? 'Sponsor'}
             />
           ) : challenge.sponsorName ? (
-            <Text style={[styles.challengeSponsor, { color: theme.colors.accent }]} numberOfLines={1}>
+            <Text style={[styles.challengeSponsor, { color: theme.mutedText }]} numberOfLines={1}>
               {challenge.sponsorName}
             </Text>
           ) : null}
@@ -114,7 +120,7 @@ export function ScoreCard({
             {challenge.description}
           </Text>
           {challenge.prizeDescription && (
-            <Text style={[styles.challengePrize, { color: theme.colors.accent }]} numberOfLines={1}>
+            <Text style={[styles.challengePrize, { color: theme.mutedText }]} numberOfLines={1}>
               🏆 {challenge.prizeDescription}
             </Text>
           )}
@@ -148,7 +154,9 @@ export function ScoreCard({
           accessibilityLabel={`Decrease score for hole ${holeNumber}`}
           accessibilityRole="button"
         >
-          <Text style={[styles.buttonText, { color: theme.colors.surface, fontSize: compact ? 24 : 28 }]}>−</Text>
+          {({ pressed }) => (
+            <Text style={[styles.buttonText, { color: pressed ? pressedLabel : theme.buttonLabel, fontSize: compact ? 24 : 28 }]}>−</Text>
+          )}
         </Pressable>
 
         {/* ── SCORE DISPLAY ── */}
@@ -167,7 +175,7 @@ export function ScoreCard({
                   ? '#27ae60'
                   : relativeScore !== null && relativeScore > 0
                     ? '#e74c3c'
-                    : theme.colors.accent,
+                    : theme.mutedText,
               },
             ]}
           >
@@ -194,7 +202,9 @@ export function ScoreCard({
           accessibilityLabel={`Increase score for hole ${holeNumber}`}
           accessibilityRole="button"
         >
-          <Text style={[styles.buttonText, { color: theme.colors.surface, fontSize: compact ? 24 : 28 }]}>+</Text>
+          {({ pressed }) => (
+            <Text style={[styles.buttonText, { color: pressed ? pressedLabel : theme.buttonLabel, fontSize: compact ? 24 : 28 }]}>+</Text>
+          )}
         </Pressable>
       </View>
     </View>

@@ -106,7 +106,7 @@ export default function LeaguesScreen() {
                   {item.handicapSystem}
                 </Text>
               </View>
-              <Text style={[styles.cardMeta, { color: theme.colors.accent }]}>
+              <Text style={[styles.cardMeta, { color: theme.mutedText }]}>
                 {item.seasonCount} season{item.seasonCount !== 1 ? 's' : ''}
                 {item.duesCents > 0 ? `  ·  $${(item.duesCents / 100).toFixed(0)} dues` : ''}
               </Text>
@@ -123,14 +123,14 @@ export default function LeaguesScreen() {
         submitLabel="Create"
         loading={saving}
       >
-            <Text style={[styles.label, { color: theme.colors.accent }]}>League Name</Text>
+            <Text style={[styles.label, { color: theme.mutedText }]}>League Name</Text>
             <TextInput
               style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
               value={name} onChangeText={setName} placeholder="Tuesday Night League"
               placeholderTextColor={theme.colors.accent}
             />
 
-            <Text style={[styles.label, { color: theme.colors.accent }]}>Format</Text>
+            <Text style={[styles.label, { color: theme.mutedText }]}>Format</Text>
             <View style={styles.segRow}>
               {FORMATS.map(f => (
                 <Pressable
@@ -145,7 +145,7 @@ export default function LeaguesScreen() {
               ))}
             </View>
 
-            <Text style={[styles.label, { color: theme.colors.accent }]}>Handicap System</Text>
+            <Text style={[styles.label, { color: theme.mutedText }]}>Handicap System</Text>
             <View style={styles.segRow}>
               {HC_SYSTEMS.map(h => (
                 <Pressable
@@ -162,7 +162,7 @@ export default function LeaguesScreen() {
 
             <View style={styles.row}>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={[styles.label, { color: theme.colors.accent }]}>HC Cap</Text>
+                <Text style={[styles.label, { color: theme.mutedText }]}>HC Cap</Text>
                 <TextInput
                   style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
                   value={hcCap} onChangeText={setHcCap} keyboardType="numeric"
@@ -170,7 +170,7 @@ export default function LeaguesScreen() {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.label, { color: theme.colors.accent }]}>Dues ($)</Text>
+                <Text style={[styles.label, { color: theme.mutedText }]}>Dues ($)</Text>
                 <TextInput
                   style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
                   value={dues} onChangeText={setDues} keyboardType="numeric" placeholder="0"

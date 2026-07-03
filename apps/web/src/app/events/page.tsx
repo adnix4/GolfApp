@@ -133,10 +133,10 @@ const ec: Record<string, React.CSSProperties> = {
   codeInput: { flex: '1 1 260px', border: '1.5px solid var(--color-accent)', borderRadius: 12, padding: '0.85rem 1rem', fontSize: '1rem', color: 'var(--color-primary)', backgroundColor: '#fff', textTransform: 'uppercase', letterSpacing: 1 },
   error:     { color: '#c0392b', fontSize: '0.9rem', margin: '0.25rem 0 0' },
   search:    { width: '100%', border: '1px solid #ddd', borderRadius: 12, padding: '0.85rem 1rem', fontSize: '1rem', color: 'var(--color-primary)', backgroundColor: '#fff', margin: '1.5rem 0' },
-  muted:     { color: 'var(--color-accent)', fontSize: '0.95rem', padding: '1rem 0' },
+  muted:     { color: '#4b5563', fontSize: '0.95rem', padding: '1rem 0' },
   grid:      { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' },
   card:      { display: 'block', backgroundColor: '#fff', border: '1px solid #e8e8e8', borderRadius: 14, padding: '1.25rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' },
   cardName:  { color: 'var(--color-primary)', fontSize: '1.05rem', fontWeight: 800, marginBottom: '0.35rem' },
-  cardMeta:  { color: 'var(--color-accent)', fontSize: '0.85rem', lineHeight: 1.5, marginBottom: '0.75rem' },
+  cardMeta:  { color: '#4b5563', fontSize: '0.85rem', lineHeight: 1.5, marginBottom: '0.75rem' },
   badge:     { display: 'inline-block', fontSize: '0.72rem', fontWeight: 700, padding: '0.25rem 0.6rem', borderRadius: 999 },
 };

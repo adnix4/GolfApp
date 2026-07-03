@@ -29,11 +29,11 @@ function PlayerRow({
           </Text>
           {isYou && (
             <View style={[rowStyles.youBadge, { backgroundColor: theme.colors.action }]}>
-              <Text style={rowStyles.youText}>You</Text>
+              <Text style={[rowStyles.youText, { color: theme.ctaLabel }]}>You</Text>
             </View>
           )}
         </View>
-        <Text style={[rowStyles.email, { color: theme.colors.accent }]} numberOfLines={1}>
+        <Text style={[rowStyles.email, { color: theme.mutedText }]} numberOfLines={1}>
           {player.email}
         </Text>
       </View>
@@ -61,7 +61,7 @@ const rowStyles = StyleSheet.create({
   name:     { fontSize: 15, fontWeight: '700' },
   email:    { fontSize: 13, marginTop: 2 },
   youBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
-  youText:  { fontSize: 11, fontWeight: '700', color: '#fff' },
+  youText:  { fontSize: 11, fontWeight: '700' },
   editBtn:  { padding: 6 },
 });
 
@@ -127,7 +127,7 @@ export default function TeamScreen() {
             />
           ))}
           {team.players.length === 0 && (
-            <Text style={[styles.emptyRoster, { color: theme.colors.accent }]}>
+            <Text style={[styles.emptyRoster, { color: theme.mutedText }]}>
               No players loaded. Rejoin the event to refresh.
             </Text>
           )}
@@ -150,7 +150,7 @@ function InfoRow({ icon, label, value, theme }: {
     <View style={infoRowStyles.row}>
       <Text style={infoRowStyles.icon}>{icon}</Text>
       <View style={infoRowStyles.body}>
-        <Text style={[infoRowStyles.label, { color: theme.colors.accent }]}>{label}</Text>
+        <Text style={[infoRowStyles.label, { color: theme.mutedText }]}>{label}</Text>
         <Text style={[infoRowStyles.value, { color: theme.colors.primary }]}>{value}</Text>
       </View>
     </View>

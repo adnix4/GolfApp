@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, type GFPTheme } from '@gfp/theme';
+import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme } from '@gfp/theme';
 import { useResponsive } from '@/lib/responsive';
 import { eventsApi, eventBrandingApi, type EventDetail } from '@/lib/api';
 import { UPLOAD_ABORTED } from '@/lib/upload';
@@ -155,6 +155,8 @@ export default function EventSettingsScreen() {
 
   const contrastRatio  = getContrastRatio(colors.primary, colors.surface);
   const contrastPasses = validateContrast(colors.primary, colors.surface);
+  // Cards render as white panels, so the surface behind them must stay light.
+  const surfaceIsLight = !isValidHex(colors.surface) || isLightSurface(colors.surface);
   const allColorsValid = TOKEN_META.every(m => isValidHex(colors[m.key]));
 
   async function handleSave() {
@@ -162,6 +164,10 @@ export default function EventSettingsScreen() {
     if (hasTheme && !allColorsValid) { setError('Fix invalid hex color values before saving.'); return; }
     if (hasTheme && !contrastPasses) {
       setError(`Primary on Surface contrast is ${contrastRatio.toFixed(1)}:1 — must be ≥ 4.5:1 (WCAG AA). Adjust Primary or Surface.`);
+      return;
+    }
+    if (hasTheme && !surfaceIsLight) {
+      setError('Surface must be a light color — it sits behind white cards on every page. Pick a pale tint.');
       return;
     }
     setSaving(true);
@@ -245,7 +251,7 @@ export default function EventSettingsScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <Text style={[styles.title, { color: theme.colors.primary }]}>Event Branding</Text>
-      <Text style={[styles.sub, { color: theme.colors.accent }]}>
+      <Text style={[styles.sub, { color: theme.mutedText }]}>
         Customize the look of this event. Leave fields blank to inherit your organization defaults.
       </Text>
 
@@ -255,7 +261,7 @@ export default function EventSettingsScreen() {
       {/* ── BRAND FROM WEBSITE ── */}
       <View style={styles.card}>
         <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Brand from Website</Text>
-        <Text style={[styles.hint, { color: theme.colors.accent, marginBottom: 10 }]}>
+        <Text style={[styles.hint, { color: theme.mutedText, marginBottom: 10 }]}>
           Optional — enter your organization's website and we'll suggest a color palette and logo.
           Review and edit everything below before saving.
         </Text>
@@ -330,7 +336,7 @@ export default function EventSettingsScreen() {
               </Pressable>
             )
           )}
-          <Text style={[styles.hint, { color: theme.colors.accent }]}>PNG, JPEG, SVG or WebP · max 2 MB</Text>
+          <Text style={[styles.hint, { color: theme.mutedText }]}>PNG, JPEG, SVG or WebP · max 2 MB</Text>
 
           <Text style={[styles.label, { color: theme.colors.primary, marginTop: 10 }]}>Or paste a URL</Text>
           <TextInput
@@ -360,7 +366,7 @@ export default function EventSettingsScreen() {
             autoCapitalize="sentences"
             editable={!saving}
           />
-          <Text style={[styles.hint, { color: theme.colors.accent }]}>
+          <Text style={[styles.hint, { color: theme.mutedText }]}>
             Shown on the public landing page and leaderboard.
           </Text>
         </View>
@@ -371,7 +377,7 @@ export default function EventSettingsScreen() {
             <Text style={[styles.label, { color: theme.colors.primary, marginTop: 0 }]}>
               501(c)(3) Non-Profit
             </Text>
-            <Text style={[styles.hint, { color: theme.colors.accent }]}>
+            <Text style={[styles.hint, { color: theme.mutedText }]}>
               Enables IRS tax-deductibility language in donation receipts for this event.
             </Text>
           </View>
@@ -401,7 +407,7 @@ export default function EventSettingsScreen() {
               onPress={() => { setHasTheme(true); setColors({ ...ECO_GREEN_DEFAULT }); }}
               style={[styles.resetBtn, { borderColor: theme.colors.accent }]}
             >
-              <Text style={[styles.resetBtnText, { color: theme.colors.accent }]}>Reset to Eco Green</Text>
+              <Text style={[styles.resetBtnText, { color: theme.mutedText }]}>Reset to Eco Green</Text>
             </Pressable>
           </View>
         </View>
@@ -415,7 +421,7 @@ export default function EventSettingsScreen() {
           </View>
         ) : (
           <>
-            <Text style={[styles.hint, { color: theme.colors.accent, marginBottom: 12 }]}>
+            <Text style={[styles.hint, { color: theme.mutedText, marginBottom: 12 }]}>
               These colors override the org theme for this event only.
             </Text>
 
@@ -441,10 +447,18 @@ export default function EventSettingsScreen() {
               </Text>
             </View>
 
+            {!surfaceIsLight && (
+              <View style={[styles.contrastBadge, { backgroundColor: '#fdf2f2', borderColor: '#e74c3c' }]}>
+                <Text style={[styles.contrastText, { color: '#c0392b' }]}>
+                  ✗ Surface is too dark — it sits behind white cards on every page. Pick a pale tint.
+                </Text>
+              </View>
+            )}
+
             <View style={styles.previewRow}>
               {TOKEN_META.map(m => (
                 <View key={m.key} style={[styles.previewChip, { backgroundColor: isValidHex(colors[m.key]) ? colors[m.key] : '#ccc' }]}>
-                  <Text style={[styles.previewLabel, { color: m.key === 'surface' || m.key === 'highlight' ? '#333' : '#fff' }]}>
+                  <Text style={[styles.previewLabel, { color: readableTextOn(isValidHex(colors[m.key]) ? colors[m.key] : '#ccc') }]}>
                     {m.label}
                   </Text>
                 </View>
@@ -474,7 +488,7 @@ export default function EventSettingsScreen() {
             <Text style={[styles.label, { color: theme.colors.primary, marginTop: 0 }]}>
               Offline Event Mode
             </Text>
-            <Text style={[styles.hint, { color: theme.colors.accent }]}>
+            <Text style={[styles.hint, { color: theme.mutedText }]}>
               Increases mobile sync intervals to conserve battery at low-connectivity venues.
               Also disables the live leaderboard on mobile.
             </Text>
@@ -492,7 +506,7 @@ export default function EventSettingsScreen() {
             <Text style={[styles.label, { color: theme.colors.primary, marginTop: 0 }]}>
               Allow Free Agent Registration
             </Text>
-            <Text style={[styles.hint, { color: theme.colors.accent }]}>
+            <Text style={[styles.hint, { color: theme.mutedText }]}>
               Lets players register without a team on the mobile app. The organizer assigns
               free agents to teams before the event starts.
             </Text>

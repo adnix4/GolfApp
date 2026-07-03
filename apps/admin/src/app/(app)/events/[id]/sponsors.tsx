@@ -152,7 +152,7 @@ export default function SponsorsScreen() {
         <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>
       ) : sponsors.length === 0 ? (
         <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.colors.accent }]}>No sponsors added yet.</Text>
+          <Text style={[styles.emptyText, { color: theme.mutedText }]}>No sponsors added yet.</Text>
         </View>
       ) : (
         <FlatList
@@ -176,14 +176,14 @@ export default function SponsorsScreen() {
                     />
                   ) : (
                     <View style={[styles.logoPlaceholder, { backgroundColor: theme.colors.highlight }]}>
-                      <Text style={{ fontSize: 10, color: theme.colors.accent }}>No Logo</Text>
+                      <Text style={{ fontSize: 10, color: theme.mutedText }}>No Logo</Text>
                     </View>
                   )}
                 </View>
                 <View style={styles.cardBody}>
                   <Text style={[styles.sponsorName, { color: theme.colors.primary }]}>{s.name}</Text>
                   {s.tagline && (
-                    <Text style={[styles.tagline, { color: theme.colors.accent }]}>{s.tagline}</Text>
+                    <Text style={[styles.tagline, { color: theme.mutedText }]}>{s.tagline}</Text>
                   )}
                   {s.websiteUrl && (
                     <Text style={[styles.url, { color: theme.colors.action }]} numberOfLines={1}>{s.websiteUrl}</Text>
@@ -211,7 +211,7 @@ export default function SponsorsScreen() {
                     style={[styles.editBtn, { borderColor: theme.colors.accent }]}
                     onPress={() => setEditing(s)}
                   >
-                    <Text style={[styles.editBtnText, { color: theme.colors.accent }]}>Edit</Text>
+                    <Text style={[styles.editBtnText, { color: theme.mutedText }]}>Edit</Text>
                   </Pressable>
                   <Pressable
                     style={styles.deleteBtn}
@@ -468,7 +468,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
               <Text style={[styles.fieldLabel, { color: theme.colors.primary, marginTop: 0 }]}>
                 Hole Sponsorship
               </Text>
-              <Text style={[styles.holeHint, { color: theme.colors.accent }]}>
+              <Text style={[styles.holeHint, { color: theme.mutedText }]}>
                 Select which holes display this sponsor's name and logo on the mobile scorecard.
               </Text>
               <HolePicker
@@ -488,7 +488,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
           {/* Action buttons — outside scroll so they stay visible */}
           <View style={styles.modalActions}>
             <Pressable style={[styles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
-              <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
+              <Text style={[styles.cancelText, { color: theme.mutedText }]}>Cancel</Text>
             </Pressable>
             <Pressable
               style={[styles.submitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}

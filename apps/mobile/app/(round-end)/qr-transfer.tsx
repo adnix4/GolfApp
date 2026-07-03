@@ -235,7 +235,7 @@ export default function QrTransferScreen() {
           ]}
           accessibilityRole="button"
         >
-          <Text style={styles.doneBtnText}>Admin Has Scanned ✓</Text>
+          <Text style={[styles.doneBtnText, { color: theme.ctaLabel }]}>Admin Has Scanned ✓</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -281,5 +281,5 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   doneBtn: { paddingVertical: 16, borderRadius: 14, alignItems: 'center' },
-  doneBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  doneBtnText: { fontSize: 16, fontWeight: '700' },
 });

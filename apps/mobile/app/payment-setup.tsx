@@ -116,7 +116,7 @@ function PaymentSetupContent() {
               </Text>
             </View>
 
-            <Text style={[styles.sectionLabel, { color: theme.colors.accent }]}>Card Details</Text>
+            <Text style={[styles.sectionLabel, { color: theme.mutedText }]}>Card Details</Text>
             <CardField
               postalCodeEnabled={false}
               placeholders={{ number: '4242 4242 4242 4242' }}

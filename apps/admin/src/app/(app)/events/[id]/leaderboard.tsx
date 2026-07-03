@@ -63,7 +63,7 @@ export default function LeaderboardScreen() {
         <View>
           <Text style={[styles.title, { color: theme.colors.primary }]}>Leaderboard</Text>
           {event && (
-            <Text style={[styles.formatBadge, { color: theme.colors.accent }]}>
+            <Text style={[styles.formatBadge, { color: theme.mutedText }]}>
               {event.format} · {event.holes} holes
             </Text>
           )}
@@ -87,7 +87,7 @@ export default function LeaderboardScreen() {
 
       {entries.length === 0 && !error ? (
         <View style={styles.emptyWrap}>
-          <Text style={[styles.emptyText, { color: theme.colors.accent }]}>
+          <Text style={[styles.emptyText, { color: theme.mutedText }]}>
             No scores submitted yet.
           </Text>
         </View>
@@ -143,7 +143,7 @@ export default function LeaderboardScreen() {
                 <Text style={[styles.colNum, styles.numText, { color: theme.colors.primary }]}>
                   {item.bestHoleScore == null ? '—' : item.bestHoleScore}
                 </Text>
-                <Text style={[styles.colThru, styles.thruText, { color: theme.colors.accent }]}>
+                <Text style={[styles.colThru, styles.thruText, { color: theme.mutedText }]}>
                   {item.holesComplete === 0 ? '—' : item.isComplete ? 'F' : item.holesComplete}
                 </Text>
               </View>

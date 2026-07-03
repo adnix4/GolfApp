@@ -34,6 +34,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using GolfFundraiserPro.Api.Common;
 using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
@@ -512,7 +513,18 @@ public class EventService
             evt.LogoUrl = string.IsNullOrWhiteSpace(request.LogoUrl) ? null : request.LogoUrl.Trim();
 
         if (request.ThemeJson is not null)
-            evt.ThemeJson = string.IsNullOrWhiteSpace(request.ThemeJson) ? null : request.ThemeJson;
+        {
+            if (string.IsNullOrWhiteSpace(request.ThemeJson))
+            {
+                evt.ThemeJson = null; // clear override → revert to org theme
+            }
+            else
+            {
+                // Same gate as the org theme save: WCAG contrast + light surface.
+                ThemeValidation.Validate(request.ThemeJson);
+                evt.ThemeJson = request.ThemeJson;
+            }
+        }
 
         if (request.MissionStatement is not null)
             evt.MissionStatement = string.IsNullOrWhiteSpace(request.MissionStatement)

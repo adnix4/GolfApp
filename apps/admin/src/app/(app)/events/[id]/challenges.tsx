@@ -102,10 +102,10 @@ export default function ChallengesScreen() {
         </View>
       ) : challenges.length === 0 ? (
         <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.colors.accent }]}>
+          <Text style={[styles.emptyText, { color: theme.mutedText }]}>
             No hole challenges configured.
           </Text>
-          <Text style={[styles.emptyHint, { color: theme.colors.accent }]}>
+          <Text style={[styles.emptyHint, { color: theme.mutedText }]}>
             Add closest-to-pin, longest drive, and other contests.
           </Text>
         </View>
@@ -124,7 +124,7 @@ export default function ChallengesScreen() {
                   {ch.description}
                 </Text>
                 {ch.sponsorName && (
-                  <Text style={[styles.sponsorLine, { color: theme.colors.accent }]}>
+                  <Text style={[styles.sponsorLine, { color: theme.mutedText }]}>
                     Sponsored by {ch.sponsorName}
                   </Text>
                 )}
@@ -336,7 +336,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
 
           <View style={styles.modalActions}>
             <Pressable style={[styles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
-              <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
+              <Text style={[styles.cancelText, { color: theme.mutedText }]}>Cancel</Text>
             </Pressable>
             <Pressable
               style={[styles.saveBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}

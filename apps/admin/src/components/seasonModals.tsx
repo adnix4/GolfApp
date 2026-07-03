@@ -50,7 +50,7 @@ export function PairingsPreviewModal({
           </ScrollView>
           <View style={mStyles.modalActions}>
             <Pressable style={mStyles.cancelBtn} onPress={onDiscard}>
-              <Text style={{ color: theme.colors.accent }}>Discard</Text>
+              <Text style={{ color: theme.mutedText }}>Discard</Text>
             </Pressable>
             <Pressable style={[mStyles.btn, { backgroundColor: theme.colors.primary }]} onPress={onLock}>
               <Text style={{ color: theme.colors.surface }}>Lock Pairings</Text>
@@ -82,16 +82,16 @@ export function HandicapHistoryModal({
           </Text>
           <ScrollView>
             {history.length === 0
-              ? <Text style={{ color: theme.colors.accent }}>No history yet.</Text>
+              ? <Text style={{ color: theme.mutedText }}>No history yet.</Text>
               : history.map(h => (
                 <View key={h.id} style={[mStyles.histRow, { borderColor: theme.colors.accent }]}>
-                  <Text style={[mStyles.histDate, { color: theme.colors.accent }]}>
+                  <Text style={[mStyles.histDate, { color: theme.mutedText }]}>
                     {h.roundDate ?? h.createdAt.slice(0, 10)}{h.adminOverride ? ' (Admin)' : ''}
                   </Text>
                   <Text style={[mStyles.histChg, { color: theme.colors.primary }]}>
                     {h.oldIndex.toFixed(1)} → {h.newIndex.toFixed(1)}
                   </Text>
-                  <Text style={[mStyles.histDiff, { color: theme.colors.accent }]}>
+                  <Text style={[mStyles.histDiff, { color: theme.mutedText }]}>
                     diff {h.differential.toFixed(1)}
                   </Text>
                 </View>
@@ -134,13 +134,13 @@ export function OverrideHandicapModal({
           <Text style={[mStyles.modalTitle, { color: theme.colors.primary }]}>
             Override HC — {member?.firstName} {member?.lastName}
           </Text>
-          <Text style={[mStyles.label, { color: theme.colors.accent }]}>New Handicap Index</Text>
+          <Text style={[mStyles.label, { color: theme.mutedText }]}>New Handicap Index</Text>
           <TextInput
             style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
             value={overrideIdx} onChangeText={setOverrideIdx} keyboardType="numeric"
             placeholderTextColor={theme.colors.accent}
           />
-          <Text style={[mStyles.label, { color: theme.colors.accent }]}>Reason (required)</Text>
+          <Text style={[mStyles.label, { color: theme.mutedText }]}>Reason (required)</Text>
           <TextInput
             style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
             value={overrideReason} onChangeText={setOverrideReason}
@@ -148,7 +148,7 @@ export function OverrideHandicapModal({
           />
           <View style={mStyles.modalActions}>
             <Pressable style={mStyles.cancelBtn} onPress={onCancel}>
-              <Text style={{ color: theme.colors.accent }}>Cancel</Text>
+              <Text style={{ color: theme.mutedText }}>Cancel</Text>
             </Pressable>
             <Pressable
               style={[mStyles.btn, { backgroundColor: '#f59e0b', opacity: saving ? 0.6 : 1 }]}
@@ -189,7 +189,7 @@ export function AddMemberModal({
           <Text style={[mStyles.modalTitle, { color: theme.colors.primary }]}>Add Member</Text>
           <View style={mStyles.row}>
             <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={[mStyles.label, { color: theme.colors.accent }]}>First Name</Text>
+              <Text style={[mStyles.label, { color: theme.mutedText }]}>First Name</Text>
               <TextInput
                 style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
                 value={fields.firstName} onChangeText={v => set('firstName', v)}
@@ -197,7 +197,7 @@ export function AddMemberModal({
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[mStyles.label, { color: theme.colors.accent }]}>Last Name</Text>
+              <Text style={[mStyles.label, { color: theme.mutedText }]}>Last Name</Text>
               <TextInput
                 style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
                 value={fields.lastName} onChangeText={v => set('lastName', v)}
@@ -205,13 +205,13 @@ export function AddMemberModal({
               />
             </View>
           </View>
-          <Text style={[mStyles.label, { color: theme.colors.accent }]}>Email</Text>
+          <Text style={[mStyles.label, { color: theme.mutedText }]}>Email</Text>
           <TextInput
             style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
             value={fields.email} onChangeText={v => set('email', v)} keyboardType="email-address"
             placeholderTextColor={theme.colors.accent}
           />
-          <Text style={[mStyles.label, { color: theme.colors.accent }]}>Starting Handicap</Text>
+          <Text style={[mStyles.label, { color: theme.mutedText }]}>Starting Handicap</Text>
           <TextInput
             style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
             value={fields.handicap} onChangeText={v => set('handicap', v)} keyboardType="numeric" placeholder="0"
@@ -219,7 +219,7 @@ export function AddMemberModal({
           />
           <View style={mStyles.modalActions}>
             <Pressable style={mStyles.cancelBtn} onPress={onCancel}>
-              <Text style={{ color: theme.colors.accent }}>Cancel</Text>
+              <Text style={{ color: theme.mutedText }}>Cancel</Text>
             </Pressable>
             <Pressable
               style={[mStyles.btn, { backgroundColor: theme.colors.primary, opacity: saving ? 0.6 : 1 }]}
@@ -261,14 +261,14 @@ export function AbsencesModal({
           </Text>
           <ScrollView style={{ maxHeight: 260 }}>
             {absences.length === 0
-              ? <Text style={{ color: theme.colors.accent, fontSize: 13 }}>No absences reported yet.</Text>
+              ? <Text style={{ color: theme.mutedText, fontSize: 13 }}>No absences reported yet.</Text>
               : absences.map(a => (
                 <View key={a.id} style={[mStyles.absenceRow, { borderColor: theme.colors.accent }]}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '600' }}>{a.memberName}</Text>
                     {a.subMemberName
                       ? <Text style={{ color: '#16a34a', fontSize: 12 }}>Sub: {a.subMemberName}</Text>
-                      : <Text style={{ color: theme.colors.accent, fontSize: 12 }}>No sub assigned</Text>}
+                      : <Text style={{ color: theme.mutedText, fontSize: 12 }}>No sub assigned</Text>}
                   </View>
                   {!a.subMemberId && (
                     <Pressable
@@ -282,10 +282,10 @@ export function AbsencesModal({
               ))
             }
           </ScrollView>
-          <Text style={[mStyles.label, { color: theme.colors.accent }]}>Report New Absence</Text>
+          <Text style={[mStyles.label, { color: theme.mutedText }]}>Report New Absence</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: theme.colors.accent, fontSize: 11, marginBottom: 4 }}>Select Member</Text>
+              <Text style={{ color: theme.mutedText, fontSize: 11, marginBottom: 4 }}>Select Member</Text>
               <ScrollView style={{ maxHeight: 100, borderWidth: 1, borderColor: theme.colors.accent, borderRadius: 8 }}>
                 {roster.filter(m => m.status === 'Active').map(m => (
                   <Pressable
@@ -303,7 +303,7 @@ export function AbsencesModal({
           </View>
           <View style={mStyles.modalActions}>
             <Pressable style={mStyles.cancelBtn} onPress={onClose}>
-              <Text style={{ color: theme.colors.accent }}>Close</Text>
+              <Text style={{ color: theme.mutedText }}>Close</Text>
             </Pressable>
             <Pressable
               style={[mStyles.btn, { backgroundColor: '#ef4444', opacity: (!selMemberId || saving) ? 0.5 : 1 }]}
@@ -345,7 +345,7 @@ export function AddSubModal({
           <Text style={[mStyles.modalTitle, { color: theme.colors.primary }]}>Add Substitute</Text>
           <View style={mStyles.row}>
             <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={[mStyles.label, { color: theme.colors.accent }]}>First Name</Text>
+              <Text style={[mStyles.label, { color: theme.mutedText }]}>First Name</Text>
               <TextInput
                 style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
                 value={fields.firstName} onChangeText={v => set('firstName', v)}
@@ -353,7 +353,7 @@ export function AddSubModal({
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[mStyles.label, { color: theme.colors.accent }]}>Last Name</Text>
+              <Text style={[mStyles.label, { color: theme.mutedText }]}>Last Name</Text>
               <TextInput
                 style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
                 value={fields.lastName} onChangeText={v => set('lastName', v)}
@@ -361,13 +361,13 @@ export function AddSubModal({
               />
             </View>
           </View>
-          <Text style={[mStyles.label, { color: theme.colors.accent }]}>Email</Text>
+          <Text style={[mStyles.label, { color: theme.mutedText }]}>Email</Text>
           <TextInput
             style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
             value={fields.email} onChangeText={v => set('email', v)} keyboardType="email-address"
             placeholderTextColor={theme.colors.accent}
           />
-          <Text style={[mStyles.label, { color: theme.colors.accent }]}>Handicap Index</Text>
+          <Text style={[mStyles.label, { color: theme.mutedText }]}>Handicap Index</Text>
           <TextInput
             style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
             value={fields.handicap} onChangeText={v => set('handicap', v)} keyboardType="numeric" placeholder="0"
@@ -375,7 +375,7 @@ export function AddSubModal({
           />
           <View style={mStyles.modalActions}>
             <Pressable style={mStyles.cancelBtn} onPress={onCancel}>
-              <Text style={{ color: theme.colors.accent }}>Cancel</Text>
+              <Text style={{ color: theme.mutedText }}>Cancel</Text>
             </Pressable>
             <Pressable
               style={[mStyles.btn, { backgroundColor: theme.colors.primary, opacity: saving ? 0.6 : 1 }]}
@@ -410,13 +410,13 @@ export function AddRoundModal({
       <View style={mStyles.overlay}>
         <View style={[mStyles.modal, { backgroundColor: theme.colors.surface }]}>
           <Text style={[mStyles.modalTitle, { color: theme.colors.primary }]}>Add Round</Text>
-          <Text style={[mStyles.label, { color: theme.colors.accent }]}>Round Date (YYYY-MM-DD)</Text>
+          <Text style={[mStyles.label, { color: theme.mutedText }]}>Round Date (YYYY-MM-DD)</Text>
           <TextInput
             style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
             value={date} onChangeText={setDate} placeholder="2026-06-15"
             placeholderTextColor={theme.colors.accent}
           />
-          <Text style={[mStyles.label, { color: theme.colors.accent }]}>Notes (optional)</Text>
+          <Text style={[mStyles.label, { color: theme.mutedText }]}>Notes (optional)</Text>
           <TextInput
             style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
             value={notes} onChangeText={setNotes} placeholder="Rain makeup round"
@@ -424,7 +424,7 @@ export function AddRoundModal({
           />
           <View style={mStyles.modalActions}>
             <Pressable style={mStyles.cancelBtn} onPress={onCancel}>
-              <Text style={{ color: theme.colors.accent }}>Cancel</Text>
+              <Text style={{ color: theme.mutedText }}>Cancel</Text>
             </Pressable>
             <Pressable
               style={[mStyles.btn, { backgroundColor: theme.colors.primary, opacity: saving ? 0.6 : 1 }]}

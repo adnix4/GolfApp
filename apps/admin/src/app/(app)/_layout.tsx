@@ -57,16 +57,18 @@ export default function AppLayout() {
               );
             })}
           </View>
-          <Text style={[styles.topEmail, { color: theme.colors.accent }]} numberOfLines={1}>
+          {/* Identity/logout text derives from buttonLabel (readable-on-primary):
+              accent has no validated contrast against the primary bar. */}
+          <Text style={[styles.topEmail, { color: theme.buttonLabel, opacity: 0.8 }]} numberOfLines={1}>
             {identityLabel}
           </Text>
           <Pressable
             onPress={handleLogout}
-            style={[styles.topLogout, { borderColor: theme.colors.accent }]}
+            style={[styles.topLogout, { borderColor: theme.buttonLabel }]}
             accessibilityRole="button"
             accessibilityLabel="Sign out"
           >
-            <Text style={[styles.topLogoutText, { color: theme.colors.accent }]}>Out</Text>
+            <Text style={[styles.topLogoutText, { color: theme.buttonLabel }]}>Out</Text>
           </Pressable>
         </View>
         <View style={[styles.content, { backgroundColor: theme.pageBackground }]}>
@@ -82,7 +84,7 @@ export default function AppLayout() {
       <View style={[styles.sidebar, { backgroundColor: theme.colors.primary }]}>
         <View style={styles.logoBox}>
           <Text style={[styles.logoText, { color: theme.colors.surface }]}>⛳ GFP</Text>
-          <Text style={[styles.logoSub,  { color: theme.colors.accent }]}>Admin</Text>
+          <Text style={[styles.logoSub,  { color: theme.buttonLabel, opacity: 0.75 }]}>Admin</Text>
         </View>
 
         <View style={styles.nav}>
@@ -109,20 +111,22 @@ export default function AppLayout() {
         </View>
 
         <View style={styles.bottomBox}>
-          <Text style={[styles.userEmail, { color: theme.colors.accent }]} numberOfLines={1}>
+          {/* buttonLabel (readable-on-primary) instead of accent — accent has
+              no validated contrast against the primary sidebar. */}
+          <Text style={[styles.userEmail, { color: theme.buttonLabel, opacity: 0.8 }]} numberOfLines={1}>
             {identityLabel}
           </Text>
           <Pressable
             style={({ pressed }) => [
               styles.logoutBtn,
-              { borderColor: theme.colors.accent },
+              { borderColor: theme.buttonLabel },
               pressed && { opacity: 0.7 },
             ]}
             onPress={handleLogout}
             accessibilityRole="button"
             accessibilityLabel="Sign out"
           >
-            <Text style={[styles.logoutText, { color: theme.colors.accent }]}>Sign out</Text>
+            <Text style={[styles.logoutText, { color: theme.buttonLabel }]}>Sign out</Text>
           </Pressable>
         </View>
       </View>

@@ -70,7 +70,7 @@ export default function LeagueDetailScreen() {
   const statusColor = (s: string) => {
     if (s === 'Active')    return '#16a34a';
     if (s === 'Completed') return '#6366f1';
-    return theme.colors.accent;
+    return theme.mutedText;
   };
 
   if (loading) return (
@@ -102,7 +102,7 @@ export default function LeagueDetailScreen() {
 
       {seasons.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={[styles.emptyText, { color: theme.colors.accent }]}>
+          <Text style={[styles.emptyText, { color: theme.mutedText }]}>
             No seasons yet. Create the first one.
           </Text>
         </View>
@@ -122,7 +122,7 @@ export default function LeagueDetailScreen() {
                   ● {item.status}
                 </Text>
               </View>
-              <Text style={[styles.cardMeta, { color: theme.colors.accent }]}>
+              <Text style={[styles.cardMeta, { color: theme.mutedText }]}>
                 {item.startDate} – {item.endDate}
               </Text>
               <View style={styles.cardStats}>
@@ -143,7 +143,7 @@ export default function LeagueDetailScreen() {
           <View style={[styles.modal, { backgroundColor: theme.colors.surface }]}>
             <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>New Season</Text>
 
-            <Text style={[styles.label, { color: theme.colors.accent }]}>Season Name</Text>
+            <Text style={[styles.label, { color: theme.mutedText }]}>Season Name</Text>
             <TextInput
               style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
               value={sName} onChangeText={setSName} placeholder="2026 Spring Season"
@@ -152,7 +152,7 @@ export default function LeagueDetailScreen() {
 
             <View style={styles.row}>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={[styles.label, { color: theme.colors.accent }]}>Start Date</Text>
+                <Text style={[styles.label, { color: theme.mutedText }]}>Start Date</Text>
                 <TextInput
                   style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
                   value={start} onChangeText={setStart} placeholder="2026-04-01"
@@ -160,7 +160,7 @@ export default function LeagueDetailScreen() {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.label, { color: theme.colors.accent }]}>End Date</Text>
+                <Text style={[styles.label, { color: theme.mutedText }]}>End Date</Text>
                 <TextInput
                   style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
                   value={end} onChangeText={setEnd} placeholder="2026-09-30"
@@ -171,7 +171,7 @@ export default function LeagueDetailScreen() {
 
             <View style={styles.row}>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={[styles.label, { color: theme.colors.accent }]}>Total Rounds</Text>
+                <Text style={[styles.label, { color: theme.mutedText }]}>Total Rounds</Text>
                 <TextInput
                   style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
                   value={rounds} onChangeText={setRounds} keyboardType="numeric"
@@ -179,7 +179,7 @@ export default function LeagueDetailScreen() {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.label, { color: theme.colors.accent }]}>Rounds Counted (0=all)</Text>
+                <Text style={[styles.label, { color: theme.mutedText }]}>Rounds Counted (0=all)</Text>
                 <TextInput
                   style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
                   value={counted} onChangeText={setCounted} keyboardType="numeric"
@@ -188,7 +188,7 @@ export default function LeagueDetailScreen() {
               </View>
             </View>
 
-            <Text style={[styles.label, { color: theme.colors.accent }]}>Standing Method</Text>
+            <Text style={[styles.label, { color: theme.mutedText }]}>Standing Method</Text>
             <View style={styles.segRow}>
               {['TotalNet', 'AverageNet'].map(m => (
                 <Pressable
@@ -205,7 +205,7 @@ export default function LeagueDetailScreen() {
 
             <View style={styles.modalActions}>
               <Pressable style={styles.cancelBtn} onPress={() => { setShowCreate(false); resetForm(); }}>
-                <Text style={{ color: theme.colors.accent }}>Cancel</Text>
+                <Text style={{ color: theme.mutedText }}>Cancel</Text>
               </Pressable>
               <Pressable
                 style={[styles.btn, { backgroundColor: theme.colors.primary, opacity: saving ? 0.6 : 1 }]}

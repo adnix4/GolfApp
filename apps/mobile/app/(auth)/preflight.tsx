@@ -51,7 +51,7 @@ function CheckItem({
         <Text style={[itemStyles.label, { color: theme.colors.primary }]}>{label}</Text>
         <Text style={[itemStyles.detail, {
           color: state.status === 'fail' ? '#c0392b' :
-                 state.status === 'warn' ? '#b7770d' : theme.colors.accent,
+                 state.status === 'warn' ? '#b7770d' : theme.mutedText,
         }]}>
           {state.detail}
         </Text>
@@ -168,7 +168,7 @@ export default function PreflightScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={[styles.intro, { color: theme.colors.accent }]}>
+        <Text style={[styles.intro, { color: theme.mutedText }]}>
           Complete all checks before the round begins. The scorecard unlocks when everything is ready.
         </Text>
 
@@ -187,10 +187,10 @@ export default function PreflightScreen() {
             style={({ pressed }) => [styles.offlineBtn, { borderColor: theme.colors.accent, opacity: pressed ? 0.6 : 1 }]}
             accessibilityRole="button"
           >
-            <Text style={[styles.offlineBtnText, { color: theme.colors.accent }]}>
+            <Text style={[styles.offlineBtnText, { color: theme.mutedText }]}>
               Start in Offline Mode
             </Text>
-            <Text style={[styles.offlineNote, { color: theme.colors.accent }]}>
+            <Text style={[styles.offlineNote, { color: theme.mutedText }]}>
               Scores save locally and sync when connection is restored
             </Text>
           </Pressable>
@@ -237,7 +237,7 @@ export default function PreflightScreen() {
         </Pressable>
 
         {!requiredOk && (
-          <Text style={[styles.blocked, { color: theme.colors.accent }]}>
+          <Text style={[styles.blocked, { color: theme.mutedText }]}>
             {rosterCheck.status !== 'ok'
               ? 'Roster check must pass before starting.'
               : 'Resolve the issues above to start.'}

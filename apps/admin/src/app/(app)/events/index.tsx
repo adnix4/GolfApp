@@ -56,17 +56,17 @@ const EventRow = memo(function EventRow({
           <StatusPill color={eventStatusColor(item.status)} label={item.status} />
         </View>
         <View style={styles.cardMeta}>
-          <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
+          <Text style={[styles.metaItem, { color: theme.mutedText }]}>
             {FORMAT_LABELS[item.format] ?? item.format}
           </Text>
-          <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
+          <Text style={[styles.metaItem, { color: theme.mutedText }]}>
             Code: {item.eventCode}
           </Text>
-          <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
+          <Text style={[styles.metaItem, { color: theme.mutedText }]}>
             {item.teamCount} team{item.teamCount !== 1 ? 's' : ''}
           </Text>
           {item.startAt && (
-            <Text style={[styles.metaItem, { color: theme.colors.accent }]}>
+            <Text style={[styles.metaItem, { color: theme.mutedText }]}>
               {new Date(item.startAt).toLocaleDateString()}
             </Text>
           )}

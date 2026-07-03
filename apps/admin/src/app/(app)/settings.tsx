@@ -4,7 +4,7 @@ import {
   Switch, StyleSheet, ActivityIndicator, Platform, Image,
 } from 'react-native';
 import { useTheme } from '@gfp/ui';
-import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, type GFPTheme } from '@gfp/theme';
+import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme } from '@gfp/theme';
 import { useResponsive } from '@/lib/responsive';
 import { orgApi, type OrgProfile } from '@/lib/api';
 
@@ -143,6 +143,10 @@ export default function OrgSettingsScreen() {
 
   const contrastRatio   = getContrastRatio(colors.primary, colors.surface);
   const contrastPasses  = validateContrast(colors.primary, colors.surface);
+  // Cards render as white panels across all apps, so the surface itself must
+  // be light — otherwise a validated light-primary/dark-surface palette would
+  // put light text on white cards.
+  const surfaceIsLight  = !isValidHex(colors.surface) || isLightSurface(colors.surface);
   const allColorsValid  = TOKEN_META.every(m => isValidHex(colors[m.key]));
 
   async function handleSave() {
@@ -150,6 +154,10 @@ export default function OrgSettingsScreen() {
     if (!allColorsValid) { setError('Fix invalid hex color values before saving.'); return; }
     if (!contrastPasses) {
       setError(`Primary on Surface contrast is ${contrastRatio.toFixed(1)}:1 — must be ≥ 4.5:1 (WCAG AA). Adjust Primary or Surface.`);
+      return;
+    }
+    if (!surfaceIsLight) {
+      setError('Surface must be a light color — it sits behind white cards on every page. Pick a pale tint (e.g. an off-white version of your brand color).');
       return;
     }
     setSaving(true);
@@ -207,7 +215,7 @@ export default function OrgSettingsScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <Text style={[styles.title, { color: theme.colors.primary }]}>Organization Settings</Text>
-      <Text style={[styles.sub,   { color: theme.colors.accent }]}>
+      <Text style={[styles.sub,   { color: theme.mutedText }]}>
         Update your organization profile. Changes apply to all events.
       </Text>
 
@@ -222,9 +230,9 @@ export default function OrgSettingsScreen() {
         <View style={styles.fieldWrap}>
           <Text style={[styles.label, { color: theme.colors.primary }]}>URL Slug</Text>
           <View style={[styles.readonlyBox, { borderColor: theme.colors.accent + '55' }]}>
-            <Text style={[styles.readonlyText, { color: theme.colors.accent }]}>{slug}</Text>
+            <Text style={[styles.readonlyText, { color: theme.mutedText }]}>{slug}</Text>
           </View>
-          <Text style={[styles.hint, { color: theme.colors.accent }]}>
+          <Text style={[styles.hint, { color: theme.mutedText }]}>
             Cannot be changed after registration.
           </Text>
         </View>
@@ -275,7 +283,7 @@ export default function OrgSettingsScreen() {
                   </Text>}
             </Pressable>
           )}
-          <Text style={[styles.hint, { color: theme.colors.accent }]}>PNG, JPEG, SVG or WebP · max 2 MB</Text>
+          <Text style={[styles.hint, { color: theme.mutedText }]}>PNG, JPEG, SVG or WebP · max 2 MB</Text>
 
           {/* URL field — fallback / alternative */}
           <Text style={[styles.label, { color: theme.colors.primary, marginTop: 10 }]}>
@@ -308,7 +316,7 @@ export default function OrgSettingsScreen() {
             autoCapitalize="sentences"
             editable={!saving}
           />
-          <Text style={[styles.hint, { color: theme.colors.accent }]}>
+          <Text style={[styles.hint, { color: theme.mutedText }]}>
             Shown on your public event landing page.
           </Text>
         </View>
@@ -319,7 +327,7 @@ export default function OrgSettingsScreen() {
             <Text style={[styles.label, { color: theme.colors.primary, marginTop: 0 }]}>
               501(c)(3) Non-Profit
             </Text>
-            <Text style={[styles.hint, { color: theme.colors.accent }]}>
+            <Text style={[styles.hint, { color: theme.mutedText }]}>
               Enables IRS tax-deductibility language in donation receipts.
             </Text>
           </View>
@@ -340,11 +348,11 @@ export default function OrgSettingsScreen() {
             onPress={() => setColors({ ...ECO_GREEN_DEFAULT })}
             style={[styles.resetBtn, { borderColor: theme.colors.accent }]}
           >
-            <Text style={[styles.resetBtnText, { color: theme.colors.accent }]}>Reset to Eco Green</Text>
+            <Text style={[styles.resetBtnText, { color: theme.mutedText }]}>Reset to Eco Green</Text>
           </Pressable>
         </View>
 
-        <Text style={[styles.hint, { color: theme.colors.accent, marginBottom: 12 }]}>
+        <Text style={[styles.hint, { color: theme.mutedText, marginBottom: 12 }]}>
           Enter 6-digit hex codes. Use the color picker on the right to browse.
           All changes are previewed live.
         </Text>
@@ -372,11 +380,20 @@ export default function OrgSettingsScreen() {
           </Text>
         </View>
 
+        {/* Surface lightness indicator */}
+        {!surfaceIsLight && (
+          <View style={[styles.contrastBadge, { backgroundColor: '#fdf2f2', borderColor: '#e74c3c' }]}>
+            <Text style={[styles.contrastText, { color: '#c0392b' }]}>
+              ✗ Surface is too dark — it sits behind white cards on every page. Pick a pale tint.
+            </Text>
+          </View>
+        )}
+
         {/* Live preview strip */}
         <View style={styles.previewRow}>
           {TOKEN_META.map(m => (
             <View key={m.key} style={[styles.previewChip, { backgroundColor: isValidHex(colors[m.key]) ? colors[m.key] : '#ccc' }]}>
-              <Text style={[styles.previewLabel, { color: m.key === 'surface' || m.key === 'highlight' ? '#333' : '#fff' }]}>
+              <Text style={[styles.previewLabel, { color: readableTextOn(isValidHex(colors[m.key]) ? colors[m.key] : '#ccc') }]}>
                 {m.label}
               </Text>
             </View>

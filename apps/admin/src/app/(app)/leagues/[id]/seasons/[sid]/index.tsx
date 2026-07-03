@@ -260,7 +260,7 @@ export default function SeasonDashboardScreen() {
         <Text style={[styles.title, { color: theme.colors.primary }]} numberOfLines={1}>
           {dashboard?.season.name ?? 'Season'}
         </Text>
-        <Text style={[styles.statusBadge, { color: theme.colors.accent }]}>
+        <Text style={[styles.statusBadge, { color: theme.mutedText }]}>
           {dashboard?.season.status}
         </Text>
       </View>
@@ -280,7 +280,7 @@ export default function SeasonDashboardScreen() {
             style={[styles.tabBtn, tab === t.key && { borderBottomColor: theme.colors.primary, borderBottomWidth: 2 }]}
             onPress={() => setTab(t.key)}
           >
-            <Text style={[styles.tabLabel, { color: tab === t.key ? theme.colors.primary : theme.colors.accent }]}>
+            <Text style={[styles.tabLabel, { color: tab === t.key ? theme.colors.primary : theme.mutedText }]}>
               {t.label}
             </Text>
           </Pressable>
@@ -301,14 +301,14 @@ export default function SeasonDashboardScreen() {
               ].map(s => (
                 <View key={s.label} style={[styles.statCard, { backgroundColor: theme.colors.highlight, borderColor: theme.colors.accent }]}>
                   <Text style={[styles.statVal, { color: theme.colors.primary }]}>{s.value}</Text>
-                  <Text style={[styles.statLabel, { color: theme.colors.accent }]}>{s.label}</Text>
+                  <Text style={[styles.statLabel, { color: theme.mutedText }]}>{s.label}</Text>
                 </View>
               ))}
             </View>
             <View style={[styles.syncRow, { borderColor: theme.colors.accent }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.memberName, { color: theme.colors.primary }]}>Sync HC → Player Profile</Text>
-                <Text style={[styles.memberMeta, { color: theme.colors.accent }]}>
+                <Text style={[styles.memberMeta, { color: theme.mutedText }]}>
                   When on, handicap updates write back to the player's event record.
                 </Text>
               </View>
@@ -321,7 +321,7 @@ export default function SeasonDashboardScreen() {
                 onPress={handleToggleSync}
                 disabled={syncSaving}
               >
-                <Text style={{ color: dashboard.season.syncHandicapToPlayer ? theme.colors.surface : theme.colors.accent, fontSize: 12, fontWeight: '600' }}>
+                <Text style={{ color: dashboard.season.syncHandicapToPlayer ? theme.colors.surface : theme.mutedText, fontSize: 12, fontWeight: '600' }}>
                   {dashboard.season.syncHandicapToPlayer ? 'ON' : 'OFF'}
                 </Text>
               </Pressable>
@@ -331,7 +331,7 @@ export default function SeasonDashboardScreen() {
               <View key={r.id} style={[styles.roundRow, { borderColor: theme.colors.accent }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.roundDate, { color: theme.colors.primary }]}>{r.roundDate}</Text>
-                  <Text style={[styles.roundMeta, { color: theme.colors.accent }]}>
+                  <Text style={[styles.roundMeta, { color: theme.mutedText }]}>
                     {r.courseName ?? 'No course'} · {r.scoredCount} scored
                   </Text>
                 </View>
@@ -360,7 +360,7 @@ export default function SeasonDashboardScreen() {
                     {m.lastName}, {m.firstName}
                     {m.isSandbagger ? <Text style={{ color: '#f59e0b' }}> ⚠</Text> : null}
                   </Text>
-                  <Text style={[styles.memberMeta, { color: theme.colors.accent }]}>
+                  <Text style={[styles.memberMeta, { color: theme.mutedText }]}>
                     HC {m.handicapIndex.toFixed(1)} · {m.flightName ?? 'No flight'} · {m.roundsPlayed} rounds
                     {!m.duesPaid ? <Text style={{ color: '#ef4444' }}> · Dues unpaid</Text> : null}
                   </Text>
@@ -395,7 +395,7 @@ export default function SeasonDashboardScreen() {
                 <View style={styles.roundCardTop}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.roundDate, { color: theme.colors.primary }]}>{r.roundDate}</Text>
-                    <Text style={[styles.roundMeta, { color: theme.colors.accent }]}>
+                    <Text style={[styles.roundMeta, { color: theme.mutedText }]}>
                       {r.courseName ?? 'No course'} · {r.pairingCount} groups · {r.scoredCount} scored
                       {r.absenceCount > 0 ? ` · ${r.absenceCount} absent` : ''}
                     </Text>
@@ -460,7 +460,7 @@ export default function SeasonDashboardScreen() {
                     {m.lastName}, {m.firstName}
                     {m.isSandbagger ? <Text style={{ color: '#f59e0b' }}> ⚠</Text> : null}
                   </Text>
-                  <Text style={[styles.memberMeta, { color: theme.colors.accent }]}>
+                  <Text style={[styles.memberMeta, { color: theme.mutedText }]}>
                     Current HC: {m.handicapIndex.toFixed(1)} · {m.roundsPlayed} rounds
                   </Text>
                 </View>
@@ -492,25 +492,25 @@ export default function SeasonDashboardScreen() {
               )}
             </View>
             {dashboard.standings.length === 0 ? (
-              <Text style={[styles.emptyText, { color: theme.colors.accent }]}>
+              <Text style={[styles.emptyText, { color: theme.mutedText }]}>
                 Standings appear after the first round closes.
               </Text>
             ) : (
               <View>
                 <View style={[styles.tableRow, styles.tableHeader, { backgroundColor: theme.colors.primary + '11' }]}>
                   {['#', 'Name', 'Flight', 'HC', 'Pts', 'Net', 'Rnds'].map(h => (
-                    <Text key={h} style={[styles.tableCell, { color: theme.colors.accent, fontWeight: '700', fontSize: 11 }]}>{h}</Text>
+                    <Text key={h} style={[styles.tableCell, { color: theme.mutedText, fontWeight: '700', fontSize: 11 }]}>{h}</Text>
                   ))}
                 </View>
                 {dashboard.standings.map((s: StandingRow) => (
                   <View key={s.memberId} style={[styles.tableRow, { borderBottomColor: theme.colors.accent }]}>
                     <Text style={[styles.tableCell, { color: theme.colors.primary, fontWeight: '700' }]}>{s.rank}</Text>
                     <Text style={[styles.tableCell, { color: theme.colors.primary, flex: 2 }]} numberOfLines={1}>{s.memberName}</Text>
-                    <Text style={[styles.tableCell, { color: theme.colors.accent }]} numberOfLines={1}>{s.flightName}</Text>
+                    <Text style={[styles.tableCell, { color: theme.mutedText }]} numberOfLines={1}>{s.flightName}</Text>
                     <Text style={[styles.tableCell, { color: theme.colors.primary }]}>{s.handicapIndex.toFixed(1)}</Text>
                     <Text style={[styles.tableCell, { color: theme.colors.primary, fontWeight: '600' }]}>{s.totalPoints}</Text>
                     <Text style={[styles.tableCell, { color: theme.colors.primary }]}>{s.netStrokes}</Text>
-                    <Text style={[styles.tableCell, { color: theme.colors.accent }]}>{s.roundsPlayed}</Text>
+                    <Text style={[styles.tableCell, { color: theme.mutedText }]}>{s.roundsPlayed}</Text>
                   </View>
                 ))}
               </View>
@@ -525,7 +525,7 @@ export default function SeasonDashboardScreen() {
               Skins — {selRound?.roundDate ?? 'Select a round'}
             </Text>
             {skins.length === 0 ? (
-              <Text style={[styles.emptyText, { color: theme.colors.accent }]}>
+              <Text style={[styles.emptyText, { color: theme.mutedText }]}>
                 No skins data. Close a round to calculate skins.
               </Text>
             ) : (
@@ -533,11 +533,11 @@ export default function SeasonDashboardScreen() {
                 <View key={sk.id} style={[styles.skinRow, { borderColor: theme.colors.accent }]}>
                   <Text style={[styles.skinHole, { color: theme.colors.primary }]}>Hole {sk.holeNumber}</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.skinWinner, { color: sk.winnerName ? theme.colors.primary : theme.colors.accent }]}>
+                    <Text style={[styles.skinWinner, { color: sk.winnerName ? theme.colors.primary : theme.mutedText }]}>
                       {sk.winnerName ?? 'Tie (carried)'}
                     </Text>
                     {sk.carriedOverFromHole != null && (
-                      <Text style={[styles.skinCarry, { color: theme.colors.accent }]}>
+                      <Text style={[styles.skinCarry, { color: theme.mutedText }]}>
                         Carried from hole {sk.carriedOverFromHole}
                       </Text>
                     )}

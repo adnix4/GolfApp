@@ -113,7 +113,7 @@ export default function RegisterScreen() {
           autoCorrect={false}
           editable={!loading}
         />
-        {hint && !err && <Text style={[styles.hint, { color: theme.colors.accent }]}>{hint}</Text>}
+        {hint && !err && <Text style={[styles.hint, { color: theme.mutedText }]}>{hint}</Text>}
         {err ? <Text style={styles.fieldError}>{err}</Text> : null}
       </View>
     );
@@ -136,7 +136,7 @@ export default function RegisterScreen() {
 
       <View style={styles.card}>
         <Text style={[styles.heading, { color: theme.colors.primary }]}>Create your account</Text>
-        <Text style={[styles.subheading, { color: theme.colors.accent }]}>
+        <Text style={[styles.subheading, { color: theme.mutedText }]}>
           Set up your organization and run your first event in minutes.
         </Text>
 
@@ -208,7 +208,7 @@ export default function RegisterScreen() {
             <Text style={[styles.label, { color: theme.colors.primary, marginBottom: 2 }]}>
               501(c)(3) Non-Profit
             </Text>
-            <Text style={[styles.hint, { color: theme.colors.accent }]}>
+            <Text style={[styles.hint, { color: theme.mutedText }]}>
               Enables IRS tax-deductibility language in donation receipts.
             </Text>
           </View>
@@ -235,7 +235,7 @@ export default function RegisterScreen() {
         </Pressable>
 
         <View style={styles.signinRow}>
-          <Text style={[styles.signinText, { color: theme.colors.accent }]}>Already have an account? </Text>
+          <Text style={[styles.signinText, { color: theme.mutedText }]}>Already have an account? </Text>
           <Pressable onPress={() => router.push('/(auth)/login')}>
             <Text style={[styles.signinLink, { color: theme.colors.primary }]}>Sign in</Text>
           </Pressable>

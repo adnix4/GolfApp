@@ -47,7 +47,7 @@ const TeamRow = memo(function TeamRow({
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.teamName, { color: theme.colors.primary }]}>{team.name}</Text>
-          <Text style={[styles.meta, { color: theme.colors.accent }]}>
+          <Text style={[styles.meta, { color: theme.mutedText }]}>
             {team.players.length}/{team.maxPlayers} players
             {team.startingHole ? ` · Hole ${team.startingHole}` : ''}
             {team.teeTime ? ` · ${new Date(team.teeTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
@@ -65,7 +65,7 @@ const TeamRow = memo(function TeamRow({
               style={[styles.editBtn, { borderColor: theme.colors.accent }]}
               onPress={() => onEditTeam(team)}
             >
-              <Text style={[styles.editBtnText, { color: theme.colors.accent }]}>Edit</Text>
+              <Text style={[styles.editBtnText, { color: theme.mutedText }]}>Edit</Text>
             </Pressable>
             {team.players.length === 0 && (
               <Pressable
@@ -80,7 +80,7 @@ const TeamRow = memo(function TeamRow({
                 style={[styles.checkInBtn, { backgroundColor: theme.colors.action }]}
                 onPress={() => onCheckIn(team.id)}
               >
-                <Text style={styles.checkInText}>Check In</Text>
+                <Text style={[styles.checkInText, { color: theme.ctaLabel }]}>Check In</Text>
               </Pressable>
             )}
           </View>
@@ -97,13 +97,13 @@ const TeamRow = memo(function TeamRow({
                   {p.firstName} {p.lastName}
                 </Text>
                 {!!p.email && (
-                  <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>{p.email}</Text>
+                  <Text style={[styles.playerMeta, { color: theme.mutedText }]}>{p.email}</Text>
                 )}
                 {!!p.phone && (
-                  <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>{fmtPhone(p.phone)}</Text>
+                  <Text style={[styles.playerMeta, { color: theme.mutedText }]}>{fmtPhone(p.phone)}</Text>
                 )}
                 {(p.handicapIndex != null || p.skillLevel || p.ageGroup) && (
-                  <Text style={[styles.playerMeta, { color: theme.colors.accent }]}>
+                  <Text style={[styles.playerMeta, { color: theme.mutedText }]}>
                     {[
                       p.handicapIndex != null ? `HCP ${p.handicapIndex}` : null,
                       p.skillLevel ?? null,
@@ -112,7 +112,7 @@ const TeamRow = memo(function TeamRow({
                   </Text>
                 )}
                 {!!p.pairingNote && (
-                  <Text style={[styles.playerNote, { color: theme.colors.accent }]}>
+                  <Text style={[styles.playerNote, { color: theme.mutedText }]}>
                     Note: {p.pairingNote}
                   </Text>
                 )}
@@ -122,7 +122,7 @@ const TeamRow = memo(function TeamRow({
                   style={[styles.smallBtn, { borderColor: theme.colors.accent }]}
                   onPress={() => onEditPlayer(p, team)}
                 >
-                  <Text style={[styles.smallBtnText, { color: theme.colors.accent }]}>Edit</Text>
+                  <Text style={[styles.smallBtnText, { color: theme.mutedText }]}>Edit</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.smallBtn, { borderColor: '#e74c3c' }]}
@@ -332,7 +332,7 @@ export default function TeamsScreen() {
         </View>
       ) : teams.length === 0 ? (
         <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.colors.accent }]}>No teams registered yet.</Text>
+          <Text style={[styles.emptyText, { color: theme.mutedText }]}>No teams registered yet.</Text>
         </View>
       ) : (
         <FlatList
@@ -544,7 +544,7 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
 
             {/* Name */}
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Name *</Text>
-            <Text style={[styles.fieldDesc, { color: theme.colors.accent }]}>Player's first and last name as it should appear on the scorecard.</Text>
+            <Text style={[styles.fieldDesc, { color: theme.mutedText }]}>Player's first and last name as it should appear on the scorecard.</Text>
             <View style={styles.nameRow}>
               <TextInput
                 style={[styles.input, styles.halfInput, { borderColor: theme.colors.accent }]}
@@ -560,7 +560,7 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
 
             {/* Email */}
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Email</Text>
-            <Text style={[styles.fieldDesc, { color: theme.colors.accent }]}>Used by the player to join the event on the mobile app. Must be unique within this event.</Text>
+            <Text style={[styles.fieldDesc, { color: theme.mutedText }]}>Used by the player to join the event on the mobile app. Must be unique within this event.</Text>
             <TextInput
               style={[styles.input, { borderColor: theme.colors.accent }]}
               value={email} onChangeText={v => { setEmail(v); if (error) setError(null); }}
@@ -582,7 +582,7 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
 
             {/* Handicap */}
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Handicap Index</Text>
-            <Text style={[styles.fieldDesc, { color: theme.colors.accent }]}>USGA handicap index (0 – 54). Used for net scoring, pairing, and flights. Leave blank if unknown.</Text>
+            <Text style={[styles.fieldDesc, { color: theme.mutedText }]}>USGA handicap index (0 – 54). Used for net scoring, pairing, and flights. Leave blank if unknown.</Text>
             <TextInput
               style={[styles.input, { borderColor: theme.colors.accent }]}
               value={handicap} onChangeText={v => { setHandicap(v.replace(/[^0-9.]/g, '')); if (error) setError(null); }}
@@ -595,7 +595,7 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
             {!!player && (
               <>
                 <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Team Assignment</Text>
-                <Text style={[styles.fieldDesc, { color: theme.colors.accent }]}>
+                <Text style={[styles.fieldDesc, { color: theme.mutedText }]}>
                   Move this player to a different team or designate them as a free agent for the organizer to assign.
                   Only teams with open slots are shown.
                 </Text>
@@ -609,7 +609,7 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
                   <Text style={[styles.pickerBtnText, { color: selectedTeamId ? theme.colors.primary : '#999' }]} numberOfLines={1}>
                     {teamLabel(selectedTeamId)}
                   </Text>
-                  <Text style={{ color: theme.colors.accent, fontSize: 12, marginLeft: 6 }}>{pickerOpen ? '▲' : '▼'}</Text>
+                  <Text style={{ color: theme.mutedText, fontSize: 12, marginLeft: 6 }}>{pickerOpen ? '▲' : '▼'}</Text>
                 </Pressable>
 
                 {/* Options list */}
@@ -629,7 +629,7 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.pickerOptionLabel, { color: theme.colors.primary }]}>Free agent</Text>
-                        <Text style={[styles.pickerOptionDesc, { color: theme.colors.accent }]}>Organizer will assign this player to a team</Text>
+                        <Text style={[styles.pickerOptionDesc, { color: theme.mutedText }]}>Organizer will assign this player to a team</Text>
                       </View>
                     </Pressable>
 
@@ -651,7 +651,7 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
                             <Text style={[styles.pickerOptionLabel, { color: theme.colors.primary }]}>
                               {t.name}{isCurrent ? '  (current)' : ''}
                             </Text>
-                            <Text style={[styles.pickerOptionDesc, { color: theme.colors.accent }]}>
+                            <Text style={[styles.pickerOptionDesc, { color: theme.mutedText }]}>
                               {t.players.length}/{t.maxPlayers} players · {isCurrent ? 'current team' : `${open} slot${open !== 1 ? 's' : ''} open`}
                             </Text>
                           </View>
@@ -671,7 +671,7 @@ function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClo
 
             <View style={styles.modalActions}>
               <Pressable style={[styles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
-                <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
+                <Text style={[styles.cancelText, { color: theme.mutedText }]}>Cancel</Text>
               </Pressable>
               <Pressable
                 style={[styles.submitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
@@ -835,7 +835,7 @@ function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: Register
 
             <View style={styles.modalActions}>
               <Pressable style={[styles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={() => { reset(); onClose(); }}>
-                <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
+                <Text style={[styles.cancelText, { color: theme.mutedText }]}>Cancel</Text>
               </Pressable>
               <Pressable
                 style={[styles.submitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
@@ -938,7 +938,7 @@ function EditTeamModal({ visible, eventId, team, onClose, onSaved }: EditTeamMod
 
           <View style={styles.modalActions}>
             <Pressable style={[styles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
-              <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Cancel</Text>
+              <Text style={[styles.cancelText, { color: theme.mutedText }]}>Cancel</Text>
             </Pressable>
             <Pressable
               style={[styles.submitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
@@ -982,7 +982,7 @@ const styles = StyleSheet.create({
   editBtn: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
   editBtnText: { fontSize: 12, fontWeight: '600' },
   checkInBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
-  checkInText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  checkInText: { fontSize: 12, fontWeight: '700' },
 
   players: { gap: 8, paddingTop: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#eee' },
   playerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

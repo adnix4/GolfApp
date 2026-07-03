@@ -109,9 +109,9 @@ function Section({ title, subtitle, children, defaultOpen = true }: {
       <Pressable style={styles.cardHeader} onPress={() => setOpen(o => !o)}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>{title}</Text>
-          {subtitle && <Text style={[styles.cardSubtitle, { color: theme.colors.accent }]}>{subtitle}</Text>}
+          {subtitle && <Text style={[styles.cardSubtitle, { color: theme.mutedText }]}>{subtitle}</Text>}
         </View>
-        <Text style={[styles.chevron, { color: theme.colors.accent }]}>{open ? '▲' : '▼'}</Text>
+        <Text style={[styles.chevron, { color: theme.mutedText }]}>{open ? '▲' : '▼'}</Text>
       </Pressable>
       {open && <View style={styles.cardBody}>{children}</View>}
     </View>
@@ -126,12 +126,12 @@ function TabCard({ tab }: { tab: typeof TABS[0] }) {
         <Text style={styles.tabIcon}>{tab.icon}</Text>
         <Text style={[styles.tabName, { color: theme.colors.primary }]}>{tab.name}</Text>
       </View>
-      <Text style={[styles.tabDesc, { color: theme.colors.accent }]}>{tab.desc}</Text>
+      <Text style={[styles.tabDesc, { color: theme.mutedText }]}>{tab.desc}</Text>
       <View style={styles.tips}>
         {tab.tips.map((tip, i) => (
           <View key={i} style={styles.tipRow}>
             <Text style={[styles.tipDot, { color: tab.color }]}>•</Text>
-            <Text style={[styles.tipText, { color: theme.colors.accent }]}>{tip}</Text>
+            <Text style={[styles.tipText, { color: theme.mutedText }]}>{tip}</Text>
           </View>
         ))}
       </View>
@@ -147,12 +147,12 @@ function EndStep({ step }: { step: typeof END_OF_ROUND[0] }) {
         <Text style={styles.tabIcon}>{step.icon}</Text>
         <Text style={[styles.tabName, { color: theme.colors.primary }]}>{step.step}</Text>
       </View>
-      <Text style={[styles.tabDesc, { color: theme.colors.accent }]}>{step.desc}</Text>
+      <Text style={[styles.tabDesc, { color: theme.mutedText }]}>{step.desc}</Text>
       <View style={styles.tips}>
         {step.tips.map((tip, i) => (
           <View key={i} style={styles.tipRow}>
             <Text style={[styles.tipDot, { color: step.color }]}>→</Text>
-            <Text style={[styles.tipText, { color: theme.colors.accent }]}>{tip}</Text>
+            <Text style={[styles.tipText, { color: theme.mutedText }]}>{tip}</Text>
           </View>
         ))}
       </View>
@@ -199,7 +199,7 @@ export default function HelpScreen() {
             {OFFLINE_TIPS.map((tip, i) => (
               <View key={i} style={styles.tipRow}>
                 <Text style={[styles.tipDot, { color: theme.colors.primary }]}>•</Text>
-                <Text style={[styles.tipText, { color: theme.colors.accent }]}>{tip}</Text>
+                <Text style={[styles.tipText, { color: theme.mutedText }]}>{tip}</Text>
               </View>
             ))}
           </View>
@@ -215,7 +215,7 @@ export default function HelpScreen() {
             ].map((tip, i) => (
               <View key={i} style={styles.tipRow}>
                 <Text style={[styles.tipDot, { color: theme.colors.primary }]}>•</Text>
-                <Text style={[styles.tipText, { color: theme.colors.accent }]}>{tip}</Text>
+                <Text style={[styles.tipText, { color: theme.mutedText }]}>{tip}</Text>
               </View>
             ))}
           </View>

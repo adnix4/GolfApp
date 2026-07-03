@@ -14,6 +14,7 @@
 
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
+import { readableTextOn } from '@gfp/theme';
 import type { LeaderboardEntryDTO } from '@gfp/shared-types';
 import { useTheme } from './ThemeProvider';
 
@@ -115,7 +116,10 @@ export function LeaderboardRow({ entry, isCurrentTeam = false }: LeaderboardRowP
                 accessibilityLabel={`Sponsored by ${entry.sponsorBadge.name}`}
               />
             ) : (
-              <Text style={styles.badgeText} numberOfLines={1}>
+              <Text
+                style={[styles.badgeText, { color: readableTextOn(theme.colors.accent) }]}
+                numberOfLines={1}
+              >
                 {entry.sponsorBadge.name}
               </Text>
             )}
@@ -144,7 +148,7 @@ export function LeaderboardRow({ entry, isCurrentTeam = false }: LeaderboardRowP
       </Text>
 
       {/* ── THRU (holes completed) ── */}
-      <Text style={[styles.thru, { color: theme.colors.accent }]}>
+      <Text style={[styles.thru, { color: theme.mutedText }]}>
         {thruLabel}
       </Text>
     </View>
@@ -193,7 +197,6 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 10,
-    color: '#ffffff',
     fontWeight: '600',
   },
   toPar: {

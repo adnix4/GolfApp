@@ -186,7 +186,7 @@ export default function AuctionScreen() {
             onPress={() => setTab(t)}
             style={[styles.tabBtn, tab === t && { borderBottomColor: theme.colors.primary }]}
           >
-            <Text style={[styles.tabLabel, { color: tab === t ? theme.colors.primary : theme.colors.accent }]}>
+            <Text style={[styles.tabLabel, { color: tab === t ? theme.colors.primary : theme.mutedText }]}>
               {label}
             </Text>
           </Pressable>
@@ -216,7 +216,7 @@ export default function AuctionScreen() {
                   />
                 )}
                 <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Text>
-                <Text style={{ color: theme.colors.accent, fontSize: 12 }}>
+                <Text style={{ color: theme.mutedText, fontSize: 12 }}>
                   {item.auctionType}
                   {item.closesAt ? `  · Closes: ${new Date(item.closesAt).toLocaleTimeString()}` : ''}
                 </Text>
@@ -254,7 +254,7 @@ export default function AuctionScreen() {
               </Text>
               <Text style={{ color: '#555', marginBottom: 12 }}>{currentLiveItem.description}</Text>
               <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-                <Text style={{ fontSize: 13, color: theme.colors.accent }}>Called Amount</Text>
+                <Text style={{ fontSize: 13, color: theme.mutedText }}>Called Amount</Text>
                 <Text style={{ fontSize: 36, fontWeight: '900', color: '#27ae60' }}>
                   {fmt(liveSession.currentCalledAmountCents)}
                 </Text>

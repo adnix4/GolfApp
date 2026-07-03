@@ -159,7 +159,7 @@ export default function RegisterScreen() {
     <View style={styles.logoRow}>
       <Text style={styles.logoEmoji}>⛳</Text>
       <Text style={[styles.logoTitle, { color: theme.colors.primary }]}>GFP Scorer</Text>
-      <Text style={[styles.logoSub,   { color: theme.colors.accent }]}>Golf Fundraiser Pro</Text>
+      <Text style={[styles.logoSub,   { color: theme.mutedText }]}>Golf Fundraiser Pro</Text>
     </View>
   );
 
@@ -175,13 +175,13 @@ export default function RegisterScreen() {
             <Text style={[styles.heading, { color: theme.colors.primary }]}>You're Registered!</Text>
 
             {isFreeAgentSuccess ? (
-              <Text style={[styles.sub, { color: theme.colors.accent }]}>
+              <Text style={[styles.sub, { color: theme.mutedText }]}>
                 <Text style={{ fontWeight: '700' }}>{confirmedName}</Text> has been added to the free agent pool for{' '}
                 <Text style={{ fontWeight: '700' }}>{eventName}</Text>.{'\n\n'}
                 The organizer will assign you to a team before the event starts.
               </Text>
             ) : (
-              <Text style={[styles.sub, { color: theme.colors.accent }]}>
+              <Text style={[styles.sub, { color: theme.mutedText }]}>
                 <Text style={{ fontWeight: '700' }}>{confirmedName}</Text> has been added to{' '}
                 <Text style={{ fontWeight: '700' }}>{eventName}</Text>.
               </Text>
@@ -192,7 +192,7 @@ export default function RegisterScreen() {
                 {confirmedPlayers.length === 1 ? '1 player registered' : `${confirmedPlayers.length} players registered`}
               </Text>
               {confirmedPlayers.map((name, i) => (
-                <Text key={i} style={[styles.rosterRow, { color: theme.colors.accent }]}>
+                <Text key={i} style={[styles.rosterRow, { color: theme.mutedText }]}>
                   {!isFreeAgentSuccess && i === 0 ? '★ ' : '  '}{name}
                   {!isFreeAgentSuccess && i === 0 ? ' (captain)' : ''}
                 </Text>
@@ -209,7 +209,7 @@ export default function RegisterScreen() {
               </View>
             )}
 
-            <Text style={[styles.successNote, { color: theme.colors.accent }]}>
+            <Text style={[styles.successNote, { color: theme.mutedText }]}>
               {isFreeAgentSuccess
                 ? 'A confirmation email has been sent. You can join the scoring app on the day of the event using your email address.'
                 : 'Confirmation emails will be sent to all registered players. Everyone can join the scoring app using their email address on the day of the event.'}
@@ -247,11 +247,11 @@ export default function RegisterScreen() {
         {logo}
 
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={[styles.backBtnText, { color: theme.colors.accent }]}>← Back</Text>
+          <Text style={[styles.backBtnText, { color: theme.mutedText }]}>← Back</Text>
         </Pressable>
 
         <View style={[styles.eventBanner, { backgroundColor: theme.colors.surface, borderColor: theme.colors.primary + '44' }]}>
-          <Text style={[styles.eventBannerLabel, { color: theme.colors.accent }]}>Registering for</Text>
+          <Text style={[styles.eventBannerLabel, { color: theme.mutedText }]}>Registering for</Text>
           <Text style={[styles.eventBannerName,  { color: theme.colors.primary }]} numberOfLines={2}>{eventName}</Text>
         </View>
 
@@ -359,7 +359,7 @@ export default function RegisterScreen() {
             <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
               Pairing Preferences <Text style={styles.optional}>(optional)</Text>
             </Text>
-            <Text style={[styles.fieldHint, { color: theme.colors.accent, marginTop: 0, marginBottom: 8 }]}>
+            <Text style={[styles.fieldHint, { color: theme.mutedText, marginTop: 0, marginBottom: 8 }]}>
               Help the organizer match you with the right team.
             </Text>
 
@@ -375,7 +375,7 @@ export default function RegisterScreen() {
                   ]}
                   onPress={() => setSkillLevel(p => p === opt.value ? null : opt.value)}
                 >
-                  <Text style={[styles.chipText, { color: skillLevel === opt.value ? '#fff' : theme.colors.accent }]}>
+                  <Text style={[styles.chipText, { color: skillLevel === opt.value ? '#fff' : theme.mutedText }]}>
                     {opt.label}
                   </Text>
                 </Pressable>
@@ -394,7 +394,7 @@ export default function RegisterScreen() {
                   ]}
                   onPress={() => setAgeGroup(p => p === opt.value ? null : opt.value)}
                 >
-                  <Text style={[styles.chipText, { color: ageGroup === opt.value ? '#fff' : theme.colors.accent }]}>
+                  <Text style={[styles.chipText, { color: ageGroup === opt.value ? '#fff' : theme.mutedText }]}>
                     {opt.label}
                   </Text>
                 </Pressable>
@@ -416,7 +416,7 @@ export default function RegisterScreen() {
           <>
             <View style={styles.teammatesHeader}>
               <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Teammates</Text>
-              <Text style={[styles.teammateBadge, { color: theme.colors.accent }]}>
+              <Text style={[styles.teammateBadge, { color: theme.mutedText }]}>
                 {teammates.length} / {MAX_TEAMMATES}
               </Text>
             </View>
@@ -426,7 +426,7 @@ export default function RegisterScreen() {
                 <View style={styles.teammateCardHeader}>
                   <Text style={[styles.teammateCardTitle, { color: theme.colors.primary }]}>Teammate {idx + 1}</Text>
                   <Pressable onPress={() => removeTeammate(idx)} style={styles.removeBtn} hitSlop={8}>
-                    <Text style={[styles.removeBtnText, { color: theme.colors.accent }]}>✕ Remove</Text>
+                    <Text style={[styles.removeBtnText, { color: theme.mutedText }]}>✕ Remove</Text>
                   </Pressable>
                 </View>
                 <View style={styles.row}>

@@ -71,11 +71,15 @@ export function Button({
   switch (variant) {
     case 'primary':
       bg = theme.colors.primary;
-      fg = '#fff';
+      // Derived per-fill (white or near-black) — custom brands may pick a
+      // light primary, where hardcoded white text would be invisible.
+      fg = theme.buttonLabel;
       break;
     case 'secondary':
       bg = 'transparent';
-      fg = theme.colors.accent;
+      // Label in primary (the token validated against surface); accent is
+      // decorative-only and routinely fails AA as text.
+      fg = theme.colors.primary;
       borderColor = theme.colors.accent;
       borderWidth = 1;
       break;

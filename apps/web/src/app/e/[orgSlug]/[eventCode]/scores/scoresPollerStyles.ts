@@ -10,19 +10,12 @@
  * bottom (`tvCellStyles`/`nmCellStyles`) skip the spread on the row hot path.
  *
  * `buildThemeCss` parses the org/event themeJson into a CSS-vars string the
- * page injects into a `<style>` block at SSR time.
+ * page injects into a `<style>` block at SSR time (shared with the event
+ * landing page so both surfaces emit the same tokens, including the derived
+ * `--color-on-primary` / `--color-on-action` label colors).
  */
 
-export function buildThemeCss(themeJson: string | null | undefined): string {
-  if (!themeJson) return '';
-  try {
-    const t = JSON.parse(themeJson) as Record<string, string>;
-    return Object.entries(t)
-      .filter(([, v]) => /^#[0-9a-fA-F]{6}$/.test(v))
-      .map(([k, v]) => `--color-${k}:${v}`)
-      .join(';');
-  } catch { return ''; }
-}
+export { buildThemeCss } from '../eventPageStyles';
 
 // ── KEYFRAMES (injected once into the page <style> block) ─────────────────────
 
@@ -88,8 +81,8 @@ export const nm = {
 
   header:      { backgroundColor: 'var(--color-primary)', padding: '1.25rem 1.5rem' },
   headerInner: { maxWidth: 960, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' },
-  orgName:     { fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase' as const, letterSpacing: 1 },
-  eventName:   { fontSize: '1.4rem', fontWeight: 800, color: '#fff' },
+  orgName:     { fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-on-primary, #fff)', opacity: 0.7, textTransform: 'uppercase' as const, letterSpacing: 1 },
+  eventName:   { fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-on-primary, #fff)' },
   badges:      { display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 },
   liveBadge:   { display: 'flex', alignItems: 'center', gap: 6, backgroundColor: '#e74c3c', color: '#fff', padding: '4px 12px', borderRadius: 14, fontSize: '0.8rem', fontWeight: 700, letterSpacing: 0.5 },
   liveDot:     { width: 8, height: 8, borderRadius: '50%', backgroundColor: '#fff', animation: 'gfp-pulse 1.4s ease-in-out infinite', display: 'inline-block' },
@@ -99,7 +92,7 @@ export const nm = {
 
   empty:     { textAlign: 'center' as const, padding: '4rem 1rem' },
   emptyIcon: { fontSize: '3rem', marginBottom: '0.75rem' },
-  emptyText: { fontSize: '1.1rem', color: 'var(--color-accent)', fontStyle: 'italic' as const },
+  emptyText: { fontSize: '1.1rem', color: '#4b5563', fontStyle: 'italic' as const },
 
   tableWrap: { backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.08)' },
   table:     { width: '100%', borderCollapse: 'collapse' as const, fontSize: '0.95rem' },
@@ -108,7 +101,7 @@ export const nm = {
 
   footer:      { borderTop: '1px solid #e0e0e0', padding: '0.875rem 1.5rem', backgroundColor: '#fff' },
   footerInner: { maxWidth: 960, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' },
-  footerMeta:  { fontSize: '0.8rem', color: 'var(--color-accent)' },
+  footerMeta:  { fontSize: '0.8rem', color: '#4b5563' },
   footerError: { fontSize: '0.8rem', color: '#e74c3c', fontWeight: 600 },
   backLink:    { fontSize: '0.8rem', color: 'var(--color-action)', textDecoration: 'none', whiteSpace: 'nowrap' as const },
 } as const;

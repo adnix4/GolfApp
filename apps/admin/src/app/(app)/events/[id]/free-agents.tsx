@@ -79,7 +79,7 @@ export default function FreeAgentsScreen() {
             <Text style={[styles.addBtnText, { color: theme.colors.surface }]}>+ Add Free Agent</Text>
           </Pressable>
           <Pressable onPress={load} style={styles.refreshBtn}>
-            <Text style={[styles.refreshText, { color: theme.colors.accent }]}>↻ Refresh</Text>
+            <Text style={[styles.refreshText, { color: theme.mutedText }]}>↻ Refresh</Text>
           </Pressable>
         </View>
       </View>
@@ -100,10 +100,10 @@ export default function FreeAgentsScreen() {
             style={[styles.assignBtn, { backgroundColor: theme.colors.action }]}
             onPress={() => setModal('assign')}
           >
-            <Text style={styles.assignBtnText}>Assign to Team</Text>
+            <Text style={[styles.assignBtnText, { color: theme.ctaLabel }]}>Assign to Team</Text>
           </Pressable>
           <Pressable onPress={() => setSelected(new Set())} style={styles.clearBtn}>
-            <Text style={[styles.clearText, { color: theme.colors.accent }]}>Clear</Text>
+            <Text style={[styles.clearText, { color: theme.mutedText }]}>Clear</Text>
           </Pressable>
         </View>
       )}
@@ -114,7 +114,7 @@ export default function FreeAgentsScreen() {
         </View>
       ) : agents.length === 0 ? (
         <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.colors.accent }]}>
+          <Text style={[styles.emptyText, { color: theme.mutedText }]}>
             No free agents for this event.
           </Text>
         </View>
@@ -148,13 +148,13 @@ export default function FreeAgentsScreen() {
                     {agent.firstName} {agent.lastName}
                   </Text>
                   {!!agent.email && (
-                    <Text style={[styles.agentMeta, { color: theme.colors.accent }]}>{agent.email}</Text>
+                    <Text style={[styles.agentMeta, { color: theme.mutedText }]}>{agent.email}</Text>
                   )}
                   {!!agent.phone && (
-                    <Text style={[styles.agentMeta, { color: theme.colors.accent }]}>{fmtPhone(agent.phone)}</Text>
+                    <Text style={[styles.agentMeta, { color: theme.mutedText }]}>{fmtPhone(agent.phone)}</Text>
                   )}
                   {(agent.handicapIndex != null || agent.skillLevel || agent.ageGroup) && (
-                    <Text style={[styles.agentMeta, { color: theme.colors.accent }]}>
+                    <Text style={[styles.agentMeta, { color: theme.mutedText }]}>
                       {[
                         agent.handicapIndex != null ? `HCP ${agent.handicapIndex}` : null,
                         agent.skillLevel ?? null,
@@ -163,7 +163,7 @@ export default function FreeAgentsScreen() {
                     </Text>
                   )}
                   {!!agent.pairingNote && (
-                    <Text style={[styles.agentNote, { color: theme.colors.accent }]}>
+                    <Text style={[styles.agentNote, { color: theme.mutedText }]}>
                       Note: {agent.pairingNote}
                     </Text>
                   )}
@@ -194,7 +194,7 @@ export default function FreeAgentsScreen() {
             <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
               Assign to Team
             </Text>
-            <Text style={[styles.modalSub, { color: theme.colors.accent }]}>
+            <Text style={[styles.modalSub, { color: theme.mutedText }]}>
               Assigning {selectedList.map(p => p.firstName).join(', ')} to:
             </Text>
             <ScrollView style={styles.teamList}>
@@ -207,13 +207,13 @@ export default function FreeAgentsScreen() {
                   <Text style={[styles.teamOptionName, { color: theme.colors.primary }]}>
                     {team.name}
                   </Text>
-                  <Text style={[styles.teamOptionMeta, { color: theme.colors.accent }]}>
+                  <Text style={[styles.teamOptionMeta, { color: theme.mutedText }]}>
                     {team.players.length}/{team.maxPlayers} players
                   </Text>
                 </Pressable>
               ))}
               {teams.length === 0 && (
-                <Text style={[styles.teamOptionMeta, { color: theme.colors.accent, textAlign: 'center', padding: 16 }]}>
+                <Text style={[styles.teamOptionMeta, { color: theme.mutedText, textAlign: 'center', padding: 16 }]}>
                   No teams available. Register a team first.
                 </Text>
               )}
@@ -222,7 +222,7 @@ export default function FreeAgentsScreen() {
               style={[styles.cancelModalBtn, { borderColor: theme.colors.accent }]}
               onPress={() => setModal(null)}
             >
-              <Text style={[styles.cancelModalText, { color: theme.colors.accent }]}>Cancel</Text>
+              <Text style={[styles.cancelModalText, { color: theme.mutedText }]}>Cancel</Text>
             </Pressable>
           </View>
         </View>
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   actionBar: { flexDirection: 'row', alignItems: 'center', padding: 12, paddingHorizontal: 20, gap: 12 },
   actionBarText: { flex: 1, fontSize: 14, fontWeight: '600' },
   assignBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  assignBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  assignBtnText: { fontSize: 13, fontWeight: '700' },
   clearBtn: { paddingHorizontal: 8, paddingVertical: 8 },
   clearText: { fontSize: 13, fontWeight: '600' },
 

@@ -70,7 +70,7 @@ export default function PrintKitScreen() {
   return (
     <View style={styles.page}>
       <Text style={[styles.title, { color: theme.colors.primary }]}>Print Kit</Text>
-      <Text style={[styles.subtitle, { color: theme.colors.accent }]}>
+      <Text style={[styles.subtitle, { color: theme.mutedText }]}>
         Opens a print-ready page in a new tab.
         {!isWeb && ' (Only available on the web version of the admin.)'}
       </Text>

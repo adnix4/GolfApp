@@ -152,13 +152,13 @@ export default function FundraisingScreen() {
           {/* Breakdown cards */}
           <View style={styles.breakdown}>
             <View style={[styles.breakdownCard, { borderColor: '#e8e8e8' }]}>
-              <Text style={[styles.breakdownLabel, { color: theme.colors.accent }]}>Entry Fees</Text>
+              <Text style={[styles.breakdownLabel, { color: theme.mutedText }]}>Entry Fees</Text>
               <Text style={[styles.breakdownAmount, { color: theme.colors.primary }]}>
                 {formatCurrency(totals.entryFeesCents)}
               </Text>
             </View>
             <View style={[styles.breakdownCard, { borderColor: '#e8e8e8' }]}>
-              <Text style={[styles.breakdownLabel, { color: theme.colors.accent }]}>Donations</Text>
+              <Text style={[styles.breakdownLabel, { color: theme.mutedText }]}>Donations</Text>
               <Text style={[styles.breakdownAmount, { color: theme.colors.primary }]}>
                 {formatCurrency(totals.donationsCents)}
               </Text>
@@ -166,13 +166,13 @@ export default function FundraisingScreen() {
           </View>
           <View style={styles.breakdown}>
             <View style={[styles.breakdownCard, { borderColor: '#e8e8e8' }]}>
-              <Text style={[styles.breakdownLabel, { color: theme.colors.accent }]}>Sponsors</Text>
+              <Text style={[styles.breakdownLabel, { color: theme.mutedText }]}>Sponsors</Text>
               <Text style={[styles.breakdownAmount, { color: theme.colors.primary }]}>
                 {formatCurrency(totals.sponsorAmountCents)}
               </Text>
             </View>
             <View style={[styles.breakdownCard, { borderColor: '#e8e8e8' }]}>
-              <Text style={[styles.breakdownLabel, { color: theme.colors.accent }]}>Hole Challenges</Text>
+              <Text style={[styles.breakdownLabel, { color: theme.mutedText }]}>Hole Challenges</Text>
               <Text style={[styles.breakdownAmount, { color: theme.colors.primary }]}>
                 {formatCurrency(totals.challengeAmountCents)}
               </Text>
@@ -183,7 +183,7 @@ export default function FundraisingScreen() {
           <View style={[styles.section, { borderColor: '#e8e8e8' }]}>
             <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Entry Fee Collection</Text>
             <View style={styles.progressRow}>
-              <Text style={[styles.progressLabel, { color: theme.colors.accent }]}>
+              <Text style={[styles.progressLabel, { color: theme.mutedText }]}>
                 {totals.teamsPaid} of {totals.teamsTotal} teams paid
               </Text>
               <Text style={[styles.progressPct, { color: theme.colors.primary }]}>
@@ -201,7 +201,7 @@ export default function FundraisingScreen() {
                 ]}
               />
             </View>
-            <Text style={[styles.remainingText, { color: theme.colors.accent }]}>
+            <Text style={[styles.remainingText, { color: theme.mutedText }]}>
               {totals.teamsTotal - totals.teamsPaid} team{totals.teamsTotal - totals.teamsPaid !== 1 ? 's' : ''} outstanding
             </Text>
           </View>
@@ -213,12 +213,12 @@ export default function FundraisingScreen() {
               <Text style={[styles.donationCount, { color: theme.colors.primary }]}>
                 {totals.donationCount}
               </Text>
-              <Text style={[styles.donationLabel, { color: theme.colors.accent }]}>
+              <Text style={[styles.donationLabel, { color: theme.mutedText }]}>
                 donation{totals.donationCount !== 1 ? 's' : ''} received
               </Text>
             </View>
             {totals.donationCount > 0 && (
-              <Text style={[styles.avgDonation, { color: theme.colors.accent }]}>
+              <Text style={[styles.avgDonation, { color: theme.mutedText }]}>
                 Avg: {formatCurrency(Math.round(totals.donationsCents / totals.donationCount))} per donation
               </Text>
             )}

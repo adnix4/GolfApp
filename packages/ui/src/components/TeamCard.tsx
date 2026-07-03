@@ -60,7 +60,7 @@ export function TeamCard({ team, showCheckIn: _showCheckIn = false }: TeamCardPr
             {new Date(team.teeTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
         )}
-        <Text style={[styles.infoText, { color: theme.colors.accent }]}>
+        <Text style={[styles.infoText, { color: theme.mutedText }]}>
           {team.players.length}/{team.maxPlayers} players
         </Text>
       </View>

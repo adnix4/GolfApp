@@ -113,7 +113,7 @@ export default function EventLayout() {
               >
                 <Text style={[
                   styles.primaryLabel,
-                  { color: isActive ? theme.colors.primary : theme.colors.accent },
+                  { color: isActive ? theme.colors.primary : theme.mutedText },
                   isActive && styles.primaryLabelActive,
                 ]}>
                   {group.label === 'Overview' && event?.name ? `${event.name} Overview` : group.label}

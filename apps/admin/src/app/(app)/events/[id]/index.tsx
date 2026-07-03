@@ -119,7 +119,7 @@ export default function EventOverviewScreen() {
       <View style={styles.pageHeader}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.eventName, { color: theme.colors.primary }]}>{event.name}</Text>
-          <Text style={[styles.eventCode, { color: theme.colors.accent }]}>Code: {event.eventCode}</Text>
+          <Text style={[styles.eventCode, { color: theme.mutedText }]}>Code: {event.eventCode}</Text>
         </View>
         <StatusPill color={eventStatusColor(event.status)} label={eventStatusLabel(event.status)} />
       </View>
@@ -147,7 +147,7 @@ export default function EventOverviewScreen() {
         ].map(stat => (
           <View key={stat.label} style={[styles.statCard, isMobile && styles.statCardMobile]}>
             <Text style={[styles.statValue, { color: theme.colors.primary }]}>{stat.value}</Text>
-            <Text style={[styles.statLabel, { color: theme.colors.accent }]}>{stat.label}</Text>
+            <Text style={[styles.statLabel, { color: theme.mutedText }]}>{stat.label}</Text>
           </View>
         ))}
       </View>
@@ -157,7 +157,7 @@ export default function EventOverviewScreen() {
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Details</Text>
           <Pressable style={[styles.smallBtn, { backgroundColor: theme.colors.action }]} onPress={() => setShowEdit(true)}>
-            <Text style={styles.smallBtnText}>Edit</Text>
+            <Text style={[styles.smallBtnText, { color: theme.ctaLabel }]}>Edit</Text>
           </Pressable>
         </View>
         <DetailRow label="Name"       value={event.name} />
@@ -177,7 +177,7 @@ export default function EventOverviewScreen() {
           <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Course</Text>
           {!event.course && (
             <Pressable style={[styles.smallBtn, { backgroundColor: theme.colors.action }]} onPress={() => setShowCourse(true)}>
-              <Text style={styles.smallBtnText}>Attach Course</Text>
+              <Text style={[styles.smallBtnText, { color: theme.ctaLabel }]}>Attach Course</Text>
             </Pressable>
           )}
         </View>
@@ -188,7 +188,7 @@ export default function EventOverviewScreen() {
             <DetailRow label="Holes" value={String(event.course.holes.length)} />
           </>
         ) : (
-          <Text style={[styles.placeholder, { color: theme.colors.accent }]}>No course attached yet.</Text>
+          <Text style={[styles.placeholder, { color: theme.mutedText }]}>No course attached yet.</Text>
         )}
       </View>
 
@@ -282,7 +282,7 @@ function DraftSetupSection({ event, updating, seeding, onOpenEdit, onOpenCourse,
   return (
     <View style={[styles.section, styles.setupSection]}>
       <Text style={[styles.setupTitle, { color: theme.colors.primary }]}>Event Setup</Text>
-      <Text style={[styles.setupSubtitle, { color: theme.colors.accent }]}>
+      <Text style={[styles.setupSubtitle, { color: theme.mutedText }]}>
         Complete the required steps below, then open registration so golfers can find and join your tournament.
       </Text>
 
@@ -411,7 +411,7 @@ function ChecklistItem({ done, required, label, doneDetail, missingDetail, actio
             </View>
           )}
         </View>
-        <Text style={[styles.checkDetail, { color: theme.colors.accent }]}>
+        <Text style={[styles.checkDetail, { color: theme.mutedText }]}>
           {done ? doneDetail : missingDetail}
         </Text>
       </View>
@@ -440,7 +440,7 @@ function StatusDescription({ status, event }: { status: string; event: EventDeta
   };
   const text = descriptions[status];
   if (!text) return null;
-  return <Text style={[styles.statusDesc, { color: theme.colors.accent }]}>{text}</Text>;
+  return <Text style={[styles.statusDesc, { color: theme.mutedText }]}>{text}</Text>;
 }
 
 // ── Edit Event Modal ──────────────────────────────────────────────────────────
@@ -578,10 +578,10 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
 
             <View style={styles.modalActions}>
               <Pressable style={[styles.modalCancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
-                <Text style={[styles.modalCancelText, { color: theme.colors.accent }]}>Cancel</Text>
+                <Text style={[styles.modalCancelText, { color: theme.mutedText }]}>Cancel</Text>
               </Pressable>
               <Pressable style={[styles.modalSubmitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]} onPress={handleSave} disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalSubmitText}>Save Changes</Text>}
+                {loading ? <ActivityIndicator color={theme.buttonLabel} /> : <Text style={[styles.modalSubmitText, { color: theme.buttonLabel }]}>Save Changes</Text>}
               </Pressable>
             </View>
           </View>
@@ -647,10 +647,10 @@ function AttachCourseModal({ visible, eventId, onClose, onAttached }: AttachCour
           ))}
           <View style={styles.modalActions}>
             <Pressable style={[styles.modalCancelBtn, { borderColor: theme.colors.accent }]} onPress={() => { reset(); onClose(); }}>
-              <Text style={[styles.modalCancelText, { color: theme.colors.accent }]}>Cancel</Text>
+              <Text style={[styles.modalCancelText, { color: theme.mutedText }]}>Cancel</Text>
             </Pressable>
             <Pressable style={[styles.modalSubmitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalSubmitText}>Attach</Text>}
+              {loading ? <ActivityIndicator color={theme.buttonLabel} /> : <Text style={[styles.modalSubmitText, { color: theme.buttonLabel }]}>Attach</Text>}
             </Pressable>
           </View>
         </View>
@@ -665,7 +665,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   const theme = useTheme();
   return (
     <View style={styles.detailRow}>
-      <Text style={[styles.detailLabel, { color: theme.colors.accent }]}>{label}</Text>
+      <Text style={[styles.detailLabel, { color: theme.mutedText }]}>{label}</Text>
       <Text style={[styles.detailValue, { color: theme.colors.primary }]}>{value}</Text>
     </View>
   );
@@ -736,7 +736,7 @@ const styles = StyleSheet.create({
   detailValue:    { fontSize: 13, fontWeight: '600' },
   placeholder:    { fontSize: 14, fontStyle: 'italic' },
   smallBtn:       { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
-  smallBtnText:   { fontSize: 13, fontWeight: '600', color: '#fff' },
+  smallBtnText:   { fontSize: 13, fontWeight: '600' },
 
   // ── Status advance ───────────────────────────────────────────────────────────
   statusDesc:     { fontSize: 13, lineHeight: 18 },
@@ -767,5 +767,5 @@ const styles = StyleSheet.create({
   modalCancelBtn: { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   modalCancelText: { fontSize: 15, fontWeight: '600' },
   modalSubmitBtn: { flex: 2, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-  modalSubmitText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  modalSubmitText: { fontSize: 15, fontWeight: '700' },
 });

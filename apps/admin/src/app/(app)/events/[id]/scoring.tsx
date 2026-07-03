@@ -383,7 +383,7 @@ export default function ScoringScreen() {
         </ScrollView>
       ) : (
         <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.colors.accent }]}>Select a team to enter scores.</Text>
+          <Text style={[styles.emptyText, { color: theme.mutedText }]}>Select a team to enter scores.</Text>
         </View>
       )}
     </View>

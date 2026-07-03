@@ -79,10 +79,10 @@ export default function RegistrationScreen() {
             onPress={() => setWalkUpOpen(true)}
             style={[styles.walkUpBtn, { backgroundColor: theme.colors.action }]}
           >
-            <Text style={styles.walkUpBtnText}>+ Walk-Up</Text>
+            <Text style={[styles.walkUpBtnText, { color: theme.ctaLabel }]}>+ Walk-Up</Text>
           </Pressable>
           <Pressable onPress={load} style={styles.refreshBtn} accessibilityLabel="Refresh">
-            <Text style={[styles.refreshText, { color: theme.colors.accent }]}>↻ Refresh</Text>
+            <Text style={[styles.refreshText, { color: theme.mutedText }]}>↻ Refresh</Text>
           </Pressable>
         </View>
       </View>
@@ -111,7 +111,7 @@ export default function RegistrationScreen() {
           >
             <Text style={[
               styles.filterText,
-              { color: filter === f ? theme.colors.primary : theme.colors.accent },
+              { color: filter === f ? theme.colors.primary : theme.mutedText },
               filter === f && { fontWeight: '700' },
             ]}>
               {f === 'all' ? 'All' : f === 'pending' ? 'Pending' : 'Checked In'}
@@ -132,7 +132,7 @@ export default function RegistrationScreen() {
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.colors.accent }]}>No teams match this filter.</Text>
+          <Text style={[styles.emptyText, { color: theme.mutedText }]}>No teams match this filter.</Text>
         </View>
       ) : (
         <FlatList
@@ -146,7 +146,7 @@ export default function RegistrationScreen() {
                 <View style={styles.cardTop}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.teamName, { color: theme.colors.primary }]}>{team.name}</Text>
-                    <Text style={[styles.meta, { color: theme.colors.accent }]}>
+                    <Text style={[styles.meta, { color: theme.mutedText }]}>
                       {team.players.length} player{team.players.length !== 1 ? 's' : ''}
                       {team.startingHole ? ` · Hole ${team.startingHole}` : ''}
                       {team.teeTime ? ` · ${new Date(team.teeTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
@@ -189,7 +189,7 @@ export default function RegistrationScreen() {
                     >
                       {busy[team.id + '_ci']
                         ? <ActivityIndicator size="small" color="#fff" />
-                        : <Text style={[styles.actionBtnText, { color: '#fff' }]}>Check In</Text>}
+                        : <Text style={[styles.actionBtnText, { color: theme.ctaLabel }]}>Check In</Text>}
                     </Pressable>
                   )}
                 </View>
@@ -254,7 +254,7 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered }: WalkUpModalPro
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Walk-Up Registration</Text>
             <Pressable onPress={handleClose} style={styles.modalClose}>
-              <Text style={{ fontSize: 20, color: theme.colors.accent }}>✕</Text>
+              <Text style={{ fontSize: 20, color: theme.mutedText }}>✕</Text>
             </Pressable>
           </View>
 
@@ -270,7 +270,7 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered }: WalkUpModalPro
 
           <View style={styles.modalActions}>
             <Pressable onPress={handleClose} style={styles.modalCancel}>
-              <Text style={[styles.modalCancelText, { color: theme.colors.accent }]}>Cancel</Text>
+              <Text style={[styles.modalCancelText, { color: theme.mutedText }]}>Cancel</Text>
             </Pressable>
             <Pressable
               onPress={handleSubmit}
@@ -279,7 +279,7 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered }: WalkUpModalPro
             >
               {saving
                 ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={styles.modalSubmitText}>Register</Text>}
+                : <Text style={[styles.modalSubmitText, { color: theme.ctaLabel }]}>Register</Text>}
             </Pressable>
           </View>
         </View>
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   refreshBtn:    { paddingVertical: 6, paddingHorizontal: 12 },
   refreshText:   { fontSize: 14, fontWeight: '600' },
   walkUpBtn:     { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 8 },
-  walkUpBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  walkUpBtnText: { fontSize: 13, fontWeight: '700' },
 
   // Modal
   modalOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   modalCancel:     { flex: 1, paddingVertical: 12, borderRadius: 8, borderWidth: 1.5, borderColor: '#ddd', alignItems: 'center' },
   modalCancelText: { fontSize: 14, fontWeight: '700' },
   modalSubmit:     { flex: 2, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center', minHeight: 44 },
-  modalSubmitText: { fontSize: 14, fontWeight: '800', color: '#fff' },
+  modalSubmitText: { fontSize: 14, fontWeight: '800' },
 
   statsRow:       { flexDirection: 'row', paddingVertical: 14, gap: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e0e0e0' },
   statsRowMobile: { flexWrap: 'wrap', gap: 0 },

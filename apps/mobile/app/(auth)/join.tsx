@@ -148,7 +148,7 @@ export default function JoinScreen() {
     <View style={styles.logoRow}>
       <Text style={styles.logoEmoji}>⛳</Text>
       <Text style={[styles.logoTitle, { color: theme.colors.primary }]}>GFP Scorer</Text>
-      <Text style={[styles.logoSub,   { color: theme.colors.accent }]}>Golf Fundraiser Pro</Text>
+      <Text style={[styles.logoSub,   { color: theme.mutedText }]}>Golf Fundraiser Pro</Text>
     </View>
   );
 
@@ -168,7 +168,7 @@ export default function JoinScreen() {
             <Text style={[styles.heading, { color: theme.colors.primary }]}>
               Awaiting Team Assignment
             </Text>
-            <Text style={[styles.sub, { color: theme.colors.accent }]}>
+            <Text style={[styles.sub, { color: theme.mutedText }]}>
               <Text style={{ fontWeight: '700' }}>{waitingName}</Text>, you're in the free agent pool for{' '}
               <Text style={{ fontWeight: '700' }}>{waitingEventName}</Text>.{'\n\n'}
               The organizer will assign you to a team before the event starts. Tap{' '}
@@ -183,8 +183,8 @@ export default function JoinScreen() {
 
             <View style={[styles.waitingInfoBox, { backgroundColor: theme.colors.primary + '0d', borderColor: theme.colors.primary + '33' }]}>
               <Text style={[styles.waitingInfoLabel, { color: theme.colors.primary }]}>Your registration</Text>
-              <Text style={[styles.waitingInfoRow,  { color: theme.colors.accent }]}>📧 {waitingEmail}</Text>
-              <Text style={[styles.waitingInfoRow,  { color: theme.colors.accent }]}>🏌️ Free agent pool</Text>
+              <Text style={[styles.waitingInfoRow,  { color: theme.mutedText }]}>📧 {waitingEmail}</Text>
+              <Text style={[styles.waitingInfoRow,  { color: theme.mutedText }]}>🏌️ Free agent pool</Text>
             </View>
 
             <Pressable
@@ -232,7 +232,7 @@ export default function JoinScreen() {
           {logo}
 
           <Pressable onPress={() => { setStep('pick'); setError(null); }} style={styles.backBtn}>
-            <Text style={[styles.backBtnText, { color: theme.colors.accent }]}>
+            <Text style={[styles.backBtnText, { color: theme.mutedText }]}>
               ← Choose a different tournament
             </Text>
           </Pressable>
@@ -251,7 +251,7 @@ export default function JoinScreen() {
                   </View>
                 )}
               </View>
-              <Text style={[styles.selectedMeta, { color: theme.colors.accent }]} numberOfLines={2}>
+              <Text style={[styles.selectedMeta, { color: theme.mutedText }]} numberOfLines={2}>
                 {[
                   selected.orgName,
                   selected.courseName,
@@ -261,7 +261,7 @@ export default function JoinScreen() {
                   selected.startAt ? formatDate(selected.startAt) : null,
                 ].filter(Boolean).join(' · ')}
               </Text>
-              <Text style={[styles.formatLabel, { color: theme.colors.accent }]}>
+              <Text style={[styles.formatLabel, { color: theme.mutedText }]}>
                 {FORMAT_LABELS[selected.format] ?? selected.format}
               </Text>
             </View>
@@ -269,7 +269,7 @@ export default function JoinScreen() {
 
           <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
             <Text style={[styles.heading, { color: theme.colors.primary }]}>Enter Your Email</Text>
-            <Text style={[styles.sub, { color: theme.colors.accent }]}>
+            <Text style={[styles.sub, { color: theme.mutedText }]}>
               Use the email address you registered with.
             </Text>
 
@@ -332,7 +332,7 @@ export default function JoinScreen() {
             <View style={styles.registerSection}>
               <View style={styles.orDivider}>
                 <View style={[styles.orLine, { backgroundColor: theme.colors.accent + '55' }]} />
-                <Text style={[styles.orText, { color: theme.colors.accent }]}>or</Text>
+                <Text style={[styles.orText, { color: theme.mutedText }]}>or</Text>
                 <View style={[styles.orLine, { backgroundColor: theme.colors.accent + '55' }]} />
               </View>
               <Pressable
@@ -379,16 +379,16 @@ export default function JoinScreen() {
         {eventsLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator size="small" color={theme.colors.primary} />
-            <Text style={[styles.loadingText, { color: theme.colors.accent }]}>
+            <Text style={[styles.loadingText, { color: theme.mutedText }]}>
               Loading tournaments…
             </Text>
           </View>
         ) : events.length === 0 ? (
           <View style={[styles.emptyBox, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.emptyText, { color: theme.colors.accent }]}>
+            <Text style={[styles.emptyText, { color: theme.mutedText }]}>
               No tournaments are currently open.
             </Text>
-            <Text style={[styles.emptyHint, { color: theme.colors.accent }]}>
+            <Text style={[styles.emptyHint, { color: theme.mutedText }]}>
               Use the event code below if you have one.
             </Text>
           </View>
@@ -415,11 +415,11 @@ export default function JoinScreen() {
                   <Text style={[styles.eventName, { color: theme.colors.primary }]} numberOfLines={2}>
                     {evt.name}
                   </Text>
-                  <Text style={[styles.eventOrg, { color: theme.colors.accent }]} numberOfLines={1}>
+                  <Text style={[styles.eventOrg, { color: theme.mutedText }]} numberOfLines={1}>
                     {evt.orgName}
                   </Text>
                   {meta.length > 0 && (
-                    <Text style={[styles.eventMeta, { color: theme.colors.accent }]} numberOfLines={1}>
+                    <Text style={[styles.eventMeta, { color: theme.mutedText }]} numberOfLines={1}>
                       {meta}
                     </Text>
                   )}
@@ -448,7 +448,7 @@ export default function JoinScreen() {
           style={styles.manualToggle}
           accessibilityRole="button"
         >
-          <Text style={[styles.manualToggleText, { color: theme.colors.accent }]}>
+          <Text style={[styles.manualToggleText, { color: theme.mutedText }]}>
             {showManual ? 'Hide ↑' : 'Have a different event code? ↓'}
           </Text>
         </Pressable>

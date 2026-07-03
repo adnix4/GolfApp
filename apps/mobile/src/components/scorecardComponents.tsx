@@ -25,7 +25,7 @@ export function HoleInfoChip({ label, value }: { label: string; value: string })
   const theme = useTheme();
   return (
     <View style={[infoChipStyles.chip, { backgroundColor: theme.colors.surface }]}>
-      <Text style={[infoChipStyles.label, { color: theme.colors.accent }]}>{label}</Text>
+      <Text style={[infoChipStyles.label, { color: theme.mutedText }]}>{label}</Text>
       <Text style={[infoChipStyles.value, { color: theme.colors.primary }]}>{value}</Text>
     </View>
   );
@@ -45,13 +45,13 @@ export function ScoreChip({ grossScore, par }: { grossScore: number | null; par:
   const relLabel =
     rel === null ? '—' : rel === 0 ? 'E' : rel > 0 ? `+${rel}` : `${rel}`;
   const relColor =
-    rel === null ? theme.colors.accent :
+    rel === null ? theme.mutedText :
     rel < 0      ? '#27ae60' :
-    rel > 0      ? '#e74c3c' : theme.colors.accent;
+    rel > 0      ? '#e74c3c' : theme.mutedText;
 
   return (
     <View style={[scoreChipStyles.chip, { backgroundColor: theme.colors.primary + '12', borderColor: theme.colors.primary + '40' }]}>
-      <Text style={[scoreChipStyles.label, { color: theme.colors.accent }]}>Score</Text>
+      <Text style={[scoreChipStyles.label, { color: theme.mutedText }]}>Score</Text>
       <Text style={[scoreChipStyles.value, { color: theme.colors.primary }]}>
         {grossScore !== null ? grossScore : '—'}
       </Text>
@@ -220,7 +220,7 @@ export function ChallengeDetailModal({
           </View>
           <View style={chalModalStyles.body}>
             {challenge.challengeType ? (
-              <Text style={[chalModalStyles.typeLabel, { color: theme.colors.accent }]}>
+              <Text style={[chalModalStyles.typeLabel, { color: theme.mutedText }]}>
                 {CHALLENGE_TYPE_LABELS[challenge.challengeType] ?? challenge.challengeType}
               </Text>
             ) : null}
@@ -234,7 +234,7 @@ export function ChallengeDetailModal({
               </View>
             ) : null}
             {challenge.sponsorName ? (
-              <Text style={[chalModalStyles.sponsorText, { color: theme.colors.accent }]}>
+              <Text style={[chalModalStyles.sponsorText, { color: theme.mutedText }]}>
                 Presented by {challenge.sponsorName}
               </Text>
             ) : null}
@@ -455,7 +455,7 @@ export function ShotColumn({
 }) {
   return (
     <View style={shotColStyles.col}>
-      <Text style={[shotColStyles.label, { color: theme.colors.accent }]}>{label}</Text>
+      <Text style={[shotColStyles.label, { color: theme.mutedText }]}>{label}</Text>
       <Pressable
         onPress={onIncrement}
         disabled={disabled}

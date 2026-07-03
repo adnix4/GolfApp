@@ -377,18 +377,18 @@ const s: Record<string, React.CSSProperties> = {
   cardTitle:     { fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '1rem' },
   ctaRow:        { display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' },
   ctaBtn:        { display: 'inline-block', padding: '0.75rem 1.5rem', borderRadius: 8, fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', transition: 'opacity 0.15s', border: '2px solid var(--color-primary)', textDecoration: 'none' },
-  ctaBtnPrimary: { backgroundColor: 'var(--color-primary)', color: '#fff' },
+  ctaBtnPrimary: { backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary, #fff)' },
   ctaBtnOutline: { backgroundColor: 'transparent', color: 'var(--color-primary)' },
-  ctaNote:       { fontSize: '0.875rem', color: 'var(--color-accent)', margin: 0 },
+  ctaNote:       { fontSize: '0.875rem', color: '#4b5563', margin: 0 },
 
-  donateBtn: { width: '100%', padding: '0.75rem', borderRadius: 8, backgroundColor: 'var(--color-action)', color: '#fff', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', border: 'none', marginTop: '0.75rem' },
+  donateBtn: { width: '100%', padding: '0.75rem', borderRadius: 8, backgroundColor: 'var(--color-action)', color: 'var(--color-on-action, #fff)', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', border: 'none', marginTop: '0.75rem' },
 
   overlay:     { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' },
   modal:       { backgroundColor: '#fff', borderRadius: 16, padding: '1.75rem', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' },
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' },
   modalTitle:  { fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-primary)', margin: 0 },
   closeBtn:    { background: 'none', border: 'none', fontSize: '1.1rem', cursor: 'pointer', color: '#888', padding: '4px 6px' },
-  hint:        { fontSize: '0.875rem', color: 'var(--color-accent)', marginBottom: '1rem', marginTop: 0 },
+  hint:        { fontSize: '0.875rem', color: '#4b5563', marginBottom: '1rem', marginTop: 0 },
 
   fieldRow:   { marginBottom: '1rem' },
   fieldLabel: { display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: '0.375rem' },
@@ -396,13 +396,13 @@ const s: Record<string, React.CSSProperties> = {
 
   sectionLabel: { fontSize: '0.8rem', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: 0.4, margin: '1rem 0 0.5rem' },
   playerBlock:  { borderTop: '1px solid #f0f0f0', paddingTop: '0.75rem', marginBottom: '0.5rem' },
-  playerNum:    { fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-accent)', marginBottom: '0.5rem' },
+  playerNum:    { fontSize: '0.8rem', fontWeight: 700, color: '#4b5563', marginBottom: '0.5rem' },
   playerGrid:   { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' },
 
   errorMsg:  { color: '#c0392b', fontSize: '0.875rem', marginBottom: '0.75rem' },
   submitRow: { display: 'flex', gap: '0.75rem', marginTop: '1.25rem', justifyContent: 'flex-end' },
   cancelBtn: { padding: '0.6rem 1.25rem', borderRadius: 8, border: '1.5px solid #ddd', background: 'none', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', color: '#555' },
-  submitBtn: { padding: '0.6rem 1.5rem', borderRadius: 8, border: 'none', backgroundColor: 'var(--color-action)', color: '#fff', fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer' },
+  submitBtn: { padding: '0.6rem 1.5rem', borderRadius: 8, border: 'none', backgroundColor: 'var(--color-action)', color: 'var(--color-on-action, #fff)', fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer' },
 
   success:     { textAlign: 'center', padding: '1.5rem 0.5rem' },
   successText: { fontSize: '1rem', color: 'var(--color-primary)', marginBottom: '1.25rem', lineHeight: 1.5 },

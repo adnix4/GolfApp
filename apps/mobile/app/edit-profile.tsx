@@ -96,7 +96,7 @@ export default function EditProfileScreen() {
         />
 
         <View style={[styles.readonlyRow, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.readonlyLabel, { color: theme.colors.accent }]}>Email</Text>
+          <Text style={[styles.readonlyLabel, { color: theme.mutedText }]}>Email</Text>
           <Text style={[styles.readonlyValue, { color: theme.colors.primary }]}>{player?.email}</Text>
           <Text style={styles.readonlyHint}>Email cannot be changed — it identifies you in the event.</Text>
         </View>
@@ -128,7 +128,7 @@ function Field({
 }) {
   return (
     <View style={styles.fieldGroup}>
-      <Text style={[styles.fieldLabel, { color: theme.colors.accent }]}>{label}</Text>
+      <Text style={[styles.fieldLabel, { color: theme.mutedText }]}>{label}</Text>
       <TextInput
         style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
         value={value}

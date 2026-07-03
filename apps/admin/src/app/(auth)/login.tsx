@@ -38,7 +38,7 @@ export default function LoginScreen() {
         {/* Logo / wordmark */}
         <View style={styles.logoRow}>
           <Text style={[styles.logoText, { color: theme.colors.primary }]}>⛳ GFP</Text>
-          <Text style={[styles.logoSub, { color: theme.colors.accent }]}>Admin Dashboard</Text>
+          <Text style={[styles.logoSub, { color: theme.mutedText }]}>Admin Dashboard</Text>
         </View>
 
         <Text style={[styles.heading, { color: theme.colors.primary }]}>Sign in</Text>

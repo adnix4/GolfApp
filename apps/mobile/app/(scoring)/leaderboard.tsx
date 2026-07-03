@@ -37,13 +37,13 @@ const StandingRow = memo(function StandingRow({ entry }: { entry: PublicLeaderbo
 
   return (
     <View style={[rowStyles.row, { borderBottomColor: '#f0f0f0' }]}>
-      <Text style={[rowStyles.rank,  { color: theme.colors.accent   }]}>{entry.rank}</Text>
+      <Text style={[rowStyles.rank,  { color: theme.mutedText   }]}>{entry.rank}</Text>
       <Text style={[rowStyles.team,  { color: theme.colors.primary  }]} numberOfLines={1}>{entry.teamName}</Text>
       <Text style={[rowStyles.toPar, { color: toParColor            }]} numberOfLines={1}>{toParLabel}</Text>
       <Text style={[rowStyles.back,  { color: theme.colors.primary  }]}>{back}</Text>
       <Text style={[rowStyles.num,   { color: theme.colors.primary  }]}>{bestHole}</Text>
       <Text style={[rowStyles.num,   { color: theme.colors.primary  }]}>{bestScore}</Text>
-      <Text style={[rowStyles.thru,  { color: theme.colors.accent   }]}>{thru}</Text>
+      <Text style={[rowStyles.thru,  { color: theme.mutedText   }]}>{thru}</Text>
     </View>
   );
 });
@@ -112,7 +112,7 @@ function HoleInOneOverlay({
           <Text style={hioStyles.flag}>⛳</Text>
           <Text style={[hioStyles.headline, { color: theme.colors.primary }]}>HOLE-IN-ONE!</Text>
           <Text style={[hioStyles.name, { color: theme.colors.primary }]}>{data.playerName}</Text>
-          <Text style={[hioStyles.sub,  { color: theme.colors.accent  }]}>Hole {data.holeNumber}</Text>
+          <Text style={[hioStyles.sub,  { color: theme.mutedText  }]}>Hole {data.holeNumber}</Text>
           <Pressable style={[hioStyles.btn, { backgroundColor: theme.colors.primary }]} onPress={onDismiss}>
             <Text style={hioStyles.btnText}>Amazing!</Text>
           </Pressable>
@@ -236,7 +236,7 @@ export default function LeaderboardScreen() {
         <View style={styles.center}>
           <Text style={styles.emptyIcon}>🏆</Text>
           <Text style={[styles.emptyTitle, { color: theme.colors.primary }]}>No Scores Yet</Text>
-          <Text style={[styles.emptySub,   { color: theme.colors.accent  }]}>
+          <Text style={[styles.emptySub,   { color: theme.mutedText  }]}>
             Standings will appear once teams start scoring.
           </Text>
         </View>
