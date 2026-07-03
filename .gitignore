@@ -11,6 +11,9 @@
 # Personal dev-credential reference — never commit
 docs/login.ts
 
+# Per-machine Claude Code permission allowlist — local-only, not source
+.claude/settings.local.json
+
 # ── NODE / NPM ──────────────────────────────────────────────────────────────
 # Dependency directories — never commit, always reinstall via `npm install`
 node_modules/
