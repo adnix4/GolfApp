@@ -1,6 +1,7 @@
 import { ApiError, createApiClient } from '@gfp/shared-types';
 import type { GFPTheme } from '@gfp/theme';
 import { storage } from './storage';
+import { uploadWithProgress, type UploadOptions } from './upload';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
 
@@ -106,24 +107,8 @@ export const eventBrandingApi = {
       method: 'POST', body: { websiteUrl },
     }),
 
-  uploadLogo: async (id: string, file: File): Promise<{ url: string }> => {
-    const token   = storage.getAccessToken();
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    const form = new FormData();
-    form.append('file', file);
-
-    const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
-    const res = await fetch(`${BASE_URL}/api/v1/events/${id}/branding/logo`, {
-      method: 'POST', headers, body: form,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new ApiError(res.status, 'UPLOAD_FAILED', (err as any).detail ?? 'Logo upload failed.');
-    }
-    return res.json();
-  },
+  uploadLogo: (id: string, file: File, opts?: UploadOptions): Promise<{ url: string }> =>
+    uploadWithProgress<{ url: string }>(`/api/v1/events/${id}/branding/logo`, file, opts),
 };
 
 // ── TEAMS ─────────────────────────────────────────────────────────────────────
@@ -260,21 +245,8 @@ export const sponsorsApi = {
   delete: (eventId: string, sponsorId: string) =>
     request<void>(`/api/v1/events/${eventId}/sponsors/${sponsorId}`, { method: 'DELETE' }),
 
-  uploadLogo: async (eventId: string, sponsorId: string, file: File): Promise<Sponsor> => {
-    const token = storage.getAccessToken();
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const form = new FormData();
-    form.append('file', file);
-    const res = await fetch(`${BASE}/api/v1/events/${eventId}/sponsors/${sponsorId}/logo`, {
-      method: 'POST', headers, body: form,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new ApiError(res.status, 'UPLOAD_FAILED', (err as any).error ?? 'Logo upload failed.');
-    }
-    return res.json();
-  },
+  uploadLogo: (eventId: string, sponsorId: string, file: File, opts?: UploadOptions): Promise<Sponsor> =>
+    uploadWithProgress<Sponsor>(`/api/v1/events/${eventId}/sponsors/${sponsorId}/logo`, file, opts),
 };
 
 export const emailBuilderApi = {

@@ -45,6 +45,8 @@ export * from './phone';
 export * from './eventOptions';
 export * from './apiClient';
 export * from './useLiveLeaderboard';
+export * from './useLiveAuction';
+export * from './tournamentHubEvents';
 
 // ── ENUMS ─────────────────────────────────────────────────────────────────────
 

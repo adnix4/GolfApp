@@ -230,9 +230,32 @@ WORTH CONSIDERING
         drawn behind the bars), where per-screen StatusBar style would then matter.
         No deps added (expo-navigation-bar intentionally NOT installed).
 
-[ ] M6. expo-file-system createUploadTask/createDownloadTask with progress
-        (FUNCTIONALITY). Only if we add sponsor-logo / branding-image uploads —
-        gives real upload progress + cancellation UI.
+[x] M6. Upload progress + cancellation UI for sponsor-logo / branding-image
+        uploads (FUNCTIONALITY). DONE 2026-07-02.
+        PIVOTED from the originally-named tool: expo-file-system's
+        createUploadTask/createDownloadTask are NATIVE-ONLY, and every upload in
+        this app lives in apps/admin, which is served as Expo WEB (expo start
+        --web; no ios/android). expo-file-system isn't even a dependency, and the
+        mobile native app has no uploads — so the native task API has no valid
+        home here. Delivered M6's actual GOAL (real progress + cancellation) via
+        the web-correct mechanism instead: XMLHttpRequest (fetch can't report
+        upload progress; XHR exposes upload.onprogress + abort()).
+        - apps/admin/src/lib/upload.ts (new): uploadWithProgress<T>(path, file,
+          { fieldName?, onProgress?, signal? }) — multipart POST with Bearer auth,
+          fractional progress, and AbortSignal cancellation; throws ApiError with
+          code UPLOAD_ABORTED on cancel.
+        - apps/admin/src/components/UploadProgress.tsx (new): determinate bar +
+          %-label + Cancel button, themed.
+        - Refactored the two M6-named uploads (eventBrandingApi.uploadLogo,
+          sponsorsApi.uploadLogo) from bespoke fetch+FormData to the helper with
+          optional { onProgress, signal }; wired progress bar + Cancel into the
+          branding screen (settings.tsx) and the sponsor form modal (sponsors.tsx).
+          Cancel is treated as a no-op (not an error): branding keeps the old logo;
+          a cancelled sponsor upload keeps the saved sponsor without the new image.
+        - NOT done (out of M6 scope, still bespoke fetch): orgApi.uploadLogo,
+          auctionApi.uploadPhoto (can adopt uploadWithProgress the same way when
+          desired), and download progress (createDownloadTask → the only download
+          is admin PDF export; low value). admin tsc + 105 tests green.
 
 FREE WINS (already active on SDK 56, no code changes)
 [x] M7. Hermes v1 by default (faster startup, less memory), ~58% smaller OTA update
@@ -387,6 +410,30 @@ LOCAL (unpushed) unless noted.
 
 [ ] A2. Expo update
 
+[ ] A4. (ROBUSTNESS) No React error boundaries anywhere — a render-time throw
+        unmounts the whole tree to a blank screen instead of a fallback.
+        Surfaced 2026-07-02 via React's console hint "Consider adding an error
+        boundary to your tree to customize error handling behavior"
+        (https://react.dev/link/error-boundaries), which React logs whenever a
+        component throws during render and nothing catches it. Confirmed there
+        are ZERO boundaries in any app: no ErrorBoundary/componentDidCatch/
+        getDerivedStateFromError, no Next.js error.tsx/global-error.tsx, no
+        Expo Router `ErrorBoundary` route export. So any uncaught render error
+        crashes the entire app to blank rather than a recoverable fallback.
+        NOTE: a boundary is a SAFETY NET, not a fix — it prevents the blank-
+        screen crash and offers a retry, but the underlying throw still needs
+        to be identified (capture the actual error/stack that triggered the
+        hint before adding the boundary, so we know what was failing).
+        Framework-native hooks to use (low effort):
+        - apps/web (Next.js App Router): add app/error.tsx (+ app/global-error.tsx
+          for the root layout) — segment-level recovery with a reset() button.
+        - apps/mobile + apps/admin (both Expo Router): export an `ErrorBoundary`
+          component from a route/layout file (expo-router surfaces it natively),
+          e.g. the (scoring) _layout, so a screen crash shows a branded retry
+          card instead of unmounting the scorer.
+        - Consider a shared branded fallback in @gfp/ui reused by all three.
+        Deferred — logged during the demo-event walkthrough.
+
 [ ] A3. (SECURITY, optional/proportionate) Golfer email verification at join —
         magic-link / one-time code. RATIONALE: score submission is already
         authenticated (Phase11 per-player session_token; BatchSync rejects tokens
@@ -403,3 +450,69 @@ LOCAL (unpushed) unless noted.
         session token. Scope = mobile join flow + API (EnsureSessionTokenAsync /
         JoinAsync in apps/api/Features/Mobile/MobileService.cs) + email delivery;
         NOT a web-app change. Deferred — decided during A1 planning (2026-07-01).
+
+[ ] A5. (KNOWN LIMITATION) Expo-WEB scorer silently drops all score entry + sync.
+        Surfaced 2026-07-02 while reviewing the Scoring phase via the mobile app
+        run as Expo web. The scorer ships NATIVE (iOS/Android) where expo-sqlite
+        backs pending_scores; on WEB, apps/mobile/src/lib/db.ts uses a `webDb`
+        stub that ONLY persists event_cache (session + deviceId, via localStorage)
+        and makes pending_scores + leaderboard_cache a NO-OP: runAsync ignores any
+        SQL not touching event_cache (db.ts:20-21) and getAllAsync always returns
+        [] (db.ts:30-32). Consequences on web (all confirmed against the demo):
+        - Scorecard stays BLANK: refreshFromServer pulls the 18 admin scores and
+          mergeServerScores "writes" them, but the writes no-op and the reload
+          (loadPendingScores) returns [] — the server pull-back cannot populate a
+          no-op table.
+        - Entered scores DON'T reach the server: completeHole -> syncScores ->
+          loadUnsyncedScores reads [] -> hits `if (length===0){ setSyncStatus(
+          'synced'); return }`. No POST is sent AND the sync bar falsely shows
+          "synced." (Server-verified: Eagle Eyes hole 1 stayed admin=5 with no
+          conflict/proposedScore across repeated attempts.)
+        - Typed scores RESET after ~30-60s: the foreground poll reloads
+          loadPendingScores -> [] and setPendingScores([]), wiping the in-memory
+          value. (Public leaderboard/standings still work — they're network GETs,
+          not SQLite.)
+        Not a regression and not caused by the useLiveAuction work; it's the
+        deliberate native-only stub. Impact: score entry/sync can only be verified
+        on a real device / emulator, NOT via Expo web — which collides with the
+        /seed-demo-event review workflow (review each phase in web/admin). The
+        silent-drop + false "synced" is the misleading part.
+        Fix options if web scoring should be supported for demos/review:
+        (a) Back pending_scores with localStorage on web, mirroring the event_cache
+            branch already in db.ts (contained; makes web scoring + sync work).
+        (b) Real web SQLite via expo-sqlite's wa-sqlite/OPFS build (needs COOP/COEP
+            headers for SharedArrayBuffer) — heavier.
+        (c) At minimum, stop syncScores reporting "synced" when nothing was sent,
+            and surface a "scoring unavailable on web" notice so it isn't silent.
+        Deferred (user chose log-and-move-on 2026-07-02). Review Scoring via the
+        admin/web leaderboard instead of the mobile scorecard.
+
+[x] A6. (NOISE/low-sev) SignalR "No client method 'scoreupdated' / 'leaderboard
+        refreshed' found" warning flood in the mobile app during scoring activity.
+        DONE 2026-07-02: added packages/shared-types/src/tournamentHubEvents.ts —
+        TOURNAMENT_HUB_EVENTS (the full 16 broadcast names, mirroring RealTimeService
+        + LeaderboardBroadcaster) + silenceUnhandledHubEvents(hub, handled), which
+        no-ops every group broadcast a connection doesn't handle. Wired into
+        useLiveAuction (handles the 9 auction events) and useLiveLeaderboard
+        (handles LeaderboardRefreshed/HoleInOneAlert/SponsorsChanged) so each
+        connection stops warning for the others' events. Chose the contained
+        client-side no-op (option a) over server-side per-concern groups (option b).
+        shared-types tsc + 81 tests, mobile tsc + 100 tests, web tsc all green.
+        Surfaced 2026-07-02 in the Expo-web mobile terminal (dozens/sec during
+        score bursts). Two causes:
+        - Pre-existing: the server broadcasts BOTH ScoreUpdated (per-team) AND
+          LeaderboardRefreshed on every score (RealTimeService.PublishScoreAsync),
+          but useLiveLeaderboard/ScoresPoller only register a 'LeaderboardRefreshed'
+          handler — so every 'ScoreUpdated' logs "no client method found" on any
+          connection that lacks the handler.
+        - Added by the useLiveAuction hook (2026-07-02): it opens a SECOND
+          TournamentHub connection joined to the same event group and only registers
+          the auction events, so it ALSO receives ScoreUpdated + LeaderboardRefreshed
+          and warns for both (explains the 'leaderboardrefreshed' warnings, which the
+          leaderboard connection itself does handle).
+        Benign (warnings only, no functional impact), but noisy and wasteful (two
+        sockets per scorer, each fanned the full group broadcast). Cleanup options:
+        (a) register a no-op/handled 'ScoreUpdated' (and, in useLiveAuction, ignore
+            the non-auction events) to silence the warnings; (b) better, give the hub
+            per-concern groups (scores vs auction) so a screen only receives what it
+            subscribes to, avoiding a second full-group socket. Deferred 2026-07-02.

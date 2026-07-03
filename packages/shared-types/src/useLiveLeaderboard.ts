@@ -28,6 +28,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as signalR from '@microsoft/signalr';
+import { silenceUnhandledHubEvents } from './tournamentHubEvents';
 
 export interface HoleInOneAlert {
   teamName:   string;
@@ -152,6 +153,12 @@ export function useLiveLeaderboard<TStanding>(
     hub.on('SponsorsChanged', (payload: { version?: number }) => {
       sponsorsChangedRef.current?.(payload?.version ?? 0);
     });
+
+    // The server also broadcasts ScoreUpdated (per hole) and the auction/check-in
+    // events to this same group; this screen only consumes the coalesced
+    // LeaderboardRefreshed, so no-op the rest to avoid SignalR "no client method
+    // found" warnings on every score.
+    silenceUnhandledHubEvents(hub, ['LeaderboardRefreshed', 'HoleInOneAlert', 'SponsorsChanged']);
 
     hub.onreconnecting(() => setConnected(false));
     hub.onreconnected(() => {

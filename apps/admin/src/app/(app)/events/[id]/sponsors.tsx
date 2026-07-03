@@ -7,6 +7,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
 import { centsToDollarsInput, formatCentsShort } from '@gfp/shared-types';
 import { sponsorsApi, type Sponsor, type CreateSponsorPayload, type SponsorPlacements } from '@/lib/api';
+import { UPLOAD_ABORTED } from '@/lib/upload';
+import { UploadProgress } from '@/components/UploadProgress';
 import { confirmAction } from '@/lib/confirmAction';
 
 const TIER_OPTIONS = ['title', 'gold', 'hole', 'silver', 'bronze'] as const;
@@ -260,8 +262,11 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
   const [error,           setError]           = useState<string | null>(null);
   const [pendingFile,     setPendingFile]      = useState<File | null>(null);
   const [localPreview,    setLocalPreview]    = useState<string | null>(null);
+  const [uploadingLogo,   setUploadingLogo]   = useState(false);
+  const [uploadPct,       setUploadPct]       = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -322,7 +327,23 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
         : await sponsorsApi.create(eventId, payload);
 
       if (pendingFile) {
-        result = await sponsorsApi.uploadLogo(eventId, result.id, pendingFile);
+        setUploadingLogo(true);
+        setUploadPct(0);
+        const ctrl = new AbortController();
+        uploadAbortRef.current = ctrl;
+        try {
+          result = await sponsorsApi.uploadLogo(eventId, result.id, pendingFile, {
+            onProgress: setUploadPct,
+            signal:     ctrl.signal,
+          });
+        } catch (e: any) {
+          // Cancelling the logo upload keeps the sponsor (saved above) without
+          // the new image; any other failure propagates to the error banner.
+          if (e?.code !== UPLOAD_ABORTED) throw e;
+        } finally {
+          setUploadingLogo(false);
+          uploadAbortRef.current = null;
+        }
       }
       onSaved(result);
     } catch (e: any) {
@@ -390,6 +411,13 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
                 <Text style={styles.fileNameText} numberOfLines={1}>{pendingFile.name}</Text>
               )}
             </View>
+            {uploadingLogo && (
+              <UploadProgress
+                progress={uploadPct}
+                onCancel={() => uploadAbortRef.current?.abort()}
+                label="Uploading logo"
+              />
+            )}
             <Text style={styles.orText}>— or paste a URL —</Text>
             <TextInput
               style={[styles.input, { borderColor: theme.colors.accent }]}
