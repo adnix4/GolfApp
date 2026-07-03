@@ -146,20 +146,24 @@ public class EventService
         Guid eventId,
         CancellationToken ct = default)
     {
+        // Teams/Players/Scores are deliberately NOT included: combined with
+        // Course.Holes they turn into a single cartesian JOIN (EF multi-
+        // collection include, no split query) whose row count is the product
+        // of the collections. The dashboard only needs four counts — computed
+        // DB-side by LoadCountsAsync instead.
         var evt = await _db.Events
+            .AsNoTracking()
             .Include(e => e.Course)
                 .ThenInclude(c => c!.Holes.OrderBy(h => h.HoleNumber))
-            .Include(e => e.Teams)
-                .ThenInclude(t => t.Players)
-            .Include(e => e.Scores)
             .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
 
         if (evt is null)
             throw new NotFoundException("Event", eventId);
 
+        var counts  = await LoadCountsAsync(eventId, ct);
         var summary = await _testData.GetSummaryAsync(orgId, eventId, ct);
 
-        return MapToEventResponse(evt, summary);
+        return MapToEventResponse(evt, counts, summary);
     }
 
     // ── UPDATE ────────────────────────────────────────────────────────────────
@@ -175,12 +179,11 @@ public class EventService
         UpdateEventRequest request,
         CancellationToken ct = default)
     {
+        // Course.Holes is needed for the response; team/player/score counts
+        // are computed DB-side after the save (avoids the cartesian include).
         var evt = await _db.Events
             .Include(e => e.Course)
                 .ThenInclude(c => c!.Holes)
-            .Include(e => e.Teams)
-                .ThenInclude(t => t.Players)
-            .Include(e => e.Scores)
             .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
 
         if (evt is null)
@@ -198,13 +201,12 @@ public class EventService
         {
             ValidateStatusTransition(evt.Status, request.Status.Value, evt);
 
-            // Draft → Registration: auto-clear test registration + scoring data
+            // Draft → Registration: auto-clear test registration + scoring data.
+            // (Counts are queried fresh after SaveChanges, so no collection
+            // reload is needed here.)
             if (request.Status.Value == EventStatus.Registration)
             {
                 await _testData.ClearRegistrationAndScoringAsync(orgId, eventId, ct);
-                // Re-load teams and scores after clearing
-                await _db.Entry(evt).Collection(e => e.Teams).LoadAsync(ct);
-                await _db.Entry(evt).Collection(e => e.Scores).LoadAsync(ct);
             }
 
             evt.Status = request.Status.Value;
@@ -222,8 +224,9 @@ public class EventService
         }
 
         await _db.SaveChangesAsync(ct);
+        var counts        = await LoadCountsAsync(eventId, ct);
         var updateSummary = await _testData.GetSummaryAsync(orgId, eventId, ct);
-        return MapToEventResponse(evt, updateSummary);
+        return MapToEventResponse(evt, counts, updateSummary);
     }
 
     // ── ATTACH COURSE ─────────────────────────────────────────────────────────
@@ -242,9 +245,6 @@ public class EventService
         var evt = await _db.Events
             .Include(e => e.Course)
                 .ThenInclude(c => c!.Holes)
-            .Include(e => e.Teams)
-                .ThenInclude(t => t.Players)
-            .Include(e => e.Scores)
             .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
 
         if (evt is null)
@@ -307,7 +307,7 @@ public class EventService
             "Attached course '{CourseName}' to event {EventId}",
             course.Name, eventId);
 
-        return MapToEventResponse(evt);
+        return MapToEventResponse(evt, await LoadCountsAsync(eventId, ct));
     }
 
     // ── SHOTGUN ASSIGNMENTS ───────────────────────────────────────────────────
@@ -502,10 +502,10 @@ public class EventService
         UpdateEventBrandingRequest request,
         CancellationToken ct = default)
     {
+        // Branding only touches scalar columns; Course.Holes is loaded solely
+        // for the response mapping. Counts come from LoadCountsAsync.
         var evt = await _db.Events
             .Include(e => e.Course).ThenInclude(c => c!.Holes)
-            .Include(e => e.Teams).ThenInclude(t => t.Players)
-            .Include(e => e.Scores)
             .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct)
             ?? throw new NotFoundException("Event", eventId);
 
@@ -534,7 +534,7 @@ public class EventService
             evt.Is501c3 = request.Is501c3.Value;
 
         await _db.SaveChangesAsync(ct);
-        return MapToEventResponse(evt, null);
+        return MapToEventResponse(evt, await LoadCountsAsync(eventId, ct));
     }
 
     private static readonly long    MaxLogoBytes       = 2 * 1024 * 1024;
@@ -590,13 +590,36 @@ public class EventService
         string eventCode,
         CancellationToken ct = default)
     {
+        // Hottest anonymous endpoint (every landing view + web SSR + mobile
+        // polls). One untracked projection: the team count and donation sum
+        // are computed by the database, and sponsors come back as narrow rows
+        // instead of Include()-ing three collections (a cartesian JOIN).
         var evt = await _db.Events
-            .Include(e => e.Organization)
-            .Include(e => e.Course)
-            .Include(e => e.Teams)
-            .Include(e => e.Sponsors)
-            .Include(e => e.Donations)
-            .FirstOrDefaultAsync(e => e.EventCode == eventCode.ToUpperInvariant(), ct);
+            .AsNoTracking()
+            .Where(e => e.EventCode == eventCode.ToUpperInvariant())
+            .Select(e => new
+            {
+                e.Id, e.Name, e.EventCode, e.Format, e.Status, e.StartAt, e.ConfigJson,
+                e.LogoUrl, e.ThemeJson, e.MissionStatement, e.Is501c3, e.SponsorsVersion,
+                OrgName      = e.Organization.Name,
+                OrgSlug      = e.Organization.Slug,
+                OrgLogoUrl   = e.Organization.LogoUrl,
+                OrgThemeJson = e.Organization.ThemeJson,
+                OrgMission   = e.Organization.MissionStatement,
+                OrgIs501c3   = e.Organization.Is501c3,
+                Course       = e.Course == null ? null : new PublicCourseInfo
+                {
+                    Name  = e.Course.Name,
+                    City  = e.Course.City,
+                    State = e.Course.State,
+                },
+                TeamCount      = e.Teams.Count(),
+                DonationsCents = e.Donations.Sum(d => (int?)d.AmountCents) ?? 0,
+                Sponsors       = e.Sponsors
+                    .Select(s => new { s.Name, s.LogoUrl, s.Tagline, s.Tier, s.PlacementsJson })
+                    .ToList(),
+            })
+            .FirstOrDefaultAsync(ct);
 
         if (evt is null)
             throw new NotFoundException($"No event found with code '{eventCode}'.");
@@ -605,11 +628,11 @@ public class EventService
         if (evt.Status == EventStatus.Draft || evt.Status == EventStatus.Cancelled)
             throw new NotFoundException($"No event found with code '{eventCode}'.");
 
-        var config     = DeserializeConfig(evt.ConfigJson);
-        var maxTeams   = config.MaxTeams;
-        var teamCount  = evt.Teams.Count;
+        var config   = DeserializeConfig(evt.ConfigJson);
+        var maxTeams = config.MaxTeams;
 
-        // Landing-page sponsors: only those with landingPage placement
+        // Landing-page sponsors: only those with landingPage placement.
+        // (PlacementsJson is parsed in memory — not translatable to SQL.)
         var landingSponsors = evt.Sponsors
             .Where(s => IsLandingPageSponsor(s.PlacementsJson))
             .OrderBy(s => s.Tier)
@@ -627,31 +650,59 @@ public class EventService
             Id         = evt.Id,
             Name       = evt.Name,
             EventCode  = evt.EventCode,
-            OrgName    = evt.Organization.Name,
-            OrgSlug    = evt.Organization.Slug,
+            OrgName    = evt.OrgName,
+            OrgSlug    = evt.OrgSlug,
             Format     = evt.Format.ToString(),
             Status     = evt.Status.ToString(),
             StartAt    = evt.StartAt,
-            SpotsRemaining = maxTeams.HasValue ? Math.Max(0, maxTeams.Value - teamCount) : null,
-            Course = evt.Course is null ? null : new PublicCourseInfo
-            {
-                Name  = evt.Course.Name,
-                City  = evt.Course.City,
-                State = evt.Course.State,
-            },
+            SpotsRemaining = maxTeams.HasValue ? Math.Max(0, maxTeams.Value - evt.TeamCount) : null,
+            Course      = evt.Course,
             Sponsors    = landingSponsors,
             Fundraising = new PublicFundraisingInfo
             {
-                DonationsCents  = evt.Donations.Sum(d => d.AmountCents),
-                GrandTotalCents = evt.Donations.Sum(d => d.AmountCents),
+                DonationsCents  = evt.DonationsCents,
+                GrandTotalCents = evt.DonationsCents,
             },
             FreeAgentEnabled = config.FreeAgentEnabled ?? false,
             // Resolved branding: event value wins, org value as fallback
-            ResolvedLogoUrl   = evt.LogoUrl   ?? evt.Organization.LogoUrl,
-            ResolvedThemeJson = evt.ThemeJson  ?? evt.Organization.ThemeJson,
-            MissionStatement  = evt.MissionStatement ?? evt.Organization.MissionStatement,
-            Is501c3           = evt.Is501c3 || evt.Organization.Is501c3,
+            ResolvedLogoUrl   = evt.LogoUrl   ?? evt.OrgLogoUrl,
+            ResolvedThemeJson = evt.ThemeJson  ?? evt.OrgThemeJson,
+            MissionStatement  = evt.MissionStatement ?? evt.OrgMission,
+            Is501c3           = evt.Is501c3 || evt.OrgIs501c3,
             SponsorsVersion   = evt.SponsorsVersion,
+        };
+    }
+
+    /// <summary>
+    /// Lightweight status/theme/sponsor-version read for mobile poll loops.
+    /// One single-row untracked projection — devices poll this every 5–60 s,
+    /// so it must never touch the landing page's collection loads.
+    /// Deliberately visible for ALL statuses (incl. Draft test mode and
+    /// Cancelled) so a device can follow the event lifecycle; it exposes no
+    /// roster, sponsor, or financial data.
+    /// </summary>
+    public async Task<PublicEventStatusResponse> GetPublicEventStatusAsync(
+        string eventCode,
+        CancellationToken ct = default)
+    {
+        var row = await _db.Events
+            .AsNoTracking()
+            .Where(e => e.EventCode == eventCode.ToUpperInvariant())
+            .Select(e => new
+            {
+                e.Status,
+                e.ThemeJson,
+                OrgThemeJson = e.Organization.ThemeJson,
+                e.SponsorsVersion,
+            })
+            .FirstOrDefaultAsync(ct)
+            ?? throw new NotFoundException($"No event found with code '{eventCode}'.");
+
+        return new PublicEventStatusResponse
+        {
+            Status            = row.Status.ToString(),
+            ResolvedThemeJson = row.ThemeJson ?? row.OrgThemeJson,
+            SponsorsVersion   = row.SponsorsVersion,
         };
     }
 
@@ -1010,7 +1061,27 @@ public class EventService
     }
 
     /// <summary>Maps a loaded Event entity to the EventResponse DTO.</summary>
-    private static EventResponse MapToEventResponse(Event evt, TestDataSummaryResponse? summary = null)
+    /// <summary>
+    /// Dashboard counts computed DB-side in one projected query — replaces the
+    /// old pattern of Include()-ing Teams.Players and Scores (a cartesian JOIN
+    /// with Course.Holes) just so the mapper could count them in memory.
+    /// </summary>
+    private Task<EventCountsDto> LoadCountsAsync(Guid eventId, CancellationToken ct) =>
+        _db.Events
+            .AsNoTracking()
+            .Where(e => e.Id == eventId)
+            .Select(e => new EventCountsDto
+            {
+                TeamsRegistered   = e.Teams.Count(),
+                PlayersRegistered = e.Teams.SelectMany(t => t.Players).Count(),
+                TeamsCheckedIn    = e.Teams.Count(t =>
+                    t.CheckInStatus == Domain.Enums.CheckInStatus.CheckedIn ||
+                    t.CheckInStatus == Domain.Enums.CheckInStatus.Complete),
+                HolesScored       = e.Scores.Select(s => (int)s.HoleNumber).Distinct().Count(),
+            })
+            .FirstAsync(ct);
+
+    private static EventResponse MapToEventResponse(Event evt, EventCountsDto counts, TestDataSummaryResponse? summary = null)
     {
         var config = DeserializeConfig(evt.ConfigJson);
 
@@ -1053,15 +1124,7 @@ public class EventService
                         YardageRed    = h.YardageRed,
                     }).ToList(),
             },
-            Counts = new EventCountsDto
-            {
-                TeamsRegistered   = evt.Teams.Count,
-                PlayersRegistered = evt.Teams.Sum(t => t.Players.Count),
-                TeamsCheckedIn    = evt.Teams.Count(t =>
-                    t.CheckInStatus == Domain.Enums.CheckInStatus.CheckedIn ||
-                    t.CheckInStatus == Domain.Enums.CheckInStatus.Complete),
-                HolesScored       = evt.Scores.Select(s => s.HoleNumber).Distinct().Count(),
-            },
+            Counts = counts,
         };
     }
 }

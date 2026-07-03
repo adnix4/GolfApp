@@ -469,6 +469,20 @@ public record PublicEventResponse
     public int     SponsorsVersion      { get; init; }
 }
 
+/// <summary>
+/// GET /api/v1/pub/events/{code}/status — polling micro-endpoint.
+/// The mobile app polls status/theme/sponsor-version every 5–60 s per device;
+/// this carries exactly those three fields so the polls stay off the full
+/// landing-page query. Unlike the landing endpoint it also reports Draft
+/// (test mode) and Cancelled/Completed, so devices can follow the lifecycle.
+/// </summary>
+public record PublicEventStatusResponse
+{
+    public string  Status            { get; init; } = string.Empty;
+    public string? ResolvedThemeJson { get; init; }
+    public int     SponsorsVersion   { get; init; }
+}
+
 public record PublicCourseInfo
 {
     public string Name  { get; init; } = string.Empty;

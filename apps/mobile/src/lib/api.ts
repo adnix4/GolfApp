@@ -200,7 +200,11 @@ export interface EventStatusResult {
 }
 
 export async function fetchEventStatus(eventCode: string): Promise<EventStatusResult> {
-  const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}`);
+  // Dedicated polling micro-endpoint — a single-row projection server-side.
+  // (The full /pub/events/{code} landing payload loads sponsors/teams/
+  // donations and 404s Draft/Cancelled; this one reports every status, so
+  // test-mode theme refresh and Completed/Cancelled detection work too.)
+  const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/status`);
   if (!res.ok) throw new Error(`Status check failed (${res.status})`);
   const data = await res.json();
   return {
