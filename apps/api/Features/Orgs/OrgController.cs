@@ -32,7 +32,7 @@ public class OrgController : ControllerBase
 
     /// <summary>
     /// POST /api/v1/orgs/me/logo — upload a logo image (PNG/JPEG/SVG/WebP, max 2 MB).
-    /// Stores the file under wwwroot/uploads/logos/ and returns the public URL.
+    /// Stores the file via IFileStorage and returns the public URL.
     /// The URL is also saved to the org record automatically.
     /// </summary>
     [HttpPost("api/v1/orgs/me/logo")]
@@ -44,12 +44,13 @@ public class OrgController : ControllerBase
         IFormFile file,
         CancellationToken ct)
     {
-        var baseUrl  = $"{Request.Scheme}://{Request.Host}";
-        var relative = await _orgService.UploadLogoAsync(GetOrgId(), file, baseUrl, ct);
+        var url = await _orgService.UploadLogoAsync(GetOrgId(), file, ct);
         return Ok(new LogoUploadResponse
         {
-            LogoUrl    = relative,
-            FullUrl    = $"{baseUrl}{relative}",
+            LogoUrl    = url,
+            // Blob storage returns an absolute URL; local storage a root-relative
+            // one that resolves against this API host.
+            FullUrl    = url.StartsWith('/') ? $"{Request.Scheme}://{Request.Host}{url}" : url,
         });
     }
 

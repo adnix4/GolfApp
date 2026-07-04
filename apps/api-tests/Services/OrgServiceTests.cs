@@ -21,7 +21,7 @@ public class OrgServiceTests
         var orgId = Guid.NewGuid();
         db.Organizations.Add(new Organization { Id = orgId, Name = "Acme", Slug = "acme" });
         db.SaveChanges();
-        return (new OrgService(db, new NullWebHostEnvironment(), NullLogger<OrgService>.Instance), db, orgId);
+        return (new OrgService(db, new FakeFileStorage(), NullLogger<OrgService>.Instance), db, orgId);
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public class OrgServiceTests
     {
         var (svc, _, orgId) = Build();
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.UploadLogoAsync(orgId, FakeFile(0, "image/png"), "http://x"));
+            () => svc.UploadLogoAsync(orgId, FakeFile(0, "image/png")));
     }
 
     [Fact]
@@ -140,6 +140,6 @@ public class OrgServiceTests
     {
         var (svc, _, orgId) = Build();
         await Assert.ThrowsAsync<ValidationException>(
-            () => svc.UploadLogoAsync(orgId, FakeFile(10, "application/pdf"), "http://x"));
+            () => svc.UploadLogoAsync(orgId, FakeFile(10, "application/pdf")));
     }
 }

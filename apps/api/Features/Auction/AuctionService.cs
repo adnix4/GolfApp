@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Common.Middleware;
+using GolfFundraiserPro.Api.Common.Storage;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
 using GolfFundraiserPro.Api.Domain.Enums;
@@ -18,7 +19,7 @@ public class AuctionService
     private readonly PaymentsService _payments;
     private readonly EmailService _email;
     private readonly PushNotificationService _push;
-    private readonly IWebHostEnvironment _env;
+    private readonly IFileStorage _storage;
     private readonly ILogger<AuctionService> _logger;
 
     private static readonly string[] AllowedImageTypes =
@@ -31,7 +32,7 @@ public class AuctionService
         PaymentsService payments,
         EmailService email,
         PushNotificationService push,
-        IWebHostEnvironment env,
+        IFileStorage storage,
         ILogger<AuctionService> logger)
     {
         _db       = db;
@@ -39,7 +40,7 @@ public class AuctionService
         _payments = payments;
         _email    = email;
         _push     = push;
-        _env      = env;
+        _storage  = storage;
         _logger   = logger;
     }
 
@@ -156,12 +157,9 @@ public class AuctionService
 
         var ext      = Path.GetExtension(file.FileName).ToLowerInvariant();
         var filename = $"{itemId}-{Guid.NewGuid()}{ext}";
-        var dir      = Path.Combine(_env.WebRootPath, "uploads", "auction-photos");
-        Directory.CreateDirectory(dir);
-        await using var stream = new FileStream(Path.Combine(dir, filename), FileMode.Create, FileAccess.Write);
-        await file.CopyToAsync(stream, ct);
+        await using var stream = file.OpenReadStream();
+        var url      = await _storage.SaveAsync("auction-photos", filename, stream, file.ContentType, ct: ct);
 
-        var url      = $"/uploads/auction-photos/{filename}";
         var existing = JsonSerializer.Deserialize<List<string>>(
                            string.IsNullOrEmpty(item.PhotoUrlsJson) ? "[]" : item.PhotoUrlsJson)
                        ?? new List<string>();

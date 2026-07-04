@@ -161,7 +161,10 @@ app.UseCors(corsPolicy);
 // 4b. Response compression — before anything that writes response bodies.
 app.UseResponseCompression();
 
-// 5. Static files — serves wwwroot/uploads/* for uploaded logos.
+// 5. Static files — serves wwwroot/uploads/* for uploaded logos when the
+// Local storage provider is active (and for legacy local files after a switch
+// to S3 — new blob uploads carry absolute URLs and never hit this middleware;
+// their cache policy is set per-object at upload in S3FileStorage).
 // Logo/photo uploads get versioned (unique-per-upload) filenames, so they can
 // be cached aggressively — a replaced logo gets a NEW URL, never a stale hit.
 // The brand-extraction "-fetched" suggestion file deliberately overwrites

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Common;
 using GolfFundraiserPro.Api.Common.Middleware;
+using GolfFundraiserPro.Api.Common.Storage;
 using GolfFundraiserPro.Api.Data;
 
 namespace GolfFundraiserPro.Api.Features.Orgs;
@@ -8,17 +9,17 @@ namespace GolfFundraiserPro.Api.Features.Orgs;
 public class OrgService
 {
     private readonly ApplicationDbContext _db;
-    private readonly IWebHostEnvironment  _env;
+    private readonly IFileStorage         _storage;
     private readonly ILogger<OrgService>  _logger;
 
     private static readonly string[] AllowedImageTypes = ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
     private const long MaxLogoBytes = 2 * 1024 * 1024; // 2 MB
 
-    public OrgService(ApplicationDbContext db, IWebHostEnvironment env, ILogger<OrgService> logger)
+    public OrgService(ApplicationDbContext db, IFileStorage storage, ILogger<OrgService> logger)
     {
-        _db     = db;
-        _env    = env;
-        _logger = logger;
+        _db      = db;
+        _storage = storage;
+        _logger  = logger;
     }
 
     public async Task<OrgResponse> GetAsync(Guid orgId, CancellationToken ct = default)
@@ -70,11 +71,11 @@ public class OrgService
     }
 
     /// <summary>
-    /// Stores the uploaded logo file under wwwroot/uploads/logos/ and updates
-    /// the org's LogoUrl. Returns the public-relative URL (/uploads/logos/…).
+    /// Stores the uploaded logo via IFileStorage and updates the org's LogoUrl.
+    /// Returns the stored URL (/uploads/logos/… locally, absolute on blob storage).
     /// </summary>
     public async Task<string> UploadLogoAsync(
-        Guid orgId, IFormFile file, string requestBaseUrl, CancellationToken ct = default)
+        Guid orgId, IFormFile file, CancellationToken ct = default)
     {
         if (file.Length == 0)
             throw new ValidationException("Uploaded file is empty.");
@@ -86,31 +87,23 @@ public class OrgService
         var org = await _db.Organizations.FirstOrDefaultAsync(o => o.Id == orgId, ct)
             ?? throw new NotFoundException("Organization", orgId);
 
-        // Delete previous upload if it was a local upload (path starts with /uploads/)
-        if (org.LogoUrl?.StartsWith("/uploads/") == true)
-        {
-            var oldPath = Path.Combine(_env.WebRootPath, org.LogoUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-            if (File.Exists(oldPath)) File.Delete(oldPath);
-        }
-
         var ext      = Path.GetExtension(file.FileName).ToLowerInvariant();
-        // Versioned filename: each upload gets a unique URL so /uploads/* can be
-        // served with immutable cache headers (see Program.cs). The old file was
-        // deleted above, so replacements don't accumulate.
+        // Versioned filename: each upload gets a unique URL so it can be served
+        // with immutable cache headers. The replaced file is deleted below, so
+        // replacements don't accumulate.
         var filename = $"{orgId}-{DateTime.UtcNow.Ticks}{ext}";
-        var dir      = Path.Combine(_env.WebRootPath, "uploads", "logos");
-        Directory.CreateDirectory(dir);
-        var fullPath = Path.Combine(dir, filename);
+        await using var stream = file.OpenReadStream();
+        var url = await _storage.SaveAsync("logos", filename, stream, file.ContentType, ct: ct);
 
-        await using var stream = new FileStream(fullPath, FileMode.Create, FileAccess.Write);
-        await file.CopyToAsync(stream, ct);
-
-        var relativeUrl = $"/uploads/logos/{filename}";
-        org.LogoUrl = relativeUrl;
+        var previousUrl = org.LogoUrl;
+        org.LogoUrl = url;
         await _db.SaveChangesAsync(ct);
+        // Delete the replaced upload only after the new one is saved and
+        // referenced — a failed save must not orphan the current logo.
+        await _storage.DeleteAsync(previousUrl, ct);
 
-        _logger.LogInformation("Logo uploaded for org {OrgId}: {Url}", orgId, relativeUrl);
-        return relativeUrl;
+        _logger.LogInformation("Logo uploaded for org {OrgId}: {Url}", orgId, url);
+        return url;
     }
 
     // ── WCAG VALIDATION ───────────────────────────────────────────────────────

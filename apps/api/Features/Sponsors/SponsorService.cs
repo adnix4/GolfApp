@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Common.Middleware;
+using GolfFundraiserPro.Api.Common.Storage;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
 using GolfFundraiserPro.Api.Domain.Enums;
@@ -11,7 +12,7 @@ namespace GolfFundraiserPro.Api.Features.Sponsors;
 public class SponsorService
 {
     private readonly ApplicationDbContext _db;
-    private readonly IWebHostEnvironment  _env;
+    private readonly IFileStorage         _storage;
     private readonly ILogger<SponsorService> _logger;
     private readonly IRealTimeService     _realTime;
 
@@ -24,11 +25,11 @@ public class SponsorService
     private const long MaxLogoBytes = 2 * 1024 * 1024;
 
     public SponsorService(
-        ApplicationDbContext db, IWebHostEnvironment env,
+        ApplicationDbContext db, IFileStorage storage,
         ILogger<SponsorService> logger, IRealTimeService realTime)
     {
         _db       = db;
-        _env      = env;
+        _storage  = storage;
         _logger   = logger;
         _realTime = realTime;
     }
@@ -135,24 +136,17 @@ public class SponsorService
 
         var sponsor = await GetSponsorAsync(orgId, eventId, sponsorId, ct);
 
-        if (sponsor.LogoUrl?.StartsWith("/uploads/") == true)
-        {
-            var oldPath = Path.Combine(_env.WebRootPath,
-                sponsor.LogoUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-            if (File.Exists(oldPath)) File.Delete(oldPath);
-        }
-
         var ext      = Path.GetExtension(file.FileName).ToLowerInvariant();
-        // Versioned filename → unique URL per upload → immutable-cacheable
-        // (see Program.cs static-file cache policy). Old file deleted above.
+        // Versioned filename → unique URL per upload → immutable-cacheable.
+        // The replaced file is deleted after the new one is saved and referenced.
         var filename = $"{sponsorId}-{DateTime.UtcNow.Ticks}{ext}";
-        var dir      = Path.Combine(_env.WebRootPath, "uploads", "sponsor-logos");
-        Directory.CreateDirectory(dir);
-        await using var stream = new FileStream(Path.Combine(dir, filename), FileMode.Create, FileAccess.Write);
-        await file.CopyToAsync(stream, ct);
+        await using var stream = file.OpenReadStream();
+        var url = await _storage.SaveAsync("sponsor-logos", filename, stream, file.ContentType, ct: ct);
 
-        sponsor.LogoUrl = $"/uploads/sponsor-logos/{filename}";
+        var previousUrl = sponsor.LogoUrl;
+        sponsor.LogoUrl = url;
         await _db.SaveChangesAsync(ct);
+        await _storage.DeleteAsync(previousUrl, ct);
         await BumpSponsorsVersionAsync(eventId, ct);
 
         _logger.LogInformation("Logo uploaded for sponsor {SponsorId}: {Url}", sponsorId, sponsor.LogoUrl);

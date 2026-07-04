@@ -27,10 +27,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using GolfFundraiserPro.Api.Common.Middleware;
+using GolfFundraiserPro.Api.Common.Storage;
 using GolfFundraiserPro.Api.Features.Events.Branding;
 
 namespace GolfFundraiserPro.Api.Features.Events;
@@ -42,20 +42,20 @@ public class EventController : ControllerBase
     private readonly EventService       _eventService;
     private readonly TestDataService    _testDataService;
     private readonly BrandExtractionService _brandExtraction;
-    private readonly IWebHostEnvironment _env;
+    private readonly IFileStorage _storage;
     private readonly ILogger<EventController> _logger;
 
     public EventController(
         EventService eventService,
         TestDataService testDataService,
         BrandExtractionService brandExtraction,
-        IWebHostEnvironment env,
+        IFileStorage storage,
         ILogger<EventController> logger)
     {
         _eventService    = eventService;
         _testDataService = testDataService;
         _brandExtraction = brandExtraction;
-        _env             = env;
+        _storage         = storage;
         _logger          = logger;
     }
 
@@ -261,23 +261,23 @@ public class EventController : ControllerBase
 
     /// <summary>
     /// Uploads an event logo image (PNG, JPEG, SVG, or WebP — max 2 MB).
-    /// The file is stored under wwwroot/uploads/event-logos/ and the event's
-    /// LogoUrl is updated to the relative path.
+    /// The file is stored via IFileStorage and the event's LogoUrl is updated
+    /// to the stored URL.
     /// </summary>
     [HttpPost("api/v1/events/{id:guid}/branding/logo")]
     [Authorize(Policy = "OrgAdmin")]
     [Consumes("multipart/form-data")]
-    [ProducesResponseType(typeof(LogoUploadResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(EventLogoUploadResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<LogoUploadResponse>> UploadEventLogo(
+    public async Task<ActionResult<EventLogoUploadResponse>> UploadEventLogo(
         [FromRoute] Guid id,
         IFormFile file,
         CancellationToken ct)
     {
         var orgId = GetOrgId();
-        var url   = await _eventService.UploadEventLogoAsync(orgId, id, file, _env, ct);
-        return Ok(new LogoUploadResponse { Url = url });
+        var url   = await _eventService.UploadEventLogoAsync(orgId, id, file, _storage, ct);
+        return Ok(new EventLogoUploadResponse { Url = url });
     }
 
     /// <summary>

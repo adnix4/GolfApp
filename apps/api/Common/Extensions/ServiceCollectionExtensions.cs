@@ -29,6 +29,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
+using GolfFundraiserPro.Api.Common.Storage;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Hubs;
 
@@ -142,6 +143,29 @@ public static class ServiceCollectionExtensions
         })
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
+
+        // ── FILE STORAGE ──────────────────────────────────────────────────
+        // Uploaded logos/photos (see Common/Storage/). Local wwwroot/uploads
+        // by default; set Storage:Provider=S3 for S3/R2/MinIO — required when
+        // running 2+ API instances (local disk isn't shared). A half-configured
+        // S3 section fails the boot rather than 500-ing on the first upload.
+        var storage = configuration.GetSection(StorageOptions.SectionName)
+            .Get<StorageOptions>() ?? new StorageOptions();
+        if (storage.Provider.Equals("S3", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(storage.S3.Bucket) ||
+                string.IsNullOrWhiteSpace(storage.S3.PublicBaseUrl))
+                throw new InvalidOperationException(
+                    "Storage:Provider=S3 requires Storage:S3:Bucket and Storage:S3:PublicBaseUrl. "
+                    + "Credentials come from Storage:S3:AccessKey/SecretKey or the AWS credential chain.");
+            services.AddSingleton(storage.S3);
+            services.AddSingleton(S3FileStorage.CreateClient(storage.S3));
+            services.AddSingleton<IFileStorage, S3FileStorage>();
+        }
+        else
+        {
+            services.AddSingleton<IFileStorage, LocalFileStorage>();
+        }
 
         // ── APPLICATION SERVICES ──────────────────────────────────────────
         // Scoped = one instance per HTTP request.

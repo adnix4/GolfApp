@@ -603,10 +603,14 @@ public record PublicScorecardSponsorDto
 
 // ── LOGO UPLOAD ───────────────────────────────────────────────────────────────
 
-/// <summary>Returned by POST /api/v1/events/{id}/branding/logo.</summary>
-public record LogoUploadResponse
+/// <summary>
+/// Returned by POST /api/v1/events/{id}/branding/logo.
+/// Named distinctly from Orgs.LogoUploadResponse — Swashbuckle requires
+/// unique schema ids, and two types sharing the short name 500s /swagger.
+/// </summary>
+public record EventLogoUploadResponse
 {
-    /// <summary>Relative URL stored on the event, e.g. /uploads/event-logos/abc.png</summary>
+    /// <summary>URL stored on the event — /uploads/event-logos/… locally, absolute on blob storage.</summary>
     public string Url { get; init; } = string.Empty;
 }
 

@@ -541,12 +541,12 @@ public class EventService
     private static readonly string[] AllowedImageTypes = ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
 
     /// <summary>
-    /// Saves an uploaded logo for an event under wwwroot/uploads/event-logos/.
-    /// Returns the public-relative URL (/uploads/event-logos/…).
+    /// Saves an uploaded logo for an event via IFileStorage.
+    /// Returns the stored URL (/uploads/event-logos/… locally, absolute on blob storage).
     /// </summary>
     public async Task<string> UploadEventLogoAsync(
         Guid orgId, Guid eventId, IFormFile file,
-        IWebHostEnvironment env, CancellationToken ct = default)
+        Common.Storage.IFileStorage storage, CancellationToken ct = default)
     {
         if (file.Length == 0)
             throw new ValidationException("Uploaded file is empty.");
@@ -559,26 +559,18 @@ public class EventService
             .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct)
             ?? throw new NotFoundException("Event", eventId);
 
-        if (evt.LogoUrl?.StartsWith("/uploads/") == true)
-        {
-            var oldPath = Path.Combine(env.WebRootPath, evt.LogoUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-            if (File.Exists(oldPath)) File.Delete(oldPath);
-        }
-
         var ext      = Path.GetExtension(file.FileName).ToLowerInvariant();
-        // Versioned filename → unique URL per upload → immutable-cacheable
-        // (see Program.cs static-file cache policy). Old file deleted above.
+        // Versioned filename → unique URL per upload → immutable-cacheable.
+        // The replaced file is deleted after the new one is saved and referenced.
         var filename = $"{eventId}-{DateTime.UtcNow.Ticks}{ext}";
-        var dir      = Path.Combine(env.WebRootPath, "uploads", "event-logos");
-        Directory.CreateDirectory(dir);
+        await using var stream = file.OpenReadStream();
+        var url = await storage.SaveAsync("event-logos", filename, stream, file.ContentType, ct: ct);
 
-        await using var stream = new FileStream(Path.Combine(dir, filename), FileMode.Create, FileAccess.Write);
-        await file.CopyToAsync(stream, ct);
-
-        var relativeUrl  = $"/uploads/event-logos/{filename}";
-        evt.LogoUrl = relativeUrl;
+        var previousUrl = evt.LogoUrl;
+        evt.LogoUrl = url;
         await _db.SaveChangesAsync(ct);
-        return relativeUrl;
+        await storage.DeleteAsync(previousUrl, ct);
+        return url;
     }
 
     // ── PUBLIC LANDING PAGE ───────────────────────────────────────────────────
