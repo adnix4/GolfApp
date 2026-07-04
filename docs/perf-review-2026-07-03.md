@@ -3,8 +3,8 @@
 Scope: API (ASP.NET Core / EF Core), mobile scorer, admin dashboard, public web.
 Focus: things that unnecessarily slow the system down, ranked by impact.
 
-**Status: high-impact items 1–3 are FIXED on this branch** (see ✅ notes below).
-Medium items 4–7 remain open.
+**Status: all high-impact (1–3) and medium (4–7) items are FIXED on this
+branch** (see ✅ notes below).
 
 ## High impact
 
@@ -60,20 +60,31 @@ leaderboard's 2 s TTL.
 
 ## Medium impact
 
-### 4. No response compression
+### 4. ✅ FIXED — No response compression
+> Fix: Brotli/Gzip via AddResponseCompression (EnableForHttps) + UseResponseCompression.
+> Verified live: `/api/health` responds `Content-Encoding: br`.
 No `AddResponseCompression`/`UseResponseCompression` in `Program.cs`. Leaderboard
 and public-event JSON are polled by many clients; a 36-team leaderboard payload
 compresses ~5-10×. If a reverse proxy (nginx/Cloudflare) fronts the API in prod
 this is moot — verify; otherwise enable gzip/brotli for `application/json`.
 
-### 5. Uploaded logos served with no cache headers
+### 5. ✅ FIXED — Uploaded logos served with no cache headers
+> Fix: org/event/sponsor logo uploads now get versioned filenames
+> (`{id}-{ticks}{ext}`, old file already deleted on replace), so `/uploads/*`
+> is served `public, max-age=31536000, immutable` — a replaced logo always has
+> a NEW URL. The brand-extraction `-fetched` suggestion file deliberately
+> self-overwrites, so it gets `no-cache` (ETag revalidation) instead.
+> Verified live on both branches of the policy.
 `app.UseStaticFiles()` (Program.cs:162) serves `/uploads/**` with no
 `Cache-Control`, so every landing/leaderboard view re-validates or re-downloads
 org/sponsor logos. Upload filenames appear unique per upload — safe to add
 `OnPrepareResponse` with `Cache-Control: public, max-age=604800` (or immutable
 if filenames are content-addressed).
 
-### 6. `ListActiveEventsAsync` materializes tracked entities per directory view
+### 6. ✅ FIXED — `ListActiveEventsAsync` materializes tracked entities per directory view
+> Fix: now an `AsNoTracking` column projection (org/course names inline);
+> JSON config parsing stays in memory. No cache added — revisit if the
+> directory gets real traffic.
 `MobileService.ListActiveEventsAsync` (line 54) loads full Event + Organization +
 Course entities (tracked) and parses `ConfigJson` in a loop, and both the web
 "find your event" page (`cache: 'no-store'`) and the mobile join screen call it.
@@ -81,7 +92,9 @@ Reference-only Includes so no cartesian, but it should be a projection +
 `AsNoTracking`, and is a good candidate for a 30-60 s cache since it changes
 rarely.
 
-### 7. `HandicapEngine` per-member player writes (N+1)
+### 7. ✅ FIXED — `HandicapEngine` per-member player writes (N+1)
+> Fix: SyncToPlayersAsync fetches all target players in one `Contains` query
+> and applies indexes from a dictionary.
 `HandicapEngine.cs:106` — `FindAsync` per member with `PlayerId` inside a loop.
 Bounded (~18 members) and only runs at round close, so low priority; a single
 `Where(p => ids.Contains(p.Id))` fetch would still be cleaner.
@@ -122,5 +135,5 @@ Bounded (~18 members) and only runs at round close, so low priority; a single
 2. ~~`GetPublicEventAsync`: rewrite as a single projection~~ ✅ done
 3. ~~Add `GET /pub/events/{code}/status` micro-endpoint~~ ✅ done
 4. ~~`GetByIdAsync`/`UpdateAsync`: project counts DB-side~~ ✅ done
-5. Response compression + static upload cache headers. (open)
-6. `ListActiveEventsAsync` projection (+ optional short cache). (open)
+5. ~~Response compression + static upload cache headers~~ ✅ done
+6. ~~`ListActiveEventsAsync` projection~~ ✅ done (cache deferred)

@@ -57,6 +57,17 @@ public static class ServiceCollectionExtensions
         // HTTP client factory used by PushNotificationService and EmailBuilderService
         services.AddHttpClient();
 
+        // Response compression — leaderboard/public-event JSON is polled by many
+        // clients and compresses ~5-10×. EnableForHttps is required for it to do
+        // anything in production (BREACH concerns don't apply here: responses
+        // don't interleave secrets with attacker-reflected input).
+        services.AddResponseCompression(opts =>
+        {
+            opts.EnableForHttps = true;
+            opts.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+            opts.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+        });
+
         return services;
     }
 

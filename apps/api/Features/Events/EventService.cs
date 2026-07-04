@@ -566,7 +566,9 @@ public class EventService
         }
 
         var ext      = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var filename = $"{eventId}{ext}";
+        // Versioned filename → unique URL per upload → immutable-cacheable
+        // (see Program.cs static-file cache policy). Old file deleted above.
+        var filename = $"{eventId}-{DateTime.UtcNow.Ticks}{ext}";
         var dir      = Path.Combine(env.WebRootPath, "uploads", "event-logos");
         Directory.CreateDirectory(dir);
 

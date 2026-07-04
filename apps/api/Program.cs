@@ -158,8 +158,25 @@ if (!app.Environment.IsDevelopment())
 var corsPolicy = app.Environment.IsDevelopment() ? "GfpDevelopment" : "GfpProduction";
 app.UseCors(corsPolicy);
 
-// 5. Static files — serves wwwroot/uploads/* for uploaded logos
-app.UseStaticFiles();
+// 4b. Response compression — before anything that writes response bodies.
+app.UseResponseCompression();
+
+// 5. Static files — serves wwwroot/uploads/* for uploaded logos.
+// Logo/photo uploads get versioned (unique-per-upload) filenames, so they can
+// be cached aggressively — a replaced logo gets a NEW URL, never a stale hit.
+// The brand-extraction "-fetched" suggestion file deliberately overwrites
+// itself under a stable name, so it must revalidate on every request instead.
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        if (!ctx.Context.Request.Path.StartsWithSegments("/uploads")) return;
+        ctx.Context.Response.Headers.CacheControl =
+            ctx.File.Name.Contains("-fetched", StringComparison.OrdinalIgnoreCase)
+                ? "no-cache"                                  // ETag revalidation each time
+                : "public, max-age=31536000, immutable";      // unique filenames → cache forever
+    },
+});
 
 // 6. Routing — must come before auth middleware
 app.UseRouting();
