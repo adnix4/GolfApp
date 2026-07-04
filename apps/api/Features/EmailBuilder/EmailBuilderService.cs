@@ -68,6 +68,17 @@ public class EmailBuilderService
             ? $"{evt.Course.City}, {evt.Course.State}"
             : string.Empty;
 
+        // Full street address for the flier: "17 Mile Dr, Pebble Beach, CA 93953"
+        // (skips blank parts — Address and Zip are optional on the course).
+        var courseAddress = evt.Course is not null
+            ? string.Join(", ", new[]
+              {
+                  evt.Course.Address,
+                  evt.Course.City,
+                  $"{evt.Course.State} {evt.Course.Zip}".Trim(),
+              }.Where(part => !string.IsNullOrWhiteSpace(part)))
+            : string.Empty;
+
         return new EmailBuilderDataResponse
         {
             EventName        = evt.Name,
@@ -77,6 +88,8 @@ public class EmailBuilderService
                                   System.Globalization.CultureInfo.InvariantCulture)
                               ?? "Date TBD",
             EventLocation    = location,
+            CourseName       = evt.Course?.Name ?? string.Empty,
+            CourseAddress    = courseAddress,
             RegistrationUrl  = registrationUrl,
             QrCodeUrl        = qrCodeUrl,
             PrimaryColor     = primaryColor,
@@ -154,6 +167,10 @@ public sealed record EmailBuilderDataResponse
     public string? OrgLogoUrl       { get; init; }
     public string  EventDate        { get; init; } = string.Empty;
     public string  EventLocation    { get; init; } = string.Empty;
+    /// <summary>Golf course name for the flier; empty when no course attached.</summary>
+    public string  CourseName       { get; init; } = string.Empty;
+    /// <summary>Full course street address ("17 Mile Dr, Pebble Beach, CA 93953"); empty when no course.</summary>
+    public string  CourseAddress    { get; init; } = string.Empty;
     public string  RegistrationUrl  { get; init; } = string.Empty;
     public string  QrCodeUrl        { get; init; } = string.Empty;
     public string  PrimaryColor     { get; init; } = "#1a1a2e";

@@ -33,6 +33,8 @@ export { AsyncSection }     from './components/AsyncSection';
 export type { AsyncSectionProps } from './components/AsyncSection';
 export { FormModal }        from './components/FormModal';
 export type { FormModalProps } from './components/FormModal';
+export { ErrorFallback }    from './components/ErrorFallback';
+export type { ErrorFallbackProps } from './components/ErrorFallback';
 export { Button, PrimaryButton, SecondaryButton, DangerButton } from './components/Button';
 export type { ButtonProps, ButtonVariant, ButtonSize } from './components/Button';
 export { ThemeProvider, useTheme } from './components/ThemeProvider';

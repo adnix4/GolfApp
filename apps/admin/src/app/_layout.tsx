@@ -1,10 +1,16 @@
-import { Slot, useRouter, useSegments } from 'expo-router';
+import { Slot, useRouter, useSegments, type ErrorBoundaryProps } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { ThemeProvider } from '@gfp/ui';
+import { ErrorFallback, ThemeProvider } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, type GFPTheme } from '@gfp/theme';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { orgApi } from '@/lib/api';
+
+// Root safety net (problemList A4): an uncaught render throw anywhere in the
+// dashboard shows a branded retry card instead of a blank screen.
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return <ErrorFallback error={error} retry={retry} />;
+}
 
 function parseTheme(json: string | null | undefined): GFPTheme | null {
   if (!json) return null;

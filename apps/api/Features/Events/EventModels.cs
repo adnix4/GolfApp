@@ -117,6 +117,33 @@ public record AttachCourseRequest
     public List<CourseHoleRequest>? Holes { get; init; }
 }
 
+/// <summary>
+/// PATCH /events/{id}/course — edits the attached course's identity fields
+/// (name/address) IN PLACE. Deliberately excludes holes: unlike
+/// AttachCourseRequest, this never rebuilds hole data, so pars/handicaps/
+/// yardages (which feed the leaderboard) are preserved.
+/// </summary>
+public record UpdateCourseRequest
+{
+    [Required]
+    [MaxLength(200)]
+    public string Name { get; init; } = string.Empty;
+
+    [MaxLength(300)]
+    public string Address { get; init; } = string.Empty;
+
+    [Required]
+    [MaxLength(100)]
+    public string City { get; init; } = string.Empty;
+
+    [Required]
+    [MaxLength(50)]
+    public string State { get; init; } = string.Empty;
+
+    [MaxLength(20)]
+    public string Zip { get; init; } = string.Empty;
+}
+
 /// <summary>Per-hole data within an AttachCourseRequest.</summary>
 public record CourseHoleRequest
 {

@@ -1,14 +1,28 @@
 import { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Pressable, SafeAreaView } from 'react-native';
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@gfp/ui';
+import { ErrorFallback, useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { fetchEventStatus } from '@/lib/api';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 const POLL_MS = 5000;
+
+// Scoring-area safety net (problemList A4): a screen crash mid-round shows a
+// retry card instead of unmounting the scorer. Pending scores live in SQLite
+// and sync in the background, so nothing entered is lost by a render throw.
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return (
+    <ErrorFallback
+      error={error}
+      retry={retry}
+      title="Scoring hit a problem"
+      message="Your entered scores are saved on this device and will still sync. Try again to reload the screen."
+    />
+  );
+}
 
 export default function ScoringLayout() {
   const theme  = useTheme();

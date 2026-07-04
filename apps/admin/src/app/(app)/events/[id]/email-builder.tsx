@@ -46,7 +46,10 @@ function buildEmailHtml(data: EmailBuilderData, sections: SectionId[], subject: 
     <tr><td style="padding:28px 32px;font-family:Arial,sans-serif;">
       <h2 style="color:${p};font-size:20px;margin:0 0 12px;">${data.eventName}</h2>
       <p style="color:#555;font-size:15px;margin:4px 0;">&#128197; ${data.eventDate}</p>
-      ${data.eventLocation ? `<p style="color:#555;font-size:15px;margin:4px 0;">&#128205; ${data.eventLocation}</p>` : ''}
+      ${data.courseName ? `<p style="color:#555;font-size:15px;margin:4px 0;">&#9971; ${data.courseName}</p>` : ''}
+      ${data.courseAddress
+        ? `<p style="color:#555;font-size:15px;margin:4px 0;">&#128205; ${data.courseAddress}</p>`
+        : data.eventLocation ? `<p style="color:#555;font-size:15px;margin:4px 0;">&#128205; ${data.eventLocation}</p>` : ''}
     </td></tr>
   </table>`;
 
@@ -350,7 +353,10 @@ export default function EmailBuilderScreen() {
           <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>Event Info</Text>
           <Text style={[styles.cardSub,   { color: theme.mutedText  }]}>
             {builderData.eventName} · {builderData.eventDate}
-            {builderData.eventLocation ? `\n${builderData.eventLocation}` : ''}
+            {builderData.courseName ? `\n⛳ ${builderData.courseName}` : ''}
+            {builderData.courseAddress
+              ? `\n${builderData.courseAddress}`
+              : builderData.eventLocation ? `\n${builderData.eventLocation}` : ''}
             {`\n${builderData.sponsors.length} sponsor(s)`}
             {`\n${builderData.registrationUrl}`}
           </Text>

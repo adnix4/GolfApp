@@ -9,7 +9,7 @@ import {
   START_OPTIONS, START_LABELS,
   HOLES_OPTIONS,
 } from '@gfp/shared-types';
-import { eventsApi, testDataApi, type EventDetail, type UpdateEventPayload } from '@/lib/api';
+import { eventsApi, testDataApi, type Course, type EventDetail, type UpdateEventPayload } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 import {
@@ -175,16 +175,20 @@ export default function EventOverviewScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Course</Text>
-          {!event.course && (
-            <Pressable style={[styles.smallBtn, { backgroundColor: theme.colors.action }]} onPress={() => setShowCourse(true)}>
-              <Text style={[styles.smallBtnText, { color: theme.ctaLabel }]}>Attach Course</Text>
-            </Pressable>
-          )}
+          <Pressable style={[styles.smallBtn, { backgroundColor: theme.colors.action }]} onPress={() => setShowCourse(true)}>
+            <Text style={[styles.smallBtnText, { color: theme.ctaLabel }]}>
+              {event.course ? 'Edit' : 'Attach Course'}
+            </Text>
+          </Pressable>
         </View>
         {event.course ? (
           <>
             <DetailRow label="Name"  value={event.course.name} />
-            <DetailRow label="City"  value={`${event.course.city}, ${event.course.state}`} />
+            {!!event.course.address && <DetailRow label="Address" value={event.course.address} />}
+            <DetailRow
+              label="City"
+              value={`${event.course.city}, ${event.course.state}${event.course.zip ? ` ${event.course.zip}` : ''}`}
+            />
             <DetailRow label="Holes" value={String(event.course.holes.length)} />
           </>
         ) : (
@@ -237,6 +241,7 @@ export default function EventOverviewScreen() {
       <AttachCourseModal
         visible={showCourse}
         eventId={event.id}
+        course={event.course}
         onClose={() => setShowCourse(false)}
         onAttached={updated => { setEvent(updated); setShowCourse(false); }}
       />
@@ -591,14 +596,18 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
   );
 }
 
-// ── Attach Course Modal ───────────────────────────────────────────────────────
+// ── Attach / Edit Course Modal ────────────────────────────────────────────────
+// With a `course` prop the modal edits the existing course IN PLACE via
+// PATCH /course (holes preserved); without it, POST /course attaches a new one.
 
 interface AttachCourseModalProps {
-  visible: boolean; eventId: string; onClose: () => void; onAttached: (e: EventDetail) => void;
+  visible: boolean; eventId: string; course: Course | null;
+  onClose: () => void; onAttached: (e: EventDetail) => void;
 }
 
-function AttachCourseModal({ visible, eventId, onClose, onAttached }: AttachCourseModalProps) {
+function AttachCourseModal({ visible, eventId, course, onClose, onAttached }: AttachCourseModalProps) {
   const theme = useTheme();
+  const isEdit = !!course;
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
@@ -607,6 +616,14 @@ function AttachCourseModal({ visible, eventId, onClose, onAttached }: AttachCour
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Prefill from the attached course each time the modal opens (edit mode).
+  useEffect(() => {
+    if (!visible) return;
+    setName(course?.name ?? ''); setAddress(course?.address ?? '');
+    setCity(course?.city ?? ''); setState(course?.state ?? ''); setZip(course?.zip ?? '');
+    setError(null);
+  }, [visible, course]);
+
   function reset() { setName(''); setAddress(''); setCity(''); setState(''); setZip(''); setError(null); }
 
   async function handleSubmit() {
@@ -614,12 +631,15 @@ function AttachCourseModal({ visible, eventId, onClose, onAttached }: AttachCour
     if (!city.trim())  { setError('City is required.'); return; }
     if (!state.trim()) { setError('State is required.'); return; }
     setLoading(true); setError(null);
+    const payload = {
+      name: name.trim(), address: address.trim(), city: city.trim(), state: state.trim(), zip: zip.trim(),
+    };
     try {
-      const updated = await eventsApi.attachCourse(eventId, {
-        name: name.trim(), address: address.trim(), city: city.trim(), state: state.trim(), zip: zip.trim(),
-      });
+      const updated = isEdit
+        ? await eventsApi.updateCourse(eventId, payload)
+        : await eventsApi.attachCourse(eventId, payload);
       reset(); onAttached(updated);
-    } catch (e: any) { setError(e.message ?? 'Failed to attach course.'); }
+    } catch (e: any) { setError(e.message ?? (isEdit ? 'Failed to update course.' : 'Failed to attach course.')); }
     finally { setLoading(false); }
   }
 
@@ -627,7 +647,9 @@ function AttachCourseModal({ visible, eventId, onClose, onAttached }: AttachCour
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => { reset(); onClose(); }}>
       <View style={styles.overlay}>
         <View style={styles.modal}>
-          <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Attach Course</Text>
+          <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
+            {isEdit ? 'Edit Course' : 'Attach Course'}
+          </Text>
           {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
           {([
             { label: 'Course Name *', value: name,    setter: setName,    placeholder: 'Pebble Beach Golf Links' },
@@ -650,7 +672,7 @@ function AttachCourseModal({ visible, eventId, onClose, onAttached }: AttachCour
               <Text style={[styles.modalCancelText, { color: theme.mutedText }]}>Cancel</Text>
             </Pressable>
             <Pressable style={[styles.modalSubmitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
-              {loading ? <ActivityIndicator color={theme.buttonLabel} /> : <Text style={[styles.modalSubmitText, { color: theme.buttonLabel }]}>Attach</Text>}
+              {loading ? <ActivityIndicator color={theme.buttonLabel} /> : <Text style={[styles.modalSubmitText, { color: theme.buttonLabel }]}>{isEdit ? 'Save Changes' : 'Attach'}</Text>}
             </Pressable>
           </View>
         </View>

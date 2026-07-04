@@ -310,6 +310,40 @@ public class EventService
         return MapToEventResponse(evt, await LoadCountsAsync(eventId, ct));
     }
 
+    /// <summary>
+    /// Updates the attached course's identity fields (name/address/city/state/zip)
+    /// in place. Unlike AttachCourseAsync this never touches holes, so pars,
+    /// handicap indexes, and yardages survive an address correction.
+    /// </summary>
+    public async Task<EventResponse> UpdateCourseAsync(
+        Guid orgId,
+        Guid eventId,
+        UpdateCourseRequest request,
+        CancellationToken ct = default)
+    {
+        var evt = await _db.Events
+            .Include(e => e.Course)
+                .ThenInclude(c => c!.Holes)
+            .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct)
+            ?? throw new NotFoundException("Event", eventId);
+
+        if (evt.Course is null)
+            throw new ValidationException("This event has no course attached yet. Attach a course first.");
+
+        evt.Course.Name    = request.Name.Trim();
+        evt.Course.Address = request.Address.Trim();
+        evt.Course.City    = request.City.Trim();
+        evt.Course.State   = request.State.Trim();
+        evt.Course.Zip     = request.Zip.Trim();
+
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Updated course '{CourseName}' on event {EventId}", evt.Course.Name, eventId);
+
+        return MapToEventResponse(evt, await LoadCountsAsync(eventId, ct));
+    }
+
     // ── SHOTGUN ASSIGNMENTS ───────────────────────────────────────────────────
 
     /// <summary>
