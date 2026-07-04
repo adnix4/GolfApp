@@ -627,9 +627,10 @@ function AttachCourseModal({ visible, eventId, course, onClose, onAttached }: At
   function reset() { setName(''); setAddress(''); setCity(''); setState(''); setZip(''); setError(null); }
 
   async function handleSubmit() {
-    if (!name.trim())  { setError('Course name is required.'); return; }
-    if (!city.trim())  { setError('City is required.'); return; }
-    if (!state.trim()) { setError('State is required.'); return; }
+    if (!name.trim())    { setError('Course name is required.'); return; }
+    if (!address.trim()) { setError('Address is required.'); return; }
+    if (!city.trim())    { setError('City is required.'); return; }
+    if (!state.trim())   { setError('State is required.'); return; }
     setLoading(true); setError(null);
     const payload = {
       name: name.trim(), address: address.trim(), city: city.trim(), state: state.trim(), zip: zip.trim(),
@@ -653,7 +654,7 @@ function AttachCourseModal({ visible, eventId, course, onClose, onAttached }: At
           {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
           {([
             { label: 'Course Name *', value: name,    setter: setName,    placeholder: 'Pebble Beach Golf Links' },
-            { label: 'Address',       value: address, setter: setAddress, placeholder: '17 Mile Dr' },
+            { label: 'Address *',     value: address, setter: setAddress, placeholder: '17 Mile Dr' },
             { label: 'City *',        value: city,    setter: setCity,    placeholder: 'Pebble Beach' },
             { label: 'State *',       value: state,   setter: setState,   placeholder: 'CA' },
             { label: 'Zip',           value: zip,     setter: setZip,     placeholder: '93953' },

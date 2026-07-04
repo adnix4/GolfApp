@@ -129,6 +129,7 @@ public record UpdateCourseRequest
     [MaxLength(200)]
     public string Name { get; init; } = string.Empty;
 
+    [Required]
     [MaxLength(300)]
     public string Address { get; init; } = string.Empty;
 

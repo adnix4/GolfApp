@@ -213,7 +213,10 @@ LOCAL (unpushed) unless noted.
           holes count/pars/handicaps and course id unchanged; PATCH on a
           course-less event → clean 400; email-builder/data returns the new
           fields. All tsc + tests green.
-        NOTE (surfaced while verifying, NOT fixed): POST /course requires
-        Address ([Required] + FluentValidation), but the admin Attach Course
-        modal labels Address as optional — attaching with a blank address 400s.
-        Either relax the API or mark the field required in the modal.
+        NOTE (surfaced while verifying): POST /course requires Address but the
+        admin Attach Course modal labeled it optional. RESOLVED 2026-07-04 by
+        making Address required everywhere: UpdateCourseRequest gained
+        [Required] + an UpdateCourseRequestValidator (mirrors the attach
+        rules, minus holes), and the admin modal now labels "Address *" and
+        blocks submit on blank. Verified live: PATCH blank address → 400
+        naming Address; with address → 200. Zip stays optional.
