@@ -505,6 +505,36 @@ public class Player
     [MaxLength(64)]
     public string? SessionToken { get; set; }
 
+    /// <summary>
+    /// Phase 13 (A3): pending one-time email verification code for /join. The join
+    /// credential is "event code + registered email", so before minting a session
+    /// token we prove email ownership by sending this code to the registered
+    /// address. Null when no verification is in flight.
+    /// </summary>
+    [Column("verification_code")]
+    [MaxLength(10)]
+    public string? VerificationCode { get; set; }
+
+    /// <summary>Phase 13: when the pending verification code stops being accepted.</summary>
+    [Column("verification_expires_at")]
+    public DateTime? VerificationExpiresAt { get; set; }
+
+    /// <summary>
+    /// Phase 13: wrong-code attempts against the pending code. At the limit the
+    /// code is invalidated and the golfer must request a new one.
+    /// </summary>
+    [Column("verification_attempts")]
+    public short VerificationAttempts { get; set; } = 0;
+
+    /// <summary>
+    /// Phase 13: deviceId that last completed email verification. Rejoins from
+    /// this device skip the code prompt, so free-agent "Check Again" polling and
+    /// re-installs on the same device stay friction-free.
+    /// </summary>
+    [Column("verified_device_id")]
+    [MaxLength(100)]
+    public string? VerifiedDeviceId { get; set; }
+
     // Navigation
     [ForeignKey(nameof(TeamId))]
     public Team? Team { get; set; }

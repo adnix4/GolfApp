@@ -1189,6 +1189,24 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("team_id");
 
+                    b.Property<short>("VerificationAttempts")
+                        .HasColumnType("smallint")
+                        .HasColumnName("verification_attempts");
+
+                    b.Property<string>("VerificationCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("verification_code");
+
+                    b.Property<DateTime?>("VerificationExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("verification_expires_at");
+
+                    b.Property<string>("VerifiedDeviceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("verified_device_id");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TeamId");

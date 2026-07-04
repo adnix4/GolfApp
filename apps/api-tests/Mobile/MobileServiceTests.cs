@@ -1,9 +1,11 @@
 using Xunit;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
 using GolfFundraiserPro.Api.Domain.Enums;
+using GolfFundraiserPro.Api.Features.Emails;
 using GolfFundraiserPro.Api.Features.Mobile;
 using WebAPI.Tests.Helpers;
 
@@ -43,16 +45,34 @@ public class MobileServiceTests
         public const string Code = "ABCD1234";
     }
 
-    /// <summary>Seeds org + event (Scoring) + team + one team-assigned player with a session token.</summary>
-    private static World Seed(EventStatus status = EventStatus.Scoring, bool mintToken = true)
+    /// <summary>
+    /// Seeds org + event (Scoring) + team + one team-assigned player with a session
+    /// token. The player is pre-verified for the default deviceId ("mobile-app") so
+    /// join tests that aren't about email verification get the full payload in one
+    /// call; pass verifiedDevice: false to exercise the A3 verification challenge.
+    /// The optional bypassCode wires JoinVerification:TestBypassCode into config.
+    /// </summary>
+    private static World Seed(
+        EventStatus status = EventStatus.Scoring,
+        bool mintToken = true,
+        bool verifiedDevice = true,
+        string? bypassCode = null)
     {
         var db = InMemoryDbFactory.Create();
         var rt = new CapturingRealTime();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(bypassCode is null
+                ? new Dictionary<string, string?>()
+                : new Dictionary<string, string?> { ["JoinVerification:TestBypassCode"] = bypassCode })
+            .Build();
+        // Real EmailService with no SENDGRID_API_KEY — sends throw and MobileService
+        // swallows/logs them, which is exactly the dev-environment behavior.
+        var email = new EmailService(db, config, NullLogger<EmailService>.Instance);
         var w = new World
         {
             Db = db, Rt = rt,
             EventId = Guid.NewGuid(), TeamId = Guid.NewGuid(), PlayerId = Guid.NewGuid(),
-            Svc = new MobileService(db, rt, NullLogger<MobileService>.Instance),
+            Svc = new MobileService(db, rt, email, config, NullLogger<MobileService>.Instance),
         };
 
         db.Organizations.Add(new Organization { Id = Guid.NewGuid(), Name = "Test Org", Slug = "test" });
@@ -70,6 +90,7 @@ public class MobileServiceTests
             Id = w.PlayerId, EventId = w.EventId, TeamId = w.TeamId,
             FirstName = "Pat", LastName = "Golfer", Email = w.PlayerEmail,
             SessionToken = mintToken ? w.SessionToken : null,
+            VerifiedDeviceId = verifiedDevice ? "mobile-app" : null,
         });
         db.SaveChanges();
         return w;
@@ -355,6 +376,7 @@ public class MobileServiceTests
         {
             Id = Guid.NewGuid(), EventId = w.EventId, TeamId = null,
             FirstName = "Free", LastName = "Agent", Email = "free@example.com",
+            VerifiedDeviceId = "mobile-app",
         });
         w.Db.SaveChanges();
 
@@ -389,6 +411,167 @@ public class MobileServiceTests
 
         var res = await w.Svc.JoinAsync(World.Code, new JoinEventRequest { Email = w.PlayerEmail });
         Assert.True(res.Event.OfflineMode);
+    }
+
+    // ── JoinAsync — A3 email verification ─────────────────────────────────────────
+
+    [Fact]
+    public async Task Join_from_unverified_device_challenges_instead_of_minting_a_token()
+    {
+        var w = Seed(mintToken: false, verifiedDevice: false);
+        var res = await w.Svc.JoinAsync(World.Code, new JoinEventRequest { Email = w.PlayerEmail });
+
+        Assert.True(res.VerificationRequired);
+        Assert.True(string.IsNullOrEmpty(res.SessionToken)); // no capability handed out
+
+        var p = w.Db.Players.Single(p => p.Id == w.PlayerId);
+        Assert.Null(p.SessionToken);                          // token NOT minted
+        Assert.Matches(@"^\d{6}$", p.VerificationCode);       // 6-digit code stored
+        Assert.NotNull(p.VerificationExpiresAt);
+        Assert.True(p.VerificationExpiresAt > DateTime.UtcNow);
+    }
+
+    [Fact]
+    public async Task Join_with_the_emailed_code_verifies_and_returns_the_payload()
+    {
+        var w = Seed(mintToken: false, verifiedDevice: false);
+        await w.Svc.JoinAsync(World.Code, new JoinEventRequest { Email = w.PlayerEmail, DeviceId = "dev-1" });
+        var code = w.Db.Players.Single(p => p.Id == w.PlayerId).VerificationCode!;
+
+        var res = await w.Svc.JoinAsync(World.Code, new JoinEventRequest
+        {
+            Email = w.PlayerEmail, DeviceId = "dev-1", VerificationCode = code,
+        });
+
+        Assert.False(res.VerificationRequired);
+        Assert.False(string.IsNullOrEmpty(res.SessionToken));
+
+        var p = w.Db.Players.Single(p => p.Id == w.PlayerId);
+        Assert.Equal("dev-1", p.VerifiedDeviceId); // device remembered
+        Assert.Null(p.VerificationCode);           // one-time code consumed
+
+        // Rejoin from the SAME device skips the challenge entirely
+        var again = await w.Svc.JoinAsync(World.Code, new JoinEventRequest
+        {
+            Email = w.PlayerEmail, DeviceId = "dev-1",
+        });
+        Assert.False(again.VerificationRequired);
+        Assert.Equal(res.SessionToken, again.SessionToken);
+    }
+
+    [Fact]
+    public async Task Join_with_a_wrong_code_throws_and_counts_the_attempt()
+    {
+        var w = Seed(verifiedDevice: false);
+        await w.Svc.JoinAsync(World.Code, new JoinEventRequest { Email = w.PlayerEmail });
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            w.Svc.JoinAsync(World.Code, new JoinEventRequest
+            {
+                Email = w.PlayerEmail, VerificationCode = "000001",
+            }));
+
+        var p = w.Db.Players.Single(p => p.Id == w.PlayerId);
+        Assert.Equal((short)1, p.VerificationAttempts);
+        Assert.NotNull(p.VerificationCode); // still pending — golfer can retry
+    }
+
+    [Fact]
+    public async Task Join_invalidates_the_code_after_too_many_wrong_attempts()
+    {
+        var w = Seed(verifiedDevice: false);
+        await w.Svc.JoinAsync(World.Code, new JoinEventRequest { Email = w.PlayerEmail });
+        var realCode = w.Db.Players.Single(p => p.Id == w.PlayerId).VerificationCode!;
+        var wrong = realCode == "000001" ? "000002" : "000001";
+
+        for (var i = 0; i < 5; i++)
+            await Assert.ThrowsAsync<ValidationException>(() =>
+                w.Svc.JoinAsync(World.Code, new JoinEventRequest
+                {
+                    Email = w.PlayerEmail, VerificationCode = wrong,
+                }));
+
+        // 6th try hits the attempt limit and invalidates the pending code —
+        // even the REAL code no longer works until a new one is requested.
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            w.Svc.JoinAsync(World.Code, new JoinEventRequest
+            {
+                Email = w.PlayerEmail, VerificationCode = realCode,
+            }));
+        Assert.Null(w.Db.Players.Single(p => p.Id == w.PlayerId).VerificationCode);
+    }
+
+    [Fact]
+    public async Task Join_rejects_an_expired_code()
+    {
+        var w = Seed(verifiedDevice: false);
+        await w.Svc.JoinAsync(World.Code, new JoinEventRequest { Email = w.PlayerEmail });
+
+        var p = w.Db.Players.Single(p => p.Id == w.PlayerId);
+        var code = p.VerificationCode!;
+        p.VerificationExpiresAt = DateTime.UtcNow.AddMinutes(-1);
+        w.Db.SaveChanges();
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            w.Svc.JoinAsync(World.Code, new JoinEventRequest
+            {
+                Email = w.PlayerEmail, VerificationCode = code,
+            }));
+    }
+
+    [Fact]
+    public async Task Join_accepts_the_test_bypass_code_when_configured()
+    {
+        var w = Seed(mintToken: false, verifiedDevice: false, bypassCode: "999999");
+
+        var res = await w.Svc.JoinAsync(World.Code, new JoinEventRequest
+        {
+            Email = w.PlayerEmail, DeviceId = "dev-1", VerificationCode = "999999",
+        });
+
+        Assert.False(res.VerificationRequired);
+        Assert.False(string.IsNullOrEmpty(res.SessionToken));
+        Assert.Equal("dev-1", w.Db.Players.Single(p => p.Id == w.PlayerId).VerifiedDeviceId);
+    }
+
+    [Fact]
+    public async Task Join_rejects_the_test_bypass_code_when_not_configured()
+    {
+        var w = Seed(verifiedDevice: false); // no bypass in config (production posture)
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            w.Svc.JoinAsync(World.Code, new JoinEventRequest
+            {
+                Email = w.PlayerEmail, VerificationCode = "999999",
+            }));
+    }
+
+    [Fact]
+    public async Task Join_skips_verification_for_draft_test_mode_events()
+    {
+        var w = Seed(status: EventStatus.Draft, mintToken: false, verifiedDevice: false);
+        var res = await w.Svc.JoinAsync(World.Code, new JoinEventRequest { Email = w.PlayerEmail });
+
+        Assert.False(res.VerificationRequired);
+        Assert.False(string.IsNullOrEmpty(res.SessionToken));
+    }
+
+    [Fact]
+    public async Task Join_challenges_an_unverified_free_agent_before_minting_a_token()
+    {
+        var w = Seed(status: EventStatus.Registration);
+        var freeAgentId = Guid.NewGuid();
+        w.Db.Players.Add(new Player
+        {
+            Id = freeAgentId, EventId = w.EventId, TeamId = null,
+            FirstName = "Free", LastName = "Agent", Email = "free@example.com",
+        });
+        w.Db.SaveChanges();
+
+        var res = await w.Svc.JoinAsync(World.Code, new JoinEventRequest { Email = "free@example.com" });
+
+        Assert.True(res.VerificationRequired);
+        Assert.False(res.AwaitingAssignment);
+        Assert.Null(w.Db.Players.Single(p => p.Id == freeAgentId).SessionToken);
     }
 
     // ── GetTeamScoresAsync ────────────────────────────────────────────────────────

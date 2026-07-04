@@ -20,6 +20,16 @@ public record JoinEventRequest
     /// <summary>Stable device identifier for score conflict detection.</summary>
     [MaxLength(100)]
     public string DeviceId { get; init; } = "mobile-app";
+
+    /// <summary>
+    /// One-time email verification code (A3). First join call omits it — the
+    /// server emails a code to the registered address and responds with
+    /// VerificationRequired = true. The app then re-calls join with the code the
+    /// golfer typed; a valid code mints the session token and returns the full
+    /// payload. Devices that already verified (verified_device_id) skip this.
+    /// </summary>
+    [MaxLength(10)]
+    public string? VerificationCode { get; init; }
 }
 
 /// <summary>
@@ -115,6 +125,14 @@ public record JoinEventResponse
     /// "Check Again" button that re-calls this endpoint.
     /// </summary>
     public bool AwaitingAssignment { get; init; } = false;
+
+    /// <summary>
+    /// True when the golfer must prove email ownership before joining (A3). A
+    /// one-time code was just emailed to the registered address; every other
+    /// field in this response is null/empty — the app should show a code-entry
+    /// step and re-call join with VerificationCode set. Check this FIRST.
+    /// </summary>
+    public bool VerificationRequired { get; init; } = false;
 }
 
 public record EventCacheDto
