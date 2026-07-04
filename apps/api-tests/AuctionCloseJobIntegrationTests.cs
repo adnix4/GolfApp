@@ -33,9 +33,8 @@ public class AuctionCloseJobIntegrationTests
         var payments = new PaymentsService(db, config, NullLogger<PaymentsService>.Instance);
         var email    = new EmailService(db, config, NullLogger<EmailService>.Instance);
         var push     = new PushNotificationService(new NullHttpClientFactory(), NullLogger<PushNotificationService>.Instance);
-        var env      = new NullWebHostEnvironment();
-        var svc      = new AuctionService(db, new NullRealTimeService(), payments, email, push, env,
-                                          NullLogger<AuctionService>.Instance);
+        var svc      = new AuctionService(db, new NullRealTimeService(), payments, email, push,
+                                          new FakeFileStorage(), NullLogger<AuctionService>.Instance);
         return (svc, db);
     }
 

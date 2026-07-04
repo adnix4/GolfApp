@@ -12,9 +12,9 @@
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Common.Middleware;
+using GolfFundraiserPro.Api.Common.Storage;
 using GolfFundraiserPro.Api.Data;
 
 namespace GolfFundraiserPro.Api.Features.Events.Branding;
@@ -33,20 +33,20 @@ public sealed class BrandExtractionService
     private readonly ApplicationDbContext _db;
     private readonly IHttpClientFactory _httpFactory;
     private readonly IBrandPaletteSynthesizer _synthesizer;
-    private readonly IWebHostEnvironment _env;
+    private readonly IFileStorage _storage;
     private readonly ILogger<BrandExtractionService> _logger;
 
     public BrandExtractionService(
         ApplicationDbContext db,
         IHttpClientFactory httpFactory,
         IBrandPaletteSynthesizer synthesizer,
-        IWebHostEnvironment env,
+        IFileStorage storage,
         ILogger<BrandExtractionService> logger)
     {
         _db = db;
         _httpFactory = httpFactory;
         _synthesizer = synthesizer;
-        _env = env;
+        _storage = storage;
         _logger = logger;
     }
 
@@ -228,12 +228,13 @@ public sealed class BrandExtractionService
                 if (bytes.Length == 0) continue;
 
                 // Distinct "-fetched" name so we never clobber an existing saved
-                // logo before the organizer actually saves the suggestion.
-                var dir = Path.Combine(_env.WebRootPath, "uploads", "event-logos");
-                Directory.CreateDirectory(dir);
-                var filename = $"{eventId}-fetched{ext}";
-                await File.WriteAllBytesAsync(Path.Combine(dir, filename), bytes, ct);
-                return $"/uploads/event-logos/{filename}";
+                // logo before the organizer actually saves the suggestion. The
+                // name is STABLE (self-overwriting), so it must not be cached
+                // as immutable — hence immutableCache: false.
+                using var ms = new MemoryStream(bytes);
+                return await _storage.SaveAsync(
+                    "event-logos", $"{eventId}-fetched{ext}", ms, contentType,
+                    immutableCache: false, ct: ct);
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
             {

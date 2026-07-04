@@ -51,7 +51,7 @@ public class SponsorServiceTests
         });
         db.SaveChanges();
         var realTime = new CapturingRealTimeService();
-        return new Ctx { Db = db, Svc = new SponsorService(db, new NullWebHostEnvironment(), NullLogger<SponsorService>.Instance, realTime), RealTime = realTime, OrgId = orgId, EventId = eventId };
+        return new Ctx { Db = db, Svc = new SponsorService(db, new FakeFileStorage(), NullLogger<SponsorService>.Instance, realTime), RealTime = realTime, OrgId = orgId, EventId = eventId };
     }
 
     // ── Ownership ─────────────────────────────────────────────────────────────────

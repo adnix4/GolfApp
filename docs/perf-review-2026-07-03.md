@@ -5,8 +5,9 @@ Focus: things that unnecessarily slow the system down, ranked by impact.
 
 **Status: all high-impact (1–3) and medium (4–7) items are FIXED on this
 branch, plus three scale-readiness fixes (venue-NAT rate limiting, Redis
-fail-fast, Hangfire production-boot crash). ONE item remains open: blob
-storage for uploads (blocks multi-instance scaling — see Scale readiness).**
+fail-fast, Hangfire production-boot crash). The last open item — blob
+storage for uploads — was closed 2026-07-03 on feat/blob-storage (see
+Scale readiness).**
 
 ## High impact
 
@@ -163,13 +164,36 @@ the app crashed at startup before ever listening. Now resolved through DI
 (`IRecurringJobManager`). This was latent — production deploys would have
 failed on boot.
 
-### OPEN — Local-disk uploads block horizontal scaling
-`wwwroot/uploads` is instance-local: on ephemeral hosts (Railway/Render)
+### ~~OPEN~~ DONE 2026-07-03 — Blob storage for uploads (feat/blob-storage)
+`wwwroot/uploads` was instance-local: on ephemeral hosts (Railway/Render)
 logos vanish on redeploy, and with 2+ instances an upload lands on one
-instance and 404s from the others. Move to blob storage (S3/R2) behind the
-same `/uploads/*` URL shape before running multiple instances — the versioned
-filenames + immutable cache headers added above carry over directly (and suit
-a CDN). Separate piece of work.
+instance and 404s from the others.
+
+Fixed with an `IFileStorage` abstraction (`apps/api/Common/Storage/`):
+- **LocalFileStorage** (default) — unchanged behavior, wwwroot/uploads +
+  static-file middleware, relative `/uploads/…` URLs.
+- **S3FileStorage** — any S3-compatible bucket (AWS S3, Cloudflare R2, MinIO
+  verified). Objects keyed `uploads/{category}/{filename}` (same layout);
+  stored URLs become absolute `{PublicBaseUrl}/uploads/…`; the immutable /
+  no-cache Cache-Control policy is set per-object at upload. Clients already
+  handle absolute URLs (`startsWith('/')` checks in mobile/admin/web).
+
+Config: `Storage:Provider` = `Local` | `S3` + `Storage:S3:*`
+(Bucket, ServiceUrl for R2/MinIO, Region for AWS, PublicBaseUrl,
+AccessKey/SecretKey or the AWS credential chain, ForcePathStyle for MinIO) —
+see appsettings.json. A half-configured S3 section fails the boot.
+
+Ops notes for the actual switch:
+- The bucket must be publicly readable via PublicBaseUrl (ideally a CDN).
+- Pre-existing local uploads keep their relative URLs and keep being served
+  by the static-file middleware — fine on a single instance, but a real
+  multi-instance move needs a one-time migration (copy wwwroot/uploads/* to
+  the bucket under the same keys + rewrite `/uploads/…` DB values in
+  organizations.logo_url, events.logo_url, sponsors.logo_url,
+  auction_items.photo_urls_json to absolute URLs).
+- Deletes of replaced files are best-effort and logged; a URL the active
+  provider doesn't own (e.g. legacy local path after switching to S3) is
+  left alone.
 
 ### Multi-instance notes (acceptable as-is)
 - `LeaderboardBroadcaster` keeps per-instance coalescing state → with 2+
@@ -210,5 +234,5 @@ a CDN). Separate piece of work.
 7. ~~Rate limiter: per-device buckets chained under a per-IP ceiling~~ ✅ done
 8. ~~Redis fail-fast in Production (GFP_ALLOW_NO_REDIS opt-out)~~ ✅ done
 9. ~~Hangfire recurring-job registration via DI (production boot crash)~~ ✅ done
-10. Blob storage (S3/R2) for `/uploads/*` — **OPEN**, prerequisite for running
-    2+ API instances; versioned filenames + immutable cache headers carry over.
+10. ~~Blob storage (S3/R2) for `/uploads/*`~~ ✅ done 2026-07-03
+    (feat/blob-storage): `IFileStorage` + Local/S3 providers, MinIO-verified.
