@@ -57,6 +57,17 @@ public static class ServiceCollectionExtensions
         // HTTP client factory used by PushNotificationService and EmailBuilderService
         services.AddHttpClient();
 
+        // Response compression — leaderboard/public-event JSON is polled by many
+        // clients and compresses ~5-10×. EnableForHttps is required for it to do
+        // anything in production (BREACH concerns don't apply here: responses
+        // don't interleave secrets with attacker-reflected input).
+        services.AddResponseCompression(opts =>
+        {
+            opts.EnableForHttps = true;
+            opts.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+            opts.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+        });
+
         return services;
     }
 
@@ -295,6 +306,20 @@ public static class ServiceCollectionExtensions
         }
         else
         {
+            // Without Redis, the leaderboard cache and the SignalR backplane
+            // silently no-op — every spectator poll then hits Postgres directly
+            // and multi-instance SignalR breaks. That's fine in local dev but
+            // load-bearing at tournament scale, so Production fails fast unless
+            // the operator explicitly opts into single-instance/no-cache mode.
+            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+            var allowNoRedis = string.Equals(
+                configuration["GFP_ALLOW_NO_REDIS"], "true", StringComparison.OrdinalIgnoreCase);
+            if (string.Equals(env, "Production", StringComparison.OrdinalIgnoreCase) && !allowNoRedis)
+                throw new InvalidOperationException(
+                    "REDIS_URL is not set. Redis provides the leaderboard burst cache and the " +
+                    "SignalR backplane, both load-bearing under tournament load. Set REDIS_URL, " +
+                    "or set GFP_ALLOW_NO_REDIS=true to accept single-instance/no-cache operation.");
+
             // No Redis configured (local dev without Docker Redis) — in-memory SignalR only
             services.AddSignalR();
         }
@@ -399,32 +424,49 @@ public static class ServiceCollectionExtensions
     // previously unthrottled (login brute force, join email-enumeration, donate
     // and score-sync flooding).
     //
-    // NOTE on shared NAT: at a live event dozens of devices poll from one venue
-    // IP, so limits are deliberately generous. Tune PermitLimit if a busy event
-    // trips 429s — or, once per-team join tokens exist, partition by that instead
-    // of client IP for fairness behind NAT.
+    // NOTE on shared NAT: at a live event 100+ devices poll from ONE venue IP,
+    // so a single per-IP bucket would throttle a busy tournament (especially
+    // when SignalR falls back to HTTP polling). The global limiter is therefore
+    // a CHAIN: a high per-IP ceiling (bounds any single source, including an
+    // attacker rotating device headers) plus a per-device fairness bucket keyed
+    // by the mobile scorer's X-GFP-Device header. The security policies below
+    // (auth/join/donate) stay strictly IP-keyed — their key must never be
+    // client-controllable or the brute-force limits could be bypassed.
     private static IServiceCollection AddGfpRateLimiting(this IServiceCollection services)
     {
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            // Global anti-flood backstop: per client, sliding window.
-            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(http =>
-                RateLimitPartition.GetSlidingWindowLimiter(
-                    ClientKey(http),
-                    _ => new SlidingWindowRateLimiterOptions
-                    {
-                        PermitLimit       = 600,
-                        Window            = TimeSpan.FromMinutes(1),
-                        SegmentsPerWindow = 6,
-                        QueueLimit        = 0,
-                    }));
+            // Global anti-flood backstop: per-IP ceiling AND per-device bucket.
+            options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
+                PartitionedRateLimiter.Create<HttpContext, string>(http =>
+                    RateLimitPartition.GetSlidingWindowLimiter(
+                        IpKey(http),
+                        _ => new SlidingWindowRateLimiterOptions
+                        {
+                            // Sized for a full venue NAT: ~150 devices × ~15 req/min
+                            // worst case (SignalR down, all fallback polls active).
+                            PermitLimit       = 3000,
+                            Window            = TimeSpan.FromMinutes(1),
+                            SegmentsPerWindow = 6,
+                            QueueLimit        = 0,
+                        })),
+                PartitionedRateLimiter.Create<HttpContext, string>(http =>
+                    RateLimitPartition.GetSlidingWindowLimiter(
+                        DeviceOrIpKey(http),
+                        _ => new SlidingWindowRateLimiterOptions
+                        {
+                            PermitLimit       = 600,
+                            Window            = TimeSpan.FromMinutes(1),
+                            SegmentsPerWindow = 6,
+                            QueueLimit        = 0,
+                        })));
 
             // Credentials: login / register / refresh — slow brute force.
             options.AddPolicy("auth", http =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    ClientKey(http),
+                    IpKey(http),
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 20,
@@ -435,7 +477,7 @@ public static class ServiceCollectionExtensions
             // Event join — slows email enumeration without blocking venue arrivals.
             options.AddPolicy("join", http =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    ClientKey(http),
+                    IpKey(http),
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 60,
@@ -446,7 +488,7 @@ public static class ServiceCollectionExtensions
             // Public donation submit — curbs fake-donation flooding.
             options.AddPolicy("donate", http =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    ClientKey(http),
+                    IpKey(http),
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 30,
@@ -458,7 +500,7 @@ public static class ServiceCollectionExtensions
             // probing, cost) on the org-admin branding endpoint.
             options.AddPolicy("brandExtract", http =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    ClientKey(http),
+                    IpKey(http),
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 10,
@@ -474,12 +516,28 @@ public static class ServiceCollectionExtensions
     // balancer the socket IP is the proxy, so prefer the platform-set
     // X-Forwarded-For (leftmost hop = original client). For strict anti-spoofing
     // behind a proxy, configure ForwardedHeaders with known proxies/networks.
-    private static string ClientKey(HttpContext http)
+    // Per-IP partition key. Used for the security policies (auth/join/donate/
+    // brandExtract) — where the key must NOT be client-controllable — and as
+    // the outer ceiling of the chained global limiter.
+    private static string IpKey(HttpContext http)
     {
         var forwarded = http.Request.Headers["X-Forwarded-For"].FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(forwarded))
             return forwarded.Split(',')[0].Trim();
         return http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    }
+
+    // Fairness key for the global limiter: the mobile scorer sends a stable
+    // install id in X-GFP-Device, so 100+ devices behind one venue NAT IP get
+    // one bucket EACH instead of sharing the IP bucket. The header is client-
+    // controllable, which is only safe because the chained per-IP ceiling
+    // still bounds total traffic from any single source.
+    private static string DeviceOrIpKey(HttpContext http)
+    {
+        var device = http.Request.Headers["X-GFP-Device"].ToString();
+        if (!string.IsNullOrWhiteSpace(device))
+            return "dev:" + (device.Length <= 64 ? device : device[..64]);
+        return "ip:" + IpKey(http);
     }
 
     // ── SWAGGER ───────────────────────────────────────────────────────────────

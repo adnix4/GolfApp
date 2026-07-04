@@ -103,11 +103,18 @@ public class HandicapEngine
 
     private async Task SyncToPlayersAsync(List<LeagueMember> updatedMembers, CancellationToken ct)
     {
-        foreach (var m in updatedMembers.Where(m => m.PlayerId.HasValue))
-        {
-            var player = await _db.Players.FindAsync(new object?[] { m.PlayerId!.Value }, ct);
-            if (player is not null) player.HandicapIndex = m.HandicapIndex;
-        }
+        // One batched fetch instead of a FindAsync round-trip per member.
+        var byPlayerId = updatedMembers
+            .Where(m => m.PlayerId.HasValue)
+            .ToDictionary(m => m.PlayerId!.Value, m => m.HandicapIndex);
+        if (byPlayerId.Count == 0) return;
+
+        var players = await _db.Players
+            .Where(p => byPlayerId.Keys.Contains(p.Id))
+            .ToListAsync(ct);
+        foreach (var player in players)
+            player.HandicapIndex = byPlayerId[player.Id];
+
         await _db.SaveChangesAsync(ct);
     }
 

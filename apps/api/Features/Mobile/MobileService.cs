@@ -55,11 +55,24 @@ public class MobileService
     {
         var openStatuses = new[] { EventStatus.Registration, EventStatus.Active, EventStatus.Scoring };
 
+        // Untracked projection — this backs the public "find your event"
+        // directory (web, no-store) and the mobile join screen, so it should
+        // pull only the columns the summary needs, not full tracked entities.
         var events = await _db.Events
-            .Include(e => e.Organization)
-            .Include(e => e.Course)
+            .AsNoTracking()
             .Where(e => openStatuses.Contains(e.Status))
             .OrderBy(e => e.StartAt)
+            .Select(e => new
+            {
+                e.Id, e.Name, e.EventCode, e.Format, e.Status, e.StartAt,
+                e.ConfigJson, e.LogoUrl,
+                OrgName     = e.Organization.Name,
+                OrgSlug     = e.Organization.Slug,
+                OrgLogoUrl  = e.Organization.LogoUrl,
+                CourseName  = e.Course == null ? null : e.Course.Name,
+                CourseCity  = e.Course == null ? null : e.Course.City,
+                CourseState = e.Course == null ? null : e.Course.State,
+            })
             .ToListAsync(ct);
 
         return events.Select(e =>
@@ -81,12 +94,12 @@ public class MobileService
                 Format           = e.Format.ToString(),
                 Status           = e.Status.ToString(),
                 StartAt          = e.StartAt,
-                OrgName          = e.Organization.Name,
-                OrgSlug          = e.Organization.Slug,
-                CourseName       = e.Course?.Name,
-                CourseCity       = e.Course?.City,
-                CourseState      = e.Course?.State,
-                LogoUrl          = e.LogoUrl ?? e.Organization.LogoUrl,
+                OrgName          = e.OrgName,
+                OrgSlug          = e.OrgSlug,
+                CourseName       = e.CourseName,
+                CourseCity       = e.CourseCity,
+                CourseState      = e.CourseState,
+                LogoUrl          = e.LogoUrl ?? e.OrgLogoUrl,
                 FreeAgentEnabled = freeAgentEnabled,
             };
         }).ToList();

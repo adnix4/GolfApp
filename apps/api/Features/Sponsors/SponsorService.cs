@@ -143,7 +143,9 @@ public class SponsorService
         }
 
         var ext      = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var filename = $"{sponsorId}{ext}";
+        // Versioned filename → unique URL per upload → immutable-cacheable
+        // (see Program.cs static-file cache policy). Old file deleted above.
+        var filename = $"{sponsorId}-{DateTime.UtcNow.Ticks}{ext}";
         var dir      = Path.Combine(_env.WebRootPath, "uploads", "sponsor-logos");
         Directory.CreateDirectory(dir);
         await using var stream = new FileStream(Path.Combine(dir, filename), FileMode.Create, FileAccess.Write);

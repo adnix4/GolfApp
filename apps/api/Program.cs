@@ -158,8 +158,25 @@ if (!app.Environment.IsDevelopment())
 var corsPolicy = app.Environment.IsDevelopment() ? "GfpDevelopment" : "GfpProduction";
 app.UseCors(corsPolicy);
 
-// 5. Static files — serves wwwroot/uploads/* for uploaded logos
-app.UseStaticFiles();
+// 4b. Response compression — before anything that writes response bodies.
+app.UseResponseCompression();
+
+// 5. Static files — serves wwwroot/uploads/* for uploaded logos.
+// Logo/photo uploads get versioned (unique-per-upload) filenames, so they can
+// be cached aggressively — a replaced logo gets a NEW URL, never a stale hit.
+// The brand-extraction "-fetched" suggestion file deliberately overwrites
+// itself under a stable name, so it must revalidate on every request instead.
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        if (!ctx.Context.Request.Path.StartsWithSegments("/uploads")) return;
+        ctx.Context.Response.Headers.CacheControl =
+            ctx.File.Name.Contains("-fetched", StringComparison.OrdinalIgnoreCase)
+                ? "no-cache"                                  // ETag revalidation each time
+                : "public, max-age=31536000, immutable";      // unique filenames → cache forever
+    },
+});
 
 // 6. Routing — must come before auth middleware
 app.UseRouting();
@@ -186,11 +203,19 @@ if (app.Environment.IsDevelopment())
     app.Logger.LogInformation("Hangfire dashboard available at: http://localhost:5000/hangfire");
 }
 
-// 9. Register Hangfire recurring jobs
-RecurringJob.AddOrUpdate<GolfFundraiserPro.Api.Features.Auction.AuctionCloseJob>(
-    "auction-close",
-    job => job.RunAsync(),
-    "*/10 * * * * *"); // every 10 seconds (Hangfire Cron seconds expression)
+// 9. Register Hangfire recurring jobs.
+// Resolved via DI (IRecurringJobManager), NOT the static RecurringJob API:
+// the static API requires JobStorage.Current, which in Production (no
+// Hangfire dashboard) is never initialized before this line runs — the app
+// crashed at startup outside Development.
+using (var jobScope = app.Services.CreateScope())
+{
+    jobScope.ServiceProvider.GetRequiredService<IRecurringJobManager>()
+        .AddOrUpdate<GolfFundraiserPro.Api.Features.Auction.AuctionCloseJob>(
+            "auction-close",
+            job => job.RunAsync(),
+            "*/10 * * * * *"); // every 10 seconds (Hangfire Cron seconds expression)
+}
 
 // 9b. Map controllers to routes
 app.MapControllers();

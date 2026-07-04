@@ -94,7 +94,10 @@ public class OrgService
         }
 
         var ext      = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var filename = $"{orgId}{ext}";
+        // Versioned filename: each upload gets a unique URL so /uploads/* can be
+        // served with immutable cache headers (see Program.cs). The old file was
+        // deleted above, so replacements don't accumulate.
+        var filename = $"{orgId}-{DateTime.UtcNow.Ticks}{ext}";
         var dir      = Path.Combine(_env.WebRootPath, "uploads", "logos");
         Directory.CreateDirectory(dir);
         var fullPath = Path.Combine(dir, filename);

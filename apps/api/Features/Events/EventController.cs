@@ -324,6 +324,24 @@ public class EventController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>
+    /// Polling micro-endpoint: status + resolved theme + sponsor version only.
+    /// Mobile devices hit this every 5–60 s; it is a single-row projection so
+    /// the poll load stays off the full landing-page query. Reports all
+    /// statuses (incl. Draft test mode and Cancelled) — see service comment.
+    /// </summary>
+    [HttpGet("api/v1/pub/events/{eventCode}/status")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(PublicEventStatusResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PublicEventStatusResponse>> GetPublicEventStatus(
+        [FromRoute] string eventCode,
+        CancellationToken ct)
+    {
+        var response = await _eventService.GetPublicEventStatusAsync(eventCode, ct);
+        return Ok(response);
+    }
+
     // ── PUBLIC LEADERBOARD (no auth) ─────────────────────────────────────────
 
     /// <summary>

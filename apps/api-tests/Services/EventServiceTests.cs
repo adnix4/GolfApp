@@ -22,6 +22,7 @@ public class EventServiceTests
         public ApplicationDbContext Db = null!;
         public EventService Svc = null!;
         public Guid EventId;
+        public Guid OrgId;
     }
 
     private static Ctx Build(EventStatus status = EventStatus.Registration, int sponsorsVersion = 0)
@@ -41,7 +42,7 @@ public class EventServiceTests
 
         var testData = new TestDataService(db, NullLogger<TestDataService>.Instance);
         var svc      = new EventService(db, NullLogger<EventService>.Instance, testData);
-        return new Ctx { Db = db, Svc = svc, EventId = eventId };
+        return new Ctx { Db = db, Svc = svc, EventId = eventId, OrgId = orgId };
     }
 
     private static void AddSponsor(Ctx c, string name, SponsorTier tier, string placementsJson)
@@ -99,5 +100,118 @@ public class EventServiceTests
     {
         var c = Build();
         await Assert.ThrowsAsync<NotFoundException>(() => c.Svc.GetPublicSponsorsAsync("NOPE9999"));
+    }
+
+    // ── Counts projection (perf refactor: no Teams/Players/Scores Includes) ──
+
+    private static void SeedRoster(Ctx c)
+    {
+        var t1 = Guid.NewGuid();
+        var t2 = Guid.NewGuid();
+        c.Db.Teams.AddRange(
+            new Team { Id = t1, EventId = c.EventId, Name = "Eagles", CheckInStatus = CheckInStatus.CheckedIn },
+            new Team { Id = t2, EventId = c.EventId, Name = "Bogeys", CheckInStatus = CheckInStatus.Pending });
+        c.Db.Players.AddRange(
+            new Player { Id = Guid.NewGuid(), EventId = c.EventId, TeamId = t1 },
+            new Player { Id = Guid.NewGuid(), EventId = c.EventId, TeamId = t1 },
+            new Player { Id = Guid.NewGuid(), EventId = c.EventId, TeamId = t2 });
+        c.Db.Scores.AddRange(
+            new Score { Id = Guid.NewGuid(), EventId = c.EventId, TeamId = t1, HoleNumber = 1, GrossScore = 4 },
+            new Score { Id = Guid.NewGuid(), EventId = c.EventId, TeamId = t1, HoleNumber = 2, GrossScore = 5 },
+            // Second team scores hole 1 too — HolesScored counts DISTINCT holes
+            new Score { Id = Guid.NewGuid(), EventId = c.EventId, TeamId = t2, HoleNumber = 1, GrossScore = 3 });
+        c.Db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task GetById_computes_dashboard_counts_db_side()
+    {
+        var c = Build();
+        SeedRoster(c);
+
+        var resp = await c.Svc.GetByIdAsync(c.OrgId, c.EventId);
+
+        Assert.Equal(2, resp.Counts.TeamsRegistered);
+        Assert.Equal(3, resp.Counts.PlayersRegistered);
+        Assert.Equal(1, resp.Counts.TeamsCheckedIn);
+        Assert.Equal(2, resp.Counts.HolesScored);
+    }
+
+    // ── Public event projection ───────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetPublicEvent_projects_counts_donations_and_branding_fallback()
+    {
+        var c = Build();
+        SeedRoster(c);
+        var evt = c.Db.Events.Single(e => e.Id == c.EventId);
+        evt.ConfigJson = """{"maxTeams":5}""";
+        var org = c.Db.Organizations.Single(o => o.Id == c.OrgId);
+        org.ThemeJson = """{"primary":"#31572c"}""";
+        c.Db.Donations.AddRange(
+            new Donation { Id = Guid.NewGuid(), EventId = c.EventId, AmountCents = 2500 },
+            new Donation { Id = Guid.NewGuid(), EventId = c.EventId, AmountCents = 1500 });
+        c.Db.SaveChanges();
+
+        var resp = await c.Svc.GetPublicEventAsync("GALA0001");
+
+        Assert.Equal(3, resp.SpotsRemaining);                    // 5 max − 2 teams
+        Assert.Equal(4000, resp.Fundraising.DonationsCents);
+        Assert.Equal("""{"primary":"#31572c"}""", resp.ResolvedThemeJson); // org fallback
+        Assert.Equal("Acme", resp.OrgName);
+    }
+
+    [Fact]
+    public async Task GetPublicEvent_sums_to_zero_with_no_donations()
+    {
+        var c = Build();
+        var resp = await c.Svc.GetPublicEventAsync("GALA0001");
+        Assert.Equal(0, resp.Fundraising.DonationsCents);
+        Assert.Null(resp.SpotsRemaining); // no maxTeams configured
+    }
+
+    // ── Status micro-endpoint ─────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(EventStatus.Draft,     "Draft")]
+    [InlineData(EventStatus.Scoring,   "Scoring")]
+    [InlineData(EventStatus.Cancelled, "Cancelled")]
+    public async Task GetPublicEventStatus_reports_every_lifecycle_status(EventStatus status, string expected)
+    {
+        // Unlike the landing endpoint, the poll endpoint must report Draft
+        // (test mode) and Cancelled so devices can follow the lifecycle.
+        var c = Build(status, sponsorsVersion: 7);
+
+        var resp = await c.Svc.GetPublicEventStatusAsync("gala0001");
+
+        Assert.Equal(expected, resp.Status);
+        Assert.Equal(7, resp.SponsorsVersion);
+    }
+
+    [Fact]
+    public async Task GetPublicEventStatus_resolves_theme_event_over_org()
+    {
+        var c = Build();
+        var org = c.Db.Organizations.Single(o => o.Id == c.OrgId);
+        org.ThemeJson = """{"primary":"#111111"}""";
+        c.Db.SaveChanges();
+
+        // Org fallback when the event has no override
+        var resp = await c.Svc.GetPublicEventStatusAsync("GALA0001");
+        Assert.Equal("""{"primary":"#111111"}""", resp.ResolvedThemeJson);
+
+        // Event override wins
+        var evt = c.Db.Events.Single(e => e.Id == c.EventId);
+        evt.ThemeJson = """{"primary":"#222222"}""";
+        c.Db.SaveChanges();
+        resp = await c.Svc.GetPublicEventStatusAsync("GALA0001");
+        Assert.Equal("""{"primary":"#222222"}""", resp.ResolvedThemeJson);
+    }
+
+    [Fact]
+    public async Task GetPublicEventStatus_throws_for_unknown_code()
+    {
+        var c = Build();
+        await Assert.ThrowsAsync<NotFoundException>(() => c.Svc.GetPublicEventStatusAsync("NOPE9999"));
     }
 }
