@@ -100,7 +100,9 @@ describe('fetchLeaderboard', () => {
     await fetchLeaderboard('TESTCODE');
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit | undefined];
     expect(url).toContain('/pub/events/TESTCODE/leaderboard');
-    expect(opts).toBeUndefined();
+    // Every API call is tagged with the stable install id so the server's
+    // rate limiter can bucket per device instead of per venue NAT IP.
+    expect((opts?.headers as Record<string, string>)['X-GFP-Device']).toBeTruthy();
   });
 
   it('returns the leaderboard data on success', async () => {
@@ -234,7 +236,7 @@ describe('fetchAuctionItems', () => {
     await fetchAuctionItems('ev1');
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit | undefined];
     expect(url).toContain('/events/ev1/auction/items/public');
-    expect(opts).toBeUndefined();
+    expect((opts?.headers as Record<string, string>)['X-GFP-Device']).toBeTruthy();
   });
 
   it('returns the items array on success', async () => {
@@ -386,7 +388,7 @@ describe('fetchPlayerBidHistory', () => {
     await fetchPlayerBidHistory('pl1');
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit | undefined];
     expect(url).toContain('/players/pl1/bids');
-    expect(opts).toBeUndefined();
+    expect((opts?.headers as Record<string, string>)['X-GFP-Device']).toBeTruthy();
   });
 
   it('returns the bid history array', async () => {

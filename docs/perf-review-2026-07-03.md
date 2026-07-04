@@ -4,7 +4,9 @@ Scope: API (ASP.NET Core / EF Core), mobile scorer, admin dashboard, public web.
 Focus: things that unnecessarily slow the system down, ranked by impact.
 
 **Status: all high-impact (1–3) and medium (4–7) items are FIXED on this
-branch** (see ✅ notes below).
+branch, plus three scale-readiness fixes (venue-NAT rate limiting, Redis
+fail-fast, Hangfire production-boot crash). ONE item remains open: blob
+storage for uploads (blocks multi-instance scaling — see Scale readiness).**
 
 ## High impact
 
@@ -101,6 +103,10 @@ Bounded (~18 members) and only runs at round close, so low priority; a single
 
 ## Low / notes
 
+No action taken on these — reassessed against the multi-tournament scale goal
+(see Scale readiness) and they stay low: they're per-device client costs or
+fixed costs that don't grow with tournament count.
+
 - **Hangfire on Postgres** polls its queue tables continuously (default
   `QueuePollInterval` ~15 s). Fine, but worth setting explicitly if DB chatter
   matters on a small instance.
@@ -109,6 +115,70 @@ Bounded (~18 members) and only runs at round close, so low priority; a single
 - `docs` scale assumption: everything above matters at tournament scale
   (~40 teams, ~160 players, dozens of spectators); none of it is failing today,
   it's headroom being burned.
+
+## Scale readiness
+
+Target: a full tournament (~150 devices) submitting scores and auction bids
+concurrently, with multiple tournaments/leagues running at once. Assessment of
+what that load actually stresses, beyond the per-query items above.
+
+### Verified safe under concurrency (no action needed)
+
+- **Auction bids**: `PlaceBidAsync` wraps validation + write in a transaction
+  with `SELECT … FOR UPDATE` on the item row — simultaneous bids on one item
+  queue at the database and each sees the latest high bid. "Everyone bidding
+  at close" is correctness-safe, and each bid holds the lock only for a short
+  transaction.
+- **Score bursts**: batched per-team sync, ≤1 coalesced broadcast per event
+  per 1.5 s, 2 s Redis read-through cache on the public leaderboard. Per-event
+  broadcast state means N simultaneous tournaments just means N independent
+  coalescers.
+- **Capacity envelope**: one modest API instance + Postgres + Redis comfortably
+  runs several simultaneous tournaments (each is a few req/s sustained plus
+  SignalR fan-out); leagues are lighter (weekly cadence, no spectator bursts).
+
+### ✅ FIXED — Venue-NAT rate limiting (would have 429'd one busy tournament)
+The global limiter was 600 req/min **per client IP**, but a tournament's
+devices all share ONE venue WiFi NAT IP — at the ceiling in the happy path,
+and far past it whenever SignalR falls back to HTTP polling. Now a chain:
+a per-IP ceiling of 3000/min (bounds any single source, including an attacker
+rotating headers) plus a 600/min per-device bucket keyed by the mobile
+scorer's `X-GFP-Device` header (stable install id, sent by a fetch wrapper on
+every mobile API call). Security policies (auth/join/donate/brandExtract)
+stay strictly IP-keyed so their brute-force limits can't be bypassed via a
+client-controlled header. Verified live: auth policy trips at exactly its
+limit; device-tagged requests ride their own bucket.
+
+### ✅ FIXED — Redis silently optional in Production
+The leaderboard cache and SignalR backplane both no-op'd when `REDIS_URL` was
+unset — fine in dev, but at scale the whole burst-absorption design silently
+disappears and every spectator poll hits Postgres. Production now fails fast
+at startup with a clear message unless `GFP_ALLOW_NO_REDIS=true` explicitly
+opts into single-instance/no-cache operation. Verified live in both modes.
+
+### ✅ FIXED — Production startup crash in Hangfire job registration (found during verification)
+`RecurringJob.AddOrUpdate` (static API) requires `JobStorage.Current`, which
+only got initialized in Development via the Hangfire dashboard. In Production
+the app crashed at startup before ever listening. Now resolved through DI
+(`IRecurringJobManager`). This was latent — production deploys would have
+failed on boot.
+
+### OPEN — Local-disk uploads block horizontal scaling
+`wwwroot/uploads` is instance-local: on ephemeral hosts (Railway/Render)
+logos vanish on redeploy, and with 2+ instances an upload lands on one
+instance and 404s from the others. Move to blob storage (S3/R2) behind the
+same `/uploads/*` URL shape before running multiple instances — the versioned
+filenames + immutable cache headers added above carry over directly (and suit
+a CDN). Separate piece of work.
+
+### Multi-instance notes (acceptable as-is)
+- `LeaderboardBroadcaster` keeps per-instance coalescing state → with 2+
+  instances an event can get up to one broadcast per instance per window.
+  Mild duplication, not incorrect; fold into the blob-storage milestone if
+  duplicate refreshes ever show up.
+- The rate limiter is per-instance (in-memory) — limits effectively multiply
+  by instance count. Acceptable for a fairness/anti-flood backstop.
+- Hangfire uses shared Postgres storage — safe across instances as-is.
 
 ## What's already good (don't touch)
 
@@ -137,3 +207,8 @@ Bounded (~18 members) and only runs at round close, so low priority; a single
 4. ~~`GetByIdAsync`/`UpdateAsync`: project counts DB-side~~ ✅ done
 5. ~~Response compression + static upload cache headers~~ ✅ done
 6. ~~`ListActiveEventsAsync` projection~~ ✅ done (cache deferred)
+7. ~~Rate limiter: per-device buckets chained under a per-IP ceiling~~ ✅ done
+8. ~~Redis fail-fast in Production (GFP_ALLOW_NO_REDIS opt-out)~~ ✅ done
+9. ~~Hangfire recurring-job registration via DI (production boot crash)~~ ✅ done
+10. Blob storage (S3/R2) for `/uploads/*` — **OPEN**, prerequisite for running
+    2+ API instances; versioned filenames + immutable cache headers carry over.

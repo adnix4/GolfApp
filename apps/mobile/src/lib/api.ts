@@ -1,9 +1,34 @@
 import { useAuthStore } from './authStore';
+import { getDeviceId } from './store';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 export function resolveUrl(url: string): string {
   return url.startsWith('/') ? `${BASE}${url}` : url;
+}
+
+// ── Device-tagged fetch ────────────────────────────────────────────────────
+// Every API call carries X-GFP-Device (the stable install id) so the server's
+// rate limiter can give each device its own bucket — without it, all devices
+// at a venue share the ONE WiFi NAT IP and a busy tournament throttles itself.
+// The id is cached after the first SQLite read; on storage failure we proceed
+// without the header (the request still rides the per-IP bucket).
+let cachedDeviceId: string | null = null;
+async function deviceHeader(): Promise<Record<string, string>> {
+  try {
+    cachedDeviceId ??= await getDeviceId();
+    return { 'X-GFP-Device': cachedDeviceId };
+  } catch {
+    return {};
+  }
+}
+
+async function gfpFetch(url: string, init?: RequestInit): Promise<Response> {
+  const device = await deviceHeader();
+  return fetch(url, {
+    ...init,
+    headers: { ...device, ...(init?.headers as Record<string, string> | undefined) },
+  });
 }
 
 // Reads the in-memory access token and returns an Authorization header when
@@ -106,7 +131,7 @@ export interface ActiveEventSummary {
 
 export async function fetchActiveEvents(): Promise<ActiveEventSummary[]> {
   try {
-    const res = await fetch(`${BASE}/api/v1/pub/events/active`);
+    const res = await gfpFetch(`${BASE}/api/v1/pub/events/active`);
     if (!res.ok) return [];
     return res.json();
   } catch {
@@ -119,7 +144,7 @@ export async function joinEvent(
   email: string,
   deviceId: string,
 ): Promise<JoinEventResponse> {
-  const res = await fetch(`${BASE}/api/v1/events/${eventCode}/join`, {
+  const res = await gfpFetch(`${BASE}/api/v1/events/${eventCode}/join`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, deviceId }),
@@ -152,7 +177,7 @@ export interface PublicLeaderboard {
 }
 
 export async function fetchLeaderboard(eventCode: string): Promise<PublicLeaderboard> {
-  const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/leaderboard`);
+  const res = await gfpFetch(`${BASE}/api/v1/pub/events/${eventCode}/leaderboard`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? `Leaderboard fetch failed (${res.status})`);
@@ -183,7 +208,7 @@ export async function fetchTeamScores(
   teamId:    string,
 ): Promise<TeamScorecard | null> {
   try {
-    const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/teams/${teamId}/scorecard`);
+    const res = await gfpFetch(`${BASE}/api/v1/pub/events/${eventCode}/teams/${teamId}/scorecard`);
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -204,7 +229,7 @@ export async function fetchEventStatus(eventCode: string): Promise<EventStatusRe
   // (The full /pub/events/{code} landing payload loads sponsors/teams/
   // donations and 404s Draft/Cancelled; this one reports every status, so
   // test-mode theme refresh and Completed/Cancelled detection work too.)
-  const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/status`);
+  const res = await gfpFetch(`${BASE}/api/v1/pub/events/${eventCode}/status`);
   if (!res.ok) throw new Error(`Status check failed (${res.status})`);
   const data = await res.json();
   return {
@@ -222,7 +247,7 @@ export async function fetchEventStatus(eventCode: string): Promise<EventStatusRe
  */
 export async function fetchPublicSponsors(eventCode: string): Promise<SponsorCacheDto[] | null> {
   try {
-    const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/sponsors`);
+    const res = await gfpFetch(`${BASE}/api/v1/pub/events/${eventCode}/sponsors`);
     if (!res.ok) return null;
     const data = await res.json();
     return (data.sponsors ?? []) as SponsorCacheDto[];
@@ -237,7 +262,7 @@ export async function fetchPublicSponsors(eventCode: string): Promise<SponsorCac
 // running in the background after the timeout won.
 export async function checkConnectivity(): Promise<boolean> {
   try {
-    await fetch(`${BASE}/api/v1/pub/events/PING`, { signal: AbortSignal.timeout(5000) });
+    await gfpFetch(`${BASE}/api/v1/pub/events/PING`, { signal: AbortSignal.timeout(5000) });
     return true;
   } catch {
     return false;
@@ -245,7 +270,7 @@ export async function checkConnectivity(): Promise<boolean> {
 }
 
 export async function registerPushToken(playerId: string, token: string | null): Promise<void> {
-  const res = await fetch(`${BASE}/api/v1/players/${playerId}/push-token`, {
+  const res = await gfpFetch(`${BASE}/api/v1/players/${playerId}/push-token`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ token }),
@@ -270,7 +295,7 @@ export interface ChallengeCacheDto {
 
 export async function fetchPublicChallenges(eventCode: string): Promise<ChallengeCacheDto[]> {
   try {
-    const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/challenges`);
+    const res = await gfpFetch(`${BASE}/api/v1/pub/events/${eventCode}/challenges`);
     if (!res.ok) return [];
     const data = await res.json();
     return (data.challenges ?? []) as ChallengeCacheDto[];
@@ -331,7 +356,7 @@ export interface PlayerBidHistoryItem {
 }
 
 export async function fetchAuctionItems(eventId: string): Promise<AuctionItemDto[]> {
-  const res = await fetch(`${BASE}/api/v1/events/${eventId}/auction/items/public`);
+  const res = await gfpFetch(`${BASE}/api/v1/events/${eventId}/auction/items/public`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? `Auction items fetch failed (${res.status})`);
@@ -345,7 +370,7 @@ export async function placeBid(
   amountCents: number,
   sessionToken: string,
 ): Promise<BidResponse> {
-  const res = await fetch(`${BASE}/api/v1/auction/items/${itemId}/bid`, {
+  const res = await gfpFetch(`${BASE}/api/v1/auction/items/${itemId}/bid`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ playerId, amountCents, sessionToken }),
@@ -363,7 +388,7 @@ export async function pledge(
   amountCents: number,
   sessionToken: string,
 ): Promise<BidResponse> {
-  const res = await fetch(`${BASE}/api/v1/auction/items/${itemId}/pledge`, {
+  const res = await gfpFetch(`${BASE}/api/v1/auction/items/${itemId}/pledge`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ playerId, amountCents, sessionToken }),
@@ -379,7 +404,7 @@ export async function createSetupIntent(
   playerId: string,
   sessionToken: string,
 ): Promise<{ clientSecret: string }> {
-  const res = await fetch(`${BASE}/api/v1/payments/setup-intent`, {
+  const res = await gfpFetch(`${BASE}/api/v1/payments/setup-intent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ playerId, sessionToken }),
@@ -396,7 +421,7 @@ export async function confirmSetup(
   setupIntentId: string,
   sessionToken: string,
 ): Promise<{ hasPaymentMethod: boolean }> {
-  const res = await fetch(`${BASE}/api/v1/payments/confirm-setup`, {
+  const res = await gfpFetch(`${BASE}/api/v1/payments/confirm-setup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ playerId, setupIntentId, sessionToken }),
@@ -415,7 +440,7 @@ export async function updateMyProfile(
   sessionToken: string,
   patch: { firstName?: string; lastName?: string; phone?: string },
 ): Promise<PlayerCacheDto> {
-  const res = await fetch(`${BASE}/api/v1/players/${playerId}/self`, {
+  const res = await gfpFetch(`${BASE}/api/v1/players/${playerId}/self`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sessionToken, ...patch }),
@@ -428,7 +453,7 @@ export async function updateMyProfile(
 }
 
 export async function fetchPlayerBidHistory(playerId: string): Promise<PlayerBidHistoryItem[]> {
-  const res = await fetch(`${BASE}/api/v1/players/${playerId}/bids`);
+  const res = await gfpFetch(`${BASE}/api/v1/players/${playerId}/bids`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? `Bid history fetch failed (${res.status})`);
@@ -437,7 +462,7 @@ export async function fetchPlayerBidHistory(playerId: string): Promise<PlayerBid
 }
 
 export async function fetchActiveAuctionSession(eventId: string): Promise<AuctionSessionDto | null> {
-  const res = await fetch(`${BASE}/api/v1/events/${eventId}/auction/sessions/active`);
+  const res = await gfpFetch(`${BASE}/api/v1/events/${eventId}/auction/sessions/active`);
   if (res.status === 204) return null;
   if (!res.ok) return null;
   return res.json();
@@ -445,7 +470,7 @@ export async function fetchActiveAuctionSession(eventId: string): Promise<Auctio
 
 /** Soft "I'm Bidding" paddle raise — increments the live bidder count. No auth required. */
 export async function raiseHand(eventId: string): Promise<void> {
-  await fetch(`${BASE}/api/v1/events/${eventId}/auction/sessions/raise-hand`, {
+  await gfpFetch(`${BASE}/api/v1/events/${eventId}/auction/sessions/raise-hand`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -485,7 +510,7 @@ export async function fetchMemberSeasonSummary(
   seasonId: string,
   memberId: string,
 ): Promise<MemberSeasonSummary | null> {
-  const res = await fetch(
+  const res = await gfpFetch(
     `${BASE}/api/v1/leagues/${leagueId}/seasons/${seasonId}/members/${memberId}/summary`,
   );
   if (res.status === 404) return null;
@@ -533,7 +558,7 @@ export async function registerTeam(
   teamName: string,
   players: PlayerInput[],
 ): Promise<RegistrationConfirmResponse> {
-  const res = await fetch(`${BASE}/api/v1/events/${eventId}/register/team`, {
+  const res = await gfpFetch(`${BASE}/api/v1/events/${eventId}/register/team`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ teamName, players }),
@@ -559,7 +584,7 @@ export async function registerFreeAgent(
   eventId: string,
   payload: RegisterFreeAgentPayload,
 ): Promise<RegistrationConfirmResponse> {
-  const res = await fetch(`${BASE}/api/v1/events/${eventId}/register/free-agent`, {
+  const res = await gfpFetch(`${BASE}/api/v1/events/${eventId}/register/free-agent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -578,7 +603,7 @@ export async function batchSync(
   scores: PendingScore[],
   sessionToken: string,
 ): Promise<BatchSyncResponse> {
-  const res = await fetch(`${BASE}/api/v1/sync/scores`, {
+  const res = await gfpFetch(`${BASE}/api/v1/sync/scores`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeader() },
     body: JSON.stringify({

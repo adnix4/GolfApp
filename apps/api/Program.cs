@@ -203,11 +203,19 @@ if (app.Environment.IsDevelopment())
     app.Logger.LogInformation("Hangfire dashboard available at: http://localhost:5000/hangfire");
 }
 
-// 9. Register Hangfire recurring jobs
-RecurringJob.AddOrUpdate<GolfFundraiserPro.Api.Features.Auction.AuctionCloseJob>(
-    "auction-close",
-    job => job.RunAsync(),
-    "*/10 * * * * *"); // every 10 seconds (Hangfire Cron seconds expression)
+// 9. Register Hangfire recurring jobs.
+// Resolved via DI (IRecurringJobManager), NOT the static RecurringJob API:
+// the static API requires JobStorage.Current, which in Production (no
+// Hangfire dashboard) is never initialized before this line runs — the app
+// crashed at startup outside Development.
+using (var jobScope = app.Services.CreateScope())
+{
+    jobScope.ServiceProvider.GetRequiredService<IRecurringJobManager>()
+        .AddOrUpdate<GolfFundraiserPro.Api.Features.Auction.AuctionCloseJob>(
+            "auction-close",
+            job => job.RunAsync(),
+            "*/10 * * * * *"); // every 10 seconds (Hangfire Cron seconds expression)
+}
 
 // 9b. Map controllers to routes
 app.MapControllers();
