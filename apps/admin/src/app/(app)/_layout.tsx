@@ -1,6 +1,6 @@
-import { Slot, useRouter, useSegments } from 'expo-router';
+import { Slot, useRouter, useSegments, type ErrorBoundaryProps } from 'expo-router';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { ErrorFallback, useTheme } from '@gfp/ui';
 import { useAuth } from '@/lib/auth';
 import { useResponsive } from '@/lib/responsive';
 
@@ -15,6 +15,19 @@ const SUPER_ADMIN_NAV = [
   { label: 'Organizations', segment: 'admin', href: '/(app)/admin' as const },
   { label: 'Help',          segment: 'help',  href: '/(app)/help'  as const },
 ];
+
+// App-area safety net (problemList A4): a screen crash shows a retry card and
+// keeps the organizer signed in, instead of unmounting the whole dashboard.
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return (
+    <ErrorFallback
+      error={error}
+      retry={retry}
+      title="This screen hit a problem"
+      message="You're still signed in. Try again to reload the screen."
+    />
+  );
+}
 
 export default function AppLayout() {
   const theme    = useTheme();

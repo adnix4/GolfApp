@@ -49,6 +49,10 @@ export const eventsApi = {
 
   attachCourse: (id: string, payload: AttachCoursePayload) =>
     request<EventDetail>(`/api/v1/events/${id}/course`, { method: 'POST', body: payload }),
+  // In-place edit of course name/address — holes (pars/handicaps) preserved,
+  // unlike attachCourse which replaces the whole course.
+  updateCourse: (id: string, payload: UpdateCoursePayload) =>
+    request<EventDetail>(`/api/v1/events/${id}/course`, { method: 'PATCH', body: payload }),
 
   assignShotgun: (id: string, assignments: { teamId: string; startingHole: number }[]) =>
     request<void>(`/api/v1/events/${id}/shotgun-assignments`, {
@@ -280,6 +284,8 @@ export interface EmailBuilderData {
   orgLogoUrl:       string | null;
   eventDate:        string;
   eventLocation:    string;
+  courseName:       string;
+  courseAddress:    string;
   registrationUrl:  string;
   qrCodeUrl:        string;
   primaryColor:     string;
@@ -416,6 +422,9 @@ export interface UpdateEventPayload {
 export interface AttachCoursePayload {
   name: string; address: string; city: string; state: string; zip: string;
   holes?: { holeNumber: number; par: number; handicapIndex: number; yardageWhite?: number; yardageBlue?: number; yardageRed?: number }[];
+}
+export interface UpdateCoursePayload {
+  name: string; address: string; city: string; state: string; zip: string;
 }
 export interface RegisterTeamPayload {
   teamName: string;

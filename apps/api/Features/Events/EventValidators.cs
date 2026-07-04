@@ -134,6 +134,32 @@ public class AttachCourseRequestValidator : AbstractValidator<AttachCourseReques
     }
 }
 
+/// <summary>
+/// PATCH /events/{id}/course — same identity-field rules as attach (Address
+/// required on both), minus holes, which this endpoint never touches.
+/// </summary>
+public class UpdateCourseRequestValidator : AbstractValidator<UpdateCourseRequest>
+{
+    public UpdateCourseRequestValidator()
+    {
+        RuleFor(x => x.Name)
+            .NotEmpty()
+            .MaximumLength(200);
+
+        RuleFor(x => x.Address)
+            .NotEmpty()
+            .MaximumLength(300);
+
+        RuleFor(x => x.City)
+            .NotEmpty()
+            .MaximumLength(100);
+
+        RuleFor(x => x.State)
+            .NotEmpty()
+            .MaximumLength(50);
+    }
+}
+
 public class ShotgunAssignmentsRequestValidator : AbstractValidator<ShotgunAssignmentsRequest>
 {
     public ShotgunAssignmentsRequestValidator()

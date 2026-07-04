@@ -1,86 +1,6 @@
 # Problem List
 
-## Security review (2026-06-22)
-Findings from the security review, ordered for remediation. Mark [x] when done.
 
-[x] 1. (HIGH) Stripe webhook signature bypass — apps/api/Features/Webhooks/StripeWebhookController.cs:39-52.
-       DONE 2026-06-22: webhook now fails closed (500) outside Development when the secret is unset.
-       When STRIPE_WEBHOOK_SECRET is unset the [AllowAnonymous] webhook parses the
-       event WITHOUT verifying the Stripe-Signature. payment_intent.succeeded flips
-       an AuctionWinner to ChargeStatus.Succeeded + ReceiptSent, so an attacker can
-       forge that event (with winner_id metadata) and mark auction items paid with
-       no money moved. Fix: fail closed outside Development when the secret is unset.
-
-[x] 2. (MEDIUM) No rate limiting on the API — AddRateLimiter/UseRateLimiter appear
-       DONE 2026-06-22: added .NET rate limiter — global 600/min per-IP backstop + named policies
-       (auth 20/min on login/register/refresh, join 60/min, donate 30/min); UseRateLimiter wired
-       after UseRouting; JoinEvent's false comment corrected. (sync covered by global backstop.)
-       nowhere. Unthrottled anonymous POSTs: /events/{code}/join (email enumeration),
-       /auth/login (brute force; only per-account Identity lockout exists), /auth/register
-       (org spam), /sync/scores (score flooding), /pub/events/{code}/donate (fake-donation
-       flooding). MobileController.JoinEvent's doc-comment FALSELY claims "Rate-limited by
-       event code." Fix: add a global per-IP limiter + stricter named policies on the
-       anonymous POSTs (UseRateLimiter after UseRouting); then implement-or-delete the comment.
-
-[x] 3. (MEDIUM) IDOR on player self-update — apps/api/Features/Mobile/MobileService.cs:481
-       DONE 2026-06-22: UpdateSelfRequest now requires EventCode + Email; the service verifies them
-       against the player record (case-insensitive) before applying the edit and throws the same
-       NotFound on mismatch (no existence leak). Mobile client (api.ts updateMyProfile + edit-profile.tsx)
-       sends the join email/eventCode as proof.
-       FULLY CLOSED 2026-06-22 by the join token (Phase11): UpdateSelf now requires the per-player
-       session_token minted at /join (email/eventCode proof removed), closing teammate-to-teammate too.
-       Original: PATCH /api/v1/players/{playerId}/self was anonymous, loaded the player by id with
-       NO binding to the caller, and playerIds are exposed in join/scorecard/team responses, so
-       anyone could edit any player's firstName/lastName/phone.
-
-[x] 4. (LOW/hardening) JWT_SECRET length unchecked — apps/api/Common/Extensions/ServiceCollectionExtensions.cs:172.
-       DONE 2026-06-22: startup now throws if JWT_SECRET < 32 bytes; check-updates.js validates the
-       package name against /^@?[a-z0-9._/-]+$/i before the shell `npm view` call.
-       A short secret weakens HMAC-SHA256. Enforce >= 32 bytes at startup (throw otherwise).
-       Also harden scripts/check-updates.js: the `npm view ${name}` call runs through a shell;
-       name is registry-sourced (not user input) so risk is low, but switch to execFileSync /
-       validate name against /^@?[a-z0-9._/-]+$/i for defense-in-depth.
-
-[x] 5. (LOW/by-design) Anonymous score injection — /api/v1/sync/scores trusts
-       eventId+teamId+deviceId from the body (golfers have no accounts). Anyone knowing a
-       team's public ids can submit/perturb scores; conflict-detection limits silent overwrites
-       but not injection.
-       DONE 2026-06-22 (Phase11 join token): BatchSyncRequest now requires a session_token that must
-       belong to a player ON THAT TEAM; mismatch throws NotFound (no existence leak).
-
-[x] 6. (LOW) Dependency vulnerabilities — npm audit: 54 total (2 critical, 1 high, 51 moderate).
-       The critical/high were all dev/test tooling (vitest, vite, @vitest/coverage-v8), not
-       shipped to the production API runtime; the moderates are mostly Expo build tooling.
-       DONE 2026-06-22:
-       - Bumped vitest + @vitest/coverage-v8 ^2.1.9 -> ^4.1.9. Clears ALL critical/high AND every
-         dev-tree vuln. All test workspaces still green with NO code changes (mobile 100, admin 103,
-         shared-types, theme). Audit now 48 moderate / 0 high / 0 critical — and full==prod, i.e. the
-         remaining 48 are ALL the production (Expo) tree; the dev tree is clean.
-       - Added a CI dependency-audit job (.github/workflows/ci.yml): fails on high/critical in
-         PRODUCTION deps (`npm audit --omit=dev --audit-level=high`), wired into the required gate;
-         full `npm audit` runs informationally. Passes today (prod = moderate only).
-       REMAINING (deferred, tracked): 23 moderate are transitive Expo build-tooling
-       (@expo/config-plugins, metro-config, prebuild-config) pulled via expo. Fixing them needs the
-       Expo SDK 55 -> 56 major upgrade, which is out of the careful version-pinning policy — do it
-       as part of a deliberate SDK bump, not a security patch. They are build-time, not app runtime.
-
-[x] 7. (HIGH) Financial IDOR on auction bidding + payment endpoints — all [AllowAnonymous] with
-       DONE 2026-06-22 (Phase11 join token): bid/buy-now/pledge (PlaceBidRequest/PledgeRequest) and
-       setup-intent/confirm-setup (PaymentsController/Service) now require the player's session_token,
-       verified constant-time (Common.PlayerSessionAuth) before any bid or Stripe call; mismatch throws
-       NotFound. Entry-fee intent is created during team registration (pre-join, no session yet) so it
-       is not token-gated — that path is registration-time, not a player self-service action.
-       playerId in the body: POST /auction/items/{id}/bid, /buy-now, /pledge (BidController) and
-       /payments/setup-intent, /confirm-setup, entry-fee intent (PaymentsController/PaymentsService).
-       Anyone who knows a player's Guid can BID IN THAT PLAYER'S NAME; auction winners are charged
-       OFF-SESSION to their saved card (PaymentsService.ChargeWinnerAsync), so a forced/forged high
-       bid can charge a victim for something they never bid on (plus chargeback/dispute exposure with
-       no auth trail). Note: card data itself is safe — Stripe Elements tokenizes client-side; the
-       server stores only Stripe customer/payment-method ids + brand/last4, never the PAN. Fix: gate
-       these endpoints with the same per-team/per-player JOIN TOKEN that closes #3 (full) and #5.
-       This is the security-critical reason to add the join token. Player passwords are NOT needed —
-       Stripe already holds the card; the gap is authorizing the ACTION, which a token does without
-       a login UX and works offline.
 
 ## SDK 56 modernization opportunities (2026-06-23)
 Captured right after the Expo SDK 55 -> 56 upgrade (RN 0.83.6 -> 0.85.3, React
@@ -89,186 +9,6 @@ wrapping into the apps to modernize the look, improve functionality, or simplify
 code. Ordered by leverage. Mark [x] when adopted. Ref: https://expo.dev/changelog/sdk-56
 NOTE: this upgrade also clears the 23 moderate transitive Expo build-tooling vulns
 that item #6 deferred until the SDK bump.
-
-TOP PICKS (high payoff)
-[-] M1. expo-sqlite session changesets -> simplify offline sync (SIMPLIFY CODE).
-        SPIKED 2026-06-23: REJECTED — does not fit this architecture.
-        Original idea: capture local mutations as a changeset and apply/rebase server
-        changesets natively, replacing pending_scores + backgroundSync.ts +
-        mergeServerScores + the admin-wins / proposed_score conflict flow with DB
-        primitives. Findings:
-        - Session changesets are a SQLite<->SQLite BINARY replication format
-          (create/applyChangesetAsync exchange an ArrayBuffer of SQLite's changeset
-          format; see node_modules/expo-sqlite/build/NativeSession.d.ts). The headline
-          benefit "apply server changesets natively" requires the server to be a SQLite
-          peer. Ours is ASP.NET Core + PostgreSQL with JSON-REST sync
-          (POST /api/v1/sync/scores {scores:[...]} -> {accepted,conflicts}; pull-back
-          via TeamScorecard JSON). It cannot emit/consume SQLite changesets, so that
-          benefit is unreachable without rebuilding backend sync around SQLite — a
-          non-starter for a Postgres backend.
-        - store.mergeServerScores is domain-specific bookkeeping: protect unsynced
-          local edits (synced_at IS NULL), else adopt server value, set the `conflict`
-          flag for the proposed_score approval flow, manage completed_at. A changeset
-          conflict handler only does generic row/column ops (OMIT/REPLACE/ABORT) and
-          can't express those rules, so the app logic stays either way.
-        - Dataset is ~18 rows (1/hole/team), single table, deterministic PK, already a
-          clean INSERT OR REPLACE upsert. No large multi-table mutation set for
-          changeset replication to optimize.
-        Net: adds a native session-extension dependency + binary-blob plumbing while
-        removing none of the REST protocol or domain rules. Not worth it.
-        Orthogonal note: if offline sync ever needs simplifying, the real smell is
-        pending_scores multiplexing 3 roles (editable scorecard / outbound queue /
-        server cache) via flag columns — a manual table-split refactor, unrelated to
-        changesets.
-
-[-] M2. @expo/ui universal components -> modernize the scorer look (LOOK).
-        REJECTED 2026-06-23 — wrong tool given branding is a priority/selling feature.
-        @expo/ui renders NATIVE SYSTEM controls (iOS SwiftUI / Android Material) that
-        follow the OS look and only accept a tint — they do NOT fully honor a per-event
-        custom palette, so adopting them fights the branding requirement. Also native-
-        only (every use needs a .web.tsx fallback since the scorer targets web too) and
-        not locally verifiable on the Windows/web dev setup. @expo/ui ~56.0.18 is
-        available if a future non-branded surface ever wants it, but not for branded UI.
-        PIVOTED to M2c (modernize the branded components instead).
-
-[x] M2c. Modernize the look/feel of branded components (LOOK). DONE 2026-06-23.
-        Kept 100% brand control (all colors from theme.colors) while modernizing
-        buttons + graphics. Lands in BOTH mobile + admin via shared @gfp/ui; API of
-        every component unchanged (no call-site edits); web-verifiable; type-check +
-        all tests green (no component snapshot tests exist).
-        Design language applied consistently: card radius ->16, soft depth shadow
-        (boxShadow 0 2 10-12 rgba(0,0,0,.06-.08) + elevation 2), pills/badges ->fully
-        rounded (999), inner badges ->10-12, tactile press (scale) on buttons.
-        Components touched:
-        - @gfp/ui Button: radius 12, depth shadow on filled (dropped when disabled),
-          press scale 0.97 + fade, letter-spaced labels.
-        - @gfp/ui StatusPill: true pill (radius 999).
-        - @gfp/ui ScoreCard: radius 16 + soft shadow, press-scale on +/- buttons,
-          rounded challenge badge / conflict banner.
-        - @gfp/ui LeaderboardRow: more row padding, softer divider, rounded sponsor badge.
-        - @gfp/ui TeamCard: radius 16 + shadow, pill player-status chips.
-        - @gfp/ui SponsorBanner: radius 16 + shadow, pill tier/compact badges.
-        - @gfp/ui FormModal: action buttons radius ->12 (card already modern).
-        - mobile scorecardComponents: HoleInfoChip/ScoreChip/SyncStatusBar radius ->12.
-
-[x] M2b. Brand-from-website (AI-ready) — admin branding convenience. DONE 2026-06-23.
-        Replaces the manual "enter a color scheme" step with an optional website URL:
-        the API scrapes the site and suggests a 5-token palette + logo, pre-filling the
-        existing manual editors (which stay as the edit UI; WCAG save-gate intact).
-        - Endpoint: POST /api/v1/events/{id}/branding/extract (OrgAdmin, rate-limited
-          "brandExtract" 10/min). Returns a SUGGESTION; persists nothing until the
-          organizer Saves via PATCH /branding.
-        - Security: SSRF-guarded fetch (apps/api/Features/Events/Branding/
-          PrivateNetworkGuard.cs) validates the resolved IP at CONNECT time on every
-          redirect hop — blocks loopback/private/link-local/169.254.169.254-metadata;
-          scheme allow-list; 2 MB + 10s caps. Logo downloaded server-side, stored at
-          /uploads/event-logos/{id}-fetched.* (distinct name, never clobbers a saved logo).
-        - SWAP SEAM for AI later: IBrandPaletteSynthesizer (BrandPaletteContracts.cs)
-          is the ONLY strategy-specific step. Today = HeuristicBrandPaletteSynthesizer
-          (no API key, no per-use cost). To use Claude instead, add a synthesizer impl
-          + change one DI line in ServiceCollectionExtensions; fetch/parse/logo/endpoint/
-          UI are untouched. (Heuristic chosen over Haiku to avoid a paid Anthropic API
-          dependency; Haiku would have been ~$0.003-0.005/extraction.)
-        - Unit-tested (2026-06-23) in apps/api-tests/Branding/: PrivateNetworkGuard
-          (SSRF allow/block table), BrandColorMath (parse + WCAG contrast/mix),
-          HeuristicBrandPaletteSynthesizer (valid hex + 4.5:1 guarantee across
-          empty/vivid/light/low-contrast inputs), and BrandExtractionService
-          ParseSignals/NormalizeUrl (made internal + InternalsVisibleTo("WebAPI.Tests")).
-          Admin extractFromWebsite wrapper covered in adminApi.test.ts. The live HTTP
-          path (ExtractAsync end-to-end) is still only exercised manually.
-
-[x] M3. expo-router Native Stack v5 + Suspense fallbacks -> nav polish + less
-        boilerplate (LOOK + SIMPLIFY).
-        DONE 2026-06-23 (scoped down after review). Shipped the one part that fits:
-        - Android predictive-back gesture: set android.predictiveBackGestureEnabled
-          = true in apps/mobile/app.json (CNG/managed — prebuild writes
-          android:enableOnBackInvokedCallback). Safe: no screen intercepts back
-          (no BackHandler / usePreventRemove / beforeRemove), so nothing to break;
-          modernizes the router.push flows (edit-profile, payment-setup, qr-transfer).
-        REJECTED sub-parts (do not pursue for this app):
-        - Material-style native headers (Native Stack v5): N/A. The app sets
-          headerShown:false everywhere and renders its own branded in-screen headers
-          (e.g. _layout waitHeader, custom back buttons). Native headers are
-          deliberately off, so material headers add nothing.
-        - Suspense fallbacks: poor fit. Screens fetch via useEffect+useState(loading)
-          or the live useLiveLeaderboard hook (SignalR + 15s poll); none SUSPEND, so a
-          SuspenseFallback never fires without rewriting each screen's data layer to a
-          Suspense source — which would also lose the live-connection status UI
-          ("Live · Updated 3s ago"). AsyncSection (@gfp/ui) isn't even used in mobile
-          (only admin/web), so there is no mobile boilerplate to thin out.
-
-WORTH CONSIDERING
-[x] M4. expo/fetch is now the default WinterTC fetch (SIMPLIFY + FUNCTIONALITY).
-        DONE 2026-06-23. The only custom fetch-timeout plumbing in the codebase was
-        api.checkConnectivity (Promise.race against setTimeout). Replaced with
-        AbortSignal.timeout(5000) — simpler, AND it cancels the request on expiry
-        (the old race left the ping fetch running in the background after timing out).
-        Tests unchanged + green. The shared packages/shared-types apiClient has no
-        timeout/abort plumbing, so nothing to change there.
-        Android brotli/gzip/zstd response decompression (smaller leaderboard payloads)
-        comes for free with expo/fetch as the default — no code change.
-
-[-] M5. NavigationBar + status-bar consistency (LOOK).
-        SPIKED 2026-06-23: REJECTED — edge-to-edge removes the core idea (color the
-        system bars with the brand), and what's left is poor cost/benefit here.
-        - SDK 54+ enforces Android edge-to-edge. SDK 56's expo-status-bar dropped the
-          backgroundColor prop / setStatusBarBackgroundColor entirely, and
-          expo-navigation-bar's setBackgroundColorAsync (+ most color APIs) are
-          @deprecated. The bars are transparent and content draws behind them — there
-          is no bar background to brand on either bar.
-        - What remains is only the icon STYLE (light/dark) for contrast against whatever
-          sits behind the transparent bar — that is not branding. And it is PER-SCREEN:
-          the app mixes dark (primary header) and light (surface page) backgrounds
-          behind the bars, so no single global value is correct (light icons vanish on
-          the light leaderboard page; dark icons vanish on a dark header). Doing it
-          right means touching many screens with real invisible-icon regression risk
-          and little visible payoff.
-        - The app currently renders no <StatusBar> and relies on style="auto" (dark
-          icons in light mode) over SafeAreaView-inset light backgrounds, which already
-          reads fine. No reported problem to fix.
-        Not worth it. Revisit only under a deliberate edge-to-edge redesign (headers
-        drawn behind the bars), where per-screen StatusBar style would then matter.
-        No deps added (expo-navigation-bar intentionally NOT installed).
-
-[x] M6. Upload progress + cancellation UI for sponsor-logo / branding-image
-        uploads (FUNCTIONALITY). DONE 2026-07-02.
-        PIVOTED from the originally-named tool: expo-file-system's
-        createUploadTask/createDownloadTask are NATIVE-ONLY, and every upload in
-        this app lives in apps/admin, which is served as Expo WEB (expo start
-        --web; no ios/android). expo-file-system isn't even a dependency, and the
-        mobile native app has no uploads — so the native task API has no valid
-        home here. Delivered M6's actual GOAL (real progress + cancellation) via
-        the web-correct mechanism instead: XMLHttpRequest (fetch can't report
-        upload progress; XHR exposes upload.onprogress + abort()).
-        - apps/admin/src/lib/upload.ts (new): uploadWithProgress<T>(path, file,
-          { fieldName?, onProgress?, signal? }) — multipart POST with Bearer auth,
-          fractional progress, and AbortSignal cancellation; throws ApiError with
-          code UPLOAD_ABORTED on cancel.
-        - apps/admin/src/components/UploadProgress.tsx (new): determinate bar +
-          %-label + Cancel button, themed.
-        - Refactored the two M6-named uploads (eventBrandingApi.uploadLogo,
-          sponsorsApi.uploadLogo) from bespoke fetch+FormData to the helper with
-          optional { onProgress, signal }; wired progress bar + Cancel into the
-          branding screen (settings.tsx) and the sponsor form modal (sponsors.tsx).
-          Cancel is treated as a no-op (not an error): branding keeps the old logo;
-          a cancelled sponsor upload keeps the saved sponsor without the new image.
-        - NOT done (out of M6 scope, still bespoke fetch): orgApi.uploadLogo,
-          auctionApi.uploadPhoto (can adopt uploadWithProgress the same way when
-          desired), and download progress (createDownloadTask → the only download
-          is admin PDF export; low value). admin tsc + 105 tests green.
-
-FREE WINS (already active on SDK 56, no code changes)
-[x] M7. Hermes v1 by default (faster startup, less memory), ~58% smaller OTA update
-        bundles, ~5x faster CLI / 6x faster Metro crawl. Verify in practice.
-        DONE 2026-07-01 (no code action — free win). CONFIRMED ENABLED 2026-06-24
-        (static check): apps/mobile has NO jsEngine override in app.json/app.config
-        (and no "jsc"), so it uses the SDK-56 default = Hermes v1; expo ~56.0.12,
-        react-native 0.85.3. The engine is on; there is no code deliverable left.
-        Optional-only follow-up (NOT blocking, deferred): empirical "in practice"
-        numbers (cold-start, memory, OTA bundle size, Metro crawl) need a device/
-        simulator profiling session — not doable from the Windows/web dev box. Note
-        Hermes is native-only: the admin app run as Expo *web* uses the browser
-        engine, so M7's gains apply to the native mobile build only.
 
 WATCH-OUT (constraint on iOS adoption, not a code task)
 - SDK 56 bumps build requirements: Xcode 26.4, iOS/tvOS min 16.4, macOS 13.4. EAS
@@ -279,42 +19,6 @@ WATCH-OUT (constraint on iOS adoption, not a code task)
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done. Branches are
 LOCAL (unpushed) unless noted.
-
-[x] T1. (COVERAGE) API service layer was largely untested. Added unit/integration
-        tests (InMemory EF Core) across the API; suite went 183 -> 368 green.
-        - League engines: SkinsCalculator, StandingsCalculator (all 4 formats),
-          PairingEngine, HandicapEngine (apps/api-tests/League/).
-        - MobileService (join / batch-sync anti-injection + conflict / scorecard /
-          self-update IDOR) + PlayerSessionAuth (apps/api-tests/Mobile/).
-        - TokenService, AuthService (real Identity stack), PaymentsService (pre-Stripe
-          guards), OrgService (WCAG theme), SponsorService, PlayerService, TeamService
-          (auto-pair / invite tokens), LeagueService (apps/api-tests/Services/).
-        Behaviour-preserving prod tweaks made for testability: MobileService +
-        PlayerService now depend on IRealTimeService (added PublishLeaderboardAsync +
-        SendCheckInUpdatedAsync to the interface); HandicapEngine pure math extracted
-        to internal statics (InternalsVisibleTo); InMemoryDbFactory gained an
-        ignoreTransactions option (for AuthService.RegisterAsync's transaction).
-        Committed on feat/sdk56-modernization (merged via PR #8/#9).
-
-[x] T2. (PERF) HandicapEngine ran ONE heavy GroupBy-with-navigation query PER member
-        in both RecalculateAsync and DetectSandbaggersAsync (N+1 on every round close;
-        ~30+ correlated round-trips for a 30-member league). Replaced with a single
-        shared LoadClosedResultsAsync that batches into a few flat-projection queries
-        and aggregates in memory — O(1) queries regardless of member count, behaviour-
-        preserving. Side benefits: the flat projections translate on EF InMemory (the
-        old g.First().Round.RoundDate / .Course.Holes.Sum() form did not), so
-        RecalculateAsync's full DB path is now covered (6 new integration tests), AND
-        this removes the prior "unverified whether the differential query translates on
-        Npgsql/Postgres" risk. Suite 362 -> 368.
-        On LOCAL branch chore/handicap-batching (unpushed).
-
-[x] T3. (TOOLING) Added /seed-league-season skill — the league-play counterpart to
-        /seed-demo-event. Seeds a league + season + flights + members via the real API
-        and plays it one round at a time (pairings -> scoring -> close) so handicaps /
-        standings / skins recalculation is reviewable per round. Self-contained (no
-        course/event/Stripe). On LOCAL branch feat/seed-league-skill (unpushed).
-        Offline-verified (syntax / usage / API-down); live end-to-end run still pending
-        (needs the API + Postgres up).
 
 [ ] T4. (COVERAGE, low ROI) Thin services still without direct tests: QrService,
         EmailService, EmailBuilderService, PushNotificationService, TestDataService.
@@ -332,50 +36,6 @@ LOCAL (unpushed) unless noted.
 
 ## Live updates & branding refresh (2026-07-01)
 
-[x] S1. Live sponsor updates during an event (web + mobile). DONE 2026-07-01.
-        A sponsor added/edited mid-event now reaches connected scoreboards and
-        scorers without a rejoin or page reload. Hybrid design:
-        - events.sponsors_version — monotonic counter bumped on every sponsor
-          create/update/delete/logo change (Phase12_SponsorsVersion migration).
-        - SponsorsChanged SignalR broadcast carries the new version (instant path);
-          polling is the durable fallback. New GET /pub/events/{code}/sponsors
-          returns the scorecard-shaped list; SponsorsVersion also surfaced on the
-          public-event payload.
-        - Web: useLiveLeaderboard gained an optional onSponsorsChanged handler
-          (reuses the existing socket); ScoresPoller refetches on the signal, with
-          a disconnected-only poll fallback.
-        - Mobile: the foreground poll (runs during scoring) does a cheap version
-          check and swaps session.sponsors in-memory + SQLite only when it changes.
-        Verified end-to-end against the live API (real HTTP + SignalR + Postgres):
-        admin create -> SponsorsChanged v1 received -> public reads reflect v1 ->
-        second mutation -> v2. Tests: API 374, mobile 100, shared-types 78 green.
-        Committed on main (ac08a2e; test/T4 note 256e2cb).
-
-[x] S2. Mobile event-theme refresh gap closed. DONE 2026-07-01.
-        The scorer cached event.themeJson at /join and never re-pulled it, so an
-        admin colour-scheme change never reached devices already in the event. The
-        5s status poll already downloaded the full public-event payload but read
-        only `status`; it now also carries resolvedThemeJson, and updateEventStatus
-        merges status+theme guarded on change (no re-render on unchanged ticks).
-        Committed on main (23dd10e).
-        FOLLOW-UP DONE 2026-07-01: closed the phase gap. The layout status poll
-        stops once scoring opens, so theme originally refreshed only pre-scoring.
-        The session foreground poll (runs every phase, incl. active scoring, and
-        already fetches the public event for S1's sponsor-version check) now also
-        applies themeJson via updateEventStatus(undefined, themeJson) — theme-only,
-        so a mid-round Completed status is NOT propagated (that would drop the
-        golfer off the scorecard). Theme + sponsors now both refresh in all phases
-        off a single reused request. tsc clean; mobile 100 green.
-
-[x] S3. Browser verification of S1/S2 (2026-07-01). Drove the real apps in
-        headless Edge (Playwright, system browser channel) against the live
-        API/SignalR/Postgres:
-        - Web scoreboard (TV mode): admin adds a sponsor -> ticker appears/updates
-          live, no page reload (SignalR onSponsorsChanged -> refetch -> re-render).
-        - Mobile scorer (Expo web) on a Scoring event: join -> scorecard, then admin
-          changes theme + renames a sponsor -> scorecard repaints green->purple and
-          shows the renamed sponsor LIVE during scoring, no rejoin (confirms both
-          Option C and the S2 during-scoring theme fix in the RN runtime).
 
 [!] S4. KNOWN LIMITATION (surfaced during S3): mobile live sponsor/theme refresh
         does NOT work for Draft *test-mode* events. The session poll reads
@@ -410,8 +70,26 @@ LOCAL (unpushed) unless noted.
 
 [ ] A2. Expo update
 
-[ ] A4. (ROBUSTNESS) No React error boundaries anywhere — a render-time throw
+[x] A4. (ROBUSTNESS) No React error boundaries anywhere — a render-time throw
         unmounts the whole tree to a blank screen instead of a fallback.
+        DONE 2026-07-04 (chore/problem-list-cleanup) — shared branded
+        `ErrorFallback` in @gfp/ui (static styling on purpose: must render even
+        when ThemeProvider itself crashed; console.errors the caught error so
+        the underlying throw still lands in logs). Wired framework-native:
+        - apps/web: app/error.tsx (segment recovery, reset() button, site
+          header stays up) + app/global-error.tsx (root-layout crashes, own
+          <html>/<body>).
+        - apps/mobile: `ErrorBoundary` exports on app/_layout.tsx (root) and
+          (scoring)/_layout.tsx (scorer-specific copy: pending scores are in
+          SQLite and still sync).
+        - apps/admin: `ErrorBoundary` exports on src/app/_layout.tsx (root)
+          and (app)/_layout.tsx ("you're still signed in" copy).
+        Verified: all tsc + 319 JS tests + 399 API tests green; a temporary
+        throwing route through the web prod build returned a controlled 500
+        with NO error detail leaked (fallback itself hydrates client-side —
+        not observable via curl, no browser automation available on this box).
+        The original console-hint throw was never captured — boundaries now
+        log it if it recurs.
         Surfaced 2026-07-02 via React's console hint "Consider adding an error
         boundary to your tree to customize error handling behavior"
         (https://react.dev/link/error-boundaries), which React logs whenever a
@@ -516,3 +194,29 @@ LOCAL (unpushed) unless noted.
             the non-auction events) to silence the warnings; (b) better, give the hub
             per-concern groups (scores vs auction) so a screen only receives what it
             subscribes to, avoiding a second full-group socket. Deferred 2026-07-02.
+
+[x] A7. Need to add golf course and golf course address to the email flier, and make the golf course editable on the overview info page
+        DONE 2026-07-04 (chore/problem-list-cleanup):
+        - Flier: EmailBuilderDataResponse gained courseName + courseAddress
+          ("17 Mile Dr, Pebble Beach, CA 93953" — blank parts skipped). The
+          admin email-builder details section now renders "⛳ course name" +
+          "📍 full address" (falls back to the old "City, State" line when no
+          course); Event Info preview card shows the same.
+        - Editable course: new PATCH /api/v1/events/{id}/course
+          (UpdateCourseRequest) edits name/address/city/state/zip IN PLACE —
+          deliberately never touches holes, so pars/handicaps/yardages that
+          feed the leaderboard survive an address fix (POST /course still
+          replaces + regenerates). Overview Course section now always shows an
+          Edit/Attach button + Address/Zip rows; the modal prefills and calls
+          updateCourse in edit mode.
+        - Verified live against the API: attach → PATCH rename/re-address →
+          holes count/pars/handicaps and course id unchanged; PATCH on a
+          course-less event → clean 400; email-builder/data returns the new
+          fields. All tsc + tests green.
+        NOTE (surfaced while verifying): POST /course requires Address but the
+        admin Attach Course modal labeled it optional. RESOLVED 2026-07-04 by
+        making Address required everywhere: UpdateCourseRequest gained
+        [Required] + an UpdateCourseRequestValidator (mirrors the attach
+        rules, minus holes), and the admin modal now labels "Address *" and
+        blocks submit on blank. Verified live: PATCH blank address → 400
+        naming Address; with address → 200. Zip stays optional.

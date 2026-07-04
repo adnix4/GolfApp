@@ -8,6 +8,7 @@
 //   GET    /api/v1/events/{id}                      — get event detail
 //   PATCH  /api/v1/events/{id}                      — update event / transition status
 //   POST   /api/v1/events/{id}/course               — attach course + holes
+//   PATCH  /api/v1/events/{id}/course               — edit course name/address (holes preserved)
 //   POST   /api/v1/events/{id}/shotgun-assignments  — assign starting holes
 //   POST   /api/v1/events/{id}/tee-times            — assign tee times
 //   GET    /api/v1/events/{id}/leaderboard          — computed standings
@@ -153,6 +154,26 @@ public class EventController : ControllerBase
     {
         var orgId    = GetOrgId();
         var response = await _eventService.AttachCourseAsync(orgId, id, request, ct);
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Edits the attached course's name/address in place — holes (pars,
+    /// handicaps, yardages) are untouched, unlike POST /course which replaces
+    /// the whole course. 400 when the event has no course attached yet.
+    /// </summary>
+    [HttpPatch("api/v1/events/{id:guid}/course")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(typeof(EventResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<EventResponse>> UpdateCourse(
+        [FromRoute] Guid id,
+        [FromBody] UpdateCourseRequest request,
+        CancellationToken ct)
+    {
+        var orgId    = GetOrgId();
+        var response = await _eventService.UpdateCourseAsync(orgId, id, request, ct);
         return Ok(response);
     }
 
