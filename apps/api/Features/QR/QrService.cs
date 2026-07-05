@@ -140,6 +140,35 @@ public class QrService
         return qr;
     }
 
+    // ── REGISTRATION QR PNG (public — embedded in the email ad) ────────────────
+
+    /// <summary>
+    /// Renders the event's registration QR as a PNG. The QR encodes the public
+    /// registration page URL (/e/{orgSlug}/{eventCode}) — the same destination
+    /// as the EventJoin QR — so a golfer scanning the email ad lands on the
+    /// page that registers them and hands off to the mobile scorer app.
+    /// PNG rather than the stored SVG because email clients only reliably
+    /// render plain raster images fetched over https (data: URIs and inline
+    /// SVG are widely stripped).
+    /// </summary>
+    public async Task<byte[]> GetRegistrationQrPngAsync(
+        string eventCode, CancellationToken ct = default)
+    {
+        var evt = await _db.Events
+            .AsNoTracking()
+            .Include(e => e.Organization)
+            .FirstOrDefaultAsync(e => e.EventCode == eventCode.ToUpperInvariant(), ct)
+            ?? throw new NotFoundException($"No event found with code '{eventCode}'.");
+
+        var baseUrl = _config["APP_BASE_URL"] ?? "https://golffundraiser.pro";
+        var url     = $"{baseUrl}/e/{evt.Organization.Slug}/{evt.EventCode}";
+
+        using var generator = new QRCodeGenerator();
+        var data = generator.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
+        // 10px per module ≈ 330px square — crisp when the email renders it at 180px.
+        return new PngByteQRCode(data).GetGraphic(10);
+    }
+
     // ── LIST ───────────────────────────────────────────────────────────────────
 
     public async Task<List<QrCodeResponse>> GetAllAsync(
