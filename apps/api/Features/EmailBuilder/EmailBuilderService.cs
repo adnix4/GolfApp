@@ -41,9 +41,20 @@ public class EmailBuilderService
             .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct)
             ?? throw new NotFoundException("Event", eventId);
 
-        var org             = evt.Organization;
-        var registrationUrl = $"https://golffundraiser.pro/e/{org.Slug}/{evt.EventCode}";
-        var qrCodeUrl       = $"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={Uri.EscapeDataString(registrationUrl)}";
+        var org = evt.Organization;
+
+        // Web app base for golfer-facing links; API base for images the email
+        // must fetch from us (QR PNG, locally-stored "/uploads/…" logos). In
+        // dev neither is set, so links point at the prod domain placeholder and
+        // images at the local API. See .env.example.
+        var webBase = (_config["APP_BASE_URL"]  ?? "https://golffundraiser.pro").TrimEnd('/');
+        var apiBase = (_config["API_PUBLIC_URL"] ?? "http://localhost:5000").TrimEnd('/');
+
+        var registrationUrl = $"{webBase}/e/{org.Slug}/{evt.EventCode}";
+
+        // Unique per-event QR served by our own API (no third-party generator);
+        // encodes the registration page, which also hands golfers to the app.
+        var qrCodeUrl = $"{apiBase}/api/v1/pub/events/{evt.EventCode}/registration-qr.png";
 
         // Resolve branding: event value overrides org default
         var resolvedLogoUrl   = evt.LogoUrl          ?? org.LogoUrl;
@@ -79,17 +90,37 @@ public class EmailBuilderService
               }.Where(part => !string.IsNullOrWhiteSpace(part)))
             : string.Empty;
 
+        // "Get Directions" link for the ad's location block (mirrors the look
+        // of event-page platforms). Falls back to the course name when the
+        // street address is missing.
+        var directionsQuery = !string.IsNullOrEmpty(courseAddress)
+            ? courseAddress
+            : evt.Course is not null ? $"{evt.Course.Name}, {location}" : string.Empty;
+        var directionsUrl = string.IsNullOrEmpty(directionsQuery)
+            ? string.Empty
+            : $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(directionsQuery)}";
+
+        // "7:30 AM · Shotgun start" for the WHEN block; empty when no StartAt.
+        var startTypeLabel = evt.StartType == Domain.Enums.EventStartType.Shotgun
+            ? "Shotgun start" : "Tee times";
+        var eventTime = evt.StartAt is null
+            ? string.Empty
+            : $"{evt.StartAt.Value.ToString("h:mm tt", System.Globalization.CultureInfo.InvariantCulture)} · {startTypeLabel}";
+
         return new EmailBuilderDataResponse
         {
             EventName        = evt.Name,
             OrgName          = org.Name,
-            OrgLogoUrl       = resolvedLogoUrl,
+            OrgLogoUrl       = ToAbsoluteUrl(resolvedLogoUrl, apiBase),
             EventDate        = evt.StartAt?.ToString("MMMM d, yyyy",
                                   System.Globalization.CultureInfo.InvariantCulture)
                               ?? "Date TBD",
+            EventTime        = eventTime,
             EventLocation    = location,
             CourseName       = evt.Course?.Name ?? string.Empty,
             CourseAddress    = courseAddress,
+            DirectionsUrl    = directionsUrl,
+            EntryFeeCents    = ExtractEntryFeeCents(evt.ConfigJson),
             RegistrationUrl  = registrationUrl,
             QrCodeUrl        = qrCodeUrl,
             PrimaryColor     = primaryColor,
@@ -99,11 +130,33 @@ public class EmailBuilderService
                 .Select(s => new EmailSponsorDto
                 {
                     Name    = s.Name,
-                    LogoUrl = s.LogoUrl,
+                    LogoUrl = ToAbsoluteUrl(s.LogoUrl, apiBase),
                     Tier    = s.Tier.ToString(),
                 })
                 .ToList(),
         };
+    }
+
+    /// <summary>
+    /// Email HTML is rendered outside our site, so root-relative "/uploads/…"
+    /// paths (Local file storage) must become absolute against the API host.
+    /// Absolute URLs (blob storage, external logos) pass through untouched.
+    /// </summary>
+    private static string? ToAbsoluteUrl(string? url, string apiBase) =>
+        !string.IsNullOrEmpty(url) && url.StartsWith('/') ? $"{apiBase}{url}" : url;
+
+    private static int? ExtractEntryFeeCents(string? configJson)
+    {
+        if (string.IsNullOrWhiteSpace(configJson)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(configJson);
+            return doc.RootElement.TryGetProperty("entryFeeCents", out var v)
+                   && v.ValueKind == JsonValueKind.Number
+                ? v.GetInt32()
+                : null;
+        }
+        catch { return null; }
     }
 
     // ── SEND VIA SENDGRID ─────────────────────────────────────────────────────
@@ -166,12 +219,19 @@ public sealed record EmailBuilderDataResponse
     public string  OrgName          { get; init; } = string.Empty;
     public string? OrgLogoUrl       { get; init; }
     public string  EventDate        { get; init; } = string.Empty;
+    /// <summary>"7:30 AM · Shotgun start" for the WHEN block; empty when StartAt is unset.</summary>
+    public string  EventTime        { get; init; } = string.Empty;
     public string  EventLocation    { get; init; } = string.Empty;
     /// <summary>Golf course name for the flier; empty when no course attached.</summary>
     public string  CourseName       { get; init; } = string.Empty;
     /// <summary>Full course street address ("17 Mile Dr, Pebble Beach, CA 93953"); empty when no course.</summary>
     public string  CourseAddress    { get; init; } = string.Empty;
+    /// <summary>Google Maps "Get Directions" link for the location block; empty when no course.</summary>
+    public string  DirectionsUrl    { get; init; } = string.Empty;
+    /// <summary>Team entry fee from the event config; null when registration is free/unset.</summary>
+    public int?    EntryFeeCents    { get; init; }
     public string  RegistrationUrl  { get; init; } = string.Empty;
+    /// <summary>Self-hosted per-event QR PNG (encodes the registration page URL).</summary>
     public string  QrCodeUrl        { get; init; } = string.Empty;
     public string  PrimaryColor     { get; init; } = "#1a1a2e";
     public string? MissionStatement { get; init; }

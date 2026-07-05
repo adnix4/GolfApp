@@ -43,6 +43,26 @@ public class QrController : ControllerBase
     }
 
     /// <summary>
+    /// Public endpoint — serves the event's registration QR as a PNG image.
+    /// Referenced by the email-ad builder: email clients need a plain https
+    /// img URL, so the QR must be fetchable anonymously from this API rather
+    /// than embedded as a data: URI (stripped by Gmail/Outlook) or generated
+    /// by a third-party service.
+    /// </summary>
+    [HttpGet("api/v1/pub/events/{eventCode}/registration-qr.png")]
+    [AllowAnonymous]
+    [ResponseCache(Duration = 3600, Location = ResponseCacheLocation.Any)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RegistrationQrPng(
+        [FromRoute] string eventCode,
+        CancellationToken ct)
+    {
+        var png = await _qrService.GetRegistrationQrPngAsync(eventCode, ct);
+        return File(png, "image/png");
+    }
+
+    /// <summary>
     /// Public endpoint — no auth required.
     /// Called when a QR code is scanned by the mobile app or browser.
     /// </summary>

@@ -6,118 +6,10 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { emailBuilderApi, type EmailBuilderData } from '@/lib/api';
-
-// ── SECTION TYPES ─────────────────────────────────────────────────────────────
-
-type SectionId = 'header' | 'details' | 'mission' | 'cta' | 'qr' | 'sponsors' | 'footer';
-
-const DEFAULT_SECTIONS: SectionId[] = ['header', 'details', 'mission', 'cta', 'qr', 'sponsors', 'footer'];
-
-const SECTION_LABELS: Record<SectionId, string> = {
-  header:   'Header Band',
-  details:  'Event Details',
-  mission:  'Mission Statement',
-  cta:      'CTA Button',
-  qr:       'QR Code',
-  sponsors: 'Sponsor Grid',
-  footer:   'Footer',
-};
-
-// ── EMAIL HTML BUILDER ────────────────────────────────────────────────────────
-// Table-based, inline styles only — required for Outlook/Gmail compatibility.
-
-function buildEmailHtml(data: EmailBuilderData, sections: SectionId[], subject: string): string {
-  const p = data.primaryColor;
-
-  const bodyParts = sections.map(id => {
-    switch (id) {
-      case 'header':
-        return `
-  <table width="600" cellpadding="0" cellspacing="0" border="0" style="background:${p};border-radius:8px 8px 0 0;">
-    <tr><td style="padding:24px 32px;text-align:center;">
-      ${data.orgLogoUrl ? `<img src="${data.orgLogoUrl}" alt="${data.orgName}" height="60" style="display:block;margin:0 auto 12px;">` : ''}
-      <h1 style="color:#ffffff;font-family:Arial,sans-serif;font-size:26px;margin:0;">${data.orgName}</h1>
-    </td></tr>
-  </table>`;
-
-      case 'details':
-        return `
-  <table width="600" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
-    <tr><td style="padding:28px 32px;font-family:Arial,sans-serif;">
-      <h2 style="color:${p};font-size:20px;margin:0 0 12px;">${data.eventName}</h2>
-      <p style="color:#555;font-size:15px;margin:4px 0;">&#128197; ${data.eventDate}</p>
-      ${data.courseName ? `<p style="color:#555;font-size:15px;margin:4px 0;">&#9971; ${data.courseName}</p>` : ''}
-      ${data.courseAddress
-        ? `<p style="color:#555;font-size:15px;margin:4px 0;">&#128205; ${data.courseAddress}</p>`
-        : data.eventLocation ? `<p style="color:#555;font-size:15px;margin:4px 0;">&#128205; ${data.eventLocation}</p>` : ''}
-    </td></tr>
-  </table>`;
-
-      case 'mission':
-        return data.missionStatement ? `
-  <table width="600" cellpadding="0" cellspacing="0" border="0" style="background:#f9fafb;">
-    <tr><td style="padding:20px 32px;font-family:Arial,sans-serif;border-left:4px solid ${p};">
-      <p style="color:#555;font-size:14px;font-style:italic;margin:0;">${data.missionStatement}</p>
-    </td></tr>
-  </table>` : '';
-
-      case 'cta':
-        return `
-  <table width="600" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
-    <tr><td style="padding:24px 32px;text-align:center;">
-      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${data.registrationUrl}" style="height:44px;v-text-anchor:middle;width:200px;" arcsize="25%" strokecolor="${p}" fillcolor="${p}"><w:anchorlock/><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">Register Now</center></v:roundrect><![endif]-->
-      <!--[if !mso]><!--><a href="${data.registrationUrl}" style="background:${p};color:#ffffff;display:inline-block;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;padding:12px 32px;border-radius:8px;text-decoration:none;">Register Now</a><!--<![endif]-->
-    </td></tr>
-  </table>`;
-
-      case 'qr':
-        return `
-  <table width="600" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
-    <tr><td style="padding:16px 32px 24px;text-align:center;font-family:Arial,sans-serif;">
-      <p style="color:#888;font-size:12px;margin:0 0 12px;">Scan to register</p>
-      <img src="${data.qrCodeUrl}" alt="Registration QR Code" width="160" height="160" style="display:block;margin:0 auto;border:1px solid #eee;">
-    </td></tr>
-  </table>`;
-
-      case 'sponsors':
-        return data.sponsors.length > 0 ? `
-  <table width="600" cellpadding="0" cellspacing="0" border="0" style="background:#f9fafb;">
-    <tr><td style="padding:20px 32px;font-family:Arial,sans-serif;text-align:center;">
-      <p style="color:#888;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;margin:0 0 12px;">Our Sponsors</p>
-      <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-        ${data.sponsors.slice(0, 4).map(s =>
-          `<td style="text-align:center;padding:8px;">${
-            s.logoUrl
-              ? `<img src="${s.logoUrl}" alt="${s.name}" height="40" style="display:block;margin:0 auto;">`
-              : `<span style="font-size:12px;color:#555;font-weight:bold;">${s.name}</span>`
-          }</td>`
-        ).join('')}
-      </tr></table>
-    </td></tr>
-  </table>` : '';
-
-      case 'footer':
-        return `
-  <table width="600" cellpadding="0" cellspacing="0" border="0" style="background:#f0f0f0;border-radius:0 0 8px 8px;">
-    <tr><td style="padding:16px 32px;text-align:center;font-family:Arial,sans-serif;font-size:11px;color:#888;">
-      ${data.orgName} &middot; Powered by Golf Fundraiser Pro<br>
-      <a href="${data.registrationUrl}" style="color:${p};text-decoration:none;">${data.registrationUrl}</a>
-    </td></tr>
-  </table>`;
-
-      default: return '';
-    }
-  }).join('\n');
-
-  return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${subject}</title></head>
-<body style="margin:0;padding:20px;background:#e8e8e8;font-family:Arial,sans-serif;">
-<table width="600" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-${bodyParts}
-</table>
-</body></html>`;
-}
+import {
+  buildEmailHtml, formatFee,
+  DEFAULT_SECTIONS, SECTION_LABELS, type SectionId,
+} from '@/lib/emailHtml';
 
 // ── SCREEN ────────────────────────────────────────────────────────────────────
 
@@ -353,10 +245,12 @@ export default function EmailBuilderScreen() {
           <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>Event Info</Text>
           <Text style={[styles.cardSub,   { color: theme.mutedText  }]}>
             {builderData.eventName} · {builderData.eventDate}
+            {builderData.eventTime ? ` · ${builderData.eventTime}` : ''}
             {builderData.courseName ? `\n⛳ ${builderData.courseName}` : ''}
             {builderData.courseAddress
               ? `\n${builderData.courseAddress}`
               : builderData.eventLocation ? `\n${builderData.eventLocation}` : ''}
+            {formatFee(builderData.entryFeeCents) ? `\n💵 ${formatFee(builderData.entryFeeCents)} per team` : ''}
             {`\n${builderData.sponsors.length} sponsor(s)`}
             {`\n${builderData.registrationUrl}`}
           </Text>

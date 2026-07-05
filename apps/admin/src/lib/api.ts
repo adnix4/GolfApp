@@ -283,13 +283,21 @@ export interface EmailBuilderData {
   orgName:          string;
   orgLogoUrl:       string | null;
   eventDate:        string;
+  /** "7:30 AM · Shotgun start" — empty when the event has no start time yet. */
+  eventTime:        string;
   eventLocation:    string;
   courseName:       string;
   courseAddress:    string;
+  /** Google Maps link for the WHERE block's "Get Directions"; empty when no course. */
+  directionsUrl:    string;
+  /** Team entry fee from the event config; null when free/unset. */
+  entryFeeCents:    number | null;
   registrationUrl:  string;
+  /** Self-hosted per-event QR PNG (encodes the registration page URL). */
   qrCodeUrl:        string;
   primaryColor:     string;
   missionStatement: string | null;
+  is501c3:          boolean;
   sponsors:         Array<{ name: string; logoUrl: string | null; tier: string }>;
 }
 
