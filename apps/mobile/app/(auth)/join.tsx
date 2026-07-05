@@ -7,10 +7,10 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { FORMAT_LABELS } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
-import { joinEvent, fetchActiveEvents, type ActiveEventSummary } from '@/lib/api';
+import { joinEvent, fetchActiveEvents, type ActiveEventSummary, type JoinEventResponse } from '@/lib/api';
 import { registerForPushNotifications } from '@/lib/pushNotifications';
 
-type Step = 'pick' | 'join' | 'waiting';
+type Step = 'pick' | 'join' | 'verify' | 'waiting';
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   Registration: { label: 'Registration Open', color: '#2e7d32' },
@@ -39,6 +39,11 @@ export default function JoinScreen() {
   const [error,         setError]         = useState<string | null>(null);
   const [joining,       setJoining]       = useState(false);
   const [showManual,    setShowManual]    = useState(false);
+
+  // Email verification step (A3) — the server emails a 6-digit one-time code
+  // the first time this device joins with a given email.
+  const [verifyCode, setVerifyCode] = useState('');
+  const [resent,     setResent]     = useState(false);
 
   // Free-agent waiting state — stored so "Check Again" can re-poll with same credentials
   const [waitingEventCode, setWaitingEventCode] = useState('');
@@ -81,6 +86,23 @@ export default function JoinScreen() {
     setStep('join');
   }
 
+  /** Shared landing logic once the server returns a real join payload. */
+  async function enterEvent(data: JoinEventResponse, code: string, emailT: string) {
+    if (data.awaitingAssignment) {
+      // Free agent registered but not yet assigned to a team — show waiting screen
+      setWaitingEventCode(code);
+      setWaitingEmail(emailT);
+      setWaitingName(`${data.player.firstName} ${data.player.lastName}`);
+      setWaitingEventName(data.event.name);
+      setStep('waiting');
+      return;
+    }
+
+    await setSession(data);
+    registerForPushNotifications(data.player.id).catch(() => {});
+    router.replace('/preflight');
+  }
+
   async function handleJoin() {
     const code   = eventCode.trim().toUpperCase();
     const emailT = email.trim().toLowerCase();
@@ -91,21 +113,50 @@ export default function JoinScreen() {
     try {
       const data = await joinEvent(code, emailT, deviceId);
 
-      if (data.awaitingAssignment) {
-        // Free agent registered but not yet assigned to a team — show waiting screen
-        setWaitingEventCode(code);
-        setWaitingEmail(emailT);
-        setWaitingName(`${data.player.firstName} ${data.player.lastName}`);
-        setWaitingEventName(data.event.name);
-        setStep('waiting');
+      if (data.verificationRequired) {
+        // First join from this device — the server emailed a one-time code.
+        setVerifyCode('');
+        setResent(false);
+        setStep('verify');
         return;
       }
 
-      await setSession(data);
-      registerForPushNotifications(data.player.id).catch(() => {});
-      router.replace('/preflight');
+      await enterEvent(data, code, emailT);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not join event. Check your code and email.');
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  async function handleVerify() {
+    const code   = eventCode.trim().toUpperCase();
+    const emailT = email.trim().toLowerCase();
+    const otp    = verifyCode.trim();
+    if (!otp) { setError('Enter the code from your email.'); return; }
+    setError(null);
+    setJoining(true);
+    try {
+      const data = await joinEvent(code, emailT, deviceId, otp);
+      await enterEvent(data, code, emailT);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not verify the code. Please try again.');
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  async function handleResend() {
+    setError(null);
+    setResent(false);
+    setJoining(true);
+    try {
+      // A join call without a code always issues (and emails) a fresh one.
+      await joinEvent(eventCode.trim().toUpperCase(), email.trim().toLowerCase(), deviceId);
+      setVerifyCode('');
+      setResent(true);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not resend the code. Please try again.');
     } finally {
       setJoining(false);
     }
@@ -124,9 +175,7 @@ export default function JoinScreen() {
       }
 
       // Assigned! Enter the normal join flow.
-      await setSession(data);
-      registerForPushNotifications(data.player.id).catch(() => {});
-      router.replace('/preflight');
+      await enterEvent(data, waitingEventCode, waitingEmail);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not check status. Please try again.');
     } finally {
@@ -210,6 +259,96 @@ export default function JoinScreen() {
             >
               <Text style={[styles.waitingBackBtnText, { color: theme.colors.primary }]}>
                 Back to Home
+              </Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  // ── VERIFY STEP (A3 — one-time email code before the session is minted) ──────
+
+  if (step === 'verify') {
+    return (
+      <KeyboardAvoidingView
+        style={[styles.page, { backgroundColor: theme.pageBackground }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          {logo}
+
+          <Pressable
+            onPress={() => { setStep('join'); setError(null); }}
+            style={styles.backBtn}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.backBtnText, { color: theme.mutedText }]}>
+              ← Use a different email
+            </Text>
+          </Pressable>
+
+          <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+            <Text style={styles.verifyIcon}>📬</Text>
+            <Text style={[styles.heading, { color: theme.colors.primary }]}>Check Your Email</Text>
+            <Text style={[styles.sub, { color: theme.mutedText }]}>
+              We sent a 6-digit code to{' '}
+              <Text style={{ fontWeight: '700' }}>{email.trim().toLowerCase()}</Text>.{'\n'}
+              Enter it below to verify it's really you.
+            </Text>
+
+            {error && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
+            {resent && !error && (
+              <View style={styles.resentBox}>
+                <Text style={styles.resentText}>A new code is on its way. ✉️</Text>
+              </View>
+            )}
+
+            <Text style={[styles.label, { color: theme.colors.primary }]}>Verification Code</Text>
+            <TextInput
+              style={[styles.input, styles.codeInput, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+              value={verifyCode}
+              onChangeText={v => { setVerifyCode(v.replace(/[^0-9]/g, '')); setResent(false); }}
+              placeholder="••••••"
+              placeholderTextColor="#aaa"
+              keyboardType="number-pad"
+              maxLength={6}
+              returnKeyType="done"
+              onSubmitEditing={handleVerify}
+              editable={!joining}
+              autoFocus
+            />
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.joinBtn,
+                { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary },
+                joining && { opacity: 0.6 },
+              ]}
+              onPress={handleVerify}
+              disabled={joining}
+              accessibilityRole="button"
+              accessibilityLabel="Verify code and join event"
+            >
+              {joining
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.joinBtnText}>Verify & Join</Text>}
+            </Pressable>
+
+            <Pressable
+              onPress={handleResend}
+              disabled={joining}
+              style={styles.resendBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Email me a new code"
+            >
+              <Text style={[styles.resendBtnText, { color: theme.mutedText }]}>
+                Didn't get it? Resend code
               </Text>
             </Pressable>
           </View>
@@ -568,6 +707,17 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3, borderLeftColor: '#e74c3c',
   },
   errorText: { color: '#c0392b', fontSize: 14 },
+
+  // Verify step (A3 email one-time code)
+  verifyIcon: { fontSize: 40, textAlign: 'center', marginBottom: 8 },
+  codeInput:  { textAlign: 'center', fontSize: 24, fontWeight: '700', letterSpacing: 10 },
+  resentBox: {
+    backgroundColor: '#f1f8e9', borderRadius: 8, padding: 12, marginBottom: 8,
+    borderLeftWidth: 3, borderLeftColor: '#7cb342',
+  },
+  resentText:    { color: '#33691e', fontSize: 14 },
+  resendBtn:     { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
+  resendBtnText: { fontSize: 14, fontWeight: '500', textDecorationLine: 'underline' },
 
   registerSection: { marginTop: 4 },
   orDivider: { flexDirection: 'row', alignItems: 'center', marginVertical: 16, gap: 10 },

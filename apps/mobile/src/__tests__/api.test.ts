@@ -66,6 +66,20 @@ describe('joinEvent', () => {
     expect(JSON.parse(opts.body as string)).toMatchObject({ email: 'jane@test.com', deviceId: 'dev-001' });
   });
 
+  it('includes the verification code in the body when provided (A3)', async () => {
+    mockOk(response);
+    await joinEvent('TESTCODE', 'jane@test.com', 'dev-001', '123456');
+    const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).toMatchObject({ verificationCode: '123456' });
+  });
+
+  it('omits verificationCode from the body when not provided', async () => {
+    mockOk(response);
+    await joinEvent('TESTCODE', 'jane@test.com', 'dev-001');
+    const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(opts.body as string)).not.toHaveProperty('verificationCode');
+  });
+
   it('returns the parsed join response on success', async () => {
     mockOk(response);
     const result = await joinEvent('TESTCODE', 'jane@test.com', 'dev-001');

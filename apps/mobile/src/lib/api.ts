@@ -83,6 +83,13 @@ export interface JoinEventResponse {
    * score sync, auction bids, card setup) — golfers have no password.
    */
   sessionToken: string;
+  /**
+   * True when the server wants email-ownership proof before joining (A3): a
+   * one-time code was just emailed to the registered address and every other
+   * field is empty. Check this FIRST, then re-call joinEvent with the code.
+   * Devices that already verified once are remembered and skip this.
+   */
+  verificationRequired?: boolean;
 }
 
 export interface SyncConflictDto {
@@ -143,11 +150,15 @@ export async function joinEvent(
   eventCode: string,
   email: string,
   deviceId: string,
+  // One-time email verification code (A3). Omitted on the first call — the
+  // server emails a code and responds verificationRequired; the retry carries
+  // the code the golfer typed (or the dev-only test bypass code).
+  verificationCode?: string,
 ): Promise<JoinEventResponse> {
   const res = await gfpFetch(`${BASE}/api/v1/events/${eventCode}/join`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, deviceId }),
+    body: JSON.stringify({ email, deviceId, verificationCode }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

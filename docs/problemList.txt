@@ -112,8 +112,33 @@ LOCAL (unpushed) unless noted.
         - Consider a shared branded fallback in @gfp/ui reused by all three.
         Deferred — logged during the demo-event walkthrough.
 
-[ ] A3. (SECURITY, optional/proportionate) Golfer email verification at join —
-        magic-link / one-time code. RATIONALE: score submission is already
+[x] A3. (SECURITY, optional/proportionate) Golfer email verification at join —
+        magic-link / one-time code.
+        DONE 2026-07-04 (feat/join-email-verification) — one-time code chosen
+        over magic link (no deep-link plumbing; scorer is offline-first).
+        /join is now two-step: first call (no code) stores a 6-digit code on
+        the player (players.verification_code/_expires_at/_attempts, 10-min
+        TTL) and emails it via EmailService.SendTransactionalAsync, returning
+        a bare VerificationRequired=true (no session token, no payload);
+        second call carries verificationCode and, when valid, mints the
+        session token as before. Friction relief: Draft (test-mode) events
+        skip verification entirely; the verifying deviceId is remembered
+        (players.verified_device_id) so rejoins + free-agent "Check Again"
+        don't re-prompt; wrong-code attempts capped at 5 (code invalidated →
+        Resend), constant-time compares via PlayerSessionAuth. Email send
+        failures are logged but don't fail the join (challenge still
+        returned). TEST BYPASS (pre-production): JoinVerification:
+        TestBypassCode in appsettings.Development.json ("999999") is accepted
+        in place of the emailed code because most dev/test player emails are
+        fake; unset/empty config disables it, and it must never be set in
+        production config. Mobile join screen gained a 'verify' step (code
+        input + Verify & Join + Resend). Migration Phase13 hand-written +
+        snapshot updated. Verified live against the dev API: challenge → 400
+        wrong code → bypass accepts → same-device rejoin skips → new device
+        re-challenges → real code accepts → 5-attempt lockout rejects even
+        the real code → expired code rejected → Draft join skips. 408 API
+        tests + 102 mobile tests + both tsc green.
+        RATIONALE: score submission is already
         authenticated (Phase11 per-player session_token; BatchSync rejects tokens
         not belonging to a player on that team) and integrity-backstopped (admin-wins
         conflict + proposed_score approval + score-source audit). The one residual

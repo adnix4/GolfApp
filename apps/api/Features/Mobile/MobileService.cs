@@ -5,6 +5,7 @@ using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
 using GolfFundraiserPro.Api.Domain.Enums;
+using GolfFundraiserPro.Api.Features.Emails;
 using GolfFundraiserPro.Api.Features.RealTime;
 
 namespace GolfFundraiserPro.Api.Features.Mobile;
@@ -20,6 +21,13 @@ namespace GolfFundraiserPro.Api.Features.Mobile;
 ///   If found, we return the full event_cache payload for SQLite storage.
 ///   The golfer does NOT create a new account — they are already in the players table.
 ///
+///   EMAIL VERIFICATION (A3): before minting the session token we prove the caller
+///   owns the registered email — the first join call gets VerificationRequired=true
+///   and a one-time code by email; the second call carries the code. Draft
+///   (test-mode) events and devices that already verified skip this. A config-only
+///   test bypass code (JoinVerification:TestBypassCode) exists for dev/demo
+///   environments where the seeded emails are fake; it must NOT be set in prod.
+///
 /// BATCH SYNC FLOW:
 ///   Mobile app periodically drains its pending_scores SQLite table.
 ///   Each score is an upsert: same device overwrites, different device + different
@@ -30,17 +38,32 @@ public class MobileService
 {
     private readonly ApplicationDbContext _db;
     private readonly IRealTimeService _realTime;
+    private readonly EmailService _email;
+    private readonly IConfiguration _config;
     private readonly ILogger<MobileService> _logger;
+
+    /// <summary>Wrong-code tries before the pending code is invalidated.</summary>
+    private const int MaxVerificationAttempts = 5;
+
+    /// <summary>How long an emailed join verification code stays valid.</summary>
+    private static readonly TimeSpan VerificationCodeTtl = TimeSpan.FromMinutes(10);
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
         PropertyNameCaseInsensitive = true,
     };
 
-    public MobileService(ApplicationDbContext db, IRealTimeService realTime, ILogger<MobileService> logger)
+    public MobileService(
+        ApplicationDbContext db,
+        IRealTimeService realTime,
+        EmailService email,
+        IConfiguration config,
+        ILogger<MobileService> logger)
     {
         _db       = db;
         _realTime = realTime;
+        _email    = email;
+        _config   = config;
         _logger   = logger;
     }
 
@@ -162,6 +185,12 @@ public class MobileService
                         "The round has started but you haven't been assigned to a team yet. " +
                         "Please contact your event organizer immediately.");
 
+                // A3: prove email ownership before minting the free agent's token.
+                // Verified devices skip this, so "Check Again" polling stays silent.
+                var freeAgentChallenge = await EnsureEmailVerifiedAsync(evt, freeAgent, request, ct);
+                if (freeAgentChallenge is not null)
+                    return freeAgentChallenge;
+
                 // Draft / Registration / Active — the organizer still has time to assign.
                 // Return a minimal response so the mobile app can show a waiting screen.
                 _logger.LogInformation(
@@ -223,6 +252,13 @@ public class MobileService
             throw new ValidationException(
                 "You are registered but have not yet been assigned to a team. " +
                 "Please contact your event organizer.");
+
+        // A3: prove email ownership before minting the session token — the event
+        // code is semi-public and the email alone must not be enough to act as
+        // this player.
+        var challenge = await EnsureEmailVerifiedAsync(evt, player, request, ct);
+        if (challenge is not null)
+            return challenge;
 
         _logger.LogInformation(
             "Golfer '{Email}' joined event '{Code}' on device '{Device}'",
@@ -546,6 +582,134 @@ public class MobileService
     }
 
     // ── PRIVATE ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// A3 email-ownership gate for /join. Returns null when the caller may proceed
+    /// (verified now, previously verified on this device, Draft test-mode event, or
+    /// the config-only test bypass code). Returns a bare
+    /// <see cref="JoinEventResponse.VerificationRequired"/> response after emailing
+    /// a fresh one-time code. Throws <see cref="ValidationException"/> for a wrong,
+    /// expired, or attempt-limited code.
+    /// </summary>
+    private async Task<JoinEventResponse?> EnsureEmailVerifiedAsync(
+        Event evt, Player player, JoinEventRequest request, CancellationToken ct)
+    {
+        // Draft events are the test/preview mode — joinable by code only, seeded
+        // with fake emails, never public. Verification would make them unusable.
+        if (evt.Status is EventStatus.Draft)
+            return null;
+
+        // This device already proved ownership of the registered email — rejoins
+        // and free-agent "Check Again" polling shouldn't re-prompt. (DeviceIds are
+        // app-generated UUIDs held on-device; proportionate, not cryptographic.)
+        if (!string.IsNullOrEmpty(player.VerifiedDeviceId)
+            && player.VerifiedDeviceId == request.DeviceId)
+            return null;
+
+        var provided = request.VerificationCode?.Trim();
+
+        if (!string.IsNullOrEmpty(provided))
+        {
+            // TEST BYPASS (dev/demo only): most seeded/test emails are fake, so a
+            // deployment can set JoinVerification:TestBypassCode (Development
+            // config only — never production) and enter it instead of an emailed
+            // code. Unset/empty config disables the bypass entirely.
+            var bypass = _config["JoinVerification:TestBypassCode"];
+            if (!string.IsNullOrEmpty(bypass) && TokenMatches(bypass, provided))
+            {
+                _logger.LogWarning(
+                    "Join verification BYPASSED via test code for '{Email}' on event '{Code}'",
+                    player.Email, evt.EventCode);
+                await MarkEmailVerifiedAsync(player, request.DeviceId, ct);
+                return null;
+            }
+
+            if (string.IsNullOrEmpty(player.VerificationCode)
+                || player.VerificationExpiresAt is null
+                || player.VerificationExpiresAt < DateTime.UtcNow)
+                throw new ValidationException(
+                    "That verification code has expired. Tap Resend to get a new one.");
+
+            if (player.VerificationAttempts >= MaxVerificationAttempts)
+            {
+                player.VerificationCode      = null;
+                player.VerificationExpiresAt = null;
+                await _db.SaveChangesAsync(ct);
+                throw new ValidationException(
+                    "Too many incorrect attempts. Tap Resend to get a new code.");
+            }
+
+            if (!TokenMatches(player.VerificationCode, provided))
+            {
+                player.VerificationAttempts++;
+                await _db.SaveChangesAsync(ct);
+                throw new ValidationException(
+                    "That code doesn't match. Check the email we sent and try again.");
+            }
+
+            await MarkEmailVerifiedAsync(player, request.DeviceId, ct);
+            return null;
+        }
+
+        // No code supplied — issue a fresh challenge. Always regenerate so
+        // "Resend" invalidates any earlier email.
+        var code = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+        player.VerificationCode      = code;
+        player.VerificationExpiresAt = DateTime.UtcNow.Add(VerificationCodeTtl);
+        player.VerificationAttempts  = 0;
+        await _db.SaveChangesAsync(ct);
+
+        try
+        {
+            await _email.SendTransactionalAsync(
+                player.Email,
+                $"{player.FirstName} {player.LastName}",
+                $"Your verification code for {evt.Name}",
+                BuildVerificationEmailHtml(evt.Name, player.FirstName, code),
+                ct);
+        }
+        catch (Exception ex)
+        {
+            // Don't fail the join over email delivery — the golfer can tap Resend,
+            // and dev environments (no SendGrid key, fake emails) use the bypass
+            // code. The challenge response is returned either way.
+            _logger.LogError(ex,
+                "Failed to send join verification email to '{Email}' for event '{Code}'",
+                player.Email, evt.EventCode);
+        }
+
+        _logger.LogInformation(
+            "Join verification code issued for '{Email}' on event '{Code}'",
+            player.Email, evt.EventCode);
+
+        return new JoinEventResponse { VerificationRequired = true };
+    }
+
+    private async Task MarkEmailVerifiedAsync(Player player, string deviceId, CancellationToken ct)
+    {
+        player.VerificationCode      = null;
+        player.VerificationExpiresAt = null;
+        player.VerificationAttempts  = 0;
+        player.VerifiedDeviceId      = deviceId;
+        await _db.SaveChangesAsync(ct);
+    }
+
+    private static string BuildVerificationEmailHtml(string eventName, string firstName, string code) => $"""
+        <div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+          <h2 style="color:#1b5e20;margin:0 0 12px;">⛳ Golf Fundraiser Pro</h2>
+          <p style="font-size:15px;color:#333;">Hi {System.Net.WebUtility.HtmlEncode(firstName)},</p>
+          <p style="font-size:15px;color:#333;">
+            Here is your one-time code to join
+            <strong>{System.Net.WebUtility.HtmlEncode(eventName)}</strong>:
+          </p>
+          <p style="font-size:34px;font-weight:bold;letter-spacing:8px;text-align:center;
+                    background:#f1f8e9;border-radius:8px;padding:16px;color:#1b5e20;">{code}</p>
+          <p style="font-size:13px;color:#666;">
+            The code expires in 10 minutes. If you didn't try to join this event,
+            you can ignore this email — no one can score for you without the code.
+          </p>
+        </div>
+        """;
 
     // Mint a player's session token on first join (golfers have no password — this
     // opaque token is what later authorizes their own actions). Reused on re-join
