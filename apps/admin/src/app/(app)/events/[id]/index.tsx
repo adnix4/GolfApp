@@ -21,6 +21,28 @@ import {
   eventStatusColor, eventStatusLabel, NEXT_TRANSITIONS,
 } from '@/lib/eventStatus';
 
+// ── Entry fee helpers ─────────────────────────────────────────────────────────
+// The per-golfer fee lives in the event config JSONB (entryFeeCents). Organizers
+// type dollars; the API stores cents. 0 / unset both mean "free" — the public
+// page and email ad hide the fee in that case.
+
+function readEntryFeeCents(config: Record<string, unknown>): number | null {
+  const v = config['entryFeeCents'];
+  return typeof v === 'number' && v > 0 ? v : null;
+}
+
+function centsToDollarInput(cents: number | null): string {
+  if (cents == null) return '';
+  const d = cents / 100;
+  return Number.isInteger(d) ? String(d) : d.toFixed(2);
+}
+
+function entryFeeLabel(cents: number | null): string {
+  if (cents == null) return 'Free — no fee set';
+  const d = cents / 100;
+  return `$${Number.isInteger(d) ? d : d.toFixed(2)} per golfer`;
+}
+
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function EventOverviewScreen() {
@@ -164,6 +186,7 @@ export default function EventOverviewScreen() {
         <DetailRow label="Format"     value={FORMAT_LABELS[event.format] ?? event.format} />
         <DetailRow label="Start Type" value={START_LABELS[event.startType] ?? event.startType} />
         <DetailRow label="Holes"      value={`${event.holes} holes`} />
+        <DetailRow label="Entry Fee"  value={entryFeeLabel(readEntryFeeCents(event.config))} />
         {event.startAt && (
           <DetailRow label="Start Date" value={new Date(event.startAt).toLocaleString([], {
             month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -465,17 +488,27 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
   const [startDate, setStartDate] = useState(parsed.date);
   const [startTime, setStartTime] = useState(parsed.time);
   const [ampm,      setAmpm]      = useState<'AM' | 'PM'>(parsed.ampm);
+  const [entryFee,  setEntryFee]  = useState(centsToDollarInput(readEntryFeeCents(event.config)));
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; startDate?: string; startTime?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; startDate?: string; startTime?: string; entryFee?: string }>({});
 
   useEffect(() => {
     if (!visible) return;
     const p = parseIsoToFields(event.startAt);
     setName(event.name); setFormat(event.format); setStartType(event.startType); setHoles(event.holes);
     setStartDate(p.date); setStartTime(p.time); setAmpm(p.ampm);
+    setEntryFee(centsToDollarInput(readEntryFeeCents(event.config)));
     setError(null); setFieldErrors({});
   }, [visible, event]);
+
+  // "$150" / "150.50" → cents; blank means free (0). null = invalid input.
+  function parseEntryFeeCents(): number | null {
+    const raw = entryFee.replace(/[$,\s]/g, '');
+    if (raw === '') return 0;
+    if (!/^\d+(\.\d{1,2})?$/.test(raw)) return null;
+    return Math.round(parseFloat(raw) * 100);
+  }
 
   function validate(): boolean {
     const errs: typeof fieldErrors = {};
@@ -485,6 +518,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
     if (dateErr) errs.startDate = dateErr;
     const timeErr = validateTimeField(startTime);
     if (timeErr) errs.startTime = timeErr;
+    if (parseEntryFeeCents() == null) errs.entryFee = 'Enter a dollar amount like 150 or 150.50 (leave blank for free).';
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -496,6 +530,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
       const updated = await eventsApi.update(event.id, {
         name: name.trim(), format, startType, holes,
         ...(startDate ? { startAt: buildIsoDateTime(startDate, startTime, ampm) } : {}),
+        config: { entryFeeCents: parseEntryFeeCents() ?? 0 },
       });
       onSaved(updated);
     } catch (e: any) { setError(e.message ?? 'Failed to save event details.'); }
@@ -549,6 +584,20 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
                 </Pressable>
               ))}
             </View>
+
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Entry Fee per Golfer ($)</Text>
+            <TextInput
+              style={[styles.input, { borderColor: fieldErrors.entryFee ? '#e74c3c' : theme.colors.accent }]}
+              value={entryFee}
+              onChangeText={v => { setEntryFee(v); if (fieldErrors.entryFee) setFieldErrors(p => ({ ...p, entryFee: undefined })); }}
+              placeholder="Leave blank for a free event"
+              placeholderTextColor="#999"
+              keyboardType="decimal-pad"
+              editable={!loading}
+            />
+            {fieldErrors.entryFee
+              ? <Text style={styles.fieldError}>{fieldErrors.entryFee}</Text>
+              : <Text style={[styles.fieldHint, { color: theme.mutedText }]}>Shown on the public event page and email ads; each golfer pays at registration.</Text>}
 
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Start Date *</Text>
             <TextInput
@@ -773,6 +822,7 @@ const styles = StyleSheet.create({
   errorBox:       { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
   errorText:      { color: '#c0392b', fontSize: 14 },
   fieldError:     { color: '#e74c3c', fontSize: 12, marginTop: 4, marginBottom: 4 },
+  fieldHint:      { fontSize: 11, lineHeight: 15, marginTop: 4 },
   overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
   modalScroll:    { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   modal:          { width: '100%', maxWidth: 480, backgroundColor: '#fff', borderRadius: 16, padding: 28 },

@@ -56,8 +56,10 @@ export default function RegistrationScreen() {
     /* checked_in */          t.checkInStatus !== 'pending',
   );
 
-  const checkedIn = teams.filter(t => t.checkInStatus !== 'pending').length;
-  const feesPaid  = teams.filter(t => t.entryFeePaid).length;
+  const checkedIn   = teams.filter(t => t.checkInStatus !== 'pending').length;
+  // Fees are per golfer — count paid golfers across all rosters.
+  const golfersPaid  = teams.reduce((n, t) => n + t.playersPaid, 0);
+  const golfersTotal = teams.reduce((n, t) => n + t.players.length, 0);
 
   return (
     <View style={styles.page}>
@@ -96,7 +98,7 @@ export default function RegistrationScreen() {
         ]}>
           <StatChip label="Total"      value={teams.length}              color={theme.colors.primary} style={isMobile ? styles.statHalf : undefined} />
           <StatChip label="Checked In" value={checkedIn}                 color="#27ae60"              style={isMobile ? styles.statHalf : undefined} />
-          <StatChip label="Fees Paid"  value={feesPaid}                  color="#2980b9"              style={isMobile ? styles.statHalf : undefined} />
+          <StatChip label={`Golfers Paid (of ${golfersTotal})`} value={golfersPaid} color="#2980b9"   style={isMobile ? styles.statHalf : undefined} />
           <StatChip label="Pending"    value={teams.length - checkedIn}  color="#f39c12"              style={isMobile ? styles.statHalf : undefined} />
         </View>
       )}
@@ -163,21 +165,30 @@ export default function RegistrationScreen() {
                 </View>
 
                 <View style={styles.cardActions}>
-                  {/* Fee status */}
+                  {/* Fee status — per golfer; the button marks the whole roster paid */}
                   {team.entryFeePaid ? (
                     <View style={[styles.pill, { borderColor: '#27ae60' }]}>
-                      <Text style={[styles.pillText, { color: '#27ae60' }]}>✓ Fee Paid</Text>
+                      <Text style={[styles.pillText, { color: '#27ae60' }]}>✓ Fees Paid</Text>
                     </View>
                   ) : (
-                    <Pressable
-                      onPress={() => handleMarkPaid(team.id)}
-                      disabled={busy[team.id + '_fee']}
-                      style={[styles.actionBtn, { borderColor: '#2980b9' }]}
-                    >
-                      {busy[team.id + '_fee']
-                        ? <ActivityIndicator size="small" color="#2980b9" />
-                        : <Text style={[styles.actionBtnText, { color: '#2980b9' }]}>Mark Fee Paid</Text>}
-                    </Pressable>
+                    <>
+                      {team.playersPaid > 0 && (
+                        <View style={[styles.pill, { borderColor: '#f39c12' }]}>
+                          <Text style={[styles.pillText, { color: '#f39c12' }]}>
+                            {team.playersPaid}/{team.players.length} paid
+                          </Text>
+                        </View>
+                      )}
+                      <Pressable
+                        onPress={() => handleMarkPaid(team.id)}
+                        disabled={busy[team.id + '_fee']}
+                        style={[styles.actionBtn, { borderColor: '#2980b9' }]}
+                      >
+                        {busy[team.id + '_fee']
+                          ? <ActivityIndicator size="small" color="#2980b9" />
+                          : <Text style={[styles.actionBtnText, { color: '#2980b9' }]}>Mark All Paid</Text>}
+                      </Pressable>
+                    </>
                   )}
 
                   {/* Check-in */}

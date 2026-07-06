@@ -25,6 +25,9 @@ export default function EventInfoCard({ event }: { event: PublicEventData }) {
             value={`${event.course.name} — ${event.course.city}, ${event.course.state}`}
           />
         )}
+        {event.entryFeeCents != null && (
+          <InfoItem icon="💵" label="Entry Fee" value={`${formatDollars(event.entryFeeCents)} per golfer`} />
+        )}
         {event.spotsRemaining != null && (
           <InfoItem
             icon="👥"
@@ -53,4 +56,9 @@ function InfoItem({ icon, label, value }: { icon: string; label: string; value: 
 
 function titleCase(snake: string): string {
   return snake.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function formatDollars(cents: number): string {
+  const d = cents / 100;
+  return `$${Number.isInteger(d) ? d : d.toFixed(2)}`;
 }

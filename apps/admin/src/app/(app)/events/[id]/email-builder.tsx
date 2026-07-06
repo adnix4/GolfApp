@@ -250,7 +250,7 @@ export default function EmailBuilderScreen() {
             {builderData.courseAddress
               ? `\n${builderData.courseAddress}`
               : builderData.eventLocation ? `\n${builderData.eventLocation}` : ''}
-            {formatFee(builderData.entryFeeCents) ? `\n💵 ${formatFee(builderData.entryFeeCents)} per team` : ''}
+            {formatFee(builderData.entryFeeCents) ? `\n💵 ${formatFee(builderData.entryFeeCents)} per golfer` : ''}
             {`\n${builderData.sponsors.length} sponsor(s)`}
             {`\n${builderData.registrationUrl}`}
           </Text>

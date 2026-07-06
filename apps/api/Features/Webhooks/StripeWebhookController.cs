@@ -16,6 +16,7 @@ public class StripeWebhookController : ControllerBase
     private readonly ApplicationDbContext _db;
     private readonly IConfiguration _config;
     private readonly EmailService _email;
+    private readonly Payments.PaymentsService _payments;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<StripeWebhookController> _logger;
 
@@ -23,14 +24,16 @@ public class StripeWebhookController : ControllerBase
         ApplicationDbContext db,
         IConfiguration config,
         EmailService email,
+        Payments.PaymentsService payments,
         IWebHostEnvironment env,
         ILogger<StripeWebhookController> logger)
     {
-        _db     = db;
-        _config = config;
-        _email  = email;
-        _env    = env;
-        _logger = logger;
+        _db       = db;
+        _config   = config;
+        _email    = email;
+        _payments = payments;
+        _env      = env;
+        _logger   = logger;
     }
 
     [HttpPost]
@@ -100,6 +103,14 @@ public class StripeWebhookController : ControllerBase
     {
         var pi = stripeEvent.Data.Object as PaymentIntent;
         if (pi is null) return;
+
+        // Entry-fee payments carry entry_fee/player_ids metadata (set in
+        // PaymentsService.CreateEntryFeePaymentIntentAsync) — mark the golfers paid.
+        if (pi.Metadata.TryGetValue("entry_fee", out var entryFeeFlag) && entryFeeFlag == "true")
+        {
+            await _payments.ApplyEntryFeePaymentAsync(pi, ct);
+            return;
+        }
 
         if (!pi.Metadata.TryGetValue("winner_id", out var winnerIdStr)
             || !Guid.TryParse(winnerIdStr, out var winnerId))

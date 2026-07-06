@@ -41,6 +41,11 @@ public class CreateEventRequestValidator : AbstractValidator<CreateEventRequest>
             .GreaterThan(DateTime.UtcNow)
             .When(x => x.StartAt.HasValue)
             .WithMessage("StartAt must be a future date and time.");
+
+        RuleFor(x => x.Config!.EntryFeeCents)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.Config?.EntryFeeCents.HasValue == true)
+            .WithMessage("Entry fee must be zero or greater.");
     }
 }
 

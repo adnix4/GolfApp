@@ -444,6 +444,26 @@ export async function confirmSetup(
   return res.json();
 }
 
+/**
+ * Tells the API a Stripe entry-fee payment just succeeded so the golfers show
+ * as paid immediately (the Stripe webhook is the backstop). The server
+ * re-verifies the intent with Stripe, so no session token is needed.
+ */
+export async function confirmEntryFee(
+  paymentIntentId: string,
+): Promise<{ recorded: boolean }> {
+  const res = await gfpFetch(`${BASE}/api/v1/payments/confirm-entry-fee`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paymentIntentId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `Confirm entry fee failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export async function updateMyProfile(
   playerId: string,
   // Identity proof — the session token minted at join, verified server-side so
@@ -559,9 +579,12 @@ export interface RegistrationConfirmResponse {
     registrationType: string;
   };
   inviteLink: string | null;
-  /** Present when the event charges an entry fee and the captain has no saved payment method. */
+  /** Stripe PaymentIntent client_secret for in-app entry fee payment. Null when the event is free. */
   entryFeeClientSecret?: string | null;
+  /** Total due for this registration in cents (per-golfer fee × golfers registered). */
   entryFeeCents?: number | null;
+  /** The per-golfer fee in cents backing the total. */
+  entryFeePerPlayerCents?: number | null;
 }
 
 export async function registerTeam(

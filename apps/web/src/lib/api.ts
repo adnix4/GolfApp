@@ -34,6 +34,8 @@ export interface PublicEventData {
   status:           string;
   startAt:          string | null;
   spotsRemaining:   number | null;
+  /** Per-golfer entry fee in cents; null when the event is free / no fee set. */
+  entryFeeCents:    number | null;
   course:           PublicCourseInfo | null;
   sponsors:         PublicSponsorInfo[];
   fundraising:      PublicFundraisingInfo;

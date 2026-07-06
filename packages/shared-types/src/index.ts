@@ -248,7 +248,10 @@ export interface TeamDTO {
   /** For shotgun starts: which hole the team begins on */
   startingHole:    number | null;
   teeTime:         ISOTimestamp | null;
+  /** True when every golfer on the roster has paid the per-golfer entry fee. */
   entryFeePaid:    boolean;
+  /** Golfers on the roster who have paid the per-golfer entry fee. */
+  playersPaid:     number;
   maxPlayers:      number;
   checkInStatus:   CheckInStatus;
   players:         PlayerDTO[];
@@ -274,6 +277,9 @@ export interface PlayerDTO {
   checkInAt:        ISOTimestamp | null;
   /** Phase 4: true if player has a Stripe card on file */
   hasPaymentMethod: boolean;
+  /** Phase 14: cents paid toward the per-golfer entry fee. 0 = unpaid. */
+  entryFeePaidCents: number;
+  entryFeePaidAt:    ISOTimestamp | null;
 }
 
 /**
@@ -418,10 +424,14 @@ export interface FundraisingTotalsDTO {
   donationsCents:  number;
   /** Grand total across all streams (in cents) */
   grandTotalCents: number;
-  /** Number of teams that have paid entry fees */
+  /** Number of teams whose whole roster has paid */
   teamsPaid:       number;
   /** Total number of registered teams */
   teamsTotal:      number;
+  /** Golfers who have paid the per-golfer entry fee */
+  playersPaid:     number;
+  /** Total registered golfers (free agents included) */
+  playersTotal:    number;
 }
 
 /**

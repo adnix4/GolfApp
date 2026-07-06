@@ -139,15 +139,16 @@ public class TeamService
         var inviteUrl = BuildInviteUrl(evt, team);
         var teamResp  = await GetTeamByIdInternalAsync(team.Id, ct);
 
-        // Create entry fee PaymentIntent for the captain if event has a fee
+        // Entry fee is per golfer — the captain pays for everyone registered here
+        // in one PaymentIntent (fee × roster size).
         string? entryFeeClientSecret = null;
-        int?    entryFeeCents        = null;
+        int?    entryFeeTotalCents   = null;
         var fee = ReadEntryFeeFromConfig(evt.ConfigJson);
         if (fee is > 0)
         {
-            entryFeeCents        = fee;
+            entryFeeTotalCents   = fee.Value * players.Count;
             entryFeeClientSecret = await _payments.CreateEntryFeePaymentIntentAsync(
-                players[0].Id, fee.Value, evt.Name, ct);
+                players.Select(p => p.Id).ToList(), fee.Value, evt.Name, ct);
         }
 
         return new RegistrationConfirmResponse
@@ -155,7 +156,8 @@ public class TeamService
             Team                 = teamResp,
             InviteUrl            = team.InviteToken is not null ? inviteUrl : null,
             EntryFeeClientSecret = entryFeeClientSecret,
-            EntryFeeCents        = entryFeeCents,
+            EntryFeeCents        = entryFeeTotalCents,
+            EntryFeePerPlayerCents = fee is > 0 ? fee : null,
             Message              = $"Team '{team.Name}' registered successfully! " +
                                    (team.InviteToken is not null
                                        ? "Share the invite link to fill remaining spots."
@@ -238,11 +240,23 @@ public class TeamService
         var teamResp   = await GetTeamByIdInternalAsync(team.Id, ct);
         var playerResp = MapToPlayerResponse(player);
 
+        // Per-golfer fee: the joining golfer pays their own share at join time.
+        string? entryFeeClientSecret = null;
+        var fee = ReadEntryFeeFromConfig(evt.ConfigJson);
+        if (fee is > 0)
+        {
+            entryFeeClientSecret = await _payments.CreateEntryFeePaymentIntentAsync(
+                [player.Id], fee.Value, evt.Name, ct);
+        }
+
         return new RegistrationConfirmResponse
         {
             Team    = teamResp,
             Player  = playerResp,
             Message = $"You've joined '{team.Name}' successfully!",
+            EntryFeeClientSecret = entryFeeClientSecret,
+            EntryFeeCents        = fee is > 0 ? fee : null,
+            EntryFeePerPlayerCents = fee is > 0 ? fee : null,
         };
     }
 
@@ -295,6 +309,15 @@ public class TeamService
 
         var playerResp = MapToPlayerResponse(player);
 
+        // Per-golfer fee applies to free agents too.
+        string? entryFeeClientSecret = null;
+        var fee = ReadEntryFeeFromConfig(evt.ConfigJson);
+        if (fee is > 0)
+        {
+            entryFeeClientSecret = await _payments.CreateEntryFeePaymentIntentAsync(
+                [player.Id], fee.Value, evt.Name, ct);
+        }
+
         return new RegistrationConfirmResponse
         {
             // No team yet — return a minimal team shell
@@ -302,6 +325,9 @@ public class TeamService
             Player  = playerResp,
             Message = "You've been added to the free agent pool. " +
                       "The organizer will assign you to a team before the event.",
+            EntryFeeClientSecret = entryFeeClientSecret,
+            EntryFeeCents        = fee is > 0 ? fee : null,
+            EntryFeePerPlayerCents = fee is > 0 ? fee : null,
         };
     }
 
@@ -381,6 +407,7 @@ public class TeamService
     {
         var team = await _db.Teams
             .Include(t => t.Players)
+            .Include(t => t.Event)
             .FirstOrDefaultAsync(t =>
                 t.Id == teamId &&
                 t.EventId == eventId &&
@@ -389,9 +416,32 @@ public class TeamService
         if (team is null)
             throw new NotFoundException("Team", teamId);
 
-        team.EntryFeePaid = true;
+        MarkTeamPlayersPaid(team, paid: true);
         await _db.SaveChangesAsync(ct);
         return MapToTeamResponse(team);
+    }
+
+    /// <summary>
+    /// Organizer cash/check override: records the per-golfer fee against every
+    /// golfer on the roster (or clears it), keeping the legacy team flag in sync.
+    /// </summary>
+    private static void MarkTeamPlayersPaid(Team team, bool paid)
+    {
+        var fee = ReadEntryFeeFromConfig(team.Event?.ConfigJson) ?? 0;
+        team.EntryFeePaid = paid;
+        foreach (var p in team.Players)
+        {
+            if (paid && p.EntryFeePaidCents == 0)
+            {
+                p.EntryFeePaidCents = fee;
+                p.EntryFeePaidAt    = DateTime.UtcNow;
+            }
+            else if (!paid)
+            {
+                p.EntryFeePaidCents = 0;
+                p.EntryFeePaidAt    = null;
+            }
+        }
     }
 
     // ── UPDATE TEAM ───────────────────────────────────────────────────────────
@@ -405,6 +455,7 @@ public class TeamService
     {
         var team = await _db.Teams
             .Include(t => t.Players)
+            .Include(t => t.Event)
             .FirstOrDefaultAsync(t =>
                 t.Id == teamId &&
                 t.EventId == eventId &&
@@ -413,9 +464,9 @@ public class TeamService
         if (team is null)
             throw new NotFoundException("Team", teamId);
 
-        if (request.Name is not null)         team.Name         = request.Name;
-        if (request.EntryFeePaid.HasValue)    team.EntryFeePaid = request.EntryFeePaid.Value;
-        if (request.MaxPlayers.HasValue)      team.MaxPlayers   = request.MaxPlayers.Value;
+        if (request.Name is not null)         team.Name = request.Name;
+        if (request.EntryFeePaid.HasValue)    MarkTeamPlayersPaid(team, request.EntryFeePaid.Value);
+        if (request.MaxPlayers.HasValue)      team.MaxPlayers = request.MaxPlayers.Value;
 
         await _db.SaveChangesAsync(ct);
         return MapToTeamResponse(team);
@@ -909,7 +960,11 @@ public class TeamService
         CaptainPlayerId = team.CaptainPlayerId,
         StartingHole    = team.StartingHole,
         TeeTime         = team.TeeTime,
-        EntryFeePaid    = team.EntryFeePaid,
+        // Fee is per golfer: the team reads as paid when every golfer has paid.
+        // The legacy team flag still counts so pre-Phase14 manual marks survive.
+        EntryFeePaid    = team.EntryFeePaid
+                          || (team.Players.Count > 0 && team.Players.All(p => p.EntryFeePaidCents > 0)),
+        PlayersPaid     = team.Players.Count(p => p.EntryFeePaidCents > 0),
         MaxPlayers      = team.MaxPlayers,
         CheckInStatus   = team.CheckInStatus.ToString(),
         HasInviteLink   = team.InviteToken is not null,
@@ -933,6 +988,8 @@ public class TeamService
         PairingNote      = p.PairingNote,
         CheckInStatus    = p.CheckInStatus.ToString(),
         CheckInAt        = p.CheckInAt,
+        EntryFeePaidCents = p.EntryFeePaidCents,
+        EntryFeePaidAt    = p.EntryFeePaidAt,
     };
 
     private static FreeAgentResponse MapToFreeAgentResponse(Player p) => new()

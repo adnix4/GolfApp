@@ -48,6 +48,9 @@ public record CreateEventRequest
     /// Required before transitioning from Draft → Registration.
     /// </summary>
     public DateTime? StartAt { get; init; }
+
+    /// <summary>Initial config (e.g. per-golfer entryFeeCents). Optional; only set keys are stored.</summary>
+    public EventConfigDto? Config { get; init; }
 }
 
 /// <summary>
@@ -242,7 +245,7 @@ public class EventConfigDto
     [JsonPropertyName("themeOverride")]
     public ThemeOverrideDto? ThemeOverride { get; set; }
 
-    /// <summary>Entry fee amount in cents.  e.g. 15000 = $150.00 per team.</summary>
+    /// <summary>Per-golfer entry fee in cents.  e.g. 15000 = $150.00 per golfer.</summary>
     [JsonPropertyName("entryFeeCents")]
     public int? EntryFeeCents { get; set; }
 }
@@ -430,7 +433,7 @@ public record LeaderboardEntryResponse
 /// </summary>
 public record FundraisingResponse
 {
-    /// <summary>Sum of entry fees for teams that have paid (in cents).</summary>
+    /// <summary>Sum of per-golfer entry fees actually collected (in cents).</summary>
     public int EntryFeesCents       { get; init; }
 
     /// <summary>Sum of all recorded one-off donations (in cents).</summary>
@@ -447,6 +450,10 @@ public record FundraisingResponse
 
     public int TeamsPaid            { get; init; }
     public int TeamsTotal           { get; init; }
+
+    /// <summary>Golfers who have paid the per-golfer entry fee.</summary>
+    public int PlayersPaid          { get; init; }
+    public int PlayersTotal         { get; init; }
     public int DonationCount        { get; init; }
 }
 
@@ -468,6 +475,9 @@ public record PublicEventResponse
 
     /// <summary>Remaining team spots.  null if no max_teams configured.</summary>
     public int?      SpotsRemaining  { get; init; }
+
+    /// <summary>Per-golfer entry fee from the event config; null when free/unset.</summary>
+    public int?      EntryFeeCents   { get; init; }
 
     /// <summary>Basic course info for the landing page map card.</summary>
     public PublicCourseInfo? Course  { get; init; }

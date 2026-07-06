@@ -88,8 +88,9 @@ export default function FundraisingScreen() {
     return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
   }
 
-  const feeProgress = totals && totals.teamsTotal > 0
-    ? totals.teamsPaid / totals.teamsTotal
+  // Entry fees are per golfer — progress tracks paid golfers, not teams.
+  const feeProgress = totals && totals.playersTotal > 0
+    ? totals.playersPaid / totals.playersTotal
     : 0;
 
   return (
@@ -184,7 +185,7 @@ export default function FundraisingScreen() {
             <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Entry Fee Collection</Text>
             <View style={styles.progressRow}>
               <Text style={[styles.progressLabel, { color: theme.mutedText }]}>
-                {totals.teamsPaid} of {totals.teamsTotal} teams paid
+                {totals.playersPaid} of {totals.playersTotal} golfers paid
               </Text>
               <Text style={[styles.progressPct, { color: theme.colors.primary }]}>
                 {Math.round(feeProgress * 100)}%

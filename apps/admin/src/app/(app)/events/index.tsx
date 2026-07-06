@@ -208,6 +208,15 @@ interface FieldErrors {
   name?:      string;
   startDate?: string;
   startTime?: string;
+  entryFee?:  string;
+}
+
+// "$150" / "150.50" → cents; blank means free (0). null = invalid input.
+function parseEntryFeeCents(input: string): number | null {
+  const raw = input.replace(/[$,\s]/g, '');
+  if (raw === '') return 0;
+  if (!/^\d+(\.\d{1,2})?$/.test(raw)) return null;
+  return Math.round(parseFloat(raw) * 100);
 }
 
 function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps) {
@@ -220,6 +229,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
   const [startDate,   setStartDate]   = useState('');   // MM/DD/YYYY
   const [startTime,   setStartTime]   = useState('');   // HH:MM
   const [startAmPm,   setStartAmPm]   = useState<'AM' | 'PM'>('AM');
+  const [entryFee,    setEntryFee]    = useState('');   // dollars; blank = free
   const [loading,     setLoading]     = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -227,7 +237,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
 
   function reset() {
     setName(''); setFormat('Scramble'); setStartType('Shotgun'); setHoles(18);
-    setStartDate(''); setStartTime(''); setStartAmPm('AM');
+    setStartDate(''); setStartTime(''); setStartAmPm('AM'); setEntryFee('');
     setSubmitError(null); setFieldErrors({}); setTouched({});
   }
 
@@ -251,12 +261,15 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
     if (dateErr) errs.startDate = dateErr;
     const timeErr = validateTimeField(startTime);
     if (timeErr) errs.startTime = timeErr;
+    if (parseEntryFeeCents(entryFee) == null) {
+      errs.entryFee = 'Enter a dollar amount like 150 or 150.50 (leave blank for free).';
+    }
     return errs;
   }
 
   async function handleSubmit() {
     // Mark all fields as touched so errors show
-    setTouched({ name: true, startDate: true, startTime: true });
+    setTouched({ name: true, startDate: true, startTime: true, entryFee: true });
     const errs = validate();
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) return;
@@ -265,12 +278,14 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
     setLoading(true);
     try {
       const startAt = buildIsoDateTime(startDate, startTime, startAmPm);
+      const feeCents = parseEntryFeeCents(entryFee) ?? 0;
       const payload: CreateEventPayload = {
         name: name.trim(),
         format,
         startType,
         holes,
         ...(startAt ? { startAt } : {}),
+        ...(feeCents > 0 ? { config: { entryFeeCents: feeCents } } : {}),
       };
       const created = await eventsApi.create(payload);
       reset();
@@ -286,6 +301,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
   const showNameError  = touched.name      && !!fieldErrors.name;
   const showDateError  = touched.startDate && !!fieldErrors.startDate;
   const showTimeError  = touched.startTime && !!fieldErrors.startTime;
+  const showFeeError   = touched.entryFee  && !!fieldErrors.entryFee;
 
   return (
     <FormModal
@@ -420,6 +436,38 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
                 </Pressable>
               ))}
             </View>
+
+            {/* ── Entry Fee ── */}
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>
+              Entry Fee per Golfer ($){' '}
+              <Text style={styles.optionalTag}>(optional)</Text>
+            </Text>
+            <Text style={styles.fieldHint}>
+              Shown on the public event page and email ads; each golfer pays at registration.
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                { borderColor: showFeeError ? '#e74c3c' : theme.colors.accent },
+              ]}
+              value={entryFee}
+              onChangeText={v => {
+                setEntryFee(v);
+                if (touched.entryFee) setFieldErrors(prev => ({ ...prev, entryFee: undefined }));
+              }}
+              onBlur={() => {
+                touch('entryFee');
+                setFieldErrors(prev => ({ ...prev, entryFee: validate().entryFee }));
+              }}
+              placeholder="Leave blank for a free event"
+              placeholderTextColor="#999"
+              keyboardType="decimal-pad"
+              editable={!loading}
+              accessibilityLabel="Entry fee per golfer in dollars"
+            />
+            {showFeeError && (
+              <Text style={styles.fieldError}>{fieldErrors.entryFee}</Text>
+            )}
 
             {/* ── Start Date & Time ── */}
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>

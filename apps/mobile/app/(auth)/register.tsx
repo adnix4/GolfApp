@@ -4,12 +4,17 @@ import {
   ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import {
+  StripeProvider, CardField, useStripe, type CardFieldInput,
+} from '@stripe/stripe-react-native';
 import { useTheme } from '@gfp/ui';
 import { formatCentsShort, digitsOnly, fmtPhoneInput } from '@gfp/shared-types';
 import {
-  registerTeam, registerFreeAgent,
+  registerTeam, registerFreeAgent, confirmEntryFee,
   type PlayerInput, type SkillLevel, type AgeGroup,
 } from '@/lib/api';
+
+const STRIPE_PK = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
 const MAX_TEAMMATES = 3;
 type Step = 'form' | 'success';
@@ -63,6 +68,8 @@ export default function RegisterScreen() {
   const [confirmedName,      setConfirmedName]      = useState('');
   const [confirmedPlayers,   setConfirmedPlayers]   = useState<string[]>([]);
   const [entryFeeCents,      setEntryFeeCents]      = useState<number | null>(null);
+  const [entryFeeSecret,     setEntryFeeSecret]     = useState<string | null>(null);
+  const [entryFeePaid,       setEntryFeePaid]       = useState(false);
   const [isFreeAgentSuccess, setIsFreeAgentSuccess] = useState(false);
 
   // If no team name typed, treat as free agent
@@ -114,6 +121,7 @@ export default function RegisterScreen() {
         setConfirmedName(`${fn} ${ln}`);
         setConfirmedPlayers([`${fn} ${ln}`]);
         setEntryFeeCents(result.entryFeeCents ?? null);
+        setEntryFeeSecret(result.entryFeeClientSecret ?? null);
         setIsFreeAgentSuccess(true);
         setStep('success');
         return;
@@ -146,6 +154,7 @@ export default function RegisterScreen() {
       setConfirmedName(teamName.trim());
       setConfirmedPlayers(players.map(p => `${p.firstName} ${p.lastName}`));
       setEntryFeeCents(result.entryFeeCents ?? null);
+      setEntryFeeSecret(result.entryFeeClientSecret ?? null);
       setIsFreeAgentSuccess(false);
       setStep('success');
     } catch (e: unknown) {
@@ -200,13 +209,31 @@ export default function RegisterScreen() {
             </View>
 
             {entryFeeCents != null && entryFeeCents > 0 && (
-              <View style={[styles.feeNotice, { backgroundColor: '#fffbf0', borderColor: '#f39c12' }]}>
-                <Text style={styles.feeNoticeTitle}>Entry Fee Due</Text>
-                <Text style={styles.feeNoticeText}>
-                  This event requires a {formatCentsShort(entryFeeCents)} entry fee.
-                  A payment link has been sent to your email — please complete payment before the event starts.
-                </Text>
-              </View>
+              entryFeePaid ? (
+                <View style={[styles.feeNotice, { backgroundColor: '#f0faf3', borderColor: '#27ae60' }]}>
+                  <Text style={[styles.feeNoticeTitle, { color: '#1e8449' }]}>✓ Entry Fee Paid</Text>
+                  <Text style={styles.feeNoticeText}>
+                    Your {formatCentsShort(entryFeeCents)} entry fee has been paid. See you on the course!
+                  </Text>
+                </View>
+              ) : entryFeeSecret && STRIPE_PK ? (
+                <StripeProvider publishableKey={STRIPE_PK}>
+                  <EntryFeePayCard
+                    clientSecret={entryFeeSecret}
+                    amountCents={entryFeeCents}
+                    golferCount={confirmedPlayers.length}
+                    onPaid={() => setEntryFeePaid(true)}
+                  />
+                </StripeProvider>
+              ) : (
+                <View style={[styles.feeNotice, { backgroundColor: '#fffbf0', borderColor: '#f39c12' }]}>
+                  <Text style={styles.feeNoticeTitle}>Entry Fee Due</Text>
+                  <Text style={styles.feeNoticeText}>
+                    This event has a {formatCentsShort(entryFeeCents)} entry fee.
+                    You can pay at event check-in.
+                  </Text>
+                </View>
+              )
             )}
 
             <Text style={[styles.successNote, { color: theme.mutedText }]}>
@@ -490,6 +517,85 @@ export default function RegisterScreen() {
   );
 }
 
+// ── ENTRY FEE PAYMENT ────────────────────────────────────────────────────────
+// In-app Stripe card payment for the per-golfer entry fee. The registering
+// golfer pays for everyone they just registered in one charge. Must be
+// rendered inside a StripeProvider.
+
+interface EntryFeePayCardProps {
+  clientSecret: string;
+  amountCents:  number;
+  golferCount:  number;
+  onPaid:       () => void;
+}
+
+function EntryFeePayCard({ clientSecret, amountCents, golferCount, onPaid }: EntryFeePayCardProps) {
+  const { confirmPayment } = useStripe();
+  const [cardComplete, setCardComplete] = useState(false);
+  const [paying,       setPaying]       = useState(false);
+  const [payError,     setPayError]     = useState<string | null>(null);
+
+  async function handlePay() {
+    if (!cardComplete || paying) return;
+    setPaying(true); setPayError(null);
+    try {
+      const { paymentIntent, error } = await confirmPayment(clientSecret, {
+        paymentMethodType: 'Card',
+      });
+      if (error) throw new Error(error.message);
+      if (!paymentIntent?.id) throw new Error('Payment did not complete.');
+
+      // Record immediately server-side (verified against Stripe); the Stripe
+      // webhook is the backstop if this call fails.
+      await confirmEntryFee(paymentIntent.id).catch(() => {});
+      onPaid();
+    } catch (e: unknown) {
+      setPayError(e instanceof Error ? e.message : 'Payment failed. Please try again.');
+    } finally {
+      setPaying(false);
+    }
+  }
+
+  return (
+    <View style={[styles.feeNotice, { backgroundColor: '#fffbf0', borderColor: '#f39c12' }]}>
+      <Text style={styles.feeNoticeTitle}>Entry Fee Due</Text>
+      <Text style={styles.feeNoticeText}>
+        {formatCentsShort(amountCents)}
+        {golferCount > 1 ? ` (${golferCount} golfers)` : ''} — pay now by card,
+        or pay at event check-in.
+      </Text>
+
+      <CardField
+        postalCodeEnabled={false}
+        cardStyle={{
+          backgroundColor: '#fff',
+          textColor: '#1a1a1a',
+          borderColor: '#d0d0d0',
+          borderWidth: 1.5,
+          borderRadius: 10,
+        }}
+        style={styles.feeCardField}
+        onCardChange={(details: CardFieldInput.Details) => setCardComplete(details.complete)}
+      />
+
+      {payError && <Text style={styles.feePayError}>{payError}</Text>}
+
+      <Pressable
+        style={[styles.feePayBtn, { backgroundColor: cardComplete && !paying ? '#27ae60' : '#aaa' }]}
+        onPress={handlePay}
+        disabled={!cardComplete || paying}
+        accessibilityRole="button"
+      >
+        {paying
+          ? <ActivityIndicator color="#fff" size="small" />
+          : <Text style={styles.feePayBtnText}>Pay {formatCentsShort(amountCents)} Now</Text>}
+      </Pressable>
+
+      <Text style={styles.feeSecureNote}>Secured by Stripe · Card details never touch our servers</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   page:   { flex: 1 },
   scroll: { flexGrow: 1, padding: 20, paddingBottom: 48 },
@@ -574,6 +680,11 @@ const styles = StyleSheet.create({
   feeNotice:      { borderWidth: 1, borderRadius: 10, padding: 14, marginTop: 12 },
   feeNoticeTitle: { fontSize: 14, fontWeight: '700', color: '#7d6608', marginBottom: 4 },
   feeNoticeText:  { fontSize: 13, lineHeight: 19, color: '#7d6608' },
+  feeCardField:   { width: '100%', height: 50, marginTop: 12 },
+  feePayError:    { fontSize: 12, color: '#c0392b', marginTop: 8 },
+  feePayBtn:      { borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 10 },
+  feePayBtnText:  { color: '#fff', fontWeight: '700', fontSize: 15 },
+  feeSecureNote:  { fontSize: 11, color: '#aaa', textAlign: 'center', marginTop: 8 },
   rosterBox:      { borderRadius: 10, borderWidth: 1, padding: 14, marginTop: 14, gap: 4 },
   rosterLabel:    { fontSize: 13, fontWeight: '700', marginBottom: 6 },
   rosterRow:      { fontSize: 14, lineHeight: 22 },

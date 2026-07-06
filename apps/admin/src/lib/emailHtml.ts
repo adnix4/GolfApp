@@ -99,7 +99,7 @@ export function buildEmailHtml(data: EmailBuilderData, sections: SectionId[], su
         ${fee ? `
         <p style="color:#999;font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;margin:0 0 6px;">Entry Fee</p>
         <p style="color:${p};font-size:32px;font-weight:bold;margin:0;">${fee}</p>
-        <p style="color:#888;font-size:12px;margin:2px 0 18px;">per team</p>` : `
+        <p style="color:#888;font-size:12px;margin:2px 0 18px;">per golfer</p>` : `
         <p style="color:#555;font-size:15px;margin:0 0 18px;">Spots are limited &mdash; reserve your team today!</p>`}
         <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${data.joinUrl}" style="height:50px;v-text-anchor:middle;width:240px;" arcsize="25%" strokecolor="${p}" fillcolor="${p}"><w:anchorlock/><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:17px;font-weight:bold;">Register Now</center></v:roundrect><![endif]-->
         <!--[if !mso]><!--><a href="${data.joinUrl}" style="background:${p};color:#ffffff;display:inline-block;font-family:Arial,sans-serif;font-size:17px;font-weight:bold;padding:14px 44px;border-radius:10px;text-decoration:none;">Register Now</a><!--<![endif]-->
