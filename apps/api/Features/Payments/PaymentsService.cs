@@ -274,7 +274,19 @@ public class PaymentsService
         StripeConfiguration.ApiKey = _config["STRIPE_SECRET_KEY"]
             ?? throw new InvalidOperationException("STRIPE_SECRET_KEY not configured");
 
-        var pi = await new PaymentIntentService().GetAsync(paymentIntentId, cancellationToken: ct);
+        PaymentIntent pi;
+        try
+        {
+            pi = await new PaymentIntentService().GetAsync(paymentIntentId, cancellationToken: ct);
+        }
+        catch (StripeException ex)
+        {
+            // A10: unknown/garbage intent id from an anonymous caller is client
+            // error, not a server fault — surface a 400 instead of a 500.
+            _logger.LogWarning(ex, "Entry-fee confirm failed to verify intent {Pi}", paymentIntentId);
+            throw new Common.Middleware.ValidationException("Payment could not be verified.");
+        }
+
         return await ApplyEntryFeePaymentAsync(pi, ct);
     }
 }

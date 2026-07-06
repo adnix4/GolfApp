@@ -60,14 +60,22 @@ public class StripeWebhookController : ControllerBase
                 "STRIPE_WEBHOOK_SECRET not configured — skipping signature validation (Development only)");
         }
 
+        // A9: Stripe.net NREs (→ 500) when asked to validate a missing header.
+        // Real Stripe always sends Stripe-Signature; anything without it is junk
+        // traffic on this anonymous endpoint — reject it like a bad signature.
+        var signatureHeader = Request.Headers["Stripe-Signature"].ToString();
+        if (!string.IsNullOrEmpty(webhookSecret) && string.IsNullOrEmpty(signatureHeader))
+        {
+            _logger.LogWarning("Stripe webhook rejected: missing Stripe-Signature header");
+            return BadRequest("Missing Stripe signature");
+        }
+
         Event stripeEvent;
         try
         {
             stripeEvent = string.IsNullOrEmpty(webhookSecret)
                 ? EventUtility.ParseEvent(json)
-                : EventUtility.ConstructEvent(json,
-                    Request.Headers["Stripe-Signature"],
-                    webhookSecret);
+                : EventUtility.ConstructEvent(json, signatureHeader, webhookSecret);
         }
         catch (StripeException ex)
         {

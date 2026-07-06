@@ -147,7 +147,7 @@ public class TeamService
         if (fee is > 0)
         {
             entryFeeTotalCents   = fee.Value * players.Count;
-            entryFeeClientSecret = await _payments.CreateEntryFeePaymentIntentAsync(
+            entryFeeClientSecret = await TryCreateEntryFeeIntentAsync(
                 players.Select(p => p.Id).ToList(), fee.Value, evt.Name, ct);
         }
 
@@ -245,7 +245,7 @@ public class TeamService
         var fee = ReadEntryFeeFromConfig(evt.ConfigJson);
         if (fee is > 0)
         {
-            entryFeeClientSecret = await _payments.CreateEntryFeePaymentIntentAsync(
+            entryFeeClientSecret = await TryCreateEntryFeeIntentAsync(
                 [player.Id], fee.Value, evt.Name, ct);
         }
 
@@ -314,7 +314,7 @@ public class TeamService
         var fee = ReadEntryFeeFromConfig(evt.ConfigJson);
         if (fee is > 0)
         {
-            entryFeeClientSecret = await _payments.CreateEntryFeePaymentIntentAsync(
+            entryFeeClientSecret = await TryCreateEntryFeeIntentAsync(
                 [player.Id], fee.Value, evt.Name, ct);
         }
 
@@ -905,6 +905,31 @@ public class TeamService
             ?? throw new NotFoundException("Team", teamId);
 
         return MapToTeamResponse(team);
+    }
+
+    /// <summary>
+    /// A8: registration must never fail because the payment rail is down.
+    /// Stripe errors (bad/missing key, outage) are logged and swallowed — the
+    /// golfer is registered and the response carries a null client secret, which
+    /// the mobile app renders as "pay at event check-in" (organizer can still
+    /// mark-paid at the door).
+    /// </summary>
+    private async Task<string?> TryCreateEntryFeeIntentAsync(
+        IReadOnlyList<Guid> playerIds, int feePerPlayerCents, string eventName, CancellationToken ct)
+    {
+        try
+        {
+            return await _payments.CreateEntryFeePaymentIntentAsync(
+                playerIds, feePerPlayerCents, eventName, ct);
+        }
+        catch (Exception ex) when (ex is Stripe.StripeException or InvalidOperationException)
+        {
+            _logger.LogError(ex,
+                "Entry-fee PaymentIntent creation failed for {Count} golfer(s) on '{Event}' — "
+                + "registration continues without online payment",
+                playerIds.Count, eventName);
+            return null;
+        }
     }
 
     private static int? ReadMaxPlayersFromConfig(string? json)
