@@ -293,7 +293,13 @@ export interface EmailBuilderData {
   /** Team entry fee from the event config; null when free/unset. */
   entryFeeCents:    number | null;
   registrationUrl:  string;
-  /** Self-hosted per-event QR PNG (encodes the registration page URL). */
+  /**
+   * Device-aware join hand-off (…/join): deep-links phones into the GFP Scorer
+   * app, forwards desktop to web registration. Target of the Register button
+   * and the QR code.
+   */
+  joinUrl:          string;
+  /** Self-hosted per-event QR PNG (encodes the join hand-off URL). */
   qrCodeUrl:        string;
   primaryColor:     string;
   missionStatement: string | null;

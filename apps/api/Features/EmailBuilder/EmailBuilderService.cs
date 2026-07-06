@@ -52,8 +52,13 @@ public class EmailBuilderService
 
         var registrationUrl = $"{webBase}/e/{org.Slug}/{evt.EventCode}";
 
+        // Device-aware hand-off (the email's Register button target): iOS and
+        // Android visitors get deep-linked into the GFP Scorer app's join
+        // screen for this event; desktop forwards to web registration.
+        var joinUrl = $"{registrationUrl}/join";
+
         // Unique per-event QR served by our own API (no third-party generator);
-        // encodes the registration page, which also hands golfers to the app.
+        // encodes the same device-aware join page.
         var qrCodeUrl = $"{apiBase}/api/v1/pub/events/{evt.EventCode}/registration-qr.png";
 
         // Resolve branding: event value overrides org default
@@ -122,6 +127,7 @@ public class EmailBuilderService
             DirectionsUrl    = directionsUrl,
             EntryFeeCents    = ExtractEntryFeeCents(evt.ConfigJson),
             RegistrationUrl  = registrationUrl,
+            JoinUrl          = joinUrl,
             QrCodeUrl        = qrCodeUrl,
             PrimaryColor     = primaryColor,
             MissionStatement = missionStatement,
@@ -231,7 +237,13 @@ public sealed record EmailBuilderDataResponse
     /// <summary>Team entry fee from the event config; null when registration is free/unset.</summary>
     public int?    EntryFeeCents    { get; init; }
     public string  RegistrationUrl  { get; init; } = string.Empty;
-    /// <summary>Self-hosted per-event QR PNG (encodes the registration page URL).</summary>
+    /// <summary>
+    /// Device-aware join hand-off (…/join): deep-links phones into the GFP
+    /// Scorer app, forwards desktop to web registration. The email's Register
+    /// button and the QR both target this.
+    /// </summary>
+    public string  JoinUrl          { get; init; } = string.Empty;
+    /// <summary>Self-hosted per-event QR PNG (encodes the join hand-off URL).</summary>
     public string  QrCodeUrl        { get; init; } = string.Empty;
     public string  PrimaryColor     { get; init; } = "#1a1a2e";
     public string? MissionStatement { get; init; }
