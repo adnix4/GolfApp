@@ -71,8 +71,7 @@ export default function SmartJoin({
       tryOpenApp();
     }
     return () => document.removeEventListener('visibilitychange', onHide);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // mount-only by design: detect once, hand off once
 
   const storeUrl = device === 'ios' ? IOS_STORE_URL : device === 'android' ? ANDROID_STORE_URL : '';
 
