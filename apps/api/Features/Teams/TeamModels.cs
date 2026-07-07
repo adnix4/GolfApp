@@ -217,7 +217,11 @@ public record UpdateTeamRequest
     [MaxLength(200)]
     public string? Name { get; init; }
 
-    /// <summary>Mark the team's entry fee as paid or unpaid.</summary>
+    /// <summary>
+    /// Mark the team's entry fee as paid or unpaid. The fee is per golfer, so this
+    /// marks every golfer on the roster paid at the current fee (true) or clears
+    /// their recorded payments (false) — the organizer's cash/check override.
+    /// </summary>
     public bool? EntryFeePaid { get; init; }
 
     /// <summary>Override max players for this team.</summary>
@@ -251,7 +255,10 @@ public record TeamResponse
     public Guid?   CaptainPlayerId { get; init; }
     public short?  StartingHole    { get; init; }
     public DateTime? TeeTime       { get; init; }
+    /// <summary>True when every golfer on the roster has paid (or the organizer marked the team paid).</summary>
     public bool    EntryFeePaid    { get; init; }
+    /// <summary>How many golfers on the roster have paid their entry fee.</summary>
+    public int     PlayersPaid     { get; init; }
     public short   MaxPlayers      { get; init; }
     public string  CheckInStatus   { get; init; } = string.Empty;
     public bool    HasInviteLink   { get; init; }
@@ -278,6 +285,9 @@ public record PlayerResponse
     public string? PairingNote      { get; init; }
     public string  CheckInStatus    { get; init; } = string.Empty;
     public DateTime? CheckInAt      { get; init; }
+    /// <summary>Cents this golfer has paid toward the per-golfer entry fee. 0 = unpaid.</summary>
+    public int     EntryFeePaidCents { get; init; }
+    public DateTime? EntryFeePaidAt  { get; init; }
 }
 
 /// <summary>
@@ -309,8 +319,10 @@ public record RegistrationConfirmResponse
     public string  Message           { get; init; } = string.Empty;
     /// <summary>Stripe PaymentIntent client_secret for entry fee collection. Null when event has no entry fee.</summary>
     public string? EntryFeeClientSecret { get; init; }
-    /// <summary>Entry fee in cents. Null when event has no entry fee.</summary>
+    /// <summary>Total entry fee due for this registration in cents (per-golfer fee × golfers registered). Null when the event is free.</summary>
     public int?    EntryFeeCents        { get; init; }
+    /// <summary>The per-golfer fee in cents backing the total. Null when the event is free.</summary>
+    public int?    EntryFeePerPlayerCents { get; init; }
 }
 
 /// <summary>

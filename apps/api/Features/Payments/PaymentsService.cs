@@ -175,48 +175,118 @@ public class PaymentsService
     }
 
     /// <summary>
-    /// Creates a Stripe PaymentIntent for an event entry fee, ensuring a Stripe Customer exists.
-    /// Returns the PaymentIntent client_secret so the mobile app can confirm it with Stripe Elements.
+    /// Creates a Stripe PaymentIntent covering the per-golfer entry fee for one or
+    /// more players (the registering golfer pays for everyone they registered).
+    /// The Stripe Customer is created for the payer (first player). Returns the
+    /// client_secret so the mobile app can confirm it with the Stripe card field.
     /// </summary>
     public async Task<string> CreateEntryFeePaymentIntentAsync(
-        Guid playerId, int amountCents, string eventName, CancellationToken ct = default)
+        IReadOnlyList<Guid> playerIds, int feePerPlayerCents, string eventName, CancellationToken ct = default)
     {
-        var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId, ct)
-            ?? throw new Common.Middleware.NotFoundException("Player", playerId);
+        if (playerIds.Count == 0)
+            throw new ArgumentException("At least one player is required.", nameof(playerIds));
+
+        var payer = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerIds[0], ct)
+            ?? throw new Common.Middleware.NotFoundException("Player", playerIds[0]);
 
         StripeConfiguration.ApiKey = _config["STRIPE_SECRET_KEY"]
             ?? throw new InvalidOperationException("STRIPE_SECRET_KEY not configured");
 
-        // Ensure Stripe customer exists
-        if (string.IsNullOrEmpty(player.StripeCustomerId))
+        // Ensure Stripe customer exists for the payer
+        if (string.IsNullOrEmpty(payer.StripeCustomerId))
         {
             var customerService = new CustomerService();
             var customer = await customerService.CreateAsync(new CustomerCreateOptions
             {
-                Email    = player.Email,
-                Name     = $"{player.FirstName} {player.LastName}",
-                Metadata = new Dictionary<string, string> { ["player_id"] = player.Id.ToString() }
+                Email    = payer.Email,
+                Name     = $"{payer.FirstName} {payer.LastName}",
+                Metadata = new Dictionary<string, string> { ["player_id"] = payer.Id.ToString() }
             });
-            player.StripeCustomerId = customer.Id;
+            payer.StripeCustomerId = customer.Id;
             await _db.SaveChangesAsync(ct);
         }
 
         var piService = new PaymentIntentService();
         var pi = await piService.CreateAsync(new PaymentIntentCreateOptions
         {
-            Amount             = amountCents,
+            Amount             = feePerPlayerCents * playerIds.Count,
             Currency           = "usd",
-            Customer           = player.StripeCustomerId,
+            Customer           = payer.StripeCustomerId,
             PaymentMethodTypes = new List<string> { "card" },
             Metadata           = new Dictionary<string, string>
             {
-                ["player_id"]  = playerId.ToString(),
-                ["entry_fee"]  = "true",
-                ["event_name"] = eventName,
+                ["entry_fee"]      = "true",
+                ["player_ids"]     = string.Join(",", playerIds),
+                ["fee_per_player"] = feePerPlayerCents.ToString(),
+                ["event_name"]     = eventName,
             },
-            Description        = $"Entry fee — {eventName}",
+            Description        = $"Entry fee — {eventName} ({playerIds.Count} golfer{(playerIds.Count == 1 ? "" : "s")})",
         });
 
         return pi.ClientSecret!;
+    }
+
+    /// <summary>
+    /// Marks every golfer covered by a succeeded entry-fee PaymentIntent as paid.
+    /// Called from the Stripe webhook and from the client confirm endpoint (the
+    /// intent is always re-fetched/verified server-side first, so a caller can
+    /// never mark players paid without a real Stripe payment). Idempotent.
+    /// </summary>
+    public async Task<bool> ApplyEntryFeePaymentAsync(PaymentIntent pi, CancellationToken ct = default)
+    {
+        if (pi.Status != "succeeded") return false;
+        if (!pi.Metadata.TryGetValue("entry_fee", out var flag) || flag != "true") return false;
+        if (!pi.Metadata.TryGetValue("player_ids", out var idsRaw)) return false;
+
+        var playerIds = idsRaw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty)
+            .Where(g => g != Guid.Empty)
+            .ToList();
+        if (playerIds.Count == 0) return false;
+
+        var feePerPlayer = pi.Metadata.TryGetValue("fee_per_player", out var feeRaw)
+                           && int.TryParse(feeRaw, out var fee)
+            ? fee
+            : (int)(pi.Amount / playerIds.Count);
+
+        var players = await _db.Players.Where(p => playerIds.Contains(p.Id)).ToListAsync(ct);
+        foreach (var player in players.Where(p => p.EntryFeePaidCents == 0))
+        {
+            player.EntryFeePaidCents = feePerPlayer;
+            player.EntryFeePaidAt    = DateTime.UtcNow;
+        }
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Entry fee recorded for {Count} golfer(s) at {Fee}¢ each (pi={Pi})",
+            players.Count, feePerPlayer, pi.Id);
+        return true;
+    }
+
+    /// <summary>
+    /// Client-driven confirmation fallback: the mobile app calls this right after
+    /// Stripe confirms the card payment, so paid status appears immediately even
+    /// before the webhook arrives. The intent is fetched from Stripe and verified
+    /// there — the caller supplies only an id, never payment state.
+    /// </summary>
+    public async Task<bool> ConfirmEntryFeeAsync(string paymentIntentId, CancellationToken ct = default)
+    {
+        StripeConfiguration.ApiKey = _config["STRIPE_SECRET_KEY"]
+            ?? throw new InvalidOperationException("STRIPE_SECRET_KEY not configured");
+
+        PaymentIntent pi;
+        try
+        {
+            pi = await new PaymentIntentService().GetAsync(paymentIntentId, cancellationToken: ct);
+        }
+        catch (StripeException ex)
+        {
+            // A10: unknown/garbage intent id from an anonymous caller is client
+            // error, not a server fault — surface a 400 instead of a 500.
+            _logger.LogWarning(ex, "Entry-fee confirm failed to verify intent {Pi}", paymentIntentId);
+            throw new Common.Middleware.ValidationException("Payment could not be verified.");
+        }
+
+        return await ApplyEntryFeePaymentAsync(pi, ct);
     }
 }

@@ -535,6 +535,19 @@ public class Player
     [MaxLength(100)]
     public string? VerifiedDeviceId { get; set; }
 
+    /// <summary>
+    /// Phase 14: cents this golfer has paid toward the event entry fee.
+    /// 0 = unpaid. The fee itself lives in the event config (entryFeeCents,
+    /// per golfer); storing the paid amount here keeps fundraising totals
+    /// correct even if the organizer later changes the fee.
+    /// </summary>
+    [Column("entry_fee_paid_cents")]
+    public int EntryFeePaidCents { get; set; } = 0;
+
+    /// <summary>Phase 14: when the entry fee was collected (Stripe webhook/confirm or organizer mark-paid).</summary>
+    [Column("entry_fee_paid_at")]
+    public DateTime? EntryFeePaidAt { get; set; }
+
     // Navigation
     [ForeignKey(nameof(TeamId))]
     public Team? Team { get; set; }

@@ -91,13 +91,16 @@ public class EmailBuilderServiceTests
     }
 
     [Fact]
-    public async Task BuilderData_builds_registration_and_qr_urls_from_config()
+    public async Task BuilderData_builds_registration_join_and_qr_urls_from_config()
     {
         var (svc, _, orgId, eventId) = Seed();
 
         var data = await svc.GetBuilderDataAsync(orgId, eventId, default);
 
         Assert.Equal("https://web.example.org/e/boosters/TESTCODE", data.RegistrationUrl);
+        // Device-aware hand-off: Register button + QR deep-link phones into the
+        // scorer app, desktop forwards to web registration.
+        Assert.Equal("https://web.example.org/e/boosters/TESTCODE/join", data.JoinUrl);
         // Self-hosted per-event QR PNG — served by our API, not a third party.
         Assert.Equal("https://api.example.org/api/v1/pub/events/TESTCODE/registration-qr.png",
             data.QrCodeUrl);

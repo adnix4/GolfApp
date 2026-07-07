@@ -245,3 +245,75 @@ LOCAL (unpushed) unless noted.
         rules, minus holes), and the admin modal now labels "Address *" and
         blocks submit on blank. Verified live: PATCH blank address → 400
         naming Address; with address → 200. Zip stays optional.
+
+## Per-golfer entry fee — E2E verification findings (2026-07-06)
+Surfaced while live-driving the Phase 14 per-golfer entry fee feature
+(feat/register-app-deeplink, commit e0566f4) against the real API + web app.
+The feature itself PASSED (21-step driver: fee at create/edit, public page
+"$X per golfer", signed webhook marks golfers paid, cash override, fundraising
+totals, idempotency + negative-fee/forged-signature probes all green).
+These are robustness gaps around it. Driver script preserved in the session
+scratchpad; recipe in .claude/skills/verify/SKILL.md.
+
+[x] A8. (ROBUSTNESS, highest of this batch) Fee-event registration returns 500
+        AFTER persisting the team when Stripe PaymentIntent creation fails
+        DONE 2026-07-06 — TeamService.TryCreateEntryFeeIntentAsync wraps all
+        three registration modes (team/join/free-agent): StripeException +
+        InvalidOperationException are logged and swallowed; the response keeps
+        EntryFeeCents but returns EntryFeeClientSecret=null, which the mobile
+        app already renders as "pay at event check-in". 3 new TeamServiceTests
+        prove fee registration succeeds with no Stripe key (422 API tests
+        green). Verified live: fee-event registration with placeholder keys →
+        201 with entryFeeCents=10000, secret=null (was 500).
+        (invalid/missing STRIPE_SECRET_KEY, or any Stripe outage in prod).
+        Observed live: POST /register/team on a fee event with the .env.local
+        placeholder key → team + players saved, then Stripe.StripeException
+        "Invalid API Key" → 500 INTERNAL_ERROR. The golfer sees "unexpected
+        error" but IS registered; retrying hits "email already registered"
+        (409). Pre-existing shape (the old captain-PI code had it too), but
+        per-golfer fees make it fire for every fee event, incl. all local dev
+        (root .env.local ships placeholder sk_test_REPLACE… keys).
+        FIX: in TeamService (RegisterTeamAsync / JoinTeamAsync /
+        RegisterFreeAgentAsync) wrap CreateEntryFeePaymentIntentAsync in
+        try/catch (StripeException + InvalidOperationException): log error,
+        return success with EntryFeeClientSecret=null but EntryFeeCents kept —
+        mobile already renders the "pay at event check-in" notice when the
+        secret is null, so the golfer lands on a truthful path and the
+        organizer can still mark-paid at the door. Registration must never
+        fail because the payment rail is down.
+
+[x] A9. (ROBUSTNESS/noise) Stripe webhook endpoint 500s when the
+        Stripe-Signature header is missing: EventUtility.ConstructEvent →
+        ParseStripeSignature NullReferenceException (Stripe.net 45.0.0).
+        DONE 2026-07-06 — StripeWebhookController guards empty/missing header
+        (while a secret is configured) before ConstructEvent → 400 "Missing
+        Stripe signature", warning-level log. Verified live: unsigned POST →
+        400 (was 500); properly signed webhook still 200; forged sig still 400.
+        Observed live: POST /api/v1/webhooks/stripe without the header → 500;
+        with a forged header → clean 400 "Invalid Stripe signature". Real
+        Stripe always sends the header, so impact is only junk/bot traffic on
+        an anonymous endpoint — but each hit logs an error-level stack trace
+        (alert noise) instead of a warning.
+        FIX: guard in StripeWebhookController before ConstructEvent — empty/
+        missing Stripe-Signature (while a secret is configured) → 400
+        BadRequest, same as the invalid-signature path.
+
+[x] A10. (ROBUSTNESS/minor) POST /api/v1/payments/confirm-entry-fee with an
+        unknown/garbage paymentIntentId → 500: PaymentIntentService.GetAsync
+        throws StripeException, which the middleware maps to INTERNAL_ERROR.
+        DONE 2026-07-06 — ConfirmEntryFeeAsync catches StripeException from the
+        intent fetch → ValidationException "Payment could not be verified."
+        (400 VALIDATION_ERROR, warning log). Missing STRIPE_SECRET_KEY stays a
+        500 (server misconfig). Verified live: junk paymentIntentId → 400.
+        Anonymous endpoint; a malformed client call can't mark anyone paid
+        (server re-verifies with Stripe) but shouldn't produce a 500 + error
+        log. Mobile currently swallows the failure (.catch(() => {})), so no
+        user impact.
+        FIX: catch StripeException in ConfirmEntryFeeAsync and rethrow as
+        ValidationException ("Payment could not be verified") → 400
+        VALIDATION_ERROR. Keep the missing-STRIPE_SECRET_KEY
+        InvalidOperationException a 500 (genuine server misconfig).
+
+NOTE (checked, NOT an issue): 500 bodies included details.stackTrace during
+verification — confirmed ExceptionHandlingMiddleware only adds it when
+_env.IsDevelopment(); production omits it.

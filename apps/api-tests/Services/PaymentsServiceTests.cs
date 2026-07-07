@@ -106,6 +106,92 @@ public class PaymentsServiceTests
     {
         var (svc, _) = Build();
         await Assert.ThrowsAsync<NotFoundException>(
-            () => svc.CreateEntryFeePaymentIntentAsync(Guid.NewGuid(), 5000, "Gala"));
+            () => svc.CreateEntryFeePaymentIntentAsync([Guid.NewGuid()], 5000, "Gala"));
+    }
+
+    [Fact]
+    public async Task CreateEntryFeePaymentIntent_empty_player_list_throws()
+    {
+        var (svc, _) = Build();
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => svc.CreateEntryFeePaymentIntentAsync([], 5000, "Gala"));
+    }
+
+    // ── ApplyEntryFeePayment ────────────────────────────────────────────────────
+
+    private static Stripe.PaymentIntent EntryFeeIntent(
+        string status, int amount, string? playerIds, string? feePerPlayer = null)
+    {
+        var metadata = new Dictionary<string, string> { ["entry_fee"] = "true" };
+        if (playerIds is not null)    metadata["player_ids"]     = playerIds;
+        if (feePerPlayer is not null) metadata["fee_per_player"] = feePerPlayer;
+        return new Stripe.PaymentIntent { Status = status, Amount = amount, Metadata = metadata };
+    }
+
+    [Fact]
+    public async Task ApplyEntryFeePayment_marks_each_covered_golfer_paid()
+    {
+        var (svc, db) = Build();
+        var p1 = SeedPlayer(db);
+        var p2 = SeedPlayer(db);
+
+        var recorded = await svc.ApplyEntryFeePaymentAsync(
+            EntryFeeIntent("succeeded", 10000, $"{p1},{p2}", "5000"));
+
+        Assert.True(recorded);
+        Assert.All(db.Players.Where(p => p.Id == p1 || p.Id == p2),
+            p => { Assert.Equal(5000, p.EntryFeePaidCents); Assert.NotNull(p.EntryFeePaidAt); });
+    }
+
+    [Fact]
+    public async Task ApplyEntryFeePayment_is_idempotent()
+    {
+        var (svc, db) = Build();
+        var p1 = SeedPlayer(db);
+        var pi = EntryFeeIntent("succeeded", 5000, p1.ToString(), "5000");
+
+        await svc.ApplyEntryFeePaymentAsync(pi);
+        var firstPaidAt = db.Players.Single(p => p.Id == p1).EntryFeePaidAt;
+        await svc.ApplyEntryFeePaymentAsync(pi);
+
+        Assert.Equal(firstPaidAt, db.Players.Single(p => p.Id == p1).EntryFeePaidAt);
+        Assert.Equal(5000, db.Players.Single(p => p.Id == p1).EntryFeePaidCents);
+    }
+
+    [Fact]
+    public async Task ApplyEntryFeePayment_ignores_non_succeeded_intents()
+    {
+        var (svc, db) = Build();
+        var p1 = SeedPlayer(db);
+
+        var recorded = await svc.ApplyEntryFeePaymentAsync(
+            EntryFeeIntent("requires_payment_method", 5000, p1.ToString(), "5000"));
+
+        Assert.False(recorded);
+        Assert.Equal(0, db.Players.Single(p => p.Id == p1).EntryFeePaidCents);
+    }
+
+    [Fact]
+    public async Task ApplyEntryFeePayment_without_player_ids_metadata_is_ignored()
+    {
+        var (svc, _) = Build();
+        var recorded = await svc.ApplyEntryFeePaymentAsync(
+            EntryFeeIntent("succeeded", 5000, playerIds: null));
+        Assert.False(recorded);
+    }
+
+    [Fact]
+    public async Task ApplyEntryFeePayment_derives_fee_from_amount_when_metadata_missing()
+    {
+        var (svc, db) = Build();
+        var p1 = SeedPlayer(db);
+        var p2 = SeedPlayer(db);
+
+        var recorded = await svc.ApplyEntryFeePaymentAsync(
+            EntryFeeIntent("succeeded", 12000, $"{p1},{p2}"));
+
+        Assert.True(recorded);
+        Assert.All(db.Players.Where(p => p.Id == p1 || p.Id == p2),
+            p => Assert.Equal(6000, p.EntryFeePaidCents));
     }
 }

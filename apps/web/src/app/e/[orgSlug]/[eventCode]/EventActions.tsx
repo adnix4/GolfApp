@@ -18,7 +18,6 @@ type RegistrationMode = 'team' | 'join' | 'freeagent' | null;
 
 interface RegistrationSectionProps {
   eventId:          string;
-  eventCode:        string;
   orgName:          string;
   freeAgentEnabled: boolean;
 }
@@ -33,7 +32,6 @@ interface DonateWidgetProps {
 
 export default function EventRegistrationSection({
   eventId,
-  eventCode,
   orgName,
   freeAgentEnabled,
 }: RegistrationSectionProps) {

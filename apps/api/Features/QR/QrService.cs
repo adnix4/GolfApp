@@ -143,10 +143,10 @@ public class QrService
     // ── REGISTRATION QR PNG (public — embedded in the email ad) ────────────────
 
     /// <summary>
-    /// Renders the event's registration QR as a PNG. The QR encodes the public
-    /// registration page URL (/e/{orgSlug}/{eventCode}) — the same destination
-    /// as the EventJoin QR — so a golfer scanning the email ad lands on the
-    /// page that registers them and hands off to the mobile scorer app.
+    /// Renders the event's registration QR as a PNG. The QR encodes the
+    /// device-aware join page (/e/{orgSlug}/{eventCode}/join), which
+    /// deep-links phones into the GFP Scorer app's join screen for this event
+    /// and forwards desktop browsers to web registration.
     /// PNG rather than the stored SVG because email clients only reliably
     /// render plain raster images fetched over https (data: URIs and inline
     /// SVG are widely stripped).
@@ -161,7 +161,7 @@ public class QrService
             ?? throw new NotFoundException($"No event found with code '{eventCode}'.");
 
         var baseUrl = _config["APP_BASE_URL"] ?? "https://golffundraiser.pro";
-        var url     = $"{baseUrl}/e/{evt.Organization.Slug}/{evt.EventCode}";
+        var url     = $"{baseUrl}/e/{evt.Organization.Slug}/{evt.EventCode}/join";
 
         using var generator = new QRCodeGenerator();
         var data = generator.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);

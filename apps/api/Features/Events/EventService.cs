@@ -31,6 +31,7 @@
 
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -94,7 +95,10 @@ public class EventService
             Holes      = request.Holes,
             Status     = EventStatus.Draft,
             StartAt    = request.StartAt,
-            ConfigJson = "{}",
+            ConfigJson = request.Config is null
+                ? "{}"
+                : JsonSerializer.Serialize(request.Config,
+                    new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }),
         };
 
         _db.Events.Add(evt);
@@ -489,17 +493,23 @@ public class EventService
         CancellationToken ct = default)
     {
         var evt = await _db.Events
-            .Include(e => e.Teams)
+            .Include(e => e.Teams).ThenInclude(t => t.Players)
             .Include(e => e.Donations)
             .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
 
         if (evt is null)
             throw new NotFoundException("Event", eventId);
 
-        var config       = DeserializeConfig(evt.ConfigJson);
-        var feeCents     = config.EntryFeeCents ?? 0;
-        var teamsPaid    = evt.Teams.Count(t => t.EntryFeePaid);
-        var entryTotal   = teamsPaid * feeCents;
+        // Entry fees are per golfer — sum what each player actually paid (free
+        // agents included), so totals stay right even if the fee changes later.
+        var allPlayers   = await _db.Players
+            .Where(p => p.EventId == eventId)
+            .Select(p => p.EntryFeePaidCents)
+            .ToListAsync(ct);
+        var entryTotal   = allPlayers.Sum();
+        var playersPaid  = allPlayers.Count(c => c > 0);
+        var teamsPaid    = evt.Teams.Count(t =>
+            t.EntryFeePaid || (t.Players.Count > 0 && t.Players.All(p => p.EntryFeePaidCents > 0)));
         var donationTotal = evt.Donations.Sum(d => d.AmountCents);
 
         var sponsorTotal = await _db.Sponsors
@@ -519,6 +529,8 @@ public class EventService
             GrandTotalCents      = entryTotal + donationTotal + sponsorTotal + challengeTotal,
             TeamsPaid            = teamsPaid,
             TeamsTotal           = evt.Teams.Count,
+            PlayersPaid          = playersPaid,
+            PlayersTotal         = allPlayers.Count,
             DonationCount        = evt.Donations.Count,
         };
     }
@@ -684,6 +696,8 @@ public class EventService
             Status     = evt.Status.ToString(),
             StartAt    = evt.StartAt,
             SpotsRemaining = maxTeams.HasValue ? Math.Max(0, maxTeams.Value - evt.TeamCount) : null,
+            // Surface 0 / unset as null so clients render one "free" state.
+            EntryFeeCents = config.EntryFeeCents is > 0 ? config.EntryFeeCents : null,
             Course      = evt.Course,
             Sponsors    = landingSponsors,
             Fundraising = new PublicFundraisingInfo
@@ -904,17 +918,16 @@ public class EventService
         CancellationToken ct = default)
     {
         var evt = await _db.Events
-            .Include(e => e.Teams)
             .Include(e => e.Donations)
             .FirstOrDefaultAsync(e => e.EventCode == eventCode.ToUpperInvariant(), ct);
 
         if (evt is null || evt.Status is EventStatus.Draft or EventStatus.Cancelled)
             throw new NotFoundException($"No event found with code '{eventCode}'.");
 
-        var config      = DeserializeConfig(evt.ConfigJson);
-        var feeCents    = config.EntryFeeCents ?? 0;
-        var teamsPaid   = evt.Teams.Count(t => t.EntryFeePaid);
-        var entryTotal  = teamsPaid * feeCents;
+        // Per-golfer entry fees: sum what each registered player actually paid.
+        var entryTotal  = await _db.Players
+            .Where(p => p.EventId == evt.Id)
+            .SumAsync(p => p.EntryFeePaidCents, ct);
         var donTotal    = evt.Donations.Sum(d => d.AmountCents);
 
         return new PublicFundraisingInfo

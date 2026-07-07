@@ -99,10 +99,10 @@ export function buildEmailHtml(data: EmailBuilderData, sections: SectionId[], su
         ${fee ? `
         <p style="color:#999;font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;margin:0 0 6px;">Entry Fee</p>
         <p style="color:${p};font-size:32px;font-weight:bold;margin:0;">${fee}</p>
-        <p style="color:#888;font-size:12px;margin:2px 0 18px;">per team</p>` : `
+        <p style="color:#888;font-size:12px;margin:2px 0 18px;">per golfer</p>` : `
         <p style="color:#555;font-size:15px;margin:0 0 18px;">Spots are limited &mdash; reserve your team today!</p>`}
-        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${data.registrationUrl}" style="height:50px;v-text-anchor:middle;width:240px;" arcsize="25%" strokecolor="${p}" fillcolor="${p}"><w:anchorlock/><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:17px;font-weight:bold;">Register Now</center></v:roundrect><![endif]-->
-        <!--[if !mso]><!--><a href="${data.registrationUrl}" style="background:${p};color:#ffffff;display:inline-block;font-family:Arial,sans-serif;font-size:17px;font-weight:bold;padding:14px 44px;border-radius:10px;text-decoration:none;">Register Now</a><!--<![endif]-->
+        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${data.joinUrl}" style="height:50px;v-text-anchor:middle;width:240px;" arcsize="25%" strokecolor="${p}" fillcolor="${p}"><w:anchorlock/><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:17px;font-weight:bold;">Register Now</center></v:roundrect><![endif]-->
+        <!--[if !mso]><!--><a href="${data.joinUrl}" style="background:${p};color:#ffffff;display:inline-block;font-family:Arial,sans-serif;font-size:17px;font-weight:bold;padding:14px 44px;border-radius:10px;text-decoration:none;">Register Now</a><!--<![endif]-->
         <p style="color:#888;font-size:12px;margin:14px 0 0;">or visit <a href="${data.registrationUrl}" style="color:${p};text-decoration:none;">${data.registrationUrl}</a></p>
       </td></tr></table>
     </td></tr>
@@ -115,7 +115,7 @@ export function buildEmailHtml(data: EmailBuilderData, sections: SectionId[], su
       <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;border:1px solid #e5e5e5;border-radius:10px;"><tr><td style="padding:20px 28px;text-align:center;">
         <p style="color:#999;font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;margin:0 0 12px;">Scan to Register</p>
         <img src="${data.qrCodeUrl}" alt="Registration QR code for ${data.eventName}" width="180" height="180" style="display:block;margin:0 auto;">
-        <p style="color:#888;font-size:12px;line-height:18px;max-width:300px;margin:12px auto 0;">Point your phone's camera at the code to open the registration page &mdash; it also links you to the mobile scoring app for the day of the event.</p>
+        <p style="color:#888;font-size:12px;line-height:18px;max-width:300px;margin:12px auto 0;">Point your phone's camera at the code &mdash; it opens the event in the GFP Scorer app (or your browser) so you can register and keep score on event day.</p>
       </td></tr></table>
     </td></tr>
   </table>`;

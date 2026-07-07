@@ -290,10 +290,16 @@ export interface EmailBuilderData {
   courseAddress:    string;
   /** Google Maps link for the WHERE block's "Get Directions"; empty when no course. */
   directionsUrl:    string;
-  /** Team entry fee from the event config; null when free/unset. */
+  /** Per-golfer entry fee from the event config; null when free/unset. */
   entryFeeCents:    number | null;
   registrationUrl:  string;
-  /** Self-hosted per-event QR PNG (encodes the registration page URL). */
+  /**
+   * Device-aware join hand-off (…/join): deep-links phones into the GFP Scorer
+   * app, forwards desktop to web registration. Target of the Register button
+   * and the QR code.
+   */
+  joinUrl:          string;
+  /** Self-hosted per-event QR PNG (encodes the join hand-off URL). */
   qrCodeUrl:        string;
   primaryColor:     string;
   missionStatement: string | null;
@@ -344,7 +350,11 @@ export interface CourseHole {
 export interface Team {
   id: string; eventId: string; name: string;
   startingHole: number | null; teeTime: string | null;
-  entryFeePaid: boolean; maxPlayers: number; checkInStatus: string;
+  /** True when every golfer on the roster has paid (or the team was marked paid). */
+  entryFeePaid: boolean;
+  /** Golfers on the roster who have paid the per-golfer entry fee. */
+  playersPaid: number;
+  maxPlayers: number; checkInStatus: string;
   players: Player[];
 }
 
@@ -356,6 +366,9 @@ export interface Player {
   skillLevel?: string | null;
   ageGroup?: string | null;
   pairingNote?: string | null;
+  /** Cents this golfer has paid toward the per-golfer entry fee. 0 = unpaid. */
+  entryFeePaidCents: number;
+  entryFeePaidAt?: string | null;
 }
 
 export interface Score {
@@ -385,7 +398,9 @@ export interface LeaderboardEntry {
 export interface FundraisingTotals {
   entryFeesCents: number; donationsCents: number; grandTotalCents: number;
   sponsorAmountCents: number; challengeAmountCents: number;
-  teamsPaid: number; teamsTotal: number; donationCount: number;
+  teamsPaid: number; teamsTotal: number;
+  playersPaid: number; playersTotal: number;
+  donationCount: number;
 }
 
 export interface SponsorPlacements {
@@ -421,6 +436,8 @@ export interface HoleChallenge {
 // Payload types
 export interface CreateEventPayload {
   name: string; format: string; startType: string; holes: number; startAt?: string;
+  /** Initial config keys, e.g. { entryFeeCents } (per golfer). */
+  config?: Record<string, unknown>;
 }
 export interface UpdateEventPayload {
   name?: string; format?: string; startType?: string; holes?: number;

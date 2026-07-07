@@ -124,7 +124,6 @@ export default async function EventPage(
               {['registration', 'active'].includes(event.status) && (
                 <EventRegistrationSection
                   eventId={event.id}
-                  eventCode={event.eventCode}
                   orgName={event.orgName}
                   freeAgentEnabled={event.freeAgentEnabled}
                 />

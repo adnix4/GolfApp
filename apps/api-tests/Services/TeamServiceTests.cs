@@ -14,7 +14,9 @@ namespace WebAPI.Tests.Services;
 /// <summary>
 /// Tests for TeamService: full-team registration (+invite token), invite join
 /// (expiry/full/token guards), free-agent registration, manual assignment, and the
-/// snake-draft auto-pair. Entry-fee Stripe is avoided by leaving the fee unset.
+/// snake-draft auto-pair. Most tests leave the entry fee unset to skip Stripe;
+/// the "Entry fee resilience" group sets a fee WITHOUT a Stripe key to prove
+/// registration survives payment-rail failure (A8).
 /// </summary>
 public class TeamServiceTests
 {
@@ -118,6 +120,60 @@ public class TeamServiceTests
             {
                 TeamName = "Late", Players = new() { P("A") },
             }));
+    }
+
+    // ── Entry fee resilience (A8) ────────────────────────────────────────────────
+    // No STRIPE_SECRET_KEY is configured in these tests, so PaymentIntent creation
+    // throws — registration must still succeed with a null client secret (the
+    // mobile app then shows "pay at event check-in").
+
+    private const string FeeConfig = "{\"entryFeeCents\":5000,\"freeAgentEnabled\":true}";
+
+    [Fact]
+    public async Task RegisterTeam_with_fee_survives_stripe_failure()
+    {
+        var c = Build(configJson: FeeConfig);
+        var res = await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "NoRail", MaxPlayers = 4, Players = new() { P("Capt"), P("Two") },
+        });
+
+        Assert.Equal(2, res.Team.Players.Count);          // registration went through
+        Assert.Null(res.EntryFeeClientSecret);            // no online payment available
+        Assert.Equal(10000, res.EntryFeeCents);           // 2 golfers × 5000¢ still reported
+        Assert.Equal(5000, res.EntryFeePerPlayerCents);
+    }
+
+    [Fact]
+    public async Task JoinTeam_with_fee_survives_stripe_failure()
+    {
+        var c = Build(configJson: FeeConfig);
+        await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "NoRailJoin", MaxPlayers = 4, Players = new() { P("Capt") },
+        });
+        var token = c.Db.Teams.Single().InviteToken!;
+
+        var res = await c.Svc.JoinTeamAsync(c.OrgId, c.EventId, new JoinTeamRequest
+        {
+            InviteToken = token, Player = P("Joiner"),
+        });
+
+        Assert.Equal(2, res.Team.Players.Count);
+        Assert.Null(res.EntryFeeClientSecret);
+        Assert.Equal(5000, res.EntryFeeCents);            // joiner owes their own share
+    }
+
+    [Fact]
+    public async Task RegisterFreeAgent_with_fee_survives_stripe_failure()
+    {
+        var c = Build(configJson: FeeConfig);
+        var res = await c.Svc.RegisterFreeAgentAsync(c.OrgId, c.EventId,
+            new RegisterFreeAgentRequest { Player = P("Solo") });
+
+        Assert.NotNull(res.Player);
+        Assert.Null(res.EntryFeeClientSecret);
+        Assert.Equal(5000, res.EntryFeeCents);
     }
 
     // ── Join via invite ───────────────────────────────────────────────────────────

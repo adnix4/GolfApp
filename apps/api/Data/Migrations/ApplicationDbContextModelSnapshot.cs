@@ -1123,6 +1123,14 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("character varying(254)")
                         .HasColumnName("email");
 
+                    b.Property<DateTime?>("EntryFeePaidAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("entry_fee_paid_at");
+
+                    b.Property<int>("EntryFeePaidCents")
+                        .HasColumnType("integer")
+                        .HasColumnName("entry_fee_paid_cents");
+
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid")
                         .HasColumnName("event_id");
