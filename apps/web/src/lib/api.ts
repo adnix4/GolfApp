@@ -3,6 +3,18 @@ const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 /** Organizer/admin app base URL for Sign-up / Log-in CTAs (separate app; a link, not SSO). */
 export const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'http://localhost:8081';
 
+/**
+ * With local file storage the API stores logo URLs as API-relative paths
+ * (/uploads/event-logos/…) served by the API host — rendering them as-is
+ * makes the browser fetch them from THIS app's origin and 404. Absolutize
+ * against the API base; blob-storage (S3/R2) URLs are already absolute and
+ * pass through untouched. Applied at the fetch boundary (below) so every
+ * consumer of these DTOs gets renderable URLs.
+ */
+function resolveUploadUrl<T extends string | null>(url: T): T {
+  return (url !== null && url.startsWith('/') ? `${BASE}${url}` : url) as T;
+}
+
 export interface PublicCourseInfo {
   name:  string;
   city:  string;
@@ -87,12 +99,21 @@ export interface ActiveEventSummary {
   freeAgentEnabled: boolean;
 }
 
+function normalizePublicEvent(e: PublicEventData): PublicEventData {
+  return {
+    ...e,
+    resolvedLogoUrl: resolveUploadUrl(e.resolvedLogoUrl),
+    sponsors: e.sponsors.map(s => ({ ...s, logoUrl: resolveUploadUrl(s.logoUrl) })),
+  };
+}
+
 /** All currently-open events across orgs (for the golfer "find your event" directory). */
 export async function fetchActiveEvents(): Promise<ActiveEventSummary[]> {
   try {
     const res = await fetch(`${BASE}/api/v1/pub/events/active`, { cache: 'no-store' });
     if (!res.ok) return [];
-    return res.json();
+    const events: ActiveEventSummary[] = await res.json();
+    return events.map(e => ({ ...e, logoUrl: resolveUploadUrl(e.logoUrl) }));
   } catch {
     return [];
   }
@@ -105,7 +126,7 @@ export async function fetchPublicEvent(eventCode: string): Promise<PublicEventDa
     });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`API ${res.status}`);
-    return res.json();
+    return normalizePublicEvent(await res.json());
   } catch {
     return null;
   }
@@ -122,7 +143,7 @@ export async function fetchPublicEventFresh(eventCode: string): Promise<PublicEv
   try {
     const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}`, { cache: 'no-store' });
     if (!res.ok) return null;
-    return res.json();
+    return normalizePublicEvent(await res.json());
   } catch {
     return null;
   }
@@ -134,7 +155,8 @@ export async function fetchPublicLeaderboard(eventCode: string): Promise<PublicL
       next: { revalidate: 30 },
     });
     if (!res.ok) return null;
-    return res.json();
+    const board: PublicLeaderboard = await res.json();
+    return { ...board, resolvedLogoUrl: resolveUploadUrl(board.resolvedLogoUrl) };
   } catch {
     return null;
   }

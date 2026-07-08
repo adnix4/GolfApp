@@ -10,6 +10,19 @@ code. Ordered by leverage. Mark [x] when adopted. Ref: https://expo.dev/changelo
 NOTE: this upgrade also clears the 23 moderate transitive Expo build-tooling vulns
 that item #6 deferred until the SDK bump.
 
+#6 AUDIT RE-CHECK 2026-07-08 — npm audit now reports 18 moderate, 0 high/critical
+(down from 23). All three remaining chains are non-runtime and have no
+non-breaking fix (audit's suggestions are absurd downgrades: next@9, expo@46):
+- file-type (ASF-parser loop) via react-native-image-colors → node-vibrant →
+  @vibrant/image-node → jimp. UNUSED PATH: web imports node-vibrant/browser
+  (canvas), native uses platform modules — the /node entry never ships.
+- postcss <8.5.10 (XSS in stringify) vendored inside next's own node_modules;
+  even latest Next still bundles it. Build-time only; waits on a Next release.
+- uuid <11.1.1 (buffer bounds) via @expo/cli//config/prebuild — Expo dev/build
+  tooling, not in app bundles; waits on an Expo release.
+Item #6 CLOSED as accepted-risk (tooling-only); the weekly dependency routine
+picks up the upstream fixes when they ship.
+
 WATCH-OUT (constraint on iOS adoption, not a code task)
 - SDK 56 bumps build requirements: Xcode 26.4, iOS/tvOS min 16.4, macOS 13.4. EAS
   Build's cloud macOS runners handle the iOS compile, so Windows dev is unaffected;
@@ -68,7 +81,13 @@ LOCAL (unpushed) unless noted.
         Golfer scoring stays token-gated in mobile (no web auth). See plan file
         jolly-stargazing-clover.md for the detailed approach.
 
-[ ] A2. Expo update
+[x] A2. Expo update
+        CLOSED 2026-07-08 — original intent was never specified; everything
+        the phrase could mean is now covered elsewhere: the SDK 55→56 major
+        upgrade shipped 2026-06-23 (see section above), in-range patch
+        updates (e.g. expo 56.0.12→56.0.15) are applied by the weekly
+        dependency routine (Fridays, deps/weekly-* PRs), and the next SDK
+        major is a deliberate manual project when SDK 57 stabilizes.
 
 [x] A4. (ROBUSTNESS) No React error boundaries anywhere — a render-time throw
         unmounts the whole tree to a blank screen instead of a fallback.
