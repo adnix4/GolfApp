@@ -154,7 +154,28 @@ LOCAL (unpushed) unless noted.
         JoinAsync in apps/api/Features/Mobile/MobileService.cs) + email delivery;
         NOT a web-app change. Deferred — decided during A1 planning (2026-07-01).
 
-[ ] A5. (KNOWN LIMITATION) Expo-WEB scorer silently drops all score entry + sync.
+[x] A5. (KNOWN LIMITATION) Expo-WEB scorer silently drops all score entry + sync.
+        DONE 2026-07-08 — option (a): db.ts webDb now backs pending_scores with
+        localStorage (JSON row array under gfp:pending_scores) via a tiny
+        interpreter for the exact SQL shapes store.ts issues (INSERT OR
+        REPLACE / UPDATE incl. sync_attempts+1 / DELETE / SELECT with
+        AND-joined =?/IS NULL/IS NOT NULL + ORDER BY hole_number). Key design
+        point: any UNRECOGNIZED statement now THROWS on web instead of
+        silently no-oping, so a future store.ts query change fails loudly —
+        the "silent" failure mode can't recur. leaderboard_cache needed no
+        shim (created native-side, never queried anywhere). Fixes on web:
+        scorecard populates from server pull-back, entered scores reach the
+        server via syncScores (loadUnsyncedScores now returns real rows, so
+        the false "synced" report is gone), and the foreground poll no longer
+        wipes typed scores. Verified: 9 new tests (webDb.test.ts) run the REAL
+        store.ts against the REAL web shim (Platform.OS='web', localStorage
+        polyfilled) — upsert/replace round-trip, complete→unsync→sync
+        lifecycle, sync_attempts scoping, mergeServerScores protect-unpushed
+        rule, per-team clear, persistence, event_cache coexistence,
+        unsupported-SQL throw. 111 mobile tests + tsc green. NOT yet manually
+        verified in a browser (no automation on this box) — worth one manual
+        pass: join a demo event on Expo web, enter a hole, confirm the score
+        lands server-side and survives the ~30s poll.
         Surfaced 2026-07-02 while reviewing the Scoring phase via the mobile app
         run as Expo web. The scorer ships NATIVE (iOS/Android) where expo-sqlite
         backs pending_scores; on WEB, apps/mobile/src/lib/db.ts uses a `webDb`
