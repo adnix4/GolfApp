@@ -74,15 +74,28 @@ const LAST  = ['Anderson','Johnson','Smith','Williams','Brown','Jones','Garcia',
 
 // ── HTTP HELPERS ─────────────────────────────────────────────────────────────
 
-async function api(method, path, { token, body, raw } = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
+// `device` sets X-GFP-Device, which the API's global rate limiter uses as its
+// per-device fairness key (600 req/min each). Without it every request shares
+// one IP-keyed bucket, and a full round's ~324 score POSTs trip a 429 — pass a
+// distinct id per simulated member, exactly like real scorer devices do.
+async function api(method, path, { token, body, raw, device } = {}) {
+  let res;
+  for (let attempt = 0; ; attempt++) {
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(device ? { 'X-GFP-Device': device } : {}),
+      },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+    if (res.status !== 429 || attempt >= 3) break;
+    // Sliding-window limiter: wait out the window (Retry-After when provided).
+    const wait = Number(res.headers.get('retry-after')) || 15;
+    log(`  …429 rate-limited, waiting ${wait}s (retry ${attempt + 1}/3)`);
+    await new Promise(r => setTimeout(r, wait * 1000));
+  }
   if (raw) return res;
   let data = null;
   const text = await res.text();
@@ -285,7 +298,8 @@ async function playRound() {
   for (const m of activeMembers) {
     for (let hole = 1; hole <= HOLES; hole++) {
       await api('POST', `/api/v1/leagues/${L}/seasons/${S}/rounds/${R}/scores`, {
-        token, body: { memberId: m.id, holeNumber: hole, grossScore: grossForHole(m.handicap) },
+        token, device: `seed-${m.id}`,
+        body: { memberId: m.id, holeNumber: hole, grossScore: grossForHole(m.handicap) },
       });
       posted++;
     }
