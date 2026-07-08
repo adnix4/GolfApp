@@ -102,13 +102,14 @@ public static class ServiceCollectionExtensions
                 }
             );
 
-            // In development, log all generated SQL queries to the console.
+            // In development, include parameter values in the SQL that the
+            // standard ASP.NET console logger already prints (the Logging
+            // section in appsettings.Development.json surfaces EF commands).
             // Helps developers see exactly what LINQ is being translated to,
             // making it easy to spot N+1 query problems early.
             if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
             {
                 options.EnableSensitiveDataLogging();
-                options.LogTo(Console.WriteLine, LogLevel.Information);
             }
         });
 
