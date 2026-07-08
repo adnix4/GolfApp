@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- GFP brand favicon — badge form of the mark in packages/shared-types/src/logo.ts.
+       Static (not generated) because Next serves app/icon.svg as a plain file.
+       The group below is the mark's exact geometry, scaled to fit the badge. -->
+  <rect x="1" y="1" width="62" height="62" rx="15" fill="#31572c"/>
+  <g transform="translate(2.6 2.6) scale(0.92)">
+    <path d="M6 51.5 C 6 47.3, 13 45.6, 21 46 C 29 46.4, 33 47.2, 39 47.2 C 44 47.2, 46.5 49, 46.5 51.2 C 46.5 53.7, 43 55.3, 38.5 55.3 C 34.8 55.3, 33.5 53.2, 30 53.2 C 26.5 53.2, 25.8 55.8, 21 56.3 C 14 57, 6 55.4, 6 51.5 Z" fill="#8ba955" opacity="0.75"/>
+    <ellipse cx="21" cy="51.8" rx="2.9" ry="1" fill="#31572c" opacity="0.5"/>
+    <path d="M21 51.8 V 7.5" stroke="#f4f7de" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M21 7 C 31 2.6, 41 11, 57.5 7.2 L 52.5 15.8 L 57.5 24.4 C 41 28.2, 31 19.8, 21 24 Z" fill="#ecf39e"/>
+    <text x="35.5" y="19.4" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="10.2" letter-spacing="0.4" fill="#31572c">GFP</text>
+    <ellipse cx="38.5" cy="52.6" rx="3.8" ry="1.1" fill="#31572c" opacity="0.28"/>
+    <circle cx="38.5" cy="49" r="3.6" fill="#ffffff"/>
+    <path d="M35.7 50.8 A 3.6 3.6 0 0 0 41.3 50.7" stroke="#c3c8b2" stroke-width="1.1" fill="none" opacity="0.95"/>
+    <circle cx="37.4" cy="47.9" r="0.5" fill="#98a086"/>
+    <circle cx="39.4" cy="48.2" r="0.5" fill="#98a086"/>
+    <circle cx="38.3" cy="49.5" r="0.5" fill="#98a086"/>
+    <circle cx="40.1" cy="49.7" r="0.5" fill="#98a086"/>
+    <circle cx="36.5" cy="49.3" r="0.5" fill="#98a086"/>
+    <circle cx="38.7" cy="46.7" r="0.5" fill="#98a086"/>
+  </g>
+</svg>

@@ -40,6 +40,7 @@ export type ISOTimestamp = string;
 
 // ── SHARED UTILITY HELPERS ────────────────────────────────────────────────────
 
+export * from './logo';
 export * from './money';
 export * from './phone';
 export * from './eventOptions';

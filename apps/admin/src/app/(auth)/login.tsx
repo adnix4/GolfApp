@@ -4,6 +4,7 @@ import {
   StyleSheet, ActivityIndicator, KeyboardAvoidingView,
 } from 'react-native';
 import { useTheme } from '@gfp/ui';
+import { GfpLogo } from '@/components/GfpLogo';
 import { useAuth } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
 
@@ -37,7 +38,10 @@ export default function LoginScreen() {
       <KeyboardAvoidingView style={styles.card}>
         {/* Logo / wordmark */}
         <View style={styles.logoRow}>
-          <Text style={[styles.logoText, { color: theme.colors.primary }]}>⛳ GFP</Text>
+          <View style={styles.logoMarkRow}>
+            <GfpLogo variant="onLight" size={46} />
+            <Text style={[styles.logoText, { color: theme.colors.primary }]}>GFP</Text>
+          </View>
           <Text style={[styles.logoSub, { color: theme.mutedText }]}>Admin Dashboard</Text>
         </View>
 
@@ -116,6 +120,11 @@ const styles = StyleSheet.create({
   logoRow: {
     alignItems: 'center',
     marginBottom: 32,
+  },
+  logoMarkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   logoText: {
     fontSize: 32,

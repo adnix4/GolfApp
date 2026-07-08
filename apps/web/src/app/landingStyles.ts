@@ -19,7 +19,8 @@ export const L: Record<string, CSSProperties> = {
   // (Top nav lives in the shared SiteHeader rendered by the root layout.)
 
   // ── Hero ──────────────────────────────────────────────────────────────────
-  hero:      { backgroundColor: 'var(--color-primary)', paddingBottom: '3.5rem' },
+  // position:relative anchors the decorative .gfp-hero-logo (see landingCss).
+  hero:      { backgroundColor: 'var(--color-primary)', paddingBottom: '3.5rem', position: 'relative' },
   heroInner: { maxWidth: CONTAINER, margin: '0 auto', padding: '3rem 1.25rem 0' },
   heroTag:   { color: '#c8dfb0', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: '1rem' },
   heroTitle: { color: 'var(--color-surface)', fontSize: '2.75rem', fontWeight: 900, lineHeight: 1.1, marginBottom: '1.25rem', maxWidth: 720 },
@@ -94,4 +95,19 @@ export const landingCss = `
   .gfp-hero-title   { font-size: 2.1rem !important; }
 }
 .gfp-cta:hover { opacity: 0.92; text-decoration: none; }
+
+/* Decorative brand mark filling the hero band's height (minus a margin),
+   right-aligned to the 1160px container edge. The hero copy is ~740px wide,
+   so below ~1120px the mark would overlap the text — hide it there. */
+.gfp-hero-logo {
+  position: absolute;
+  top: 2rem;
+  bottom: 2rem;
+  height: calc(100% - 4rem);
+  width: auto;
+  right: max(1.25rem, calc((100% - ${CONTAINER}px) / 2 + 1.25rem));
+}
+@media (max-width: 1120px) {
+  .gfp-hero-logo { display: none; }
+}
 `;

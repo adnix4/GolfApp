@@ -1,6 +1,7 @@
 import { Slot, useRouter, useSegments, type ErrorBoundaryProps } from 'expo-router';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ErrorFallback, useTheme } from '@gfp/ui';
+import { GfpLogo } from '@/components/GfpLogo';
 import { useAuth } from '@/lib/auth';
 import { useResponsive } from '@/lib/responsive';
 
@@ -50,7 +51,10 @@ export default function AppLayout() {
     return (
       <View style={styles.rootColumn}>
         <View style={[styles.topBar, { backgroundColor: theme.colors.primary }]}>
-          <Text style={[styles.topLogo, { color: theme.colors.surface }]}>⛳ GFP</Text>
+          <View style={styles.topLogoRow}>
+            <GfpLogo variant="onDark" size={26} />
+            <Text style={[styles.topLogo, { color: theme.colors.surface }]}>GFP</Text>
+          </View>
           <View style={styles.topNav}>
             {navItems.map(item => {
               const isActive = segments.includes(item.segment as never);
@@ -96,7 +100,10 @@ export default function AppLayout() {
     <View style={styles.root}>
       <View style={[styles.sidebar, { backgroundColor: theme.colors.primary }]}>
         <View style={styles.logoBox}>
-          <Text style={[styles.logoText, { color: theme.colors.surface }]}>⛳ GFP</Text>
+          <View style={styles.logoRow}>
+            <GfpLogo variant="onDark" size={40} />
+            <Text style={[styles.logoText, { color: theme.colors.surface }]}>GFP</Text>
+          </View>
           <Text style={[styles.logoSub,  { color: theme.buttonLabel, opacity: 0.75 }]}>Admin</Text>
         </View>
 
@@ -157,6 +164,7 @@ const styles = StyleSheet.create({
 
   // ── Mobile top bar ──────────────────────────────────────────────────────────
   topBar:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
+  topLogoRow:     { flexDirection: 'row', alignItems: 'center', gap: 5 },
   topLogo:        { fontSize: 18, fontWeight: '800' },
   topNav:         { flex: 1, flexDirection: 'row', gap: 4 },
   topNavItem:     { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6 },
@@ -175,6 +183,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   logoBox: { alignItems: 'center', marginBottom: 32 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logoText: { fontSize: 28, fontWeight: '800' },
   logoSub: {
     fontSize: 11,

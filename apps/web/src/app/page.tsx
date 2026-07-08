@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { gfpLogoDataUri, GFP_LOGO_ON_DARK } from '@gfp/shared-types';
 import { ADMIN_URL } from '@/lib/api';
 import { L, landingCss } from './landingStyles';
 import Walkthrough from './Walkthrough';
@@ -56,6 +57,8 @@ export default function Home() {
 
       {/* ── HERO ── */}
       <header style={L.hero}>
+        {/* Decorative mark — hidden by media query when it would crowd the copy */}
+        <img className="gfp-hero-logo" src={gfpLogoDataUri(GFP_LOGO_ON_DARK)} alt="" aria-hidden />
         <div style={L.heroInner}>
           <p style={L.heroTag}>The all-in-one platform for charity golf events</p>
           <h1 style={L.heroTitle} className="gfp-hero-title">Run beautiful, profitable golf fundraisers.</h1>
