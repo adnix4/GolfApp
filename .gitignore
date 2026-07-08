@@ -116,3 +116,7 @@ coverage/
 # ── RUNTIME UPLOADS ──────────────────────────────────────────────────────────
 # User-uploaded files (auction photos, etc.) — runtime data, not source
 apps/api/wwwroot/uploads/
+
+# ── SEEDER LOCAL STATE ───────────────────────────────────────────────────────
+# Disposable per-run state written by seed skills (tokens, ids) — never source
+.claude/skills/*/.state.json
