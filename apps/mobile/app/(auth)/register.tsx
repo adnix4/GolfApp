@@ -9,6 +9,7 @@ import {
 } from '@stripe/stripe-react-native';
 import { useTheme } from '@gfp/ui';
 import { formatCentsShort, digitsOnly, fmtPhoneInput } from '@gfp/shared-types';
+import { GfpLogo } from '@/components/GfpLogo';
 import {
   registerTeam, registerFreeAgent, confirmEntryFee,
   type PlayerInput, type SkillLevel, type AgeGroup,
@@ -166,7 +167,7 @@ export default function RegisterScreen() {
 
   const logo = (
     <View style={styles.logoRow}>
-      <Text style={styles.logoEmoji}>⛳</Text>
+      <GfpLogo variant="onLight" size={56} />
       <Text style={[styles.logoTitle, { color: theme.colors.primary }]}>GFP Scorer</Text>
       <Text style={[styles.logoSub,   { color: theme.mutedText }]}>Golf Fundraiser Pro</Text>
     </View>
@@ -601,7 +602,6 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, padding: 20, paddingBottom: 48 },
 
   logoRow:   { alignItems: 'center', marginBottom: 28, marginTop: 16 },
-  logoEmoji: { fontSize: 44 },
   logoTitle: { fontSize: 26, fontWeight: '800', marginTop: 8 },
   logoSub:   { fontSize: 13, fontWeight: '500', marginTop: 4 },
 

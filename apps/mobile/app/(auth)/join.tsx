@@ -6,6 +6,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { FORMAT_LABELS } from '@gfp/shared-types';
+import { GfpLogo } from '@/components/GfpLogo';
 import { useSession } from '@/lib/session';
 import { joinEvent, fetchActiveEvents, type ActiveEventSummary, type JoinEventResponse } from '@/lib/api';
 import { registerForPushNotifications } from '@/lib/pushNotifications';
@@ -195,7 +196,7 @@ export default function JoinScreen() {
 
   const logo = (
     <View style={styles.logoRow}>
-      <Text style={styles.logoEmoji}>⛳</Text>
+      <GfpLogo variant="onLight" size={56} />
       <Text style={[styles.logoTitle, { color: theme.colors.primary }]}>GFP Scorer</Text>
       <Text style={[styles.logoSub,   { color: theme.mutedText }]}>Golf Fundraiser Pro</Text>
     </View>
@@ -634,7 +635,6 @@ const styles = StyleSheet.create({
   scroll:  { flexGrow: 1, padding: 20, paddingBottom: 40 },
 
   logoRow:   { alignItems: 'center', marginBottom: 28, marginTop: 16 },
-  logoEmoji: { fontSize: 44 },
   logoTitle: { fontSize: 26, fontWeight: '800', marginTop: 8 },
   logoSub:   { fontSize: 13, fontWeight: '500', marginTop: 4 },
 

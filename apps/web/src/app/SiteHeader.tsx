@@ -16,6 +16,7 @@
  */
 
 import { useState } from 'react';
+import { gfpLogoDataUri, GFP_LOGO_ON_DARK } from '@gfp/shared-types';
 import { ADMIN_URL } from '@/lib/api';
 
 const BRAND   = '#31572c'; // primary  (eco-green)
@@ -26,6 +27,10 @@ const HILITE  = '#ecf39e'; // pale lime
 const REGISTER = `${ADMIN_URL}/register`;
 const LOGIN    = `${ADMIN_URL}/login`;
 
+// Header sits on the dark brand green, so the on-dark mark applies always —
+// same reasoning as the hardcoded colors above.
+const LOGO_URI = gfpLogoDataUri(GFP_LOGO_ON_DARK);
+
 export default function SiteHeader() {
   const [open, setOpen] = useState(false);
 
@@ -34,7 +39,10 @@ export default function SiteHeader() {
       <style dangerouslySetInnerHTML={{ __html: css }} />
 
       <div style={s.inner}>
-        <a href="/" style={s.logo} onClick={() => setOpen(false)}>⛳ Golf Fundraiser Pro</a>
+        <a href="/" style={s.logo} onClick={() => setOpen(false)}>
+          <img src={LOGO_URI} alt="" width={34} height={34} style={s.logoMark} />
+          Golf Fundraiser Pro
+        </a>
 
         {/* Desktop nav — display is controlled by the .gfp-hdr-desktop class
             (NOT an inline style, which would beat the media query). */}
@@ -72,7 +80,8 @@ export default function SiteHeader() {
 const s: Record<string, React.CSSProperties> = {
   header: { position: 'sticky', top: 0, zIndex: 50, backgroundColor: BRAND, boxShadow: '0 1px 6px rgba(0,0,0,0.18)' },
   inner:  { maxWidth: 1160, margin: '0 auto', padding: '0.7rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' },
-  logo:   { color: SURFACE, fontSize: '1.1rem', fontWeight: 800, whiteSpace: 'nowrap' },
+  logo:   { color: SURFACE, fontSize: '1.1rem', fontWeight: 800, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '0.45rem' },
+  logoMark: { display: 'block', marginTop: -2 },
   link:   { color: HILITE, fontSize: '0.92rem', fontWeight: 600 },
   cta:    { color: BRAND, backgroundColor: SURFACE, fontSize: '0.92rem', fontWeight: 800, padding: '0.5rem 1rem', borderRadius: 10 },
   burger: { color: SURFACE, background: 'transparent', border: `1.5px solid ${ACCENT}`, borderRadius: 8, fontSize: '1.1rem', lineHeight: 1, padding: '0.35rem 0.6rem', cursor: 'pointer' },

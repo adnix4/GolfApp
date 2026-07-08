@@ -1,6 +1,7 @@
 import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@gfp/ui';
+import { GfpLogo } from '@/components/GfpLogo';
 import { useResponsive } from '@/lib/responsive';
 
 const FEATURES = [
@@ -28,7 +29,10 @@ export default function LandingPage() {
     >
       {/* ── NAV BAR ── */}
       <View style={[styles.nav, { backgroundColor: theme.colors.primary, paddingHorizontal: pagePadding }]}>
-        <Text style={[styles.navLogo, { color: theme.colors.surface }]}>⛳ Golf Fundraiser Pro</Text>
+        <View style={styles.navLogoRow}>
+          <GfpLogo variant="onDark" size={30} />
+          <Text style={[styles.navLogo, { color: theme.colors.surface }]}>Golf Fundraiser Pro</Text>
+        </View>
         <Pressable
           style={[styles.navBtn, { borderColor: theme.buttonLabel }]}
           onPress={() => router.push('/(auth)/login')}
@@ -147,6 +151,7 @@ const styles = StyleSheet.create({
   page: { flex: 1 },
 
   nav:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14 },
+  navLogoRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   navLogo:    { fontSize: 18, fontWeight: '800' },
   navBtn:     { borderWidth: 1, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8 },
   navBtnText: { fontSize: 14, fontWeight: '600' },

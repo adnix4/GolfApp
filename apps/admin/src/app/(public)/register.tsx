@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@gfp/ui';
+import { GfpLogo } from '@/components/GfpLogo';
 import { useAuth } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
 
@@ -131,7 +132,10 @@ export default function RegisterScreen() {
           onPress={() => router.push('/(public)/' as any)} style={styles.backBtn}>
           <Text style={[styles.backText, { color: theme.colors.primary }]}>← Back</Text>
         </Pressable>
-        <Text style={[styles.logo, { color: theme.colors.primary }]}>⛳ GFP</Text>
+        <View style={styles.logoRow}>
+          <GfpLogo variant="onLight" size={28} />
+          <Text style={[styles.logo, { color: theme.colors.primary }]}>GFP</Text>
+        </View>
       </View>
 
       <View style={styles.card}>
@@ -252,6 +256,7 @@ const styles = StyleSheet.create({
   header:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: 520, marginBottom: 20 },
   backBtn:  { paddingVertical: 6, paddingHorizontal: 4 },
   backText: { fontSize: 14, fontWeight: '600' },
+  logoRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
   logo:     { fontSize: 20, fontWeight: '800' },
 
   card:       { width: '100%', maxWidth: 520, backgroundColor: '#fff', borderRadius: 20, padding: 32, boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.08)', elevation: 4 },
