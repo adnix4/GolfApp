@@ -255,10 +255,22 @@ export async function fetchEventStatus(eventCode: string): Promise<EventStatusRe
  * Called by the scorer after the SponsorsVersion changes so a sponsor added
  * mid-event appears without a rejoin. Returns null on failure so the caller
  * can keep the existing cached list.
+ *
+ * The optional session auth exists for Draft (test-mode) events: the endpoint
+ * 404s anonymously (Draft isn't public), but serves a caller who proves they
+ * already joined via the per-player session token — so a test-mode preview
+ * still picks up live sponsor edits (problemList S4).
  */
-export async function fetchPublicSponsors(eventCode: string): Promise<SponsorCacheDto[] | null> {
+export async function fetchPublicSponsors(
+  eventCode: string,
+  auth?: { playerId: string; sessionToken: string },
+): Promise<SponsorCacheDto[] | null> {
   try {
-    const res = await gfpFetch(`${BASE}/api/v1/pub/events/${eventCode}/sponsors`);
+    const res = await gfpFetch(`${BASE}/api/v1/pub/events/${eventCode}/sponsors`, {
+      headers: auth
+        ? { 'X-GFP-Player-Id': auth.playerId, 'X-GFP-Session-Token': auth.sessionToken }
+        : undefined,
+    });
     if (!res.ok) return null;
     const data = await res.json();
     return (data.sponsors ?? []) as SponsorCacheDto[];

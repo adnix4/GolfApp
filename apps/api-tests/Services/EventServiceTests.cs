@@ -102,6 +102,76 @@ public class EventServiceTests
         await Assert.ThrowsAsync<NotFoundException>(() => c.Svc.GetPublicSponsorsAsync("NOPE9999"));
     }
 
+    // ── Draft (test-mode) session-token gate (problemList S4) ────────────────
+    // Draft events 404 anonymously, but a player who already joined THIS event
+    // can fetch sponsors with their per-player session token so test-mode
+    // previews pick up live sponsor edits.
+
+    private static Guid AddSessionPlayer(Ctx c, Guid eventId, string? token)
+    {
+        var id = Guid.NewGuid();
+        c.Db.Players.Add(new Player { Id = id, EventId = eventId, SessionToken = token });
+        c.Db.SaveChanges();
+        return id;
+    }
+
+    [Fact]
+    public async Task GetPublicSponsors_draft_served_to_joined_player_with_valid_token()
+    {
+        var c = Build(EventStatus.Draft, sponsorsVersion: 3);
+        AddSponsor(c, "Solo", SponsorTier.Gold, "{}");
+        var playerId = AddSessionPlayer(c, c.EventId, "tok-secret");
+
+        var resp = await c.Svc.GetPublicSponsorsAsync("GALA0001", playerId, "tok-secret");
+
+        Assert.Equal(3, resp.SponsorsVersion);
+        Assert.Single(resp.Sponsors);
+    }
+
+    [Fact]
+    public async Task GetPublicSponsors_draft_rejects_wrong_or_missing_token()
+    {
+        var c = Build(EventStatus.Draft);
+        var playerId = AddSessionPlayer(c, c.EventId, "tok-secret");
+
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => c.Svc.GetPublicSponsorsAsync("GALA0001", playerId, "tok-WRONG"));
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => c.Svc.GetPublicSponsorsAsync("GALA0001", playerId, null));
+        // Player seeded before Phase11 (null stored token) fails closed too.
+        var legacyId = AddSessionPlayer(c, c.EventId, null);
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => c.Svc.GetPublicSponsorsAsync("GALA0001", legacyId, "anything"));
+    }
+
+    [Fact]
+    public async Task GetPublicSponsors_draft_rejects_player_from_another_event()
+    {
+        var c = Build(EventStatus.Draft);
+        var otherEvent = Guid.NewGuid();
+        c.Db.Events.Add(new Event
+        {
+            Id = otherEvent, OrgId = c.OrgId, Name = "Other", EventCode = "OTHR0001",
+            Format = EventFormat.Scramble, StartType = EventStartType.Shotgun,
+            Holes = 18, Status = EventStatus.Registration, ConfigJson = "{}",
+        });
+        c.Db.SaveChanges();
+        var outsiderId = AddSessionPlayer(c, otherEvent, "tok-outsider");
+
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => c.Svc.GetPublicSponsorsAsync("GALA0001", outsiderId, "tok-outsider"));
+    }
+
+    [Fact]
+    public async Task GetPublicSponsors_cancelled_stays_hidden_even_with_valid_token()
+    {
+        var c = Build(EventStatus.Cancelled);
+        var playerId = AddSessionPlayer(c, c.EventId, "tok-secret");
+
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => c.Svc.GetPublicSponsorsAsync("GALA0001", playerId, "tok-secret"));
+    }
+
     // ── Counts projection (perf refactor: no Teams/Players/Scores Includes) ──
 
     private static void SeedRoster(Ctx c)

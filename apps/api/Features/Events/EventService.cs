@@ -871,17 +871,27 @@ public class EventService
     /// Public sponsor list for the mobile scorer, keyed by event code. Mirrors
     /// the sponsor cache built at /join so a client can refetch after a
     /// SponsorsChanged signal and swap it in place. No auth required.
-    /// 404 for Draft and Cancelled events.
+    /// 404 for Cancelled events always. Draft (test-mode) events are hidden
+    /// from the anonymous public but ARE served to a caller who proves they
+    /// already joined this event with a per-player session token — that's
+    /// what lets an organizer previewing in test mode see live sponsor edits
+    /// (problemList S4) without exposing unpublished events.
     /// </summary>
     public async Task<PublicSponsorsResponse> GetPublicSponsorsAsync(
         string eventCode,
+        Guid? playerId = null,
+        string? sessionToken = null,
         CancellationToken ct = default)
     {
         var evt = await _db.Events
             .Include(e => e.Sponsors)
             .FirstOrDefaultAsync(e => e.EventCode == eventCode.ToUpperInvariant(), ct);
 
-        if (evt is null || evt.Status is EventStatus.Draft or EventStatus.Cancelled)
+        if (evt is null || evt.Status is EventStatus.Cancelled)
+            throw new NotFoundException($"No event found with code '{eventCode}'.");
+
+        if (evt.Status is EventStatus.Draft &&
+            !await IsJoinedPlayerAsync(evt.Id, playerId, sessionToken, ct))
             throw new NotFoundException($"No event found with code '{eventCode}'.");
 
         var sponsors = evt.Sponsors
@@ -904,6 +914,30 @@ public class EventService
             SponsorsVersion = evt.SponsorsVersion,
             Sponsors        = sponsors,
         };
+    }
+
+    /// <summary>
+    /// True when the caller presented a valid per-player session token for a
+    /// player registered on THIS event. Fail-closed: missing id/token, unknown
+    /// player, player on another event, or token mismatch all return false.
+    /// Mismatches surface as the same 404 the anonymous path gets — no
+    /// existence leak for unpublished events.
+    /// </summary>
+    private async Task<bool> IsJoinedPlayerAsync(
+        Guid eventId,
+        Guid? playerId,
+        string? sessionToken,
+        CancellationToken ct)
+    {
+        if (playerId is null || string.IsNullOrEmpty(sessionToken)) return false;
+
+        var stored = await _db.Players
+            .AsNoTracking()
+            .Where(p => p.Id == playerId.Value && p.EventId == eventId)
+            .Select(p => p.SessionToken)
+            .FirstOrDefaultAsync(ct);
+
+        return PlayerSessionAuth.Matches(stored, sessionToken);
     }
 
     // ── PUBLIC FUNDRAISING ────────────────────────────────────────────────────

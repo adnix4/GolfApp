@@ -102,7 +102,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (lastSponsorsVersion.current === null) {
           lastSponsorsVersion.current = sponsorsVersion;
         } else if (sponsorsVersion !== lastSponsorsVersion.current) {
-          const fresh = await fetchPublicSponsors(session.event.eventCode);
+          // Session auth lets Draft (test-mode) events serve the list too.
+          const fresh = await fetchPublicSponsors(session.event.eventCode, {
+            playerId: session.player.id, sessionToken: session.sessionToken,
+          });
           if (cancelled) return;
           if (fresh) {
             lastSponsorsVersion.current = sponsorsVersion;

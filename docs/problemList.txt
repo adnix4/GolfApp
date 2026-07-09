@@ -42,15 +42,22 @@ LOCAL (unpushed) unless noted.
         404). Remaining orchestration paths (create/update/status machine,
         leaderboard, public event/challenges/fundraising) still untested; defer.
 
-[ ] T5. (COVERAGE, optional) A Postgres-backed integration test (e.g. Testcontainers)
+[x] T5. (COVERAGE, optional) A Postgres-backed integration test (e.g. Testcontainers)
         for the league round-close path would be belt-and-suspenders. Lower priority
         now that T2 made RecalculateAsync InMemory-testable; only worth it if other
         Npgsql-specific translation concerns surface.
+        CLOSED 2026-07-09 — satisfied by live-Postgres verification instead of a
+        Testcontainers harness: the 2026-07-07 /seed-league-season run executed
+        the full round-close path (CloseRoundAsync → HandicapEngine →
+        StandingsCalculator → SkinsCalculator) 5× against the real database
+        (setup + 4 rounds, 1,296 scores; handicaps drifted, per-flight
+        standings ranked, skins carried). The seeder is a repeatable
+        re-verification tool if Npgsql translation concerns ever resurface.
 
 ## Live updates & branding refresh (2026-07-01)
 
 
-[!] S4. KNOWN LIMITATION (surfaced during S3): mobile live sponsor/theme refresh
+[x] S4. KNOWN LIMITATION (surfaced during S3): mobile live sponsor/theme refresh
         does NOT work for Draft *test-mode* events. The session poll reads
         /pub/events/{code} and /pub/events/{code}/sponsors, which 404 for Draft by
         design (Draft isn't public). So a test-mode scorer keeps the branding +
@@ -60,6 +67,19 @@ LOCAL (unpushed) unless noted.
         changes while previewing in test mode, options: add an authenticated
         per-session refresh path, or relax the Draft 404 for test-mode events on a
         token-gated endpoint. Not scheduled.
+        DONE 2026-07-09 — took the token-gated option. Scope was smaller than
+        logged: theme refresh ALREADY worked for Draft (the poll had since
+        moved to /pub/events/{code}/status, which reports every lifecycle
+        status); only the sponsor refetch still hit the Draft 404. Now
+        GET /pub/events/{code}/sponsors accepts optional X-GFP-Player-Id +
+        X-GFP-Session-Token headers: Draft is served iff the caller presents
+        a valid per-player session token (Phase11, constant-time compare) for
+        a player ON that event — anonymous callers and Cancelled events still
+        404 (no existence leak; mismatch = same 404). Mobile fetchPublicSponsors
+        sends the session headers from the poll. 5 new EventServiceTests cover
+        valid-token serve, wrong/missing/legacy-null token, cross-event player,
+        and Cancelled-stays-hidden (426 API tests green; mobile tsc + 111
+        tests green). NOTE: dev API must be restarted to pick up the endpoint.
 
 [x] A1. Create a user freindly web landing page that includes advertising geared towrads event organizers. This should include screen shots of test events so they can see what the program looks like and offers. They should be organized as a quick run through of an event. We need to determine the best way to enter the program for a user.
         DONE 2026-07-02 — public "front door" in apps/web (no auth): marketing home

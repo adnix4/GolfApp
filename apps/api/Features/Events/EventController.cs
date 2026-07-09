@@ -406,7 +406,10 @@ public class EventController : ControllerBase
     /// <summary>
     /// Public sponsor list, keyed by event code. Lets the mobile scorer refetch
     /// sponsors mid-event (after a SponsorsChanged signal) without a rejoin.
-    /// No authentication required. 404 for Draft and Cancelled events.
+    /// No authentication required; 404 for Cancelled events. Draft (test-mode)
+    /// events 404 anonymously but are served when the optional per-player
+    /// session headers prove the caller already joined this event (S4:
+    /// test-mode preview gets live sponsor edits).
     /// </summary>
     [HttpGet("api/v1/pub/events/{eventCode}/sponsors")]
     [AllowAnonymous]
@@ -414,9 +417,11 @@ public class EventController : ControllerBase
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PublicSponsorsResponse>> GetPublicSponsors(
         [FromRoute] string eventCode,
+        [FromHeader(Name = "X-GFP-Player-Id")] Guid? playerId,
+        [FromHeader(Name = "X-GFP-Session-Token")] string? sessionToken,
         CancellationToken ct)
     {
-        var response = await _eventService.GetPublicSponsorsAsync(eventCode, ct);
+        var response = await _eventService.GetPublicSponsorsAsync(eventCode, playerId, sessionToken, ct);
         return Ok(response);
     }
 
