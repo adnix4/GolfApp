@@ -25,10 +25,47 @@ const BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 type AuctionSnapshot = { items: AuctionItemDto[]; session: AuctionSessionDto | null };
 
+// Full-screen photo viewer. Window-based sizing (not % of parent) so the photo
+// always fits the view; the ScrollView catches any remaining overflow. Rendered
+// in two spots (standalone + nested in the bid modal) — see the call sites.
+function PhotoViewer({ url, screenWidth, screenHeight, onClose }: {
+  url:          string | null;
+  screenWidth:  number;
+  screenHeight: number;
+  onClose:      () => void;
+}) {
+  return (
+    <Modal visible={url !== null} animationType="fade" transparent onRequestClose={onClose}>
+      <View style={styles.photoViewerOverlay}>
+        <ScrollView contentContainerStyle={styles.photoViewerScroll}>
+          {url && (
+            <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close photo">
+              <Image
+                source={{ uri: resolveUrl(url) }}
+                style={{ width: screenWidth - 24, height: screenHeight * 0.75 }}
+                resizeMode="contain"
+              />
+            </Pressable>
+          )}
+          <Text style={styles.photoViewerHint}>Tap the photo to close</Text>
+        </ScrollView>
+        <Pressable
+          style={styles.photoViewerClose}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close photo"
+        >
+          <Text style={styles.photoViewerCloseText}>✕</Text>
+        </Pressable>
+      </View>
+    </Modal>
+  );
+}
+
 export default function AuctionScreen() {
   const theme  = useTheme();
   const router = useRouter();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { session } = useSession();
   const player = session?.player;
   const eventId = session?.event?.id;
@@ -37,6 +74,8 @@ export default function AuctionScreen() {
   const [tab, setTab]             = useState<Tab>('items');
   const [history, setHistory]     = useState<PlayerBidHistoryItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<AuctionItemDto | null>(null);
+  // Full-screen photo viewer — set by tapping an item thumbnail in the list.
+  const [expandedPhotoUrl, setExpandedPhotoUrl] = useState<string | null>(null);
   const [bidAmt, setBidAmt]       = useState('');
   const [bidding, setBidding]     = useState(false);
   const [raisingHand, setRaisingHand] = useState(false);
@@ -208,31 +247,43 @@ export default function AuctionScreen() {
                 style={[styles.card, { backgroundColor: theme.colors.surface }]}
                 onPress={() => { setSelectedItem(item); setBidAmt(''); }}
               >
-                {item.photoUrls.length > 0 && (
-                  <Image
-                    source={{ uri: resolveUrl(item.photoUrls[0]) }}
-                    style={styles.cardPhoto}
-                    resizeMode="contain"
-                  />
-                )}
-                <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Text>
-                <Text style={{ color: theme.mutedText, fontSize: 12 }}>
-                  {item.auctionType}
-                  {item.closesAt ? `  · Closes: ${new Date(item.closesAt).toLocaleTimeString()}` : ''}
-                </Text>
-                {isDonation ? (
-                  <Text style={{ color: '#27ae60', fontWeight: '700', marginTop: 4 }}>
-                    Raised: {fmt(item.totalRaisedCents)}
-                    {item.goalCents ? ` / ${fmt(item.goalCents)}` : ''}
-                  </Text>
-                ) : (
-                  <Text style={{ color: '#27ae60', fontWeight: '700', marginTop: 4 }}>
-                    Current: {fmt(item.currentHighBidCents)}
-                    <Text style={{ color: '#888', fontWeight: '400' }}>
-                      {'  '}min increment: {fmt(item.bidIncrementCents)}
+                <View style={styles.cardRow}>
+                  {/* Thumbnail only — tapping it expands the photo full-screen
+                      (nested Pressable wins over the card's bid-modal press). */}
+                  {item.photoUrls.length > 0 && (
+                    <Pressable
+                      onPress={() => setExpandedPhotoUrl(item.photoUrls[0])}
+                      accessibilityRole="imagebutton"
+                      accessibilityLabel={`View photo of ${item.title}`}
+                    >
+                      <Image
+                        source={{ uri: resolveUrl(item.photoUrls[0]) }}
+                        style={styles.cardThumb}
+                        resizeMode="cover"
+                      />
+                    </Pressable>
+                  )}
+                  <View style={styles.cardBody}>
+                    <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Text>
+                    <Text style={{ color: theme.mutedText, fontSize: 12 }}>
+                      {item.auctionType}
+                      {item.closesAt ? `  · Closes: ${new Date(item.closesAt).toLocaleTimeString()}` : ''}
                     </Text>
-                  </Text>
-                )}
+                    {isDonation ? (
+                      <Text style={{ color: '#27ae60', fontWeight: '700', marginTop: 4 }}>
+                        Raised: {fmt(item.totalRaisedCents)}
+                        {item.goalCents ? ` / ${fmt(item.goalCents)}` : ''}
+                      </Text>
+                    ) : (
+                      <Text style={{ color: '#27ae60', fontWeight: '700', marginTop: 4 }}>
+                        Current: {fmt(item.currentHighBidCents)}
+                        <Text style={{ color: '#888', fontWeight: '400' }}>
+                          {'  '}min increment: {fmt(item.bidIncrementCents)}
+                        </Text>
+                      </Text>
+                    )}
+                  </View>
+                </View>
               </Pressable>
             );
           }}
@@ -337,6 +388,17 @@ export default function AuctionScreen() {
         />
       )}
 
+      {/* Full-screen photo viewer — opened from a list thumbnail. A second
+          instance is nested inside the bid modal (iOS shows only one native
+          sibling modal at a time, but a modal-in-modal works), so this one
+          only renders while the bid modal is closed. */}
+      <PhotoViewer
+        url={selectedItem === null ? expandedPhotoUrl : null}
+        screenWidth={screenWidth}
+        screenHeight={screenHeight}
+        onClose={() => setExpandedPhotoUrl(null)}
+      />
+
       {/* Bid modal */}
       <Modal
         visible={selectedItem !== null}
@@ -345,21 +407,29 @@ export default function AuctionScreen() {
         onRequestClose={() => setSelectedItem(null)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: theme.colors.surface }]}>
+          {/* Bounded height + internal scroll so tall content (photos, denom
+              grids) never pushes the bid controls off-screen. */}
+          <View style={[styles.modalCard, { backgroundColor: theme.colors.surface, maxHeight: screenHeight * 0.88 }]}>
             {liveSelectedItem && (
-              <>
+              <ScrollView showsVerticalScrollIndicator={false}>
                 <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>
                   {liveSelectedItem.title}
                 </Text>
                 {liveSelectedItem.photoUrls.length > 0 && (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoStrip}>
                     {liveSelectedItem.photoUrls.map(url => (
-                      <Image
+                      <Pressable
                         key={url}
-                        source={{ uri: resolveUrl(url) }}
-                        style={[styles.modalPhoto, { width: screenWidth - 96 }]}
-                        resizeMode="contain"
-                      />
+                        onPress={() => setExpandedPhotoUrl(url)}
+                        accessibilityRole="button"
+                        accessibilityLabel="View photo full screen"
+                      >
+                        <Image
+                          source={{ uri: resolveUrl(url) }}
+                          style={styles.modalPhoto}
+                          resizeMode="cover"
+                        />
+                      </Pressable>
                     ))}
                   </ScrollView>
                 )}
@@ -425,7 +495,16 @@ export default function AuctionScreen() {
                 >
                   <Text style={{ color: '#888' }}>Cancel</Text>
                 </Pressable>
-              </>
+
+                {/* Nested instance — a modal-in-modal is the only reliable way
+                    to layer the viewer above this modal on iOS. */}
+                <PhotoViewer
+                  url={expandedPhotoUrl}
+                  screenWidth={screenWidth}
+                  screenHeight={screenHeight}
+                  onClose={() => setExpandedPhotoUrl(null)}
+                />
+              </ScrollView>
             )}
           </View>
         </View>
@@ -443,9 +522,22 @@ const styles = StyleSheet.create({
   tabBtn:      { flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 3, borderBottomColor: 'transparent' },
   tabLabel:    { fontSize: 13, fontWeight: '700' },
   card:        { borderRadius: 12, padding: 14, marginBottom: 10, boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.06)', elevation: 2 },
-  cardPhoto:   { width: '100%', aspectRatio: 4 / 3, borderRadius: 8, marginBottom: 10, backgroundColor: '#f0f0f0' },
+  cardRow:     { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cardBody:    { flex: 1 },
+  cardThumb:   { width: 64, height: 64, borderRadius: 8, backgroundColor: '#f0f0f0' },
+  photoViewerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)' },
+  photoViewerScroll:  { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 12, paddingTop: 64, paddingBottom: 24 },
+  photoViewerHint:    { color: '#bbb', fontSize: 13, marginTop: 14 },
+  photoViewerClose:   {
+    position: 'absolute', top: 40, right: 16, width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center',
+  },
+  photoViewerCloseText: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 22 },
   photoStrip:  { marginBottom: 12 },
-  modalPhoto:  { aspectRatio: 4 / 3, borderRadius: 8, marginRight: 8, backgroundColor: '#f0f0f0' },
+  // Fixed-size gallery tiles (tap to expand) — sizing off screenWidth made
+  // these enormous in a desktop-width browser window and pushed the bid
+  // controls off-screen.
+  modalPhoto:  { width: 168, height: 126, borderRadius: 8, marginRight: 8, backgroundColor: '#f0f0f0' },
   itemTitle:   { fontSize: 15, fontWeight: '800', marginBottom: 2 },
   sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: 8 },
   bidRow:      { flexDirection: 'row', gap: 8, marginTop: 12 },
