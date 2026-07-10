@@ -23,6 +23,7 @@ using FluentValidation.AspNetCore;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
@@ -51,9 +52,23 @@ public static class ServiceCollectionExtensions
             .AddGfpRealTime(configuration)
             .AddGfpBackgroundJobs(configuration)
             .AddGfpValidation()
-            .AddGfpCors()
+            .AddGfpCors(configuration)
             .AddGfpRateLimiting()
             .AddGfpSwagger();
+
+        // ── DATA PROTECTION KEY PERSISTENCE ───────────────────────────────────
+        // ASP.NET DataProtection keys encrypt auth cookies and antiforgery
+        // tokens. Without explicit persistence they live in the container's
+        // ephemeral filesystem (or Windows DPAPI locally), so every redeploy
+        // invalidates them. In production set DATA_PROTECTION_KEYS_PATH to a
+        // mounted volume; unset (local dev) keeps the framework default.
+        var dpKeysPath = configuration["DATA_PROTECTION_KEYS_PATH"];
+        if (!string.IsNullOrWhiteSpace(dpKeysPath))
+        {
+            services.AddDataProtection()
+                .PersistKeysToFileSystem(new DirectoryInfo(dpKeysPath))
+                .SetApplicationName("gfp-api");
+        }
 
         // HTTP client factory used by PushNotificationService and EmailBuilderService
         services.AddHttpClient();
@@ -402,7 +417,8 @@ public static class ServiceCollectionExtensions
 
     // ── CORS ──────────────────────────────────────────────────────────────────
     private static IServiceCollection AddGfpCors(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services.AddCors(options =>
         {
@@ -427,15 +443,20 @@ public static class ServiceCollectionExtensions
 
             options.AddPolicy("GfpProduction", policy =>
             {
-                // Production: lock down to known domains.
-                // Update these when production domains are known.
+                // Production: explicit origin allowlist from configuration
+                // (CORS_ALLOWED_ORIGINS, comma-separated), falling back to the
+                // canonical domains so a missing variable fails closed to
+                // known origins rather than open.
+                var origins = (configuration["CORS_ALLOWED_ORIGINS"] ?? "")
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (origins.Length == 0)
+                    origins = ["https://golffundraiser.pro", "https://app.golffundraiser.pro"];
+
                 policy
-                    .WithOrigins(
-                        "https://golffundraiser.pro",
-                        "https://admin.golffundraiser.pro")
+                    .WithOrigins(origins)
                     .AllowAnyMethod()
                     .AllowAnyHeader()
-                    .AllowCredentials();
+                    .AllowCredentials(); // needed for httpOnly cookie refresh token
             });
         });
 

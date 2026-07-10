@@ -1,37 +1,80 @@
 # Problem List
 
+## Deployment path — real-world pilot (2026-07-09)
+Goal: deploy Golf Fundraiser Pro for a real-world test event. Ordered phases;
+mark [x] as completed. D1 items have external lead times — start them first,
+they run in parallel with everything else.
 
+[ ] D1. DECISIONS & ACCOUNTS (user actions; longest lead times)
+        - Hosting choice. Spec default: API on Railway (any container host
+          works), web on Vercel, admin as a static expo export served
+          anywhere, managed Postgres+PostGIS and Redis. A single VPS with
+          docker-compose + reverse proxy is also fine at pilot scale.
+        - Domain + DNS (.env.example assumes golffundraiser.pro with api. and
+          app. subdomains).
+        - Apple Developer Program enrollment ($99/yr; TestFlight review adds
+          days). SDK 56 constraint: shipped iOS builds require iOS 16.4+
+          (Xcode 26.4 — EAS cloud runners handle it, Windows dev unaffected,
+          but older devices are dropped). Confirm EAS image + minimum-OS
+          commitment before releasing a build.
+        - Stripe live account activation (business verification lead time) —
+          or run the pilot in test mode and use the cash mark-paid-at-check-in
+          path for real fees.
+        - Email provider (SendGrid or similar) + SPF/DKIM domain auth.
+          CRITICAL PATH: join email-verification codes must actually arrive
+          once the dev bypass code is off (see A3 history in git).
 
-## SDK 56 modernization opportunities (2026-06-23)
-Captured right after the Expo SDK 55 -> 56 upgrade (RN 0.83.6 -> 0.85.3, React
-19.2.0 -> 19.2.3). These are enhancements, not bugs — new SDK-56 capabilities worth
-wrapping into the apps to modernize the look, improve functionality, or simplify
-code. Ordered by leverage. Mark [x] when adopted. Ref: https://expo.dev/changelog/sdk-56
-NOTE: this upgrade also clears the 23 moderate transitive Expo build-tooling vulns
-that item #6 deferred until the SDK bump.
+[ ] D2. CODE HARDENING (no infra needed; can be done now)
+        - Startup guard: refuse to boot in Production when
+          JoinVerification:TestBypassCode is set (converts the "999999 must
+          never reach production" note into a can't).
+        - ForwardedHeaders configuration so the rate limiter and the
+          IP-keyed security policies (auth/join/donate) see real client IPs
+          behind the reverse proxy — the code comments already flag this.
+        - DataProtection key persistence to a mounted volume/store so keys
+          survive container restarts (currently Windows DPAPI locally).
+        - Production CORS origins from configuration.
+        - /health endpoint for host health checks (verify one exists).
+        - Migration story: auto-migrate is Development-only by design, so
+          deploys need an explicit `dotnet ef database update` step or an
+          opt-in migrate-on-startup flag for production.
+        - DEPLOYMENT.md: complete env-var checklist (extend .env.example's
+          STAGING/PROD annotations) + deploy runbook per app.
 
-#6 AUDIT RE-CHECK 2026-07-08 — npm audit now reports 18 moderate, 0 high/critical
-(down from 23). All three remaining chains are non-runtime and have no
-non-breaking fix (audit's suggestions are absurd downgrades: next@9, expo@46):
-- file-type (ASF-parser loop) via react-native-image-colors → node-vibrant →
-  @vibrant/image-node → jimp. UNUSED PATH: web imports node-vibrant/browser
-  (canvas), native uses platform modules — the /node entry never ships.
-- postcss <8.5.10 (XSS in stringify) vendored inside next's own node_modules;
-  even latest Next still bundles it. Build-time only; waits on a Next release.
-- uuid <11.1.1 (buffer bounds) via @expo/cli//config/prebuild — Expo dev/build
-  tooling, not in app bundles; waits on an Expo release.
-Item #6 CLOSED as accepted-risk (tooling-only); the weekly dependency routine
-picks up the upstream fixes when they ship.
+[ ] D3. STAGING ENVIRONMENT (after D1 hosting/domain decided)
+        - Provision managed Postgres WITH PostGIS (plain postgres breaks GPS
+          features — see infra/docker-compose.yml warning), Redis, and object
+          storage for uploads (IFileStorage S3/R2 support is merged and
+          MinIO-verified; local-disk uploads don't survive redeploys).
+        - Deploy API + web + admin static export; set NEXT_PUBLIC_* /
+          EXPO_PUBLIC_* build-time URLs; register the Stripe webhook endpoint
+          (fail-closed outside Development is already in); TLS everywhere.
 
-WATCH-OUT (constraint on iOS adoption, not a code task)
-- SDK 56 bumps build requirements: Xcode 26.4, iOS/tvOS min 16.4, macOS 13.4. EAS
-  Build's cloud macOS runners handle the iOS compile, so Windows dev is unaffected;
-  but shipped builds drop iOS 15 / older devices. Confirm EAS image + minimum-OS
-  commitment before releasing a 56 build.
+[ ] D4. DRESS REHEARSAL on staging (the pilot succeeds or fails here)
+        - /seed-demo-event full lifecycle against staging.
+        - Score from real phones, including airplane-mode offline entry and
+          sync-back on reconnect.
+        - Verification emails arriving on real inboxes (Gmail/Outlook).
+        - Stripe test charge + webhook end-to-end; cash mark-paid path.
+        - TV leaderboard mode on an actual screen.
+
+[ ] D5. MOBILE DISTRIBUTION
+        - EAS builds: iOS via TestFlight, Android via internal testing track
+          (or direct APK for a friendly pilot). Expo Go is NOT viable for a
+          real event — golfers need an installable build.
+        - Push notification credentials (EAS project) verified end-to-end.
+
+[ ] D6. PILOT OPS
+        - Nightly pg_dump backups; error monitoring (e.g. Sentry in all three
+          apps); uptime ping on / and /health.
+        - One-page day-of runbook: who has admin access, cash-payment
+          fallback if Stripe hiccups, admin-entry scoring fallback if a
+          phone fails.
+        - Pick a small, friendly event; run a test-mode preview with the
+          organizer the week before.
 
 ## Test coverage & performance (2026-06-24)
-Captured while filling API test-coverage holes. Mark [x] when done. Branches are
-LOCAL (unpushed) unless noted.
+Captured while filling API test-coverage holes. Mark [x] when done.
 
 [ ] T4. (COVERAGE, low ROI) Thin services still without direct tests: QrService,
         EmailService, EmailBuilderService, PushNotificationService, TestDataService.
@@ -39,341 +82,6 @@ LOCAL (unpushed) unless noted.
         EventService: partially covered — EventServiceTests now exercises the
         public sponsor read path (GetPublicSponsorsAsync: tier/name ordering,
         hole-number extraction, version pass-through, Draft/Cancelled/unknown →
-        404). Remaining orchestration paths (create/update/status machine,
-        leaderboard, public event/challenges/fundraising) still untested; defer.
-
-[x] T5. (COVERAGE, optional) A Postgres-backed integration test (e.g. Testcontainers)
-        for the league round-close path would be belt-and-suspenders. Lower priority
-        now that T2 made RecalculateAsync InMemory-testable; only worth it if other
-        Npgsql-specific translation concerns surface.
-        CLOSED 2026-07-09 — satisfied by live-Postgres verification instead of a
-        Testcontainers harness: the 2026-07-07 /seed-league-season run executed
-        the full round-close path (CloseRoundAsync → HandicapEngine →
-        StandingsCalculator → SkinsCalculator) 5× against the real database
-        (setup + 4 rounds, 1,296 scores; handicaps drifted, per-flight
-        standings ranked, skins carried). The seeder is a repeatable
-        re-verification tool if Npgsql translation concerns ever resurface.
-
-## Live updates & branding refresh (2026-07-01)
-
-
-[x] S4. KNOWN LIMITATION (surfaced during S3): mobile live sponsor/theme refresh
-        does NOT work for Draft *test-mode* events. The session poll reads
-        /pub/events/{code} and /pub/events/{code}/sponsors, which 404 for Draft by
-        design (Draft isn't public). So a test-mode scorer keeps the branding +
-        sponsors captured at /join until the player rejoins. Works normally for
-        Registration/Active/Scoring (verified). Acceptable for now (test mode is a
-        transient preview; join seeds current data). If organizers should see live
-        changes while previewing in test mode, options: add an authenticated
-        per-session refresh path, or relax the Draft 404 for test-mode events on a
-        token-gated endpoint. Not scheduled.
-        DONE 2026-07-09 — took the token-gated option. Scope was smaller than
-        logged: theme refresh ALREADY worked for Draft (the poll had since
-        moved to /pub/events/{code}/status, which reports every lifecycle
-        status); only the sponsor refetch still hit the Draft 404. Now
-        GET /pub/events/{code}/sponsors accepts optional X-GFP-Player-Id +
-        X-GFP-Session-Token headers: Draft is served iff the caller presents
-        a valid per-player session token (Phase11, constant-time compare) for
-        a player ON that event — anonymous callers and Cancelled events still
-        404 (no existence leak; mismatch = same 404). Mobile fetchPublicSponsors
-        sends the session headers from the poll. 5 new EventServiceTests cover
-        valid-token serve, wrong/missing/legacy-null token, cross-event player,
-        and Cancelled-stays-hidden (426 API tests green; mobile tsc + 111
-        tests green). NOTE: dev API must be restarted to pick up the endpoint.
-
-[x] A1. Create a user freindly web landing page that includes advertising geared towrads event organizers. This should include screen shots of test events so they can see what the program looks like and offers. They should be organized as a quick run through of an event. We need to determine the best way to enter the program for a user.
-        DONE 2026-07-02 — public "front door" in apps/web (no auth): marketing home
-        (/) with hero/features/3-phase walkthrough using REAL /seed-demo-event
-        screenshots (registration landing / scoring TV leaderboard / completed
-        standings); "Sign up your event" + "Organizer Login" redirect to the admin
-        app (NEXT_PUBLIC_ADMIN_URL). Golfer find-your-event (/events): live directory
-        (search over /pub/events/active, +orgSlug on the DTO) + event-code box →
-        /e/{orgSlug}/{code}. Event page gained a lean "Score in the app" handoff.
-        Browser-verified (CTAs→admin, search filter, code resolve/redirect,
-        unknown-code error); web tsc clean; API 374 tests green. See plan file
-        jolly-stargazing-clover.md.
-        SCOPED 2026-07-01 → built as the public "front door" in apps/web (no auth):
-        (1) marketing home (hero/features/lifecycle-walkthrough w/ screenshots) with
-        "Sign up your event" + "Organizer Login" that REDIRECT to the admin app
-        (new NEXT_PUBLIC_ADMIN_URL; simple link, no SSO); (2) golfer "find your event"
-        (search over /pub/events/active + event-code box → /e/{orgSlug}/{eventCode});
-        (3) event info page keeps web registration, plus a "Score in the app" hand-off.
-        Golfer scoring stays token-gated in mobile (no web auth). See plan file
-        jolly-stargazing-clover.md for the detailed approach.
-
-[x] A2. Expo update
-        CLOSED 2026-07-08 — original intent was never specified; everything
-        the phrase could mean is now covered elsewhere: the SDK 55→56 major
-        upgrade shipped 2026-06-23 (see section above), in-range patch
-        updates (e.g. expo 56.0.12→56.0.15) are applied by the weekly
-        dependency routine (Fridays, deps/weekly-* PRs), and the next SDK
-        major is a deliberate manual project when SDK 57 stabilizes.
-
-[x] A4. (ROBUSTNESS) No React error boundaries anywhere — a render-time throw
-        unmounts the whole tree to a blank screen instead of a fallback.
-        DONE 2026-07-04 (chore/problem-list-cleanup) — shared branded
-        `ErrorFallback` in @gfp/ui (static styling on purpose: must render even
-        when ThemeProvider itself crashed; console.errors the caught error so
-        the underlying throw still lands in logs). Wired framework-native:
-        - apps/web: app/error.tsx (segment recovery, reset() button, site
-          header stays up) + app/global-error.tsx (root-layout crashes, own
-          <html>/<body>).
-        - apps/mobile: `ErrorBoundary` exports on app/_layout.tsx (root) and
-          (scoring)/_layout.tsx (scorer-specific copy: pending scores are in
-          SQLite and still sync).
-        - apps/admin: `ErrorBoundary` exports on src/app/_layout.tsx (root)
-          and (app)/_layout.tsx ("you're still signed in" copy).
-        Verified: all tsc + 319 JS tests + 399 API tests green; a temporary
-        throwing route through the web prod build returned a controlled 500
-        with NO error detail leaked (fallback itself hydrates client-side —
-        not observable via curl, no browser automation available on this box).
-        The original console-hint throw was never captured — boundaries now
-        log it if it recurs.
-        Surfaced 2026-07-02 via React's console hint "Consider adding an error
-        boundary to your tree to customize error handling behavior"
-        (https://react.dev/link/error-boundaries), which React logs whenever a
-        component throws during render and nothing catches it. Confirmed there
-        are ZERO boundaries in any app: no ErrorBoundary/componentDidCatch/
-        getDerivedStateFromError, no Next.js error.tsx/global-error.tsx, no
-        Expo Router `ErrorBoundary` route export. So any uncaught render error
-        crashes the entire app to blank rather than a recoverable fallback.
-        NOTE: a boundary is a SAFETY NET, not a fix — it prevents the blank-
-        screen crash and offers a retry, but the underlying throw still needs
-        to be identified (capture the actual error/stack that triggered the
-        hint before adding the boundary, so we know what was failing).
-        Framework-native hooks to use (low effort):
-        - apps/web (Next.js App Router): add app/error.tsx (+ app/global-error.tsx
-          for the root layout) — segment-level recovery with a reset() button.
-        - apps/mobile + apps/admin (both Expo Router): export an `ErrorBoundary`
-          component from a route/layout file (expo-router surfaces it natively),
-          e.g. the (scoring) _layout, so a screen crash shows a branded retry
-          card instead of unmounting the scorer.
-        - Consider a shared branded fallback in @gfp/ui reused by all three.
-        Deferred — logged during the demo-event walkthrough.
-
-[x] A3. (SECURITY, optional/proportionate) Golfer email verification at join —
-        magic-link / one-time code.
-        DONE 2026-07-04 (feat/join-email-verification) — one-time code chosen
-        over magic link (no deep-link plumbing; scorer is offline-first).
-        /join is now two-step: first call (no code) stores a 6-digit code on
-        the player (players.verification_code/_expires_at/_attempts, 10-min
-        TTL) and emails it via EmailService.SendTransactionalAsync, returning
-        a bare VerificationRequired=true (no session token, no payload);
-        second call carries verificationCode and, when valid, mints the
-        session token as before. Friction relief: Draft (test-mode) events
-        skip verification entirely; the verifying deviceId is remembered
-        (players.verified_device_id) so rejoins + free-agent "Check Again"
-        don't re-prompt; wrong-code attempts capped at 5 (code invalidated →
-        Resend), constant-time compares via PlayerSessionAuth. Email send
-        failures are logged but don't fail the join (challenge still
-        returned). TEST BYPASS (pre-production): JoinVerification:
-        TestBypassCode in appsettings.Development.json ("999999") is accepted
-        in place of the emailed code because most dev/test player emails are
-        fake; unset/empty config disables it, and it must never be set in
-        production config. Mobile join screen gained a 'verify' step (code
-        input + Verify & Join + Resend). Migration Phase13 hand-written +
-        snapshot updated. Verified live against the dev API: challenge → 400
-        wrong code → bypass accepts → same-device rejoin skips → new device
-        re-challenges → real code accepts → 5-attempt lockout rejects even
-        the real code → expired code rejected → Draft join skips. 408 API
-        tests + 102 mobile tests + both tsc green.
-        RATIONALE: score submission is already
-        authenticated (Phase11 per-player session_token; BatchSync rejects tokens
-        not belonging to a player on that team) and integrity-backstopped (admin-wins
-        conflict + proposed_score approval + score-source audit). The one residual
-        gap is that the join credential is "event code + a REGISTERED email", so
-        someone who knows a rival player's email + the (semi-public) event code could
-        join in that team's context and perturb its scores (though any tamper trips
-        the conflict/admin-review flow, and the high-stakes money surface —
-        bids/payments — is separately token+Stripe-gated). Proportionate fix WITHOUT
-        adding golfer accounts/passwords (which would hurt the low-friction,
-        offline-first, casual-audience join): send a one-time code / magic link to
-        the player's registered email at /join to prove ownership before minting the
-        session token. Scope = mobile join flow + API (EnsureSessionTokenAsync /
-        JoinAsync in apps/api/Features/Mobile/MobileService.cs) + email delivery;
-        NOT a web-app change. Deferred — decided during A1 planning (2026-07-01).
-
-[x] A5. (KNOWN LIMITATION) Expo-WEB scorer silently drops all score entry + sync.
-        DONE 2026-07-08 — option (a): db.ts webDb now backs pending_scores with
-        localStorage (JSON row array under gfp:pending_scores) via a tiny
-        interpreter for the exact SQL shapes store.ts issues (INSERT OR
-        REPLACE / UPDATE incl. sync_attempts+1 / DELETE / SELECT with
-        AND-joined =?/IS NULL/IS NOT NULL + ORDER BY hole_number). Key design
-        point: any UNRECOGNIZED statement now THROWS on web instead of
-        silently no-oping, so a future store.ts query change fails loudly —
-        the "silent" failure mode can't recur. leaderboard_cache needed no
-        shim (created native-side, never queried anywhere). Fixes on web:
-        scorecard populates from server pull-back, entered scores reach the
-        server via syncScores (loadUnsyncedScores now returns real rows, so
-        the false "synced" report is gone), and the foreground poll no longer
-        wipes typed scores. Verified: 9 new tests (webDb.test.ts) run the REAL
-        store.ts against the REAL web shim (Platform.OS='web', localStorage
-        polyfilled) — upsert/replace round-trip, complete→unsync→sync
-        lifecycle, sync_attempts scoping, mergeServerScores protect-unpushed
-        rule, per-team clear, persistence, event_cache coexistence,
-        unsupported-SQL throw. 111 mobile tests + tsc green. NOT yet manually
-        verified in a browser (no automation on this box) — worth one manual
-        pass: join a demo event on Expo web, enter a hole, confirm the score
-        lands server-side and survives the ~30s poll.
-        Surfaced 2026-07-02 while reviewing the Scoring phase via the mobile app
-        run as Expo web. The scorer ships NATIVE (iOS/Android) where expo-sqlite
-        backs pending_scores; on WEB, apps/mobile/src/lib/db.ts uses a `webDb`
-        stub that ONLY persists event_cache (session + deviceId, via localStorage)
-        and makes pending_scores + leaderboard_cache a NO-OP: runAsync ignores any
-        SQL not touching event_cache (db.ts:20-21) and getAllAsync always returns
-        [] (db.ts:30-32). Consequences on web (all confirmed against the demo):
-        - Scorecard stays BLANK: refreshFromServer pulls the 18 admin scores and
-          mergeServerScores "writes" them, but the writes no-op and the reload
-          (loadPendingScores) returns [] — the server pull-back cannot populate a
-          no-op table.
-        - Entered scores DON'T reach the server: completeHole -> syncScores ->
-          loadUnsyncedScores reads [] -> hits `if (length===0){ setSyncStatus(
-          'synced'); return }`. No POST is sent AND the sync bar falsely shows
-          "synced." (Server-verified: Eagle Eyes hole 1 stayed admin=5 with no
-          conflict/proposedScore across repeated attempts.)
-        - Typed scores RESET after ~30-60s: the foreground poll reloads
-          loadPendingScores -> [] and setPendingScores([]), wiping the in-memory
-          value. (Public leaderboard/standings still work — they're network GETs,
-          not SQLite.)
-        Not a regression and not caused by the useLiveAuction work; it's the
-        deliberate native-only stub. Impact: score entry/sync can only be verified
-        on a real device / emulator, NOT via Expo web — which collides with the
-        /seed-demo-event review workflow (review each phase in web/admin). The
-        silent-drop + false "synced" is the misleading part.
-        Fix options if web scoring should be supported for demos/review:
-        (a) Back pending_scores with localStorage on web, mirroring the event_cache
-            branch already in db.ts (contained; makes web scoring + sync work).
-        (b) Real web SQLite via expo-sqlite's wa-sqlite/OPFS build (needs COOP/COEP
-            headers for SharedArrayBuffer) — heavier.
-        (c) At minimum, stop syncScores reporting "synced" when nothing was sent,
-            and surface a "scoring unavailable on web" notice so it isn't silent.
-        Deferred (user chose log-and-move-on 2026-07-02). Review Scoring via the
-        admin/web leaderboard instead of the mobile scorecard.
-
-[x] A6. (NOISE/low-sev) SignalR "No client method 'scoreupdated' / 'leaderboard
-        refreshed' found" warning flood in the mobile app during scoring activity.
-        DONE 2026-07-02: added packages/shared-types/src/tournamentHubEvents.ts —
-        TOURNAMENT_HUB_EVENTS (the full 16 broadcast names, mirroring RealTimeService
-        + LeaderboardBroadcaster) + silenceUnhandledHubEvents(hub, handled), which
-        no-ops every group broadcast a connection doesn't handle. Wired into
-        useLiveAuction (handles the 9 auction events) and useLiveLeaderboard
-        (handles LeaderboardRefreshed/HoleInOneAlert/SponsorsChanged) so each
-        connection stops warning for the others' events. Chose the contained
-        client-side no-op (option a) over server-side per-concern groups (option b).
-        shared-types tsc + 81 tests, mobile tsc + 100 tests, web tsc all green.
-        Surfaced 2026-07-02 in the Expo-web mobile terminal (dozens/sec during
-        score bursts). Two causes:
-        - Pre-existing: the server broadcasts BOTH ScoreUpdated (per-team) AND
-          LeaderboardRefreshed on every score (RealTimeService.PublishScoreAsync),
-          but useLiveLeaderboard/ScoresPoller only register a 'LeaderboardRefreshed'
-          handler — so every 'ScoreUpdated' logs "no client method found" on any
-          connection that lacks the handler.
-        - Added by the useLiveAuction hook (2026-07-02): it opens a SECOND
-          TournamentHub connection joined to the same event group and only registers
-          the auction events, so it ALSO receives ScoreUpdated + LeaderboardRefreshed
-          and warns for both (explains the 'leaderboardrefreshed' warnings, which the
-          leaderboard connection itself does handle).
-        Benign (warnings only, no functional impact), but noisy and wasteful (two
-        sockets per scorer, each fanned the full group broadcast). Cleanup options:
-        (a) register a no-op/handled 'ScoreUpdated' (and, in useLiveAuction, ignore
-            the non-auction events) to silence the warnings; (b) better, give the hub
-            per-concern groups (scores vs auction) so a screen only receives what it
-            subscribes to, avoiding a second full-group socket. Deferred 2026-07-02.
-
-[x] A7. Need to add golf course and golf course address to the email flier, and make the golf course editable on the overview info page
-        DONE 2026-07-04 (chore/problem-list-cleanup):
-        - Flier: EmailBuilderDataResponse gained courseName + courseAddress
-          ("17 Mile Dr, Pebble Beach, CA 93953" — blank parts skipped). The
-          admin email-builder details section now renders "⛳ course name" +
-          "📍 full address" (falls back to the old "City, State" line when no
-          course); Event Info preview card shows the same.
-        - Editable course: new PATCH /api/v1/events/{id}/course
-          (UpdateCourseRequest) edits name/address/city/state/zip IN PLACE —
-          deliberately never touches holes, so pars/handicaps/yardages that
-          feed the leaderboard survive an address fix (POST /course still
-          replaces + regenerates). Overview Course section now always shows an
-          Edit/Attach button + Address/Zip rows; the modal prefills and calls
-          updateCourse in edit mode.
-        - Verified live against the API: attach → PATCH rename/re-address →
-          holes count/pars/handicaps and course id unchanged; PATCH on a
-          course-less event → clean 400; email-builder/data returns the new
-          fields. All tsc + tests green.
-        NOTE (surfaced while verifying): POST /course requires Address but the
-        admin Attach Course modal labeled it optional. RESOLVED 2026-07-04 by
-        making Address required everywhere: UpdateCourseRequest gained
-        [Required] + an UpdateCourseRequestValidator (mirrors the attach
-        rules, minus holes), and the admin modal now labels "Address *" and
-        blocks submit on blank. Verified live: PATCH blank address → 400
-        naming Address; with address → 200. Zip stays optional.
-
-## Per-golfer entry fee — E2E verification findings (2026-07-06)
-Surfaced while live-driving the Phase 14 per-golfer entry fee feature
-(feat/register-app-deeplink, commit e0566f4) against the real API + web app.
-The feature itself PASSED (21-step driver: fee at create/edit, public page
-"$X per golfer", signed webhook marks golfers paid, cash override, fundraising
-totals, idempotency + negative-fee/forged-signature probes all green).
-These are robustness gaps around it. Driver script preserved in the session
-scratchpad; recipe in .claude/skills/verify/SKILL.md.
-
-[x] A8. (ROBUSTNESS, highest of this batch) Fee-event registration returns 500
-        AFTER persisting the team when Stripe PaymentIntent creation fails
-        DONE 2026-07-06 — TeamService.TryCreateEntryFeeIntentAsync wraps all
-        three registration modes (team/join/free-agent): StripeException +
-        InvalidOperationException are logged and swallowed; the response keeps
-        EntryFeeCents but returns EntryFeeClientSecret=null, which the mobile
-        app already renders as "pay at event check-in". 3 new TeamServiceTests
-        prove fee registration succeeds with no Stripe key (422 API tests
-        green). Verified live: fee-event registration with placeholder keys →
-        201 with entryFeeCents=10000, secret=null (was 500).
-        (invalid/missing STRIPE_SECRET_KEY, or any Stripe outage in prod).
-        Observed live: POST /register/team on a fee event with the .env.local
-        placeholder key → team + players saved, then Stripe.StripeException
-        "Invalid API Key" → 500 INTERNAL_ERROR. The golfer sees "unexpected
-        error" but IS registered; retrying hits "email already registered"
-        (409). Pre-existing shape (the old captain-PI code had it too), but
-        per-golfer fees make it fire for every fee event, incl. all local dev
-        (root .env.local ships placeholder sk_test_REPLACE… keys).
-        FIX: in TeamService (RegisterTeamAsync / JoinTeamAsync /
-        RegisterFreeAgentAsync) wrap CreateEntryFeePaymentIntentAsync in
-        try/catch (StripeException + InvalidOperationException): log error,
-        return success with EntryFeeClientSecret=null but EntryFeeCents kept —
-        mobile already renders the "pay at event check-in" notice when the
-        secret is null, so the golfer lands on a truthful path and the
-        organizer can still mark-paid at the door. Registration must never
-        fail because the payment rail is down.
-
-[x] A9. (ROBUSTNESS/noise) Stripe webhook endpoint 500s when the
-        Stripe-Signature header is missing: EventUtility.ConstructEvent →
-        ParseStripeSignature NullReferenceException (Stripe.net 45.0.0).
-        DONE 2026-07-06 — StripeWebhookController guards empty/missing header
-        (while a secret is configured) before ConstructEvent → 400 "Missing
-        Stripe signature", warning-level log. Verified live: unsigned POST →
-        400 (was 500); properly signed webhook still 200; forged sig still 400.
-        Observed live: POST /api/v1/webhooks/stripe without the header → 500;
-        with a forged header → clean 400 "Invalid Stripe signature". Real
-        Stripe always sends the header, so impact is only junk/bot traffic on
-        an anonymous endpoint — but each hit logs an error-level stack trace
-        (alert noise) instead of a warning.
-        FIX: guard in StripeWebhookController before ConstructEvent — empty/
-        missing Stripe-Signature (while a secret is configured) → 400
-        BadRequest, same as the invalid-signature path.
-
-[x] A10. (ROBUSTNESS/minor) POST /api/v1/payments/confirm-entry-fee with an
-        unknown/garbage paymentIntentId → 500: PaymentIntentService.GetAsync
-        throws StripeException, which the middleware maps to INTERNAL_ERROR.
-        DONE 2026-07-06 — ConfirmEntryFeeAsync catches StripeException from the
-        intent fetch → ValidationException "Payment could not be verified."
-        (400 VALIDATION_ERROR, warning log). Missing STRIPE_SECRET_KEY stays a
-        500 (server misconfig). Verified live: junk paymentIntentId → 400.
-        Anonymous endpoint; a malformed client call can't mark anyone paid
-        (server re-verifies with Stripe) but shouldn't produce a 500 + error
-        log. Mobile currently swallows the failure (.catch(() => {})), so no
-        user impact.
-        FIX: catch StripeException in ConfirmEntryFeeAsync and rethrow as
-        ValidationException ("Payment could not be verified") → 400
-        VALIDATION_ERROR. Keep the missing-STRIPE_SECRET_KEY
-        InvalidOperationException a 500 (genuine server misconfig).
-
-NOTE (checked, NOT an issue): 500 bodies included details.stackTrace during
-verification — confirmed ExceptionHandlingMiddleware only adds it when
-_env.IsDevelopment(); production omits it.
+        404, and the S4 Draft session-token gate). Remaining orchestration paths
+        (create/update/status machine, leaderboard, public event/challenges/
+        fundraising) still untested; defer.

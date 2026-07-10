@@ -40,6 +40,7 @@ using GolfFundraiserPro.Api.Domain.Entities;
 using GolfFundraiserPro.Api.Features.Auth;
 using GolfFundraiserPro.Api.Hubs;
 using Hangfire;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -72,6 +73,22 @@ QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ── PRODUCTION SAFETY GUARDS ──────────────────────────────────────────────────
+// Fail fast on configuration that must never reach production. Checked BEFORE
+// service registration so these fire first, with an actionable message.
+if (!builder.Environment.IsDevelopment())
+{
+    // The join email-verification bypass code ("999999" in
+    // appsettings.Development.json) accepts ANY join without a real emailed
+    // code. In production that would let anyone mint a player session token
+    // with just an event code + registered email.
+    if (!string.IsNullOrWhiteSpace(builder.Configuration["JoinVerification:TestBypassCode"]))
+        throw new InvalidOperationException(
+            "JoinVerification:TestBypassCode is set but the environment is not Development. "
+            + "The join-verification bypass must never be enabled in production — remove the "
+            + "setting (or the JoinVerification__TestBypassCode environment variable).");
+}
+
 // ── ADD SERVICES ──────────────────────────────────────────────────────────────
 // All service registrations delegated to the extension method.
 // See Common/Extensions/ServiceCollectionExtensions.cs for detailed comments.
@@ -92,13 +109,17 @@ builder.Services.AddControllers()
 // ── BUILD APP ────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
-// ── AUTO-MIGRATE IN DEVELOPMENT ───────────────────────────────────────────────
-// In Development, apply pending EF Core migrations automatically on startup.
-// This means running `dotnet run` after adding a migration will update the DB.
+// ── DATABASE MIGRATION ────────────────────────────────────────────────────────
+// Development: apply pending EF Core migrations automatically on startup, so
+// running `dotnet run` after adding a migration updates the DB.
 //
-// In Production, migrations are applied as part of the CI/CD deploy step
-// (NOT automatically at startup — this prevents accidental data loss).
-if (app.Environment.IsDevelopment())
+// Production: migrations run in the CI/CD deploy step by default (never
+// silently at startup — prevents accidental schema changes). Hosts without a
+// separate deploy step (single-container platforms) can opt in with
+// GFP_MIGRATE_ON_STARTUP=true.
+var migrateOnStartup = app.Environment.IsDevelopment()
+    || string.Equals(app.Configuration["GFP_MIGRATE_ON_STARTUP"], "true", StringComparison.OrdinalIgnoreCase);
+if (migrateOnStartup)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -115,6 +136,12 @@ if (app.Environment.IsDevelopment())
             .ExecuteSqlRawAsync("SELECT PostGIS_Version()");
         app.Logger.LogInformation("PostGIS verified. Database ready.");
     }
+    catch (Exception) when (!app.Environment.IsDevelopment())
+    {
+        // Outside Development a botched schema must not serve traffic — fail fast
+        // so the platform keeps the previous deployment running.
+        throw;
+    }
     catch (Exception ex)
     {
         app.Logger.LogError(ex,
@@ -123,13 +150,40 @@ if (app.Environment.IsDevelopment())
         // Don't crash the server — let it start so developers can see the error
         // and diagnose it. Requests will fail with DB errors until fixed.
     }
+}
 
-    // Seed super admin account from environment config (idempotent — safe to run every startup)
-    try { await SeedSuperAdminAsync(scope.ServiceProvider); }
+// Seed super admin from SUPER_ADMIN_* env config in ANY environment (a fresh
+// production database needs its first platform admin too). Idempotent, and a
+// no-op unless both email + password are configured.
+using (var seedScope = app.Services.CreateScope())
+{
+    try { await SeedSuperAdminAsync(seedScope.ServiceProvider); }
     catch (Exception ex) { app.Logger.LogError(ex, "Super admin seeding failed."); }
 }
 
 // ── HTTP PIPELINE CONFIGURATION ───────────────────────────────────────────────
+
+// 0. Forwarded headers — BEFORE everything that reads the client IP or scheme
+// (HTTPS redirect, rate limiter, IP-keyed security policies). Opt-in via
+// TRUST_FORWARDED_HEADERS=true, which is ONLY safe behind a reverse proxy /
+// platform load balancer that strips or overwrites client-supplied
+// X-Forwarded-* headers (Railway, Render, nginx in front). Exposed directly
+// to the internet, trusting these headers would let callers spoof their IP
+// past the per-IP rate limits.
+if (string.Equals(app.Configuration["TRUST_FORWARDED_HEADERS"], "true", StringComparison.OrdinalIgnoreCase))
+{
+    var forwardedOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    };
+    // The platform proxy's address isn't knowable ahead of time on PaaS, so
+    // clear the loopback-only defaults; the opt-in flag above IS the trust
+    // decision. (Collection-initializer syntax would ADD, not clear.)
+    forwardedOptions.KnownNetworks.Clear();
+    forwardedOptions.KnownProxies.Clear();
+    app.UseForwardedHeaders(forwardedOptions);
+    app.Logger.LogInformation("Forwarded headers trusted (TRUST_FORWARDED_HEADERS=true).");
+}
 
 // 1. Global exception handler — MUST be first (outermost middleware)
 app.UseMiddleware<ExceptionHandlingMiddleware>();
