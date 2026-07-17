@@ -3,24 +3,26 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev":        "next dev --port 3000",
-    "build":      "next build",
-    "start":      "next start",
-    "lint":       "eslint src --ext .ts,.tsx",
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint src --ext .ts,.tsx",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@gfp/shared-types":   "*",
-    "@gfp/theme":          "*",
-    "@microsoft/signalr":  "^8.0.0",
-    "next":                "^16.0.0",
-    "react":               "19.2.3",
-    "react-dom":           "19.2.3"
+    "@gfp/shared-types": "*",
+    "@gfp/theme": "*",
+    "@microsoft/signalr": "^8.0.0",
+    "@stripe/react-stripe-js": "^6.7.0",
+    "@stripe/stripe-js": "^9.9.0",
+    "next": "^16.0.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
   },
   "devDependencies": {
-    "@types/node":     "^20.0.0",
-    "@types/react":    "~19.2.10",
+    "@types/node": "^20.0.0",
+    "@types/react": "~19.2.10",
     "@types/react-dom": "~19.2.0",
-    "typescript":      "^5.4.5"
+    "typescript": "^5.4.5"
   }
 }

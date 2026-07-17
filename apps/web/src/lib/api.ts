@@ -102,6 +102,9 @@ export interface ActiveEventSummary {
 function normalizePublicEvent(e: PublicEventData): PublicEventData {
   return {
     ...e,
+    // API serializes the status enum as PascalCase ("Registration"); every
+    // consumer under /e/… branches on lowercase, so normalize once here.
+    status: e.status.toLowerCase(),
     resolvedLogoUrl: resolveUploadUrl(e.resolvedLogoUrl),
     sponsors: e.sponsors.map(s => ({ ...s, logoUrl: resolveUploadUrl(s.logoUrl) })),
   };
@@ -156,7 +159,7 @@ export async function fetchPublicLeaderboard(eventCode: string): Promise<PublicL
     });
     if (!res.ok) return null;
     const board: PublicLeaderboard = await res.json();
-    return { ...board, resolvedLogoUrl: resolveUploadUrl(board.resolvedLogoUrl) };
+    return { ...board, status: board.status.toLowerCase(), resolvedLogoUrl: resolveUploadUrl(board.resolvedLogoUrl) };
   } catch {
     return null;
   }
@@ -183,6 +186,12 @@ export interface RegisterFreeAgentPayload {
 export interface RegistrationResult {
   ok:      boolean;
   message: string;
+  /** Stripe PaymentIntent client_secret when the event charges an entry fee (null/absent for free events). */
+  entryFeeClientSecret?: string | null;
+  /** Total due for this registration in cents (per-golfer fee × golfers registered). */
+  entryFeeCents?:        number | null;
+  /** Invite link for the captain to share (team registration only). */
+  inviteUrl?:            string | null;
 }
 
 async function postJson(url: string, body: unknown): Promise<{ ok: boolean; status: number; data: any }> {
@@ -197,22 +206,47 @@ async function postJson(url: string, body: unknown): Promise<{ ok: boolean; stat
   return { ok: res.ok, status: res.status, data };
 }
 
+/** Pull the entry-fee payment fields off a RegistrationConfirmResponse. */
+function paymentFields(data: any): Pick<RegistrationResult, 'entryFeeClientSecret' | 'entryFeeCents' | 'inviteUrl'> {
+  return {
+    entryFeeClientSecret: data?.entryFeeClientSecret ?? null,
+    entryFeeCents:        data?.entryFeeCents ?? null,
+    inviteUrl:            data?.inviteUrl ?? null,
+  };
+}
+
 export async function registerTeam(eventId: string, payload: RegisterTeamPayload): Promise<RegistrationResult> {
   const { ok, data } = await postJson(`${BASE}/api/v1/events/${eventId}/register/team`, payload);
   if (!ok) return { ok: false, message: data?.detail ?? data?.title ?? 'Registration failed.' };
-  return { ok: true, message: 'Team registered! Check your email for next steps.' };
+  return { ok: true, message: 'Team registered! Check your email for next steps.', ...paymentFields(data) };
 }
 
 export async function joinTeam(eventId: string, payload: JoinTeamPayload): Promise<RegistrationResult> {
   const { ok, data } = await postJson(`${BASE}/api/v1/events/${eventId}/register/join`, payload);
   if (!ok) return { ok: false, message: data?.detail ?? data?.title ?? 'Could not join team.' };
-  return { ok: true, message: "You've been added to the team!" };
+  return { ok: true, message: "You've been added to the team!", ...paymentFields(data) };
 }
 
 export async function registerFreeAgent(eventId: string, payload: RegisterFreeAgentPayload): Promise<RegistrationResult> {
   const { ok, data } = await postJson(`${BASE}/api/v1/events/${eventId}/register/free-agent`, payload);
   if (!ok) return { ok: false, message: data?.detail ?? data?.title ?? 'Registration failed.' };
-  return { ok: true, message: "You're on the free agent list — the organizer will be in touch!" };
+  return { ok: true, message: "You're on the free agent list — the organizer will be in touch!", ...paymentFields(data) };
+}
+
+// ── ENTRY FEE PAYMENT ─────────────────────────────────────────────────────────
+
+/**
+ * Immediate paid-marking after an in-browser Stripe confirmation. Best-effort:
+ * the Stripe webhook independently marks golfers paid, so a failure here only
+ * delays the "paid" flag, it never loses the payment.
+ */
+export async function confirmEntryFee(paymentIntentId: string): Promise<boolean> {
+  try {
+    const { ok } = await postJson(`${BASE}/api/v1/payments/confirm-entry-fee`, { paymentIntentId });
+    return ok;
+  } catch {
+    return false;
+  }
 }
 
 // ── DONATION ──────────────────────────────────────────────────────────────────
