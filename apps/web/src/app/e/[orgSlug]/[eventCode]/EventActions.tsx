@@ -10,7 +10,9 @@ import {
   type JoinTeamPayload,
   type RegisterFreeAgentPayload,
   type DonatePayload,
+  type RegistrationResult,
 } from '@/lib/api';
+import EntryFeePayment, { stripeEnabled, formatUsd } from './EntryFeePayment';
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
 
@@ -20,6 +22,8 @@ interface RegistrationSectionProps {
   eventId:          string;
   orgName:          string;
   freeAgentEnabled: boolean;
+  /** Per-golfer entry fee in cents; null when the event is free. */
+  entryFeeCents:    number | null;
 }
 
 interface DonateWidgetProps {
@@ -34,12 +38,19 @@ export default function EventRegistrationSection({
   eventId,
   orgName,
   freeAgentEnabled,
+  entryFeeCents,
 }: RegistrationSectionProps) {
   const [mode, setMode] = useState<RegistrationMode>(null);
 
   return (
     <section style={s.card} id="register">
       <h2 style={s.cardTitle}>Join the Tournament</h2>
+      {entryFeeCents ? (
+        <p style={s.feeNote}>
+          Entry fee: <strong>{formatUsd(entryFeeCents)}</strong> per golfer
+          {stripeEnabled ? ' — pay online when you register.' : '.'}
+        </p>
+      ) : null}
       <div style={s.ctaRow}>
         <button onClick={() => setMode('team')}  style={{ ...s.ctaBtn, ...s.ctaBtnPrimary }}>Register a Team</button>
         <button onClick={() => setMode('join')}  style={{ ...s.ctaBtn, ...s.ctaBtnOutline }}>Join a Team</button>
@@ -49,9 +60,9 @@ export default function EventRegistrationSection({
       </div>
       <p style={s.ctaNote}>Contact {orgName} for more information.</p>
 
-      {mode === 'team'      && <RegisterTeamModal      eventId={eventId} onClose={() => setMode(null)} />}
-      {mode === 'join'      && <JoinTeamModal          eventId={eventId} onClose={() => setMode(null)} />}
-      {mode === 'freeagent' && <FreeAgentModal         eventId={eventId} onClose={() => setMode(null)} />}
+      {mode === 'team'      && <RegisterTeamModal eventId={eventId} perGolferCents={entryFeeCents} onClose={() => setMode(null)} />}
+      {mode === 'join'      && <JoinTeamModal     eventId={eventId} perGolferCents={entryFeeCents} onClose={() => setMode(null)} />}
+      {mode === 'freeagent' && <FreeAgentModal    eventId={eventId} perGolferCents={entryFeeCents} onClose={() => setMode(null)} />}
     </section>
   );
 }
@@ -130,9 +141,111 @@ function ErrorMsg({ msg }: { msg: string }) {
   return <p style={s.errorMsg}>⚠️ {msg}</p>;
 }
 
+// ── POST-REGISTRATION (payment step → confirmation) ──────────────────────────
+// Shared by all three registration modals. When the API returned an entry-fee
+// PaymentIntent and Stripe is configured, collect the fee in-browser first;
+// otherwise (free event, or fee collected offline) go straight to confirmation.
+
+const IOS_STORE_URL     = process.env.NEXT_PUBLIC_IOS_APP_URL     ?? '';
+const ANDROID_STORE_URL = process.env.NEXT_PUBLIC_ANDROID_APP_URL ?? '';
+
+function PostRegistration({ result, perGolferCents, onClose }: {
+  result:         RegistrationResult;
+  perGolferCents: number | null;
+  onClose:        () => void;
+}) {
+  const [paid, setPaid] = useState(false);
+
+  const total    = result.entryFeeCents ?? 0;
+  const payNow   = !paid && total > 0 && !!result.entryFeeClientSecret && stripeEnabled;
+  // Fee exists but can't be collected online (Stripe not configured / intent
+  // creation failed) — registration stands; the organizer collects offline.
+  const feeDue   = !paid && total > 0 && !payNow;
+  const golfers  = perGolferCents ? Math.round(total / perGolferCents) : 1;
+
+  if (payNow) {
+    return (
+      <Modal title="Entry Fee" onClose={onClose}>
+        <p style={s.hint}>You&apos;re registered! Complete your entry fee payment to lock in your spot.</p>
+        <EntryFeePayment
+          clientSecret={result.entryFeeClientSecret!}
+          amountCents={total}
+          breakdown={perGolferCents && golfers > 1 ? `${formatUsd(perGolferCents)} × ${golfers} golfers` : null}
+          onPaid={() => setPaid(true)}
+        />
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal title={paid ? 'Payment Received!' : 'Registered!'} onClose={onClose}>
+      <div style={s.success}>
+        <p style={s.successText}>✅ {paid ? "Payment received — you're all set! Check your email for next steps." : result.message}</p>
+        {feeDue && (
+          <p style={s.feeDueNote}>
+            Your entry fee of {formatUsd(total)} is due — the organizer will collect it before the event.
+          </p>
+        )}
+        {result.inviteUrl && <InviteShare url={result.inviteUrl} />}
+        <AppPromo />
+        <button onClick={onClose} style={s.submitBtn}>Close</button>
+      </div>
+    </Modal>
+  );
+}
+
+function InviteShare({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div style={s.inviteBox}>
+      <p style={s.inviteLabel}>Share this link so teammates can join (and pay) themselves:</p>
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <input readOnly value={url} style={{ ...s.input, fontSize: '0.8rem' }} onFocus={e => e.target.select()} />
+        <button
+          type="button"
+          style={s.copyBtn}
+          onClick={() => {
+            navigator.clipboard?.writeText(url).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            });
+          }}
+        >
+          {copied ? '✓ Copied' : 'Copy'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Post-registration nudge toward the scorer app — the golfer now has a reason to install it. */
+function AppPromo() {
+  return (
+    <div style={s.appPromo}>
+      <p style={s.appPromoText}>
+        📱 On event day, keep score with the <strong>GFP Scorer</strong> app — it works even
+        without a signal and feeds the live leaderboard.
+      </p>
+      {(IOS_STORE_URL || ANDROID_STORE_URL) && (
+        <p style={{ margin: '0.5rem 0 0' }}>
+          {IOS_STORE_URL     && <a href={IOS_STORE_URL}     style={s.storeLink}>App Store</a>}
+          {IOS_STORE_URL && ANDROID_STORE_URL && <span style={{ color: '#bbb' }}> · </span>}
+          {ANDROID_STORE_URL && <a href={ANDROID_STORE_URL} style={s.storeLink}>Google Play</a>}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── REGISTER TEAM MODAL ───────────────────────────────────────────────────────
 
-function RegisterTeamModal({ eventId, onClose }: { eventId: string; onClose: () => void }) {
+interface RegistrationModalProps {
+  eventId:        string;
+  perGolferCents: number | null;
+  onClose:        () => void;
+}
+
+function RegisterTeamModal({ eventId, perGolferCents, onClose }: RegistrationModalProps) {
   const [teamName, setTeamName] = useState('');
   const [players, setPlayers] = useState([
     { firstName: '', lastName: '', email: '', handicap: '' },
@@ -141,7 +254,7 @@ function RegisterTeamModal({ eventId, onClose }: { eventId: string; onClose: () 
     { firstName: '', lastName: '', email: '', handicap: '' },
   ]);
   const [saving, setSaving] = useState(false);
-  const [done,   setDone]   = useState<string | null>(null);
+  const [done,   setDone]   = useState<RegistrationResult | null>(null);
   const [err,    setErr]    = useState<string | null>(null);
 
   function updatePlayer(i: number, field: string, val: string) {
@@ -166,11 +279,11 @@ function RegisterTeamModal({ eventId, onClose }: { eventId: string; onClose: () 
     };
     const result = await registerTeam(eventId, payload);
     setSaving(false);
-    if (result.ok) setDone(result.message);
+    if (result.ok) setDone(result);
     else setErr(result.message);
   }
 
-  if (done) return <Modal title="Team Registered!" onClose={onClose}><Success message={done} onClose={onClose} /></Modal>;
+  if (done) return <PostRegistration result={done} perGolferCents={perGolferCents} onClose={onClose} />;
 
   return (
     <Modal title="Register a Team" onClose={onClose}>
@@ -201,14 +314,14 @@ function RegisterTeamModal({ eventId, onClose }: { eventId: string; onClose: () 
 
 // ── JOIN TEAM MODAL ───────────────────────────────────────────────────────────
 
-function JoinTeamModal({ eventId, onClose }: { eventId: string; onClose: () => void }) {
+function JoinTeamModal({ eventId, perGolferCents, onClose }: RegistrationModalProps) {
   const [token,     setToken]     = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
   const [email,     setEmail]     = useState('');
   const [handicap,  setHandicap]  = useState('');
   const [saving,    setSaving]    = useState(false);
-  const [done,      setDone]      = useState<string | null>(null);
+  const [done,      setDone]      = useState<RegistrationResult | null>(null);
   const [err,       setErr]       = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -225,11 +338,11 @@ function JoinTeamModal({ eventId, onClose }: { eventId: string; onClose: () => v
     };
     const result = await joinTeam(eventId, payload);
     setSaving(false);
-    if (result.ok) setDone(result.message);
+    if (result.ok) setDone(result);
     else setErr(result.message);
   }
 
-  if (done) return <Modal title="Joined!" onClose={onClose}><Success message={done} onClose={onClose} /></Modal>;
+  if (done) return <PostRegistration result={done} perGolferCents={perGolferCents} onClose={onClose} />;
 
   return (
     <Modal title="Join a Team" onClose={onClose}>
@@ -251,14 +364,14 @@ function JoinTeamModal({ eventId, onClose }: { eventId: string; onClose: () => v
 
 // ── FREE AGENT MODAL ──────────────────────────────────────────────────────────
 
-function FreeAgentModal({ eventId, onClose }: { eventId: string; onClose: () => void }) {
+function FreeAgentModal({ eventId, perGolferCents, onClose }: RegistrationModalProps) {
   const [firstName,   setFirstName]   = useState('');
   const [lastName,    setLastName]    = useState('');
   const [email,       setEmail]       = useState('');
   const [handicap,    setHandicap]    = useState('');
   const [pairingNote, setPairingNote] = useState('');
   const [saving,      setSaving]      = useState(false);
-  const [done,        setDone]        = useState<string | null>(null);
+  const [done,        setDone]        = useState<RegistrationResult | null>(null);
   const [err,         setErr]         = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -275,11 +388,11 @@ function FreeAgentModal({ eventId, onClose }: { eventId: string; onClose: () => 
     };
     const result = await registerFreeAgent(eventId, payload);
     setSaving(false);
-    if (result.ok) setDone(result.message);
+    if (result.ok) setDone(result);
     else setErr(result.message);
   }
 
-  if (done) return <Modal title="On the List!" onClose={onClose}><Success message={done} onClose={onClose} /></Modal>;
+  if (done) return <PostRegistration result={done} perGolferCents={perGolferCents} onClose={onClose} />;
 
   return (
     <Modal title="I Need a Team" onClose={onClose}>
@@ -378,6 +491,15 @@ const s: Record<string, React.CSSProperties> = {
   ctaBtnPrimary: { backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary, #fff)' },
   ctaBtnOutline: { backgroundColor: 'transparent', color: 'var(--color-primary)' },
   ctaNote:       { fontSize: '0.875rem', color: '#4b5563', margin: 0 },
+  feeNote:       { fontSize: '0.9rem', color: '#4b5563', margin: '0 0 1rem' },
+
+  feeDueNote: { fontSize: '0.875rem', color: '#8a6d1a', backgroundColor: '#fdf6e3', border: '1px solid #f0e2b6', borderRadius: 8, padding: '0.6rem 0.85rem', marginBottom: '1rem', textAlign: 'left' },
+  inviteBox:   { textAlign: 'left', marginBottom: '1.25rem' },
+  inviteLabel: { fontSize: '0.8rem', fontWeight: 600, color: '#555', margin: '0 0 0.4rem' },
+  copyBtn:     { padding: '0.5rem 0.9rem', borderRadius: 7, border: '1.5px solid var(--color-primary)', backgroundColor: 'transparent', color: 'var(--color-primary)', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
+  appPromo:     { textAlign: 'left', backgroundColor: '#f6f7f6', border: '1px solid #e8e8e8', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1.25rem' },
+  appPromoText: { fontSize: '0.85rem', color: '#4b5563', lineHeight: 1.5, margin: 0 },
+  storeLink:    { fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-primary)', textDecoration: 'none' },
 
   donateBtn: { width: '100%', padding: '0.75rem', borderRadius: 8, backgroundColor: 'var(--color-action)', color: 'var(--color-on-action, #fff)', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', border: 'none', marginTop: '0.75rem' },
 

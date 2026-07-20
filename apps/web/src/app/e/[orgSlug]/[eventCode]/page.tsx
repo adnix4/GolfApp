@@ -126,6 +126,7 @@ export default async function EventPage(
                   eventId={event.id}
                   orgName={event.orgName}
                   freeAgentEnabled={event.freeAgentEnabled}
+                  entryFeeCents={event.entryFeeCents}
                 />
               )}
 

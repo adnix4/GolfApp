@@ -316,7 +316,7 @@ export function SponsorModal({
             sponModalStyles.cardShell,
             {
               borderColor: theme.colors.primary,
-              shadowColor: theme.colors.primary,
+              boxShadow: `0px -6px 14px ${theme.colors.primary}73`,
             },
           ]}
         >
@@ -402,9 +402,7 @@ const sponModalStyles = StyleSheet.create({
     borderTopRightRadius: 26,
     borderWidth: 3,
     borderBottomWidth: 0,
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
+    // boxShadow is set inline — its colour comes from the event theme.
     elevation: 18,
   },
 
