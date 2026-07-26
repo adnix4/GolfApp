@@ -4,8 +4,8 @@ import {
   ScrollView, ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme } from '@gfp/ui';
-import { centsToDollarsInput, dollarsToCents, formatCentsShort } from '@gfp/shared-types';
+import { useTheme, MoneyInput } from '@gfp/ui';
+import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { auctionApi, type AuctionItem, type AuctionSession } from '@/lib/api';
 
 export default function LiveAuctionScreen() {
@@ -35,7 +35,7 @@ export default function LiveAuctionScreen() {
       setItems(itemData.filter(i => i.auctionType === 'Live' || i.auctionType === 'DonationLive'));
       setSession(sessionData);
       if (sessionData) {
-        setCalledAmt(centsToDollarsInput(sessionData.currentCalledAmountCents));
+        setCalledAmt(centsToMoneyValue(sessionData.currentCalledAmountCents));
       }
     } catch (e: any) {
       setError(e.message ?? 'Failed to load live auction data.');
@@ -68,7 +68,7 @@ export default function LiveAuctionScreen() {
     try {
       const s = await auctionApi.nextItem(eventId);
       setSession(s);
-      setCalledAmt(centsToDollarsInput(s.currentCalledAmountCents));
+      setCalledAmt(centsToMoneyValue(s.currentCalledAmountCents));
       if (!s.currentItemId) setSuccess('All items have been presented.');
     } catch (e: any) {
       setError(e.message ?? 'Could not advance to the next item.');
@@ -202,13 +202,11 @@ export default function LiveAuctionScreen() {
               {/* Called amount */}
               <Text style={[styles.label, { marginTop: 16 }]}>Called Amount ($)</Text>
               <View style={styles.amountRow}>
-                <Text style={styles.dollarSign}>$</Text>
-                <TextInput
+                <MoneyInput
                   style={[styles.amtInput, { borderColor: theme.colors.primary }]}
                   value={calledAmt}
                   onChangeText={setCalledAmt}
-                  keyboardType="decimal-pad"
-                  placeholder="0.00"
+                  placeholder="$0.00"
                   placeholderTextColor="#aaa"
                 />
                 <Pressable

@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, StatusPill, AsyncSection, PrimaryButton, FormModal } from '@gfp/ui';
+import { useTheme, StatusPill, AsyncSection, PrimaryButton, FormModal, MoneyInput } from '@gfp/ui';
 import {
   FORMAT_OPTIONS, FORMAT_LABELS, FORMAT_HINTS,
   START_OPTIONS, START_LABELS, START_HINTS,
@@ -445,7 +445,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
             <Text style={styles.fieldHint}>
               Shown on the public event page and email ads; each golfer pays at registration.
             </Text>
-            <TextInput
+            <MoneyInput
               style={[
                 styles.input,
                 { borderColor: showFeeError ? '#e74c3c' : theme.colors.accent },
@@ -461,7 +461,6 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
               }}
               placeholder="Leave blank for a free event"
               placeholderTextColor="#999"
-              keyboardType="decimal-pad"
               editable={!loading}
               accessibilityLabel="Entry fee per golfer in dollars"
             />

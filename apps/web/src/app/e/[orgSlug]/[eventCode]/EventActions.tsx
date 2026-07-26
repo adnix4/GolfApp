@@ -12,6 +12,7 @@ import {
   type DonatePayload,
   type RegistrationResult,
 } from '@/lib/api';
+import { formatMoneyInput, dollarsToCents } from '@gfp/shared-types';
 import EntryFeePayment, { stripeEnabled, formatUsd } from './EntryFeePayment';
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
@@ -431,15 +432,15 @@ function DonateModal({ eventCode, orgName, is501c3, onClose }: {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const amt = parseFloat(dollars);
-    if (!name.trim() || !email.trim() || isNaN(amt) || amt < 1) {
+    const amountCents = dollarsToCents(dollars);
+    if (!name.trim() || !email.trim() || amountCents < 100) {
       setErr('Name, email, and a donation amount of at least $1.00 are required.'); return;
     }
     setSaving(true); setErr(null);
     const payload: DonatePayload = {
       donorName:   name.trim(),
       donorEmail:  email.trim(),
-      amountCents: Math.round(amt * 100),
+      amountCents,
     };
     const result = await submitDonation(eventCode, payload);
     setSaving(false);
@@ -460,19 +461,14 @@ function DonateModal({ eventCode, orgName, is501c3, onClose }: {
         <FieldRow label="Your Name *">  <Input value={name}    onChange={e => setName(e.target.value)}    required /></FieldRow>
         <FieldRow label="Email *">      <Input value={email}   onChange={e => setEmail(e.target.value)}   required type="email" /></FieldRow>
         <FieldRow label="Amount (USD) *">
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <span style={s.currencyPrefix}>$</span>
-            <Input
-              value={dollars}
-              onChange={e => setDollars(e.target.value)}
-              required
-              type="number"
-              min="1"
-              step="0.01"
-              placeholder="25.00"
-              style={{ ...s.input, paddingLeft: 28 }}
-            />
-          </div>
+          <Input
+            value={dollars}
+            onChange={e => setDollars(formatMoneyInput(e.target.value))}
+            required
+            type="text"
+            inputMode="numeric"
+            placeholder="$25.00"
+          />
         </FieldRow>
         {err && <ErrorMsg msg={err} />}
         <SubmitRow saving={saving} label="Submit Donation" onCancel={onClose} />

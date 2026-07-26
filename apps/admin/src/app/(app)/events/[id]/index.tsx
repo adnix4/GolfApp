@@ -3,11 +3,11 @@ import {
   View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView, Modal, TextInput,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme, StatusPill } from '@gfp/ui';
+import { useTheme, StatusPill, MoneyInput } from '@gfp/ui';
 import {
   FORMAT_OPTIONS, FORMAT_LABELS,
   START_OPTIONS, START_LABELS,
-  HOLES_OPTIONS,
+  HOLES_OPTIONS, centsToMoneyValue,
 } from '@gfp/shared-types';
 import { eventsApi, testDataApi, type Course, type EventDetail, type UpdateEventPayload } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
@@ -31,11 +31,6 @@ function readEntryFeeCents(config: Record<string, unknown>): number | null {
   return typeof v === 'number' && v > 0 ? v : null;
 }
 
-function centsToDollarInput(cents: number | null): string {
-  if (cents == null) return '';
-  const d = cents / 100;
-  return Number.isInteger(d) ? String(d) : d.toFixed(2);
-}
 
 function entryFeeLabel(cents: number | null): string {
   if (cents == null) return 'Free — no fee set';
@@ -488,7 +483,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
   const [startDate, setStartDate] = useState(parsed.date);
   const [startTime, setStartTime] = useState(parsed.time);
   const [ampm,      setAmpm]      = useState<'AM' | 'PM'>(parsed.ampm);
-  const [entryFee,  setEntryFee]  = useState(centsToDollarInput(readEntryFeeCents(event.config)));
+  const [entryFee,  setEntryFee]  = useState(centsToMoneyValue(readEntryFeeCents(event.config)));
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; startDate?: string; startTime?: string; entryFee?: string }>({});
@@ -498,7 +493,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
     const p = parseIsoToFields(event.startAt);
     setName(event.name); setFormat(event.format); setStartType(event.startType); setHoles(event.holes);
     setStartDate(p.date); setStartTime(p.time); setAmpm(p.ampm);
-    setEntryFee(centsToDollarInput(readEntryFeeCents(event.config)));
+    setEntryFee(centsToMoneyValue(readEntryFeeCents(event.config)));
     setError(null); setFieldErrors({});
   }, [visible, event]);
 
@@ -586,13 +581,12 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
             </View>
 
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Entry Fee per Golfer ($)</Text>
-            <TextInput
+            <MoneyInput
               style={[styles.input, { borderColor: fieldErrors.entryFee ? '#e74c3c' : theme.colors.accent }]}
               value={entryFee}
               onChangeText={v => { setEntryFee(v); if (fieldErrors.entryFee) setFieldErrors(p => ({ ...p, entryFee: undefined })); }}
               placeholder="Leave blank for a free event"
               placeholderTextColor="#999"
-              keyboardType="decimal-pad"
               editable={!loading}
             />
             {fieldErrors.entryFee

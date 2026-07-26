@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Pressable, StyleSheet, FlatList,
-  TextInput, Modal, ScrollView, ActivityIndicator, Alert, Image,
+  Modal, ScrollView, ActivityIndicator, Alert, Image,
   useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme } from '@gfp/ui';
-import { formatCentsShort, useLiveAuction } from '@gfp/shared-types';
+import { useTheme, MoneyInput } from '@gfp/ui';
+import { formatCentsShort, dollarsToCents, centsToMoneyValue, useLiveAuction } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
 import {
   fetchAuctionItems, placeBid, pledge,
@@ -134,7 +134,7 @@ export default function AuctionScreen() {
 
   async function handleBid(item: AuctionItemDto) {
     if (!player?.id) return;
-    const cents = parseInt(bidAmt) || 0;
+    const cents = dollarsToCents(bidAmt);
     if (cents <= 0) { Alert.alert('Invalid Amount', 'Please enter an amount greater than zero.'); return; }
     setBidding(true);
     try {
@@ -334,12 +334,11 @@ export default function AuctionScreen() {
                 Pledge / Bid on this item
               </Text>
               <View style={styles.bidRow}>
-                <TextInput
+                <MoneyInput
                   style={[styles.bidInput, { borderColor: theme.colors.accent }]}
                   value={bidAmt}
                   onChangeText={setBidAmt}
-                  keyboardType="number-pad"
-                  placeholder="Amount in cents (e.g. 500 = $5)"
+                  placeholder="$0.00"
                   placeholderTextColor="#aaa"
                 />
                 <Pressable
@@ -439,23 +438,26 @@ export default function AuctionScreen() {
                   <>
                     {liveSelectedItem.donationDenominations ? (
                       <View style={styles.denomRow}>
-                        {liveSelectedItem.donationDenominations.map(d => (
-                          <Pressable
-                            key={d}
-                            onPress={() => setBidAmt(String(d))}
-                            style={[
-                              styles.denomBtn,
-                              bidAmt === String(d) && { backgroundColor: theme.colors.primary },
-                            ]}
-                          >
-                            <Text style={{ color: bidAmt === String(d) ? '#fff' : theme.colors.primary, fontWeight: '700' }}>
-                              {fmt(d)}
-                            </Text>
-                          </Pressable>
-                        ))}
+                        {liveSelectedItem.donationDenominations.map(d => {
+                          const denomValue = centsToMoneyValue(d);
+                          return (
+                            <Pressable
+                              key={d}
+                              onPress={() => setBidAmt(denomValue)}
+                              style={[
+                                styles.denomBtn,
+                                bidAmt === denomValue && { backgroundColor: theme.colors.primary },
+                              ]}
+                            >
+                              <Text style={{ color: bidAmt === denomValue ? '#fff' : theme.colors.primary, fontWeight: '700' }}>
+                                {fmt(d)}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
                       </View>
                     ) : null}
-                    <Text style={styles.bidLabel}>Or enter amount (cents):</Text>
+                    <Text style={styles.bidLabel}>Or enter an amount:</Text>
                   </>
                 ) : (
                   <Text style={styles.bidLabel}>
@@ -465,12 +467,11 @@ export default function AuctionScreen() {
                 )}
 
                 <View style={styles.bidRow}>
-                  <TextInput
+                  <MoneyInput
                     style={[styles.bidInput, { borderColor: theme.colors.accent, flex: 1 }]}
                     value={bidAmt}
                     onChangeText={setBidAmt}
-                    keyboardType="number-pad"
-                    placeholder="Amount in cents (e.g. 500 = $5)"
+                    placeholder="$0.00"
                     placeholderTextColor="#aaa"
                   />
                   <Pressable
