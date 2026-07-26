@@ -4,6 +4,16 @@ import { ErrorFallback, useTheme } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useAuth } from '@/lib/auth';
 import { useResponsive } from '@/lib/responsive';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
+
+// Browser-tab labels for the top-level nav pages -> "GFP <label>".
+const PAGE_TITLES: Record<string, string> = {
+  events:   'Events',
+  leagues:  'Leagues',
+  settings: 'Settings',
+  help:     'Help',
+  admin:    'Organizations',
+};
 
 const ORG_ADMIN_NAV = [
   { label: 'Events',   segment: 'events',   href: '/(app)/events'   as const },
@@ -40,6 +50,15 @@ export default function AppLayout() {
   const isSuperAdmin = user?.role === 'SuperAdmin';
   const navItems     = isSuperAdmin ? SUPER_ADMIN_NAV : ORG_ADMIN_NAV;
   const identityLabel = isSuperAdmin ? 'Platform Admin' : (user?.email ?? '');
+
+  // Tab title for the main pages. Inside a specific event/league the nested
+  // layout owns the title ("<name> - <page>"), so defer (null) rather than
+  // fight it. A list route has one segment (['events']); a detail has more.
+  const routeSegments   = segments.filter(s => !String(s).startsWith('('));
+  const topSegment      = routeSegments[0] as string | undefined;
+  const inDetail        = (topSegment === 'events' || topSegment === 'leagues') && routeSegments.length > 1;
+  const mainPageLabel   = topSegment ? PAGE_TITLES[topSegment] : undefined;
+  useDocumentTitle(inDetail || !mainPageLabel ? null : `GFP ${mainPageLabel}`);
 
   async function handleLogout() {
     await logout();

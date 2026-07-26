@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useResponsive } from '@/lib/responsive';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 
 const FEATURES = [
   { icon: '📋', title: 'Event Management',      desc: 'Create and configure tournaments in minutes. Set format, holes, start type, and course.' },
@@ -19,6 +20,7 @@ export default function LandingPage() {
   const theme = useTheme();
   const router = useRouter();
   const { isMobile, isTablet, pagePadding } = useResponsive();
+  useDocumentTitle('Golf Fundraiser Pro');
 
   const cols = isMobile ? 1 : isTablet ? 2 : 4;
 

@@ -4,6 +4,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { ThemeProvider, useTheme } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, type GFPTheme } from '@gfp/theme';
 import { eventsApi, type EventDetail } from '@/lib/api';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 
 function parseTheme(json: string | null | undefined): GFPTheme | null {
   if (!json) return null;
@@ -61,6 +62,11 @@ const GROUPS: Group[] = [
   },
 ];
 
+// Flat path -> label lookup (''-> 'Overview') for the browser tab title.
+const TAB_LABELS: Record<string, string> = Object.fromEntries(
+  GROUPS.flatMap(g => g.tabs.map(t => [t.path, t.label])),
+);
+
 export default function EventLayout() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const pathname = usePathname();
@@ -78,6 +84,10 @@ export default function EventLayout() {
 
   const activeGroup = GROUPS.find(g => g.tabs.some(t => t.path === pathSuffix)) ?? GROUPS[0];
   const showSubRow  = activeGroup.tabs.length > 1;
+
+  // Browser tab: "<event name> - <page>" once loaded; "GFP <page>" while fetching.
+  const pageName = TAB_LABELS[pathSuffix] ?? 'Overview';
+  useDocumentTitle(event?.name ? `${event.name} - ${pageName}` : `GFP ${pageName}`);
 
   function tabHref(path: string) {
     return `/(app)/events/${id}${path ? `/${path}` : ''}` as const;
