@@ -30,7 +30,9 @@
   "overrides": {
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-native": "0.85.3"
+    "react-native": "0.85.3",
+    "postcss": "^8.5.23",
+    "sharp": "^0.35.3"
   },
   "packageManager": "npm@10.0.0",
   "engines": {
