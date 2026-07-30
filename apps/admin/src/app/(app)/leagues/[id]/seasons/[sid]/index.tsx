@@ -15,6 +15,8 @@ import {
   AddMemberModal, AbsencesModal, AddSubModal, AddRoundModal,
   type AddMemberFields, type AddSubFields,
 } from '@/components/seasonModals';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { useLeagueName } from '../../_layout';
 
 type Tab = 'overview' | 'roster' | 'rounds' | 'handicaps' | 'standings' | 'skins';
 
@@ -78,6 +80,14 @@ export default function SeasonDashboardScreen() {
   }, [id, sid]);
 
   useEffect(() => { load(); }, [load]);
+
+  const leagueName  = useLeagueName();
+  const seasonName  = dashboard?.season.name;
+  useDocumentTitle(
+    seasonName
+      ? (leagueName ? `${leagueName} - ${seasonName}` : `GFP ${seasonName}`)
+      : 'GFP Leagues',
+  );
 
   async function handleGeneratePairings(round: LeagueRound) {
     if (!id || !sid) return;

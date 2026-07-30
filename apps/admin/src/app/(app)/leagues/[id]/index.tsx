@@ -6,6 +6,8 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { leagueApi, SeasonSummary } from '@/lib/api';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { useLeagueName } from './_layout';
 
 export default function LeagueDetailScreen() {
   const theme  = useTheme();
@@ -39,6 +41,9 @@ export default function LeagueDetailScreen() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  const leagueName = useLeagueName();
+  useDocumentTitle(leagueName ? `${leagueName} - Seasons` : 'GFP Leagues');
 
   async function handleCreate() {
     if (!sName.trim() || !start || !end || !id) return;

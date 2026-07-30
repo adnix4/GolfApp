@@ -4,8 +4,8 @@ import {
   Modal, ScrollView, ActivityIndicator, Image,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme } from '@gfp/ui';
-import { centsToDollarsInput, dollarsToCents, formatCentsShort } from '@gfp/shared-types';
+import { useTheme, MoneyInput } from '@gfp/ui';
+import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { auctionApi, resolveUrl, type AuctionItem, type CreateAuctionItemPayload } from '@/lib/api';
 import {
   formatDateInput, formatTimeInput,
@@ -38,7 +38,7 @@ interface AuctionForm {
 function emptyForm(): AuctionForm {
   return {
     title: '', description: '', auctionType: 'Silent',
-    startingBid: '', bidIncrement: '5.00', buyNowPrice: '',
+    startingBid: '', bidIncrement: '$5.00', buyNowPrice: '',
     closeDate: '', closeTime: '', closeAmpm: 'AM',
     fairMarketValue: '', goal: '', displayOrder: '0',
   };
@@ -50,14 +50,14 @@ function itemToForm(item: AuctionItem): AuctionForm {
     title:           item.title,
     description:     item.description,
     auctionType:     item.auctionType,
-    startingBid:     centsToDollarsInput(item.startingBidCents),
-    bidIncrement:    centsToDollarsInput(item.bidIncrementCents),
-    buyNowPrice:     item.buyNowPriceCents ? centsToDollarsInput(item.buyNowPriceCents) : '',
+    startingBid:     centsToMoneyValue(item.startingBidCents),
+    bidIncrement:    centsToMoneyValue(item.bidIncrementCents),
+    buyNowPrice:     centsToMoneyValue(item.buyNowPriceCents),
     closeDate:       c.date,
     closeTime:       c.time,
     closeAmpm:       c.ampm,
-    fairMarketValue: centsToDollarsInput(item.fairMarketValueCents),
-    goal:            item.goalCents ? centsToDollarsInput(item.goalCents) : '',
+    fairMarketValue: centsToMoneyValue(item.fairMarketValueCents),
+    goal:            centsToMoneyValue(item.goalCents),
     displayOrder:    String(item.displayOrder),
   };
 }
@@ -347,13 +347,11 @@ export default function AuctionScreen() {
           {/* Starting Bid */}
           <Text style={styles.label}>Starting Bid ($) *</Text>
           <View style={styles.dollarRow}>
-            <Text style={styles.dollarSign}>$</Text>
-            <TextInput
+            <MoneyInput
               style={[styles.input, styles.dollarInput, fieldErrors.startingBid && styles.inputError]}
               value={form.startingBid}
               onChangeText={v => field('startingBid', v)}
-              keyboardType="decimal-pad"
-              placeholder="25.00"
+              placeholder="$25.00"
               placeholderTextColor="#999"
             />
           </View>
@@ -364,13 +362,11 @@ export default function AuctionScreen() {
             <>
               <Text style={styles.label}>Bid Increment ($)</Text>
               <View style={styles.dollarRow}>
-                <Text style={styles.dollarSign}>$</Text>
-                <TextInput
+                <MoneyInput
                   style={[styles.input, styles.dollarInput]}
                   value={form.bidIncrement}
                   onChangeText={v => field('bidIncrement', v)}
-                  keyboardType="decimal-pad"
-                  placeholder="5.00"
+                  placeholder="$5.00"
                   placeholderTextColor="#999"
                 />
               </View>
@@ -380,12 +376,10 @@ export default function AuctionScreen() {
           {/* Buy-Now Price */}
           <Text style={styles.label}>Buy-Now Price ($) — optional</Text>
           <View style={styles.dollarRow}>
-            <Text style={styles.dollarSign}>$</Text>
-            <TextInput
+            <MoneyInput
               style={[styles.input, styles.dollarInput]}
               value={form.buyNowPrice}
               onChangeText={v => field('buyNowPrice', v)}
-              keyboardType="decimal-pad"
               placeholder="Leave blank for no buy-now option"
               placeholderTextColor="#999"
             />
@@ -428,12 +422,10 @@ export default function AuctionScreen() {
             <>
               <Text style={styles.label}>Donation Goal ($) — optional</Text>
               <View style={styles.dollarRow}>
-                <Text style={styles.dollarSign}>$</Text>
-                <TextInput
+                <MoneyInput
                   style={[styles.input, styles.dollarInput]}
                   value={form.goal}
                   onChangeText={v => field('goal', v)}
-                  keyboardType="decimal-pad"
                   placeholder="Leave blank if no target goal"
                   placeholderTextColor="#999"
                 />
@@ -444,13 +436,11 @@ export default function AuctionScreen() {
           {/* Fair Market Value */}
           <Text style={styles.label}>Fair Market Value ($)</Text>
           <View style={styles.dollarRow}>
-            <Text style={styles.dollarSign}>$</Text>
-            <TextInput
+            <MoneyInput
               style={[styles.input, styles.dollarInput]}
               value={form.fairMarketValue}
               onChangeText={v => field('fairMarketValue', v)}
-              keyboardType="decimal-pad"
-              placeholder="0.00"
+              placeholder="$0.00"
               placeholderTextColor="#999"
             />
           </View>

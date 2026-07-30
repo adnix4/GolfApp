@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   formatCents, formatCentsShort, centsToDollarsInput, dollarsToCents,
+  formatMoneyInput,
 } from '../money';
 
 describe('formatCents', () => {
@@ -67,5 +68,38 @@ describe('dollarsToCents', () => {
     expect(dollarsToCents('0.1')).toBe(10);
     expect(dollarsToCents('0.01')).toBe(1);
     expect(dollarsToCents('0.005')).toBe(1);
+  });
+});
+
+describe('formatMoneyInput', () => {
+  it('reads typed digits as cents, cash-register style', () => {
+    expect(formatMoneyInput('5')).toBe('$0.05');
+    expect(formatMoneyInput('50')).toBe('$0.50');
+    expect(formatMoneyInput('5000')).toBe('$50.00');
+    expect(formatMoneyInput('123456')).toBe('$1,234.56');
+  });
+
+  it('ignores any non-digit characters (currency symbol, commas, letters)', () => {
+    expect(formatMoneyInput('$1,234')).toBe('$12.34');
+    expect(formatMoneyInput('12a3')).toBe('$1.23');
+  });
+
+  it('returns empty string when there are no digits, so a placeholder can show', () => {
+    expect(formatMoneyInput('')).toBe('');
+    expect(formatMoneyInput('abc')).toBe('');
+    expect(formatMoneyInput('$')).toBe('');
+  });
+
+  it('collapses leading zeros', () => {
+    expect(formatMoneyInput('007')).toBe('$0.07');
+  });
+
+  it('clamps at the $999,999.99 ceiling', () => {
+    expect(formatMoneyInput('999999999999')).toBe('$999,999.99');
+  });
+
+  it('round-trips through dollarsToCents', () => {
+    expect(dollarsToCents(formatMoneyInput('5000'))).toBe(5000);
+    expect(dollarsToCents(formatMoneyInput('123456'))).toBe(123456);
   });
 });

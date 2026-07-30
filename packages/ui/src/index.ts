@@ -38,6 +38,8 @@ export type { ErrorFallbackProps } from './components/ErrorFallback';
 export { Button, PrimaryButton, SecondaryButton, DangerButton } from './components/Button';
 export type { ButtonProps, ButtonVariant, ButtonSize } from './components/Button';
 export { ThemeProvider, useTheme } from './components/ThemeProvider';
+export { MoneyInput }       from './components/MoneyInput';
+export type { MoneyInputProps } from './components/MoneyInput';
 
 /**
  * Re-export types so consumers don't need to import from @gfp/theme directly

@@ -4,8 +4,8 @@ import {
   StyleSheet, ActivityIndicator, Image,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme } from '@gfp/ui';
-import { centsToDollarsInput, formatCentsShort } from '@gfp/shared-types';
+import { useTheme, MoneyInput } from '@gfp/ui';
+import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { challengesApi, eventsApi, type HoleChallenge } from '@/lib/api';
 
 const COMMON_CHALLENGES = [
@@ -202,9 +202,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
       setDescription(initial?.description ?? '');
       setSponsorName(initial?.sponsorName ?? '');
       setSponsorLogoUrl(initial?.sponsorLogoUrl ?? '');
-      setDonationAmt(
-        initial?.donationAmountCents ? centsToDollarsInput(initial.donationAmountCents) : ''
-      );
+      setDonationAmt(centsToMoneyValue(initial?.donationAmountCents));
       setError(null);
     }
   }, [visible, initial]);
@@ -223,7 +221,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
     setError(null); setLoading(true);
     try {
       const donationCents = donationAmt.trim()
-        ? Math.round(parseFloat(donationAmt) * 100)
+        ? dollarsToCents(donationAmt)
         : undefined;
       const result = await challengesApi.upsert(eventId, num, {
         description: description.trim(),
@@ -324,13 +322,12 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
           )}
 
           <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Donation Amount (optional)</Text>
-          <TextInput
+          <MoneyInput
             style={[styles.input, { borderColor: theme.colors.accent }]}
             value={donationAmt}
             onChangeText={setDonationAmt}
-            placeholder="0.00"
+            placeholder="$0.00"
             placeholderTextColor="#999"
-            keyboardType="decimal-pad"
             editable={!loading}
           />
 

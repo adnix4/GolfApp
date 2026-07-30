@@ -10,6 +10,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@gfp/shared-types": "*",
     "@gfp/theme": "*",
     "react-native-image-colors": ">=2.6.0"
   },

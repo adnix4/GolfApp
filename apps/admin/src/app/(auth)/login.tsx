@@ -7,10 +7,12 @@ import { useTheme } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useAuth } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 
 export default function LoginScreen() {
   const theme = useTheme();
   const { login } = useAuth();
+  useDocumentTitle('Golf Fundraiser Pro');
 
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');

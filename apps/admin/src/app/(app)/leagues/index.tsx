@@ -3,7 +3,8 @@ import {
   View, Text, FlatList, Pressable, TextInput, StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, AsyncSection, FormModal, PrimaryButton } from '@gfp/ui';
+import { useTheme, AsyncSection, FormModal, PrimaryButton, MoneyInput } from '@gfp/ui';
+import { dollarsToCents } from '@gfp/shared-types';
 import { leagueApi, LeagueSummary } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
 
@@ -24,7 +25,7 @@ export default function LeaguesScreen() {
   const [format, setFormat]     = useState('Stableford');
   const [hcSystem, setHcSystem] = useState('Club');
   const [hcCap, setHcCap]       = useState('36');
-  const [dues, setDues]         = useState('0');
+  const [dues, setDues]         = useState('');
   const [saving, setSaving]     = useState(false);
 
   const load = useCallback(async () => {
@@ -50,11 +51,11 @@ export default function LeaguesScreen() {
         format,
         handicapSystem: hcSystem,
         handicapCap: parseFloat(hcCap) || 36,
-        duesCents: Math.round((parseFloat(dues) || 0) * 100),
+        duesCents: dollarsToCents(dues),
       });
       setShowCreate(false);
       setName(''); setFormat('Stableford'); setHcSystem('Club');
-      setHcCap('36'); setDues('0');
+      setHcCap('36'); setDues('');
       await load();
     } catch (e: unknown) {
       setError((e as Error).message);
@@ -171,9 +172,9 @@ export default function LeaguesScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.label, { color: theme.mutedText }]}>Dues ($)</Text>
-                <TextInput
+                <MoneyInput
                   style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-                  value={dues} onChangeText={setDues} keyboardType="numeric" placeholder="0"
+                  value={dues} onChangeText={setDues} placeholder="$0.00"
                   placeholderTextColor={theme.colors.accent}
                 />
               </View>

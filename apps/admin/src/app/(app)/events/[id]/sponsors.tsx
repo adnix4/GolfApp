@@ -4,8 +4,8 @@ import {
   StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
-import { centsToDollarsInput, formatCentsShort } from '@gfp/shared-types';
+import { useTheme, AdaptiveLogoFrame, MoneyInput } from '@gfp/ui';
+import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { sponsorsApi, type Sponsor, type CreateSponsorPayload, type SponsorPlacements } from '@/lib/api';
 import { UPLOAD_ABORTED } from '@/lib/upload';
 import { UploadProgress } from '@/components/UploadProgress';
@@ -275,9 +275,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
       setTier((initialData?.tier ?? 'gold').toLowerCase());
       setWebsiteUrl(initialData?.websiteUrl ?? '');
       setTagline(initialData?.tagline ?? '');
-      setDonationAmt(
-        initialData?.donationAmountCents ? centsToDollarsInput(initialData.donationAmountCents) : ''
-      );
+      setDonationAmt(centsToMoneyValue(initialData?.donationAmountCents));
       setSelectedHoles(initialData?.placements?.holeNumbers ?? []);
       setError(null);
       setPendingFile(null);
@@ -308,7 +306,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
     setLoading(true);
     try {
       const donationCents = donationAmt.trim()
-        ? Math.round(parseFloat(donationAmt) * 100)
+        ? dollarsToCents(donationAmt)
         : undefined;
 
       const placements: SponsorPlacements = { holeNumbers: selectedHoles };
@@ -443,11 +441,11 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
             />
 
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Donation Amount</Text>
-            <TextInput
+            <MoneyInput
               style={[styles.input, { borderColor: theme.colors.accent }]}
               value={donationAmt} onChangeText={setDonationAmt}
-              placeholder="0.00 (optional)" placeholderTextColor="#999"
-              keyboardType="decimal-pad" editable={!loading}
+              placeholder="$0.00 (optional)" placeholderTextColor="#999"
+              editable={!loading}
             />
 
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Tier</Text>

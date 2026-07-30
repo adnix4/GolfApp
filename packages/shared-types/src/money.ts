@@ -51,3 +51,26 @@ export function dollarsToCents(input: string): number {
   const n = parseFloat(cleaned);
   return isNaN(n) ? 0 : Math.round(n * 100);
 }
+
+/** $999,999.99 ceiling for currency inputs — guards against overflow. */
+export const MAX_MONEY_INPUT_CENTS = 99_999_999;
+
+/**
+ * cents -> initial value for a currency input ('' when zero/empty so the
+ * placeholder shows). Pairs with `formatMoneyInput` / `dollarsToCents`.
+ */
+export function centsToMoneyValue(cents: number | null | undefined): string {
+  return cents ? formatCents(cents) : '';
+}
+
+/**
+ * Live-format raw text from a currency input, cash-register style: keep only the
+ * digits and read them as cents, so typing "5000" yields "$50.00". Empty input
+ * (no digits) returns '' so a placeholder can show. Pairs with dollarsToCents on
+ * save. e.g. '5000' → '$50.00', '$1,234' → '$12.34', 'abc' → ''.
+ */
+export function formatMoneyInput(text: string): string {
+  const digits = text.replace(/\D/g, '');
+  if (!digits) return '';
+  return formatCents(Math.min(parseInt(digits, 10), MAX_MONEY_INPUT_CENTS));
+}
