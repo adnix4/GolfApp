@@ -54,6 +54,7 @@ public record UpdateAuctionItemRequest
     public string?    Title                { get; init; }
     public string?    Description          { get; init; }
     public List<string>? PhotoUrls         { get; init; }
+    public string?    AuctionType          { get; init; }
     public int?       StartingBidCents     { get; init; }
     public int?       BidIncrementCents    { get; init; }
     public int?       BuyNowPriceCents     { get; init; }

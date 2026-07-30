@@ -11,7 +11,11 @@ import {
   formatDateInput, formatTimeInput,
   buildIsoDateTime, parseIsoToFields,
 } from '@/lib/dateTime';
-import { confirmAction } from '@/lib/confirmAction';
+import { confirmAction, alertAction } from '@/lib/confirmAction';
+
+// An item's auction type is locked once it has bids or leaves the Open state
+// (the API enforces this too). Mirror that here so we can warn before saving.
+const TYPE_LOCKED_STATUSES = ['Closed', 'Awarded', 'Cancelled', 'Extended'];
 
 const AUCTION_TYPES = ['Silent', 'Live', 'DonationSilent', 'DonationLive'] as const;
 const TYPE_LABELS: Record<string, string> = {
@@ -127,6 +131,22 @@ export default function AuctionScreen() {
 
   async function handleSave() {
     if (!validate()) return;
+
+    // Block (with an explanatory popup) an auction-type change on an item that
+    // already has bids or is no longer open — the API rejects it either way.
+    if (editItem && form.auctionType !== editItem.auctionType) {
+      const locked = editItem.currentHighBidCents > 0
+        || TYPE_LOCKED_STATUSES.includes(editItem.status);
+      if (locked) {
+        alertAction(
+          "Can't change the auction type",
+          `"${editItem.title}" already has bids or is no longer open, so its auction type can't be changed. ` +
+          'To use a different type, cancel this item and add a new one.',
+        );
+        return;
+      }
+    }
+
     setSaving(true);
     setModalError(null);
     try {

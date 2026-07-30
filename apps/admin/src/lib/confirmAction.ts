@@ -27,3 +27,17 @@ export function confirmAction(
     { text: confirmText, style: 'destructive', onPress: onConfirm },
   ]);
 }
+
+/**
+ * Cross-platform warning/info popup with a single dismiss button.
+ *
+ * Like {@link confirmAction}, on web (React Native Web) Alert.alert is
+ * non-blocking, so we fall back to the browser's blocking window.alert.
+ */
+export function alertAction(title: string, message: string) {
+  if (Platform.OS === 'web') {
+    (globalThis as any).window?.alert(`${title}\n\n${message}`);
+    return;
+  }
+  Alert.alert(title, message, [{ text: 'OK' }]);
+}
