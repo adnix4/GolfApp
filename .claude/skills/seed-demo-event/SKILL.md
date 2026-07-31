@@ -26,7 +26,9 @@ point is reviewing each phase.
 - **Postgres** container `gfp-postgres` up.
 
 The script fails fast with a clear message if the API is unreachable. It needs
-**no** Stripe key — entry fees are applied without creating PaymentIntents.
+**no** Stripe key — entry fees are applied without creating PaymentIntents, and
+auction bids rely on the check-in waiver rather than a saved card. The API must
+run in **Development** (the `/join` verification bypass code depends on it).
 
 ## How to run it
 
@@ -41,6 +43,7 @@ node .claude/skills/seed-demo-event/seed_demo_event.mjs <command>
 | `setup`   | Registers a throwaway org+admin, creates the event, attaches a par-72 course, applies **custom colors**, adds **6 unique sponsors** + **4 hole challenges** + **5 auction items** (4 silent + 1 Fund-a-Need), configures free agents/capacity. Leaves the event in **Draft**. |
 | `advance` | Moves to the next phase and seeds that phase's data (see below). |
 | `status`  | Prints current phase, counts, score-source breakdown, conflicts, and review URLs. |
+| `seed-bids` | **Recovery only.** Re-runs just the auction step (player join + check-in + bids/pledges) for an event already in **Active**. Use when the Active advance succeeded but printed `(not enough eligible players to bid — skipped)`, so the auction can be filled in without advancing a phase. Errors if the event is not Active. |
 | `resolve-conflict [admin\|mobile\|<score>]` | Resolves the seeded mobile-vs-admin conflict (default keeps the **admin** value; `mobile` takes the mobile value; or pass an exact gross score). Prints the team's holes-complete before→after as it rejoins the leaderboard. |
 | `reset`   | Cancels the event and clears local state so a new run can start clean. |
 
@@ -107,11 +110,26 @@ Always surface the exact `…/e/{slug}/{code}` and `…/scores` URLs after each 
   JOINs as actual players (`joinForToken`) to obtain each player's token before
   syncing scores or bidding — exactly what the Expo app does. A call with a
   missing/wrong token is rejected (`400`/`404`), so this also exercises the auth.
+- **`/join` is TWO calls once the event leaves Draft (A3 email verification).**
+  The first call emails a 6-digit code and returns `verificationRequired: true`
+  with a **null `player`** and an empty `sessionToken`; the second call must
+  repeat the request with `verificationCode`. `joinForToken` handles both steps
+  using the dev bypass code `999999`
+  (`JoinVerification:TestBypassCode` in `apps/api/appsettings.Development.json`)
+  — so the API must be running in **Development**. Draft events skip
+  verification entirely, which is why `setup` never hits this.
+  If every join starts failing, suspect this flow first: it broke the seeder
+  once already (the skill predated A3), and because `joinForToken` feeds both
+  the Active auction bids **and** the Scoring phase's mobile-sync + conflict
+  seeding, the symptom was a silent "not enough eligible players" with no bids.
+  Both call sites now surface the underlying error instead of swallowing it.
 - **Auction items stay Open** for the whole demo. Closing/awarding/buy-now would
   trigger `ChargeWinnerAsync` (Stripe), which 500s with no `STRIPE_SECRET_KEY`.
   So the seeder only creates items + bids/pledges; it never produces winners or
-  charges. Bidding requires `CheckedIn` players (the eligibility rule waives the
-  payment-method requirement for checked-in players), which is why bids are
-  seeded in the **Active** phase, after player check-in.
+  charges. Bidding requires `CheckedIn` players — the server rule is
+  `NeedsPaymentMethod = !hasPaymentMethod && checkInStatus != CheckedIn`
+  (`AuctionBidRules.cs`), i.e. checking a player in waives the saved-card
+  requirement. That is why bids are seeded in the **Active** phase, after player
+  check-in, and why no Stripe key is needed to demo bidding.
 - If `advance` reports an unexpected status, the event was moved outside this tool
   — run `status`, and `reset` if needed.
