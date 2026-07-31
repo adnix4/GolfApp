@@ -677,3 +677,17 @@ public record PublicDonateResponse
     public int    AmountCents { get; init; }
     public string Message     { get; init; } = string.Empty;
 }
+
+/// <summary>
+/// POST /api/v1/pub/events/{code}/donate/intent
+/// The donation row exists but is PENDING — it starts counting toward the
+/// fundraising total only once Stripe confirms the payment.
+/// </summary>
+public record PublicDonateIntentResponse
+{
+    public Guid   DonationId   { get; init; }
+    public int    AmountCents  { get; init; }
+
+    /// <summary>Stripe PaymentIntent client secret for Elements in the browser.</summary>
+    public string ClientSecret { get; init; } = string.Empty;
+}

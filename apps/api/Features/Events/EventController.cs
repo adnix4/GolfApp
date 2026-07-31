@@ -467,6 +467,30 @@ public class EventController : ControllerBase
         return StatusCode(StatusCodes.Status201Created, response);
     }
 
+    /// <summary>
+    /// Starts an online card donation: creates a PENDING donation plus a Stripe
+    /// PaymentIntent and returns its client secret for the browser to confirm.
+    /// The donation counts toward fundraising totals only once Stripe confirms it
+    /// (via webhook, or the client's confirm-donation call).
+    /// No authentication required. 400 when Stripe is not configured — the widget
+    /// then falls back to the offline pledge flow above.
+    /// 404 for Draft and Cancelled events.
+    /// </summary>
+    [HttpPost("api/v1/pub/events/{eventCode}/donate/intent")]
+    [AllowAnonymous]
+    [EnableRateLimiting("donate")]
+    [ProducesResponseType(typeof(PublicDonateIntentResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PublicDonateIntentResponse>> CreateDonationIntent(
+        [FromRoute] string eventCode,
+        [FromBody] PublicDonateRequest request,
+        CancellationToken ct)
+    {
+        var response = await _eventService.CreatePublicDonationIntentAsync(eventCode, request, ct);
+        return Ok(response);
+    }
+
     // ── TEST DATA ─────────────────────────────────────────────────────────────
 
     /// <summary>

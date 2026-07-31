@@ -60,6 +60,22 @@ public class PaymentsController : ControllerBase
         var recorded = await _payments.ConfirmEntryFeeAsync(request.PaymentIntentId, ct);
         return Ok(new { recorded });
     }
+
+    /// <summary>
+    /// POST /api/v1/payments/confirm-donation
+    /// Body: { paymentIntentId }
+    /// Called by the public donation widget right after the card payment succeeds
+    /// so the fundraising thermometer updates immediately; the Stripe webhook is
+    /// the backstop. Like confirm-entry-fee, the server re-fetches the intent from
+    /// Stripe, so this call cannot forge a donation.
+    /// </summary>
+    [HttpPost("confirm-donation")]
+    public async Task<IActionResult> ConfirmDonation(
+        [FromBody] ConfirmDonationRequest request, CancellationToken ct)
+    {
+        var recorded = await _payments.ConfirmDonationAsync(request.PaymentIntentId, ct);
+        return Ok(new { recorded });
+    }
 }
 
 // SessionToken (minted at /join) authorizes the call so nobody can attach a card
@@ -67,3 +83,4 @@ public class PaymentsController : ControllerBase
 public record SetupIntentRequest(Guid PlayerId, string SessionToken);
 public record ConfirmSetupRequest(Guid PlayerId, string SetupIntentId, string SessionToken);
 public record ConfirmEntryFeeRequest(string PaymentIntentId);
+public record ConfirmDonationRequest(string PaymentIntentId);

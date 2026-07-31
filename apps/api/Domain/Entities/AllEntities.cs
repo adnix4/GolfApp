@@ -839,12 +839,31 @@ public class Donation
     public bool ReceiptSent { get; set; } = false;
 
     /// <summary>
-    /// Phase 4: Stripe PaymentIntent ID for online donations processed via the donation widget.
-    /// Null for Phase 1 (donations are recorded manually by the organizer).
+    /// Stripe PaymentIntent ID for online donations processed via the donation widget.
+    /// Null when the organizer recorded the donation manually (offline/pledge flow).
     /// </summary>
     [Column("stripe_payment_intent_id")]
     [MaxLength(100)]
     public string? StripePaymentIntentId { get; set; }
+
+    /// <summary>
+    /// When the online donation was confirmed collected by Stripe.
+    /// Null while a card payment is still pending — such a row must NOT count
+    /// toward fundraising totals. Manual/offline donations leave both this and
+    /// <see cref="StripePaymentIntentId"/> null and are always counted, so the
+    /// organizer-entered flow is unaffected. See <see cref="IsCollected"/>.
+    /// </summary>
+    [Column("paid_at")]
+    public DateTime? PaidAt { get; set; }
+
+    /// <summary>
+    /// True when this donation represents real money: either an offline donation
+    /// the organizer vouched for, or an online one Stripe confirmed.
+    /// NOTE: EF cannot translate this in a server-side projection — queries that
+    /// run in the database inline the equivalent predicate instead.
+    /// </summary>
+    [NotMapped]
+    public bool IsCollected => StripePaymentIntentId is null || PaidAt is not null;
 
     /// <summary>True for admin-generated test data; cleared when moving to Active.</summary>
     [Column("is_test")]

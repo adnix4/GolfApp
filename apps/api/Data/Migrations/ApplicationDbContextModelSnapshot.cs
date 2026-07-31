@@ -514,6 +514,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_test");
 
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at");
+
                     b.Property<bool>("ReceiptSent")
                         .HasColumnType("boolean")
                         .HasColumnName("receipt_sent");
@@ -526,6 +530,9 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("EventId");
+
+                    b.HasIndex("StripePaymentIntentId")
+                        .HasDatabaseName("IX_donations_stripe_payment_intent_id");
 
                     b.ToTable("donations");
                 });

@@ -267,3 +267,37 @@ export async function submitDonation(eventCode: string, payload: DonatePayload):
   if (!ok) return { ok: false, message: data?.detail ?? data?.title ?? 'Donation failed.' };
   return { ok: true, message: data?.message ?? 'Thank you for your donation!' };
 }
+
+export interface DonateIntentResult {
+  ok:            boolean;
+  message:       string;
+  clientSecret?: string;
+  amountCents?:  number;
+}
+
+/**
+ * Starts an online card donation. The donation row is created PENDING and only
+ * counts toward the fundraising total once Stripe confirms the payment.
+ */
+export async function createDonationIntent(
+  eventCode: string,
+  payload:   DonatePayload,
+): Promise<DonateIntentResult> {
+  const { ok, data } = await postJson(`${BASE}/api/v1/pub/events/${eventCode}/donate/intent`, payload);
+  if (!ok) return { ok: false, message: data?.detail ?? data?.title ?? 'Could not start the donation.' };
+  return { ok: true, message: '', clientSecret: data.clientSecret, amountCents: data.amountCents };
+}
+
+/**
+ * Best-effort: records the donation as collected immediately so the thermometer
+ * moves without waiting for the Stripe webhook. The webhook is the backstop, so
+ * a failure here only delays the total, it never loses the donation.
+ */
+export async function confirmDonation(paymentIntentId: string): Promise<boolean> {
+  try {
+    const { ok } = await postJson(`${BASE}/api/v1/payments/confirm-donation`, { paymentIntentId });
+    return ok;
+  } catch {
+    return false;
+  }
+}

@@ -120,6 +120,15 @@ public class StripeWebhookController : ControllerBase
             return;
         }
 
+        // Public donations carry donation/donation_id metadata (set in
+        // PaymentsService.CreateDonationPaymentIntentAsync) — mark the row collected
+        // so it counts toward the fundraising thermometer.
+        if (pi.Metadata.TryGetValue("donation", out var donationFlag) && donationFlag == "true")
+        {
+            await _payments.ApplyDonationPaymentAsync(pi, ct);
+            return;
+        }
+
         if (!pi.Metadata.TryGetValue("winner_id", out var winnerIdStr)
             || !Guid.TryParse(winnerIdStr, out var winnerId))
         {

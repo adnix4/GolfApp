@@ -289,4 +289,129 @@ public class PaymentsService
 
         return await ApplyEntryFeePaymentAsync(pi, ct);
     }
+
+    // ── PUBLIC DONATIONS ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// True when a usable Stripe secret key is present; callers fall back to the
+    /// offline pledge flow otherwise.
+    ///
+    /// The shipped .env templates carry REPLACE_WITH… placeholders, which are
+    /// non-empty but rejected by Stripe. Treating those as "configured" would send
+    /// donors to a card form that cannot possibly work, so they count as unset.
+    /// </summary>
+    public bool IsStripeConfigured => IsUsableStripeKey(_config["STRIPE_SECRET_KEY"]);
+
+    internal static bool IsUsableStripeKey(string? key) =>
+        !string.IsNullOrWhiteSpace(key)
+        && key.StartsWith("sk_", StringComparison.Ordinal)
+        && !key.Contains("REPLACE_WITH", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Creates a PaymentIntent for a public donation. Donors are anonymous — there
+    /// is no player account and no saved card — so no Stripe Customer is created;
+    /// the receipt email address travels on the intent instead.
+    ///
+    /// Does not persist anything: the caller saves the donation row only once this
+    /// succeeds, so a Stripe outage cannot leave orphan pending rows behind.
+    /// </summary>
+    public async Task<string> CreateDonationPaymentIntentAsync(
+        Donation donation, string eventName, CancellationToken ct = default)
+    {
+        var apiKey = _config["STRIPE_SECRET_KEY"];
+        if (!IsUsableStripeKey(apiKey))
+            throw new Common.Middleware.ValidationException("Online donations are not available for this event.");
+
+        StripeConfiguration.ApiKey = apiKey;
+
+        try
+        {
+            var pi = await new PaymentIntentService().CreateAsync(new PaymentIntentCreateOptions
+            {
+                Amount             = donation.AmountCents,
+                Currency           = "usd",
+                ReceiptEmail       = donation.DonorEmail,
+                PaymentMethodTypes = new List<string> { "card" },
+                Metadata           = new Dictionary<string, string>
+                {
+                    ["donation"]    = "true",
+                    ["donation_id"] = donation.Id.ToString(),
+                    ["event_id"]    = donation.EventId.ToString(),
+                    ["event_name"]  = eventName,
+                },
+                Description = $"Donation — {eventName}",
+            }, cancellationToken: ct);
+
+            donation.StripePaymentIntentId = pi.Id;
+            return pi.ClientSecret!;
+        }
+        catch (StripeException ex)
+        {
+            // A misconfigured key or a Stripe outage is not the donor's fault and
+            // not a server bug — surface it as a clean message so the widget can
+            // say so instead of rendering a dead card form.
+            _logger.LogError(ex, "Could not create donation PaymentIntent for event {Event}", eventName);
+            throw new Common.Middleware.ValidationException(
+                "Online donations are temporarily unavailable. Please try again later.");
+        }
+    }
+
+    /// <summary>
+    /// Marks the donation behind a succeeded PaymentIntent as collected, which is
+    /// what makes it count toward the fundraising thermometer. Called from the
+    /// Stripe webhook and from the client confirm endpoint. Idempotent.
+    /// </summary>
+    public async Task<bool> ApplyDonationPaymentAsync(PaymentIntent pi, CancellationToken ct = default)
+    {
+        if (pi.Status != "succeeded") return false;
+        if (!pi.Metadata.TryGetValue("donation", out var flag) || flag != "true") return false;
+        if (!pi.Metadata.TryGetValue("donation_id", out var idRaw)
+            || !Guid.TryParse(idRaw, out var donationId)) return false;
+
+        var donation = await _db.Donations.FirstOrDefaultAsync(d => d.Id == donationId, ct);
+        if (donation is null)
+        {
+            _logger.LogWarning("Donation {Id} from intent {Pi} no longer exists", donationId, pi.Id);
+            return false;
+        }
+
+        if (donation.PaidAt is not null) return true; // already recorded
+
+        // Trust Stripe's amount over the row: a tampered client could have had the
+        // row written at one amount and paid another.
+        donation.AmountCents           = (int)pi.Amount;
+        donation.StripePaymentIntentId = pi.Id;
+        donation.PaidAt                = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Donation {Id} collected: {Amount}¢ (pi={Pi})", donation.Id, donation.AmountCents, pi.Id);
+        return true;
+    }
+
+    /// <summary>
+    /// Client-driven confirmation fallback for donations, mirroring
+    /// <see cref="ConfirmEntryFeeAsync"/>: the browser calls this the moment Stripe
+    /// confirms, so the thermometer moves without waiting for the webhook. The
+    /// intent is re-fetched and verified server-side, so the caller cannot forge a
+    /// donation by supplying an id alone.
+    /// </summary>
+    public async Task<bool> ConfirmDonationAsync(string paymentIntentId, CancellationToken ct = default)
+    {
+        StripeConfiguration.ApiKey = _config["STRIPE_SECRET_KEY"]
+            ?? throw new InvalidOperationException("STRIPE_SECRET_KEY not configured");
+
+        PaymentIntent pi;
+        try
+        {
+            pi = await new PaymentIntentService().GetAsync(paymentIntentId, cancellationToken: ct);
+        }
+        catch (StripeException ex)
+        {
+            _logger.LogWarning(ex, "Donation confirm failed to verify intent {Pi}", paymentIntentId);
+            throw new Common.Middleware.ValidationException("Payment could not be verified.");
+        }
+
+        return await ApplyDonationPaymentAsync(pi, ct);
+    }
 }
