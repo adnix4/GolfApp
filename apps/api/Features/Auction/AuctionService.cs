@@ -113,6 +113,30 @@ public class AuctionService
         await VerifyEventOwnershipAsync(orgId, eventId, ct);
         var item = await GetItemOrThrowAsync(itemId, eventId, ct);
 
+        // Auction type may only change while the item is still Open with no bids.
+        // Switching a bid-on or closed item would strand existing bids and confuse
+        // the silent-close / live-award flows, so we reject it with a clear message.
+        if (req.AuctionType is not null)
+        {
+            if (!Enum.TryParse<AuctionType>(req.AuctionType, ignoreCase: true, out var newType))
+                throw new ValidationException($"Unknown auction_type '{req.AuctionType}'.");
+
+            if (newType != item.AuctionType)
+            {
+                if (item.Status is AuctionItemStatus.Closed or AuctionItemStatus.Awarded
+                                or AuctionItemStatus.Cancelled)
+                    throw new ValidationException(
+                        "This item is closed or awarded, so its auction type can no longer be changed.");
+
+                if (await _db.Bids.AnyAsync(b => b.AuctionItemId == itemId, ct))
+                    throw new ValidationException(
+                        "This item already has bids, so its auction type can't be changed. " +
+                        "Cancel it and add a new item with the type you need.");
+
+                item.AuctionType = newType;
+            }
+        }
+
         if (req.Title               is not null) item.Title               = req.Title;
         if (req.Description         is not null) item.Description         = req.Description;
         if (req.PhotoUrls           is not null) item.PhotoUrlsJson        = JsonSerializer.Serialize(req.PhotoUrls);
