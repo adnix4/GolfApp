@@ -240,6 +240,102 @@ public class EventServiceTests
         Assert.Null(resp.SpotsRemaining); // no maxTeams configured
     }
 
+    // ── Donation collection rule ──────────────────────────────────────────────
+    //
+    // Online donations are written PENDING (intent id set, paid_at null) and must
+    // not count until Stripe confirms. Offline donations recorded by the organizer
+    // have no intent id and always count.
+
+    /// <summary>Seeds one of each donation shape; only 2500 + 1500 should count.</summary>
+    private static void SeedMixedDonations(Ctx c)
+    {
+        c.Db.Donations.AddRange(
+            // Offline / organizer-recorded — counts.
+            new Donation { Id = Guid.NewGuid(), EventId = c.EventId, AmountCents = 2500 },
+            // Online, Stripe confirmed — counts.
+            new Donation
+            {
+                Id = Guid.NewGuid(), EventId = c.EventId, AmountCents = 1500,
+                StripePaymentIntentId = "pi_paid", PaidAt = DateTime.UtcNow,
+            },
+            // Online, still pending / abandoned — must NOT count.
+            new Donation
+            {
+                Id = Guid.NewGuid(), EventId = c.EventId, AmountCents = 9900,
+                StripePaymentIntentId = "pi_pending", PaidAt = null,
+            });
+        c.Db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task GetPublicEvent_excludes_pending_online_donations()
+    {
+        var c = Build();
+        SeedMixedDonations(c);
+
+        var resp = await c.Svc.GetPublicEventAsync("GALA0001");
+
+        Assert.Equal(4000, resp.Fundraising.DonationsCents); // 9900 pending excluded
+    }
+
+    [Fact]
+    public async Task GetPublicFundraising_excludes_pending_online_donations()
+    {
+        var c = Build();
+        SeedMixedDonations(c);
+
+        var resp = await c.Svc.GetPublicFundraisingAsync("GALA0001");
+
+        Assert.Equal(4000, resp.DonationsCents);
+        Assert.Equal(4000, resp.GrandTotalCents);
+    }
+
+    [Fact]
+    public async Task GetFundraising_excludes_pending_donations_from_total_and_count()
+    {
+        var c = Build();
+        SeedMixedDonations(c);
+
+        var resp = await c.Svc.GetFundraisingAsync(c.OrgId, c.EventId);
+
+        Assert.Equal(4000, resp.DonationsCents);
+        Assert.Equal(2, resp.DonationCount); // the pending row is not a donation yet
+    }
+
+    [Fact]
+    public async Task CreateDonationIntent_is_rejected_when_stripe_is_not_configured()
+    {
+        var c = Build(); // built without a PaymentsService
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            c.Svc.CreatePublicDonationIntentAsync("GALA0001", new PublicDonateRequest
+            {
+                DonorName = "Pat", DonorEmail = "pat@example.com", AmountCents = 5000,
+            }));
+
+        Assert.Empty(c.Db.Donations); // no orphan row left behind
+    }
+
+    [Theory]
+    // Unset, or one of the REPLACE_WITH placeholders the .env templates ship with:
+    // non-empty but rejected by Stripe, so it must not count as configured.
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("sk_test_REPLACE_WITH_YOUR_TEST_KEY")]
+    [InlineData("pk_test_a_publishable_key_by_mistake")]
+    public void Placeholder_or_missing_stripe_keys_are_not_usable(string? key)
+        => Assert.False(GolfFundraiserPro.Api.Features.Payments.PaymentsService.IsUsableStripeKey(key));
+
+    [Fact]
+    public void A_configured_secret_key_is_usable()
+        // Deliberately NOT shaped like a real Stripe key. The predicate only
+        // inspects the prefix, and a literal resembling a genuine test key
+        // trips GitHub push protection even when it is entirely invented.
+        // Do not "fix" this to look more authentic.
+        => Assert.True(GolfFundraiserPro.Api.Features.Payments.PaymentsService
+            .IsUsableStripeKey("sk_unit_test_not_a_real_key"));
+
     // ── Status micro-endpoint ─────────────────────────────────────────────────
 
     [Theory]

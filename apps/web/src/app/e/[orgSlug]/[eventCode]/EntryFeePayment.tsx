@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
-import { confirmEntryFee } from '@/lib/api';
+import { confirmEntryFee, confirmDonation } from '@/lib/api';
 
 // ── STRIPE SETUP ──────────────────────────────────────────────────────────────
 // The publishable key is safe to expose; when it isn't configured the payment
@@ -24,15 +24,24 @@ export function formatUsd(cents: number): string {
 // with an entry-fee PaymentIntent. Confirms in the browser, then best-effort
 // marks the golfers paid (the Stripe webhook is the backstop).
 
-interface EntryFeePaymentProps {
+interface StripePaymentProps {
   clientSecret: string;
   amountCents:  number;
-  /** e.g. "$50.00 × 3 golfers" — shown above the card form. */
-  breakdown:    string | null;
+  /** Left-hand text in the summary row, e.g. "Entry fee · $50.00 × 3 golfers". */
+  summaryLabel: string;
+  /** Verb on the submit button, e.g. "Pay" or "Donate". */
+  payVerb:      string;
+  /**
+   * Best-effort server-side record of the succeeded intent. The Stripe webhook is
+   * the backstop, so this only makes the total appear sooner.
+   */
+  onConfirmed:  (paymentIntentId: string) => Promise<unknown>;
   onPaid:       () => void;
 }
 
-export default function EntryFeePayment({ clientSecret, amountCents, breakdown, onPaid }: EntryFeePaymentProps) {
+/** Shared Elements wrapper — entry fees and donations differ only in labels
+ *  and which confirm endpoint they call. */
+function StripePayment({ clientSecret, ...form }: StripePaymentProps) {
   // Match Stripe's inputs to the event theme (CSS vars are set on :root by the page).
   const appearance = useMemo(() => {
     const primary = typeof window !== 'undefined'
@@ -48,12 +57,52 @@ export default function EntryFeePayment({ clientSecret, amountCents, breakdown, 
 
   return (
     <Elements stripe={stripePromise} options={{ clientSecret, appearance }}>
-      <PayForm amountCents={amountCents} breakdown={breakdown} onPaid={onPaid} />
+      <PayForm {...form} />
     </Elements>
   );
 }
 
-function PayForm({ amountCents, breakdown, onPaid }: Omit<EntryFeePaymentProps, 'clientSecret'>) {
+interface EntryFeePaymentProps {
+  clientSecret: string;
+  amountCents:  number;
+  /** e.g. "$50.00 × 3 golfers" — shown above the card form. */
+  breakdown:    string | null;
+  onPaid:       () => void;
+}
+
+export default function EntryFeePayment({ clientSecret, amountCents, breakdown, onPaid }: EntryFeePaymentProps) {
+  return (
+    <StripePayment
+      clientSecret={clientSecret}
+      amountCents={amountCents}
+      summaryLabel={`Entry fee${breakdown ? ` · ${breakdown}` : ''}`}
+      payVerb="Pay"
+      onConfirmed={confirmEntryFee}
+      onPaid={onPaid}
+    />
+  );
+}
+
+/** Card step of the public donation widget. */
+export function DonationPayment({ clientSecret, amountCents, orgName, onPaid }: {
+  clientSecret: string;
+  amountCents:  number;
+  orgName:      string;
+  onPaid:       () => void;
+}) {
+  return (
+    <StripePayment
+      clientSecret={clientSecret}
+      amountCents={amountCents}
+      summaryLabel={`Donation to ${orgName}`}
+      payVerb="Donate"
+      onConfirmed={confirmDonation}
+      onPaid={onPaid}
+    />
+  );
+}
+
+function PayForm({ amountCents, summaryLabel, payVerb, onConfirmed, onPaid }: Omit<StripePaymentProps, 'clientSecret'>) {
   const stripe   = useStripe();
   const elements = useElements();
   const [paying, setPaying] = useState(false);
@@ -78,7 +127,7 @@ function PayForm({ amountCents, breakdown, onPaid }: Omit<EntryFeePaymentProps, 
       return;
     }
     if (paymentIntent && ['succeeded', 'processing'].includes(paymentIntent.status)) {
-      await confirmEntryFee(paymentIntent.id);
+      await onConfirmed(paymentIntent.id);
       onPaid();
       return;
     }
@@ -89,13 +138,13 @@ function PayForm({ amountCents, breakdown, onPaid }: Omit<EntryFeePaymentProps, 
   return (
     <form onSubmit={handleSubmit}>
       <div style={p.summary}>
-        <span style={p.summaryLabel}>Entry fee{breakdown ? ` · ${breakdown}` : ''}</span>
+        <span style={p.summaryLabel}>{summaryLabel}</span>
         <span style={p.summaryAmount}>{formatUsd(amountCents)}</span>
       </div>
       <PaymentElement />
       {err && <p style={p.error}>⚠️ {err}</p>}
       <button type="submit" disabled={!stripe || paying} style={{ ...p.payBtn, opacity: !stripe || paying ? 0.6 : 1 }}>
-        {paying ? 'Processing…' : `Pay ${formatUsd(amountCents)}`}
+        {paying ? 'Processing…' : `${payVerb} ${formatUsd(amountCents)}`}
       </button>
       <p style={p.secureNote}>🔒 Payments are processed securely by Stripe.</p>
     </form>

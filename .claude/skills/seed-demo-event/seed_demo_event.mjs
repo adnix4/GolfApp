@@ -389,6 +389,7 @@ async function doAuctionBids(state, token) {
   // check-in (bidding eligibility waives the payment method for CheckedIn players).
   const checkedInTeams = state.teams.slice(0, Math.ceil(state.teams.length * 0.8));
   const bidders = [];
+  let firstFailure = null;
   for (const team of checkedInTeams) {
     for (const email of (team.playerEmails || [])) {
       if (bidders.length >= 12) break;
@@ -396,11 +397,20 @@ async function doAuctionBids(state, token) {
         const { playerId, token: sess } = await joinForToken(state, email);
         await api('POST', `/api/v1/events/${state.event.id}/players/${playerId}/check-in`, { token });
         bidders.push({ playerId, token: sess });
-      } catch { /* skip any player that can't join / check in */ }
+      } catch (e) {
+        // Skip this player, but keep the first reason — silently ending up with
+        // zero bidders used to look like "no eligible players" when the real
+        // cause was join/check-in failing for every single one.
+        firstFailure ??= e;
+      }
     }
     if (bidders.length >= 12) break;
   }
-  if (bidders.length < 2) { log('  (not enough eligible players to bid — skipped)'); return; }
+  if (bidders.length < 2) {
+    log('  (not enough eligible players to bid — skipped)');
+    if (firstFailure) log(`  reason: ${firstFailure.message}`);
+    return;
+  }
 
   let b = 0; // rotating bidder index → distinct consecutive bidders, drives outbid history
   let bidCount = 0;
@@ -512,10 +522,33 @@ async function scoreHoles(state, token, from, to, skipTeamIds = []) {
 // Joins as a real player (the mobile join flow) to mint that player's session
 // token. Golfers have no password — this opaque token authorizes their own
 // actions (mobile score sync, auction bids/pledges). Returns { playerId, token }.
+//
+// Join is TWO STEPS once the event leaves Draft (A3 email verification): the
+// first call emails a 6-digit code and returns verificationRequired with a null
+// player, and the second call must carry the code. Locally we use the dev bypass
+// code from appsettings.Development.json (JoinVerification:TestBypassCode).
+// Draft events skip verification, so the first call already returns the payload.
+const DEV_BYPASS_CODE = '999999';
+
 async function joinForToken(state, email) {
-  const resp = await api('POST', `/api/v1/events/${state.event.code}/join`, {
-    body: { email, deviceId: `seed-${email}` },
+  const deviceId = `seed-${email}`;
+  let resp = await api('POST', `/api/v1/events/${state.event.code}/join`, {
+    body: { email, deviceId },
   });
+
+  if (resp.verificationRequired) {
+    resp = await api('POST', `/api/v1/events/${state.event.code}/join`, {
+      body: { email, deviceId, verificationCode: DEV_BYPASS_CODE },
+    });
+  }
+
+  if (!resp.player?.id || !resp.sessionToken) {
+    throw new Error(
+      `join failed for ${email} — no session token. `
+      + `If verification is rejecting the bypass code, confirm ASPNETCORE_ENVIRONMENT=Development `
+      + `and JoinVerification:TestBypassCode=${DEV_BYPASS_CODE}.`,
+    );
+  }
   return { playerId: resp.player.id, token: resp.sessionToken };
 }
 
@@ -566,6 +599,25 @@ async function advance() {
   log(`  ${PHASE_REVIEW[next]}`);
   reviewBlock(state, next);
   if (next !== 'Completed') log('Next:  node seed_demo_event.mjs advance\n');
+}
+
+// ── SEED BIDS (recovery) ─────────────────────────────────────────────────────
+
+// Re-runs just the auction step for an event already in Active. Useful when the
+// Active advance completed but bidding was skipped (e.g. the join flow changed
+// under the seeder), so the auction can be filled in without advancing a phase.
+async function seedBids() {
+  await assertApiUp();
+  const state = loadState();
+  const token = await login(state);
+
+  const evt = await api('GET', `/api/v1/events/${state.event.id}`, { token });
+  if (evt.status !== 'Active')
+    fail(`seed-bids expects the event to be Active (it is ${evt.status}).`);
+
+  await doAuctionBids(state, token);
+  log('\n✔ Auction bids seeded.');
+  reviewBlock(state, 'Active');
 }
 
 // ── STATUS ───────────────────────────────────────────────────────────────────
@@ -669,9 +721,9 @@ async function resolveConflict() {
 // ── ENTRY ────────────────────────────────────────────────────────────────────
 
 const cmd = process.argv[2];
-const actions = { setup, advance, status, reset, 'resolve-conflict': resolveConflict };
+const actions = { setup, advance, status, reset, 'resolve-conflict': resolveConflict, 'seed-bids': seedBids };
 if (!actions[cmd]) {
-  log('Usage: node seed_demo_event.mjs <setup|advance|status|resolve-conflict|reset>');
+  log('Usage: node seed_demo_event.mjs <setup|advance|status|seed-bids|resolve-conflict|reset>');
   process.exit(cmd ? 1 : 0);
 }
 actions[cmd]().catch((e) => fail(e.message));

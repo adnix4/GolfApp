@@ -39,12 +39,28 @@ function PaymentSetupContent() {
   const [saving,       setSaving]        = useState(false);
   const [initError,    setInitError]     = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!player?.id) return;
+  // Deep-linking straight here leaves no history to pop, so fall back to the
+  // auction tab — the only screen that sends you to payment setup.
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/auction'));
+
+  function initSetup() {
+    // No session means nothing to attach a card to — surface it instead of
+    // spinning forever.
+    if (!player?.id) {
+      setInitError('Your session has expired. Rejoin the event to add a payment method.');
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setInitError(null);
     createSetupIntent(player.id, session!.sessionToken)
       .then(({ clientSecret: cs }) => setClientSecret(cs))
       .catch(e => setInitError(e instanceof Error ? e.message : 'Could not initialize payment setup.'))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    initSetup();
   }, [player?.id]);
 
   async function handleSave() {
@@ -68,7 +84,7 @@ function PaymentSetupContent() {
       }
 
       Alert.alert('Payment Method Saved', 'Your card has been saved for auction bids.', [
-        { text: 'OK', onPress: () => router.back() },
+        { text: 'OK', onPress: goBack },
       ]);
     } catch (e: unknown) {
       Alert.alert('Could Not Save Card', e instanceof Error ? e.message : 'Something went wrong. Please try again.');
@@ -83,7 +99,7 @@ function PaymentSetupContent() {
     <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: '#e0e0e0' }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button">
+        <Pressable onPress={goBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: theme.colors.primary }]}>Payment Method</Text>
@@ -98,6 +114,16 @@ function PaymentSetupContent() {
             <Text style={styles.errorMsg}>
               The Stripe publishable key is not set. Please contact the event organizer.
             </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionBtn,
+                { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary },
+              ]}
+              onPress={goBack}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.actionBtnText, { color: theme.buttonLabel }]}>Back to Auction</Text>
+            </Pressable>
           </View>
         ) : loading ? (
           <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 48 }} />
@@ -106,6 +132,19 @@ function PaymentSetupContent() {
             <Ionicons name="alert-circle-outline" size={32} color="#e74c3c" />
             <Text style={styles.errorTitle}>Setup Failed</Text>
             <Text style={styles.errorMsg}>{initError}</Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionBtn,
+                { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary },
+              ]}
+              onPress={initSetup}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.actionBtnText, { color: theme.buttonLabel }]}>Try Again</Text>
+            </Pressable>
+            <Pressable style={styles.secondaryBtn} onPress={goBack} accessibilityRole="button">
+              <Text style={[styles.secondaryBtnText, { color: theme.mutedText }]}>Back to Auction</Text>
+            </Pressable>
           </View>
         ) : (
           <>
@@ -184,6 +223,14 @@ const styles = StyleSheet.create({
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 
   secureNote: { fontSize: 12, color: '#aaa', textAlign: 'center', marginTop: 4 },
+
+  actionBtn: {
+    borderRadius: 12, paddingVertical: 14, paddingHorizontal: 28,
+    alignItems: 'center', marginTop: 8, minWidth: 200,
+  },
+  actionBtnText:    { fontWeight: '700', fontSize: 16 },
+  secondaryBtn:     { paddingVertical: 10, paddingHorizontal: 16 },
+  secondaryBtnText: { fontSize: 14, fontWeight: '600' },
 
   errorCard: { alignItems: 'center', padding: 32, gap: 12 },
   errorTitle: { fontSize: 18, fontWeight: '700', color: '#333' },

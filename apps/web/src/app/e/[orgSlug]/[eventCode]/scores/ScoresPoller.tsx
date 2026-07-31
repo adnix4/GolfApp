@@ -130,6 +130,7 @@ export default function ScoresPoller({
   const isLive      = ['active', 'scoring'].includes(event.status);
   const isCompleted = event.status === 'completed';
   const standings   = leaderboard?.standings ?? [];
+  const eventUrl    = `/e/${event.orgSlug}/${eventCode}`;
 
   const st = tvMode ? tv : nm;
   const themeCss = buildThemeCss(event.resolvedThemeJson);
@@ -157,9 +158,16 @@ export default function ScoresPoller({
         {/* ── HEADER ── */}
         <header style={st.header}>
           <div style={st.headerInner}>
-            <div>
-              <p style={st.orgName}>{event.orgName}</p>
-              <h1 style={st.eventName}>{event.name}</h1>
+            <div style={st.headerLeft}>
+              {/* Always-visible way back. TV mode previously had none at all,
+                  and in normal mode the only link sat below the whole table. */}
+              <a href={eventUrl} style={st.backBtn} aria-label="Back to event page">
+                ← Event
+              </a>
+              <div>
+                <p style={st.orgName}>{event.orgName}</p>
+                <h1 style={st.eventName}>{event.name}</h1>
+              </div>
             </div>
             <div style={st.badges}>
               {isCompleted && <span style={st.finalBadge}>Final</span>}
@@ -172,6 +180,11 @@ export default function ScoresPoller({
             </div>
           </div>
         </header>
+
+        {/* ── SPONSOR TICKER (top, under the header) ── */}
+        {tvMode && sponsors.length > 0 && (
+          <SponsorTicker sponsors={sponsors} />
+        )}
 
         {/* ── TABLE ── */}
         <main style={st.main}>
@@ -206,6 +219,8 @@ export default function ScoresPoller({
         </main>
 
         {/* ── FOOTER (normal mode) ── */}
+        {/* The back link moved into the header; the footer keeps the freshness
+            meta so "Updated Ns ago" still sits under the board. */}
         {!tvMode && (
           <footer style={nm.footer}>
             <div style={nm.footerInner}>
@@ -215,16 +230,8 @@ export default function ScoresPoller({
                 fetchError={fetchError}
                 tvMode={false}
               />
-              <a href={`/e/${event.orgSlug}/${eventCode}`} style={nm.backLink}>
-                ← Event page
-              </a>
             </div>
           </footer>
-        )}
-
-        {/* ── TV SPONSOR TICKER ── */}
-        {tvMode && sponsors.length > 0 && (
-          <SponsorTicker sponsors={sponsors} />
         )}
 
         {/* ── TV STATUS BAR ── */}

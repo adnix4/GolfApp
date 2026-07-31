@@ -53,17 +53,20 @@ public class EventService
 
     private readonly TestDataService _testData;
     private readonly LeaderboardCache? _leaderboardCache;
+    private readonly Payments.PaymentsService? _payments;
 
     public EventService(
         ApplicationDbContext db,
         ILogger<EventService> logger,
         TestDataService testData,
-        LeaderboardCache? leaderboardCache = null)
+        LeaderboardCache? leaderboardCache = null,
+        Payments.PaymentsService? payments = null)
     {
         _db               = db;
         _logger           = logger;
         _testData         = testData;
         _leaderboardCache = leaderboardCache;
+        _payments         = payments;
     }
 
     // ── CREATE ────────────────────────────────────────────────────────────────
@@ -510,7 +513,10 @@ public class EventService
         var playersPaid  = allPlayers.Count(c => c > 0);
         var teamsPaid    = evt.Teams.Count(t =>
             t.EntryFeePaid || (t.Players.Count > 0 && t.Players.All(p => p.EntryFeePaidCents > 0)));
-        var donationTotal = evt.Donations.Sum(d => d.AmountCents);
+        // Only money actually in hand: offline donations the organizer recorded,
+        // plus online ones Stripe confirmed. Abandoned card payments are excluded.
+        var collectedDonations = evt.Donations.Where(d => d.IsCollected).ToList();
+        var donationTotal = collectedDonations.Sum(d => d.AmountCents);
 
         var sponsorTotal = await _db.Sponsors
             .Where(s => s.EventId == eventId)
@@ -531,7 +537,7 @@ public class EventService
             TeamsTotal           = evt.Teams.Count,
             PlayersPaid          = playersPaid,
             PlayersTotal         = allPlayers.Count,
-            DonationCount        = evt.Donations.Count,
+            DonationCount        = collectedDonations.Count,
         };
     }
 
@@ -654,7 +660,11 @@ public class EventService
                     State = e.Course.State,
                 },
                 TeamCount      = e.Teams.Count(),
-                DonationsCents = e.Donations.Sum(d => (int?)d.AmountCents) ?? 0,
+                // Runs in the database, so the Donation.IsCollected predicate is
+                // inlined here rather than referenced (it is [NotMapped]).
+                DonationsCents = e.Donations
+                    .Where(d => d.StripePaymentIntentId == null || d.PaidAt != null)
+                    .Sum(d => (int?)d.AmountCents) ?? 0,
                 Sponsors       = e.Sponsors
                     .Select(s => new { s.Name, s.LogoUrl, s.Tagline, s.Tier, s.PlacementsJson })
                     .ToList(),
@@ -962,7 +972,7 @@ public class EventService
         var entryTotal  = await _db.Players
             .Where(p => p.EventId == evt.Id)
             .SumAsync(p => p.EntryFeePaidCents, ct);
-        var donTotal    = evt.Donations.Sum(d => d.AmountCents);
+        var donTotal    = evt.Donations.Where(d => d.IsCollected).Sum(d => d.AmountCents);
 
         return new PublicFundraisingInfo
         {
@@ -974,6 +984,66 @@ public class EventService
     // ── PUBLIC DONATE ─────────────────────────────────────────────────────────
 
     /// <summary>
+    /// Resolves an event that is currently accepting donations.
+    /// Draft and Cancelled events 404 — they are not public.
+    /// </summary>
+    private async Task<Domain.Entities.Event> LoadDonatableEventAsync(
+        string eventCode, CancellationToken ct)
+    {
+        var evt = await _db.Events
+            .FirstOrDefaultAsync(e => e.EventCode == eventCode.ToUpperInvariant(), ct);
+
+        if (evt is null || evt.Status is EventStatus.Draft or EventStatus.Cancelled)
+            throw new NotFoundException($"No event found with code '{eventCode}'.");
+
+        return evt;
+    }
+
+    /// <summary>
+    /// Starts an online (Stripe) donation: writes the donation row as PENDING and
+    /// returns the PaymentIntent client secret for the browser to confirm.
+    ///
+    /// The row does not count toward fundraising totals until the payment
+    /// succeeds — recorded by the Stripe webhook, or by the client calling
+    /// /api/v1/payments/confirm-donation, whichever lands first.
+    /// </summary>
+    public async Task<PublicDonateIntentResponse> CreatePublicDonationIntentAsync(
+        string eventCode,
+        PublicDonateRequest request,
+        CancellationToken ct = default)
+    {
+        if (_payments is null || !_payments.IsStripeConfigured)
+            throw new ValidationException("Online donations are not available for this event.");
+
+        var evt = await LoadDonatableEventAsync(eventCode, ct);
+
+        var donation = new GolfFundraiserPro.Api.Domain.Entities.Donation
+        {
+            Id          = Guid.NewGuid(),
+            EventId     = evt.Id,
+            DonorName   = request.DonorName,
+            DonorEmail  = request.DonorEmail,
+            AmountCents = request.AmountCents,
+            IsTest      = evt.IsTestMode,
+            // PaidAt stays null until Stripe confirms.
+        };
+
+        // Reserve the intent first; the row is only written once Stripe has
+        // accepted it, so a failure here leaves nothing behind to reconcile.
+        var clientSecret = await _payments.CreateDonationPaymentIntentAsync(donation, evt.Name, ct);
+
+        _db.Donations.Add(donation);
+        await _db.SaveChangesAsync(ct);
+
+        return new PublicDonateIntentResponse
+        {
+            DonationId   = donation.Id,
+            AmountCents  = donation.AmountCents,
+            ClientSecret = clientSecret,
+        };
+    }
+
+    /// <summary>
     /// Records a public donation for an event (no Stripe — manual/pledge flow).
     /// Available for Registration, Active, Scoring, and Completed events.
     /// 404 for Draft and Cancelled events.
@@ -983,11 +1053,7 @@ public class EventService
         PublicDonateRequest request,
         CancellationToken ct = default)
     {
-        var evt = await _db.Events
-            .FirstOrDefaultAsync(e => e.EventCode == eventCode.ToUpperInvariant(), ct);
-
-        if (evt is null || evt.Status is EventStatus.Draft or EventStatus.Cancelled)
-            throw new NotFoundException($"No event found with code '{eventCode}'.");
+        var evt = await LoadDonatableEventAsync(eventCode, ct);
 
         var donation = new GolfFundraiserPro.Api.Domain.Entities.Donation
         {

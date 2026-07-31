@@ -6,6 +6,7 @@ import {
   joinTeam,
   registerFreeAgent,
   submitDonation,
+  createDonationIntent,
   type RegisterTeamPayload,
   type JoinTeamPayload,
   type RegisterFreeAgentPayload,
@@ -13,7 +14,7 @@ import {
   type RegistrationResult,
 } from '@/lib/api';
 import { formatMoneyInput, dollarsToCents } from '@gfp/shared-types';
-import EntryFeePayment, { stripeEnabled, formatUsd } from './EntryFeePayment';
+import EntryFeePayment, { DonationPayment, stripeEnabled, formatUsd } from './EntryFeePayment';
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
 
@@ -219,21 +220,104 @@ function InviteShare({ url }: { url: string }) {
   );
 }
 
+/**
+ * Picks the store listing for the browsing device. Runs only from a click
+ * handler, so `navigator` is always defined and there is nothing to hydrate.
+ * Returns '' on desktop, or when that platform's listing is not published yet.
+ */
+function storeUrlForDevice(): string {
+  const ua = navigator.userAgent;
+  // iPadOS 13+ masquerades as macOS but is still a touch device.
+  if (/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1)) return IOS_STORE_URL;
+  if (/Android/i.test(ua)) return ANDROID_STORE_URL;
+  return '';
+}
+
 /** Post-registration nudge toward the scorer app — the golfer now has a reason to install it. */
 function AppPromo() {
+  const [showStores, setShowStores] = useState(false);
+
+  const anyStoreLive = !!(IOS_STORE_URL || ANDROID_STORE_URL);
+
+  function handleGetApp() {
+    // On a phone with that platform's listing live, go straight to the store.
+    const direct = storeUrlForDevice();
+    if (direct) {
+      window.open(direct, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    // Otherwise fall back to the dialog: a store chooser on desktop, or the
+    // coming-soon notice while the app is still unpublished.
+    setShowStores(true);
+  }
+
   return (
     <div style={s.appPromo}>
       <p style={s.appPromoText}>
         📱 On event day, keep score with the <strong>GFP Scorer</strong> app — it works even
         without a signal and feeds the live leaderboard.
       </p>
-      {(IOS_STORE_URL || ANDROID_STORE_URL) && (
-        <p style={{ margin: '0.5rem 0 0' }}>
-          {IOS_STORE_URL     && <a href={IOS_STORE_URL}     style={s.storeLink}>App Store</a>}
-          {IOS_STORE_URL && ANDROID_STORE_URL && <span style={{ color: '#bbb' }}> · </span>}
-          {ANDROID_STORE_URL && <a href={ANDROID_STORE_URL} style={s.storeLink}>Google Play</a>}
-        </p>
-      )}
+
+      <button type="button" onClick={handleGetApp} style={s.getAppBtn}>
+        Get the App
+      </button>
+
+      {showStores && <StoreDialog onClose={() => setShowStores(false)} live={anyStoreLive} />}
+    </div>
+  );
+}
+
+/**
+ * Nested inside the registration-success modal, so it needs a higher z-index
+ * than the modal it sits on top of.
+ */
+function StoreDialog({ live, onClose }: { live: boolean; onClose: () => void }) {
+  return (
+    <div style={{ ...s.overlay, zIndex: 1100 }} onClick={onClose}>
+      <div style={{ ...s.modal, maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+        <div style={s.modalHeader}>
+          <h3 style={s.modalTitle}>{live ? 'Get the GFP Scorer App' : 'Coming Soon'}</h3>
+          <button onClick={onClose} style={s.closeBtn}>✕</button>
+        </div>
+
+        {live ? (
+          <>
+            <p style={s.appPromoText}>Choose your device to install the app:</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', margin: '1rem 0' }}>
+              {IOS_STORE_URL && (
+                <a href={IOS_STORE_URL} target="_blank" rel="noopener noreferrer" style={s.storeBtn}>
+                   Download on the App Store
+                </a>
+              )}
+              {ANDROID_STORE_URL && (
+                <a href={ANDROID_STORE_URL} target="_blank" rel="noopener noreferrer" style={s.storeBtn}>
+                  ▶ Get it on Google Play
+                </a>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Explicit {' '} — the surrounding text node carries an HTML entity,
+                and the literal space after </strong> gets trimmed without it. */}
+            <p style={{ ...s.appPromoText, fontSize: '0.95rem' }}>
+              🚧 The <strong>GFP Scorer</strong>{' '}
+              app is not in the app stores just yet — we&apos;re putting the finishing touches on it.
+            </p>
+            <p style={{ ...s.appPromoText, marginTop: '0.75rem' }}>
+              You&apos;re already registered, so nothing else is needed right now. Your organizer
+              will send install instructions before event day, and you can always follow the live
+              leaderboard right here in your browser.
+            </p>
+          </>
+        )}
+
+        {/* submitBtn has no alignment of its own — it is centered by the
+            success wrapper elsewhere, so center it explicitly here. */}
+        <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
+          <button onClick={onClose} style={s.submitBtn}>Got It</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -430,6 +514,9 @@ function DonateModal({ eventCode, orgName, is501c3, onClose }: {
   const [done,    setDone]    = useState<string | null>(null);
   const [err,     setErr]     = useState<string | null>(null);
 
+  // Set once the PaymentIntent exists — switches the modal to the card step.
+  const [pay, setPay] = useState<{ clientSecret: string; amountCents: number } | null>(null);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const amountCents = dollarsToCents(dollars);
@@ -442,6 +529,20 @@ function DonateModal({ eventCode, orgName, is501c3, onClose }: {
       donorEmail:  email.trim(),
       amountCents,
     };
+
+    // With Stripe configured the donor pays by card now; otherwise fall back to
+    // recording an offline pledge for the organizer to collect.
+    if (stripeEnabled) {
+      const intent = await createDonationIntent(eventCode, payload);
+      setSaving(false);
+      if (intent.ok && intent.clientSecret) {
+        setPay({ clientSecret: intent.clientSecret, amountCents: intent.amountCents ?? amountCents });
+      } else {
+        setErr(intent.message);
+      }
+      return;
+    }
+
     const result = await submitDonation(eventCode, payload);
     setSaving(false);
     if (result.ok) setDone(result.message);
@@ -449,6 +550,19 @@ function DonateModal({ eventCode, orgName, is501c3, onClose }: {
   }
 
   if (done) return <Modal title="Thank You!" onClose={onClose}><Success message={done} onClose={onClose} /></Modal>;
+
+  if (pay) return (
+    <Modal title={`Donate to ${orgName}`} onClose={onClose}>
+      <DonationPayment
+        clientSecret={pay.clientSecret}
+        amountCents={pay.amountCents}
+        orgName={orgName}
+        onPaid={() => setDone(
+          `Thank you, ${name.trim()}! Your donation of ${formatUsd(pay.amountCents)} has been received.`,
+        )}
+      />
+    </Modal>
+  );
 
   return (
     <Modal title={`Donate to ${orgName}`} onClose={onClose}>
@@ -471,7 +585,11 @@ function DonateModal({ eventCode, orgName, is501c3, onClose }: {
           />
         </FieldRow>
         {err && <ErrorMsg msg={err} />}
-        <SubmitRow saving={saving} label="Submit Donation" onCancel={onClose} />
+        <SubmitRow
+          saving={saving}
+          label={stripeEnabled ? 'Continue to Payment' : 'Submit Donation'}
+          onCancel={onClose}
+        />
       </form>
     </Modal>
   );
@@ -495,7 +613,18 @@ const s: Record<string, React.CSSProperties> = {
   copyBtn:     { padding: '0.5rem 0.9rem', borderRadius: 7, border: '1.5px solid var(--color-primary)', backgroundColor: 'transparent', color: 'var(--color-primary)', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
   appPromo:     { textAlign: 'left', backgroundColor: '#f6f7f6', border: '1px solid #e8e8e8', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1.25rem' },
   appPromoText: { fontSize: '0.85rem', color: '#4b5563', lineHeight: 1.5, margin: 0 },
-  storeLink:    { fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-primary)', textDecoration: 'none' },
+
+  // Outlined so the promo never competes with the modal's primary action.
+  getAppBtn: {
+    width: '100%', marginTop: '0.75rem', padding: '0.6rem 0.9rem', borderRadius: 7,
+    border: '1.5px solid var(--color-primary)', backgroundColor: 'transparent',
+    color: 'var(--color-primary)', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer',
+  },
+  storeBtn: {
+    display: 'block', width: '100%', padding: '0.7rem 0.9rem', borderRadius: 7,
+    backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary, #fff)',
+    fontSize: '0.875rem', fontWeight: 700, textDecoration: 'none', textAlign: 'center',
+  },
 
   donateBtn: { width: '100%', padding: '0.75rem', borderRadius: 8, backgroundColor: 'var(--color-action)', color: 'var(--color-on-action, #fff)', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', border: 'none', marginTop: '0.75rem' },
 
