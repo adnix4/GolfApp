@@ -81,6 +81,15 @@ export const nm = {
 
   header:      { backgroundColor: 'var(--color-primary)', padding: '1.25rem 1.5rem' },
   headerInner: { maxWidth: 960, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' },
+  headerLeft:  { display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0 },
+  // Outlined against the primary header so it reads as a control, not a label.
+  backBtn: {
+    display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0,
+    padding: '6px 12px', borderRadius: 8,
+    border: '1.5px solid rgba(255,255,255,0.45)',
+    color: 'var(--color-on-primary, #fff)', textDecoration: 'none',
+    fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap' as const,
+  },
   orgName:     { fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-on-primary, #fff)', opacity: 0.7, textTransform: 'uppercase' as const, letterSpacing: 1 },
   eventName:   { fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-on-primary, #fff)' },
   badges:      { display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 },
@@ -103,7 +112,6 @@ export const nm = {
   footerInner: { maxWidth: 960, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' },
   footerMeta:  { fontSize: '0.8rem', color: '#4b5563' },
   footerError: { fontSize: '0.8rem', color: '#e74c3c', fontWeight: 600 },
-  backLink:    { fontSize: '0.8rem', color: 'var(--color-action)', textDecoration: 'none', whiteSpace: 'nowrap' as const },
 } as const;
 
 // ── TV MODE ───────────────────────────────────────────────────────────────────
@@ -113,6 +121,15 @@ export const tv = {
 
   header:      { backgroundColor: '#161b22', padding: '1.5rem 2.5rem', borderBottom: '1px solid #30363d' },
   headerInner: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1.5rem' },
+  headerLeft:  { display: 'flex', alignItems: 'center', gap: '1.5rem', minWidth: 0 },
+  // TV mode had no way back at all before this.
+  backBtn: {
+    display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0,
+    padding: '10px 18px', borderRadius: 10,
+    border: '1.5px solid #30363d', backgroundColor: '#1c2128',
+    color: '#e6edf3', textDecoration: 'none',
+    fontSize: '1rem', fontWeight: 700, whiteSpace: 'nowrap' as const,
+  },
   orgName:     { fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase' as const, letterSpacing: 2 },
   eventName:   { fontSize: '2.2rem', fontWeight: 900, color: '#e6edf3' },
   badges:      { display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 },
@@ -135,8 +152,9 @@ export const tv = {
   statusMeta:  { fontSize: '0.85rem', color: '#484f58' },
   statusError: { fontSize: '0.85rem', color: '#f85149', fontWeight: 600 },
 
-  // Sponsor ticker
-  ticker:        { padding: '0.875rem 2.5rem', backgroundColor: '#161b22', borderTop: '1px solid #30363d', display: 'flex', alignItems: 'center', gap: '1.25rem' },
+  // Sponsor ticker — runs across the TOP, directly under the header, so the
+  // divider sits on its bottom edge.
+  ticker:        { padding: '0.875rem 2.5rem', backgroundColor: '#161b22', borderBottom: '1px solid #30363d', display: 'flex', alignItems: 'center', gap: '1.25rem', flexShrink: 0 },
   tickerLabel:   { fontSize: '0.65rem', fontWeight: 800, color: '#484f58', textTransform: 'uppercase' as const, letterSpacing: 2, flexShrink: 0 },
   tickerContent: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
   tickerLogo:    { height: 28, width: 'auto', objectFit: 'contain' as const, borderRadius: 4, backgroundColor: '#fff', padding: '2px 6px' },
