@@ -56,6 +56,8 @@ they run in parallel with everything else.
           sync-back on reconnect.
         - Verification emails arriving on real inboxes (Gmail/Outlook).
         - Stripe test charge + webhook end-to-end; cash mark-paid path.
+        - If D8 shipped: bid from a phone with no saved card after check-in, then
+          walk the failed-charge resolution in admin.
         - TV leaderboard mode on an actual screen.
 
 [ ] D5. MOBILE DISTRIBUTION
@@ -63,6 +65,7 @@ they run in parallel with everything else.
           (or direct APK for a friendly pilot). Expo Go is NOT viable for a
           real event — golfers need an installable build.
         - Push notification credentials (EAS project) verified end-to-end.
+        - Wire up the store links once listings exist — see D7.
 
 [ ] D6. PILOT OPS
         - Nightly pg_dump backups; error monitoring (e.g. Sentry in all three
@@ -72,6 +75,60 @@ they run in parallel with everything else.
           phone fails.
         - Pick a small, friendly event; run a test-mode preview with the
           organizer the week before.
+
+[ ] D7. APP STORE LINKS — FINISH WHEN THE APP GOES LIVE (added 2026-07-31)
+        The web app already has the "Get the App" UI in place; it is running in
+        a deliberate pre-launch mode until the store listings exist.
+        Current behavior: the post-registration success modal shows a "Get the
+        App" button (AppPromo in
+        apps/web/src/app/e/[orgSlug]/[eventCode]/EventActions.tsx). Because
+        NEXT_PUBLIC_IOS_APP_URL / NEXT_PUBLIC_ANDROID_APP_URL are unset, it
+        opens a "Coming Soon" dialog instead of a store.
+        TO FINISH once the app is published:
+        - Set NEXT_PUBLIC_IOS_APP_URL and NEXT_PUBLIC_ANDROID_APP_URL in the
+          web deployment env (documented in .env.example). Setting them is the
+          ONLY step — no code change is needed. With them set the button sends
+          iOS/Android phones straight to their store and shows a two-button
+          store chooser on desktop; the Coming Soon copy disappears by itself.
+        - Set them per environment: staging can point at TestFlight / the
+          Play internal-testing link before the public listings go live.
+        - The same two vars also drive SmartJoin
+          (apps/web/src/app/e/[orgSlug]/[eventCode]/join/SmartJoin.tsx), which
+          hands a golfer off to the store when the gfp:// deep link finds no
+          installed app — verify that path at the same time.
+        - Re-check the Coming Soon fallback still reads correctly if only ONE
+          platform ships first (e.g. Android live, iOS still in review): the
+          chooser shows just the live store, which is intended.
+
+[ ] D8. LET CHECKED-IN GOLFERS BID WITHOUT A SAVED CARD (added 2026-07-31)
+        Pilot-prep item. Removes the hard dependency on Stripe activation for
+        the auction, which has business-verification lead time (see D1).
+        THE SERVER ALREADY ALLOWS THIS. AuctionBidRules.cs:
+          NeedsPaymentMethod = !hasPaymentMethod && checkInStatus != CheckedIn
+        i.e. checking a golfer in already waives the saved-card requirement.
+        /seed-demo-event relies on exactly this to seed bids with no Stripe key.
+        THE MOBILE APP IS STRICTER THAN THE SERVER and must be brought in line:
+        - apps/mobile/app/(scoring)/auction.tsx line ~483 disables the Bid/Pledge
+          button on `!player?.hasPaymentMethod` alone, ignoring check-in; the
+          banner at line ~198 says "bids require a saved card", which is simply
+          FALSE for a checked-in golfer. Both need the check-in condition.
+        - API CHANGE NEEDED FIRST: PlayerCacheDto (Features/Mobile/MobileModels.cs)
+          exposes HasPaymentMethod but NOT CheckInStatus, and the mobile app has
+          no notion of check-in state anywhere. Add the field to the join payload
+          (and refresh it on check-in) before the client rule can be written —
+          this is NOT a client-only change.
+        - Re-word the banner to something true, e.g. "Add a card to bid before
+          you check in" / "You're checked in — no card needed to bid."
+        COLLECTION CONSEQUENCE (the real decision): a cardless winner cannot be
+        charged. ChargeWinnerAsync throws, the winner is marked
+        ChargeStatus.Failed and logged, and the item close still completes
+        (AuctionService.cs ~458-465) — nothing breaks. The organizer then settles
+        via the existing failed-charge flow (WaiveChargeAsync / retry / collect
+        at the table). That is the same cash fallback D1 already assumes for
+        entry fees, so it is consistent — but confirm the organizer is willing to
+        chase payment before enabling this for a real event.
+        VERIFY AT D4 (dress rehearsal): bid from a phone with no card saved after
+        check-in, close the item, and walk the failed-charge resolution in admin.
 
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done.
