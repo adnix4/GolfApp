@@ -102,7 +102,7 @@ they run in parallel with everything else.
 
 [x] D8. LET CHECKED-IN GOLFERS BID WITHOUT A SAVED CARD (added 2026-07-31,
         done 2026-07-31)
-        DONE — but the job was bigger than described below. Three defects, not
+        DONE — but the job was bigger than first scoped. Three defects, not
         one, stood between a checked-in golfer and a cardless bid:
         (a) Admin's Check In button was DEAD CODE. The API projects
             CheckInStatus with .ToString() ("Pending"/"CheckedIn"/"Complete")
@@ -117,7 +117,11 @@ they run in parallel with everything else.
             cascades to every golfer on the roster, sets the team to Complete,
             and broadcasts. PlayerService.CheckInAsync is now idempotent (it
             threw), matching what its own endpoint doc already claimed.
-        (c) The mobile client rule, as described below.
+        (c) The mobile client was STRICTER THAN THE SERVER: auction.tsx disabled
+            the Bid/Pledge button on !hasPaymentMethod alone, ignoring check-in,
+            and the banner claimed "bids require a saved card" — false for a
+            checked-in golfer. Both now carry the check-in condition, and the
+            banner reads "You're checked in — no card needed to bid."
         UI (as specified by the user): a "Check In Team" button that appears
         ONLY when every golfer on the roster has a card, replaced otherwise by
         "N of M golfers have no card — check in individually"; a per-golfer
@@ -135,6 +139,13 @@ they run in parallel with everything else.
         The rule itself is now shared: packages/shared-types/src/auctionRules.ts
         mirrors AuctionBidRules.NeedsPaymentMethod, tested against the same
         three cases as apps/api-tests/AuctionBidRulesTests.cs.
+        COLLECTION CONSEQUENCE (the standing decision behind this item): a
+        cardless winner cannot be charged. ChargeWinnerAsync throws, the winner
+        is marked ChargeStatus.Failed and logged, and the item close still
+        completes — nothing breaks. The organizer settles via the failed-charge
+        flow (waive / retry / collect at the table), the same cash fallback D1
+        already assumes for entry fees. Confirm the organizer is willing to
+        chase payment before enabling this for a real event.
         VERIFIED: 450 API tests, 119 admin, 115 mobile, 91 shared-types, 4 apps
         typecheck clean. Driven live against localhost — team cascade, per-golfer
         promotion to Complete, idempotency, the status-poll flip, the join
@@ -147,37 +158,6 @@ they run in parallel with everything else.
         D4 note: the dress-rehearsal sub-item "bid from a phone with no saved
         card after check-in" is now pre-verified at the API level; only the
         on-device walk and the failed-charge resolution remain for D4.
-
-        ---- original entry ----
-[ ] D8. LET CHECKED-IN GOLFERS BID WITHOUT A SAVED CARD (added 2026-07-31)
-        Pilot-prep item. Removes the hard dependency on Stripe activation for
-        the auction, which has business-verification lead time (see D1).
-        THE SERVER ALREADY ALLOWS THIS. AuctionBidRules.cs:
-          NeedsPaymentMethod = !hasPaymentMethod && checkInStatus != CheckedIn
-        i.e. checking a golfer in already waives the saved-card requirement.
-        /seed-demo-event relies on exactly this to seed bids with no Stripe key.
-        THE MOBILE APP IS STRICTER THAN THE SERVER and must be brought in line:
-        - apps/mobile/app/(scoring)/auction.tsx line ~483 disables the Bid/Pledge
-          button on `!player?.hasPaymentMethod` alone, ignoring check-in; the
-          banner at line ~198 says "bids require a saved card", which is simply
-          FALSE for a checked-in golfer. Both need the check-in condition.
-        - API CHANGE NEEDED FIRST: PlayerCacheDto (Features/Mobile/MobileModels.cs)
-          exposes HasPaymentMethod but NOT CheckInStatus, and the mobile app has
-          no notion of check-in state anywhere. Add the field to the join payload
-          (and refresh it on check-in) before the client rule can be written —
-          this is NOT a client-only change.
-        - Re-word the banner to something true, e.g. "Add a card to bid before
-          you check in" / "You're checked in — no card needed to bid."
-        COLLECTION CONSEQUENCE (the real decision): a cardless winner cannot be
-        charged. ChargeWinnerAsync throws, the winner is marked
-        ChargeStatus.Failed and logged, and the item close still completes
-        (AuctionService.cs ~458-465) — nothing breaks. The organizer then settles
-        via the existing failed-charge flow (WaiveChargeAsync / retry / collect
-        at the table). That is the same cash fallback D1 already assumes for
-        entry fees, so it is consistent — but confirm the organizer is willing to
-        chase payment before enabling this for a real event.
-        VERIFY AT D4 (dress rehearsal): bid from a phone with no card saved after
-        check-in, close the item, and walk the failed-charge resolution in admin.
 
 [x] D9. OPEN-SCORING GATE + THE AUCTION OUTLIVES THE ROUND (2026-07-31)
         Started as "don't enable Open Scoring until all teams are checked in".
@@ -303,6 +283,50 @@ they run in parallel with everything else.
         paid" pill it used to hide at zero.
         Entry-fee state lives on the golfer. Do not reintroduce a team-level
         boolean as a source of truth.
+
+[ ] D14. FUND-A-NEED ITEMS ALWAYS REPORT "RAISED: $0.00" (found 2026-07-31)
+        AuctionService.MapItem (:768) sets TotalRaisedCents = i.CurrentHighBidCents,
+        but PlaceBidAsync only writes CurrentHighBidCents for competitive items
+        ("if (!isDonation)", :268) — pledges stack rather than outbid, so the
+        column stays 0 on a donation item forever. Every Fund-a-Need item in the
+        mobile auction list therefore shows "Raised: $0.00 / $goal" no matter how
+        much has been pledged, which is exactly the number that motivates the
+        next pledge. GoalCents is served but the progress against it is a lie.
+        Fix: sum the item's bids for donation types. The same reasoning is
+        already written out in EventService.GetAuctionRevenueAsync (D-auction
+        total), which sums bids for precisely this reason — so the query shape
+        is settled, it just needs to reach the DTO. Watch the N+1: MapItem is
+        called per item from GetPublicItemsAsync, so the sums want one grouped
+        query up front, not a lookup inside the map.
+        Small, self-contained, and golfer-visible. Good candidate before pilot.
+
+[ ] D15. A GOLFER WITHOUT A TEAM NEVER LEARNS THEY WERE CHECKED IN (found
+        2026-07-31). session.tsx:74 gates the whole foreground poll on
+        `!session.team` — it returns early for any golfer with no team. That poll
+        is the only thing that refreshes isCheckedIn (and the event theme and
+        sponsor list) after /join. So a guest or an unassigned free agent who is
+        checked in at the desk keeps a stale session: the auction bid button
+        stays locked behind "add a card", and the D8 waiver they are entitled to
+        never reaches the device. Rejoining is the only workaround.
+        Real today: St. Mark Classic (walk) has two such golfers (Hank Sponsor,
+        Gina Guest). The gate exists because the body below it syncs scores and
+        dereferences session.team!, so the fix is to split the effect — run the
+        status/check-in/theme poll for every session, and keep the score-sync
+        half gated on a team.
+
+[ ] D16. "MARK ALL PAID" DOES NOTHING ON A FREE EVENT (found 2026-07-31)
+        MarkTeamPlayersPaid reads `ReadEntryFeeFromConfig(...) ?? 0` and writes
+        that to every golfer, so with no entryFeeCents configured it records 0 —
+        which every reader treats as unpaid. The team stays "0/N paid" and the
+        button never resolves. Latent before D13 (the legacy team flag made the
+        team read as paid regardless); D13 removed that mask, so this is now
+        visible. Note the admin registration screen never consults the event's
+        entryFeeCents at all, so it shows fee UI on events that have no fee.
+        Fix is a product decision, not just code: either hide the fee row when
+        entryFeeCents is null/0 (nothing to collect), or treat a free event as
+        paid by definition. Prefer the former — a free event has no fee state
+        worth showing. EventDetail already carries entryFeeCents (admin api.ts
+        :314), so the screen has what it needs.
 
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done.
