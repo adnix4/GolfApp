@@ -282,7 +282,10 @@ public class AuthService
         // Revoke the old token BEFORE issuing the new one.
         // This is the critical security step — prevents the old token from
         // being used again even if someone captured it in transit.
-        await _tokenService.RevokeRefreshTokenAsync(refreshToken, ct);
+        // dueToRotation: keeps this token briefly replayable so a second tab
+        // racing the same expiry gets a new pair instead of being logged out
+        // (D17). Logout deliberately does NOT pass this.
+        await _tokenService.RevokeRefreshTokenAsync(refreshToken, ct, dueToRotation: true);
 
         var roles = await _userManager.GetRolesAsync(user);
         var role  = roles.FirstOrDefault() ?? RoleOrgAdmin;

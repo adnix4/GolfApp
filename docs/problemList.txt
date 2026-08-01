@@ -7,12 +7,12 @@ this section is the running order, the entries below stay where they are.
 Tiers are ordered by what breaks a real event soonest; work top-down.
 
 P0 — BREAKS A LIVE EVENT, SMALL FIX, DO FIRST
-     [x] D17  client half fixed 2026-08-01; SERVER half still open (see entry)
+     [x] D17  client + server halves both fixed 2026-08-01
      [x] D15  session poll split 2026-08-01
      [x] D14  pledges now summed 2026-08-01
      [x] D16  fee UI hidden on free events 2026-08-01
      [x] U1   strokes sum + Hole Complete / Edit Score 2026-08-01
-     Remaining in this tier: D17's cross-context (multi-tab) race only.
+     This tier is now clear.
 
 P1 — PILOT PATH (external lead times first; D1 gates D3 and D10)
      D1   accounts / domain / Apple / Stripe / email — start now, rest waits
@@ -386,7 +386,7 @@ they run in parallel with everything else.
         null/0. MarkTeamPlayersPaid is deliberately unchanged — with nothing to
         collect, recording 0 is accurate; the defect was offering the action.
 
-[ ] D17. CONCURRENT TOKEN REFRESH CAN LOG THE ORGANIZER OUT MID-EVENT (found
+[x] D17. CONCURRENT TOKEN REFRESH CAN LOG THE ORGANIZER OUT MID-EVENT (found
         2026-08-01 while monitoring a running API; OBSERVED, not theorised).
         Access tokens live 15 minutes (TokenService.cs:51). When one expires
         every in-flight request 401s at once and each calls tryRefresh()
@@ -421,6 +421,30 @@ they run in parallel with everything else.
           rotation security model, so decide it on its own.
         Touches the client shared by admin, mobile AND web — review separately
         from any query or UI work.
+        SERVER HALF DONE 2026-08-01 — grace window, not token families.
+        New refresh_tokens."RotatedAt", set ONLY when a successful refresh
+        replaces a token. A rotated token stays valid for
+        TokenService.RefreshReplayGrace (30s), so a second context arriving
+        moments later gets a fresh pair instead of a 400. Logout and
+        RevokeAllUserTokens leave RotatedAt null and so get no grace at all —
+        that separation is the entire reason for the extra column, and is
+        covered by its own tests. Not backfilled: existing revoked rows have an
+        unknown reason and null (= no grace) is the safe reading.
+        WHAT THIS DELIBERATELY GIVES UP: a rotated token is now replayable for
+        up to 30s instead of being dead on arrival. That is a real, if small,
+        reduction in replay protection, taken knowingly — the window is far
+        shorter than the 15-minute access token it mints, so a stolen refresh
+        token is no more useful than it already was. Reuse OUTSIDE the window
+        now logs a loud "Possible token theft" warning naming the user, which
+        is strictly better than the bland 400 it produced before; wire that
+        into D6's error monitoring.
+        AuthServiceTests.Refresh_rotates_tokens_and_revokes_the_old_one
+        asserted the OLD contract (immediate replay throws) and was rewritten,
+        not deleted — the rename records that the contract changed on purpose.
+        VERIFIED: 483 API tests (7 new/changed). Driven live: three concurrent
+        refreshes on one token now return 200/200/200 where the same shape
+        previously produced 2x200 + 1x400; refresh after logout still 400s;
+        a rotated token aged 5 minutes still 400s and logs the theft warning.
 
 [x] D18. (FIXED 2026-08-01: .AsSplitQuery() + .AsNoTracking() on both.)
     D18. TWO CARTESIAN-EXPLOSION QUERIES (found 2026-08-01 from EF warning
