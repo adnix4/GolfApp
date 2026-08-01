@@ -6,6 +6,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { ScoreCard, useTheme } from '@gfp/ui';
 import { teamsApi, scoresApi, eventsApi, testDataApi, challengesApi, type Team, type Scorecard, type EventDetail, type LeaderboardEntry, type HoleChallenge } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
+import { resolveGrossScore } from '@/lib/scoring';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 
 export default function ScoringScreen() {
@@ -108,10 +109,9 @@ export default function ScoringScreen() {
     if (next === 0) delete newHoleShots[playerId];
     setPlayerShotsByHole(prev => ({ ...prev, [holeNumber]: newHoleShots }));
 
-    // Use existing gross if scored; otherwise derive from player totals
+    // The golfers' strokes ARE the team score (U1) — see lib/scoring.ts.
     const existingGross = scorecard?.holes.find(h => h.holeNumber === holeNumber)?.grossScore;
-    const playerTotal   = Object.values(newHoleShots).reduce((s, n) => s + n, 0);
-    const grossScore    = existingGross ?? (playerTotal > 0 ? playerTotal : null);
+    const grossScore    = resolveGrossScore(newHoleShots, existingGross);
     if (grossScore == null) return;
 
     setSaving(holeNumber);
@@ -128,6 +128,24 @@ export default function ScoringScreen() {
       await loadScorecard(selectedTeam);
     } catch (e: any) {
       setError(e.message ?? 'Failed to save player shots.');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  // U1: the desk transcribes paper cards after the round, so strokes auto-save
+  // hole-by-hole and a hole sits half-entered for as long as it takes to type
+  // the foursome. "Hole Complete" is the explicit done signal; "Edit Score"
+  // reopens it. A hole synced from a golfer's phone arrives already complete.
+  async function handleToggleComplete(holeNumber: number, complete: boolean) {
+    if (!selectedTeam) return;
+    setSaving(holeNumber);
+    setError(null);
+    try {
+      await scoresApi.setHoleComplete(id, selectedTeam, holeNumber, complete);
+      await loadScorecard(selectedTeam);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to update hole status.');
     } finally {
       setSaving(null);
     }
@@ -297,6 +315,7 @@ export default function ScoringScreen() {
             const proposedScore = scoredHole?.proposedScore ?? null;
             const isSaving = saving === holeNum;
             const holeChallenge = challenges.find(c => c.holeNumber === holeNum) ?? null;
+            const isComplete = scoredHole?.completedAt != null;
 
             return (
               <View key={holeNum} style={[styles.cardWrapper, { width: cardWidth }]}>
@@ -311,7 +330,7 @@ export default function ScoringScreen() {
                   score={score}
                   onScoreChange={newScore => handleScoreChange(holeNum, newScore)}
                   isConflicted={isConflicted}
-                  disabled={isSaving}
+                  disabled={isSaving || isComplete}
                   compact
                   challenge={holeChallenge}
                 />
@@ -357,8 +376,8 @@ export default function ScoringScreen() {
                           </Text>
                           <Pressable
                             onPress={() => handlePlayerShotChange(holeNum, player.id, -1)}
-                            disabled={shots <= 0 || isSaving}
-                            style={[styles.shotBtn, { backgroundColor: theme.colors.primary, opacity: shots <= 0 ? 0.3 : 1 }]}
+                            disabled={shots <= 0 || isSaving || isComplete}
+                            style={[styles.shotBtn, { backgroundColor: theme.colors.primary, opacity: shots <= 0 || isComplete ? 0.3 : 1 }]}
                           >
                             <Text style={styles.shotBtnText}>−</Text>
                           </Pressable>
@@ -367,14 +386,34 @@ export default function ScoringScreen() {
                           </Text>
                           <Pressable
                             onPress={() => handlePlayerShotChange(holeNum, player.id, 1)}
-                            disabled={isSaving}
-                            style={[styles.shotBtn, { backgroundColor: theme.colors.primary }]}
+                            disabled={isSaving || isComplete}
+                            style={[styles.shotBtn, { backgroundColor: theme.colors.primary, opacity: isComplete ? 0.3 : 1 }]}
                           >
                             <Text style={styles.shotBtnText}>+</Text>
                           </Pressable>
                         </View>
                       );
                     })}
+
+                    {/* Done signal for the hole — sits under the names (U1). */}
+                    <Pressable
+                      onPress={() => handleToggleComplete(holeNum, !isComplete)}
+                      disabled={isSaving || score == null}
+                      style={[
+                        styles.completeBtn,
+                        isComplete
+                          ? { backgroundColor: 'transparent', borderColor: theme.colors.primary }
+                          : { backgroundColor: '#27ae60', borderColor: '#27ae60' },
+                        score == null && { opacity: 0.35 },
+                      ]}
+                    >
+                      <Text style={[
+                        styles.completeBtnText,
+                        { color: isComplete ? theme.colors.primary : '#fff' },
+                      ]}>
+                        {isComplete ? '✎ Edit Score' : '✓ Hole Complete'}
+                      </Text>
+                    </Pressable>
                   </View>
                 )}
               </View>
@@ -470,6 +509,11 @@ const styles = StyleSheet.create({
     paddingVertical: 3, gap: 6,
   },
   playerShotName: { flex: 1, fontSize: 12, fontWeight: '600' },
+  completeBtn: {
+    marginTop: 6, paddingVertical: 7, borderRadius: 6, borderWidth: 1.5,
+    alignItems: 'center',
+  },
+  completeBtnText: { fontSize: 12, fontWeight: '700' },
   shotBtn: {
     width: 26, height: 26, borderRadius: 13,
     alignItems: 'center', justifyContent: 'center',

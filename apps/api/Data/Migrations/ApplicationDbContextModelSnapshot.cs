@@ -1315,6 +1315,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("geography (point)")
                         .HasColumnName("ball_location");
 
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
                     b.Property<string>("DeviceId")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -1730,6 +1734,9 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("RotatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Token")

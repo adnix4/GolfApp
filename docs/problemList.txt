@@ -1,5 +1,45 @@
 # Problem List
 
+## Priority order (set 2026-08-01)
+Ranked across every OPEN item in this file. Numbers are chronological and are
+referenced by git history and by other entries, so nothing is renumbered —
+this section is the running order, the entries below stay where they are.
+Tiers are ordered by what breaks a real event soonest; work top-down.
+
+P0 — BREAKS A LIVE EVENT, SMALL FIX, DO FIRST
+     [x] D17  client + server halves both fixed 2026-08-01
+     [x] D15  session poll split 2026-08-01
+     [x] D14  pledges now summed 2026-08-01
+     [x] D16  fee UI hidden on free events 2026-08-01
+     [x] U1   strokes sum + Hole Complete / Edit Score 2026-08-01
+     This tier is now clear.
+
+P1 — PILOT PATH (external lead times first; D1 gates D3 and D10)
+     D1   accounts / domain / Apple / Stripe / email — start now, rest waits
+     D2   code hardening — no infra needed, can be done today
+     D3   staging environment
+     D4   dress rehearsal — the pilot succeeds or fails here
+     D5   mobile distribution (EAS / TestFlight)
+     D6   pilot ops — backups, error monitoring, day-of runbook
+
+P2 — CORRECTNESS THE ORGANIZER WILL HIT ON THE DAY
+     U5   scramble start holes unassigned when the event goes Active
+     D11  desk staff can't record a cash fee (needs a policy decision first)
+
+P3 — PERFORMANCE BEFORE A REAL CROWD
+     [x] D18  both queries split 2026-08-01
+
+P4 — FEATURES / POLISH
+     U4   proxy (max) bidding — auction behaviour change, needs design
+     U2   sponsor banner on the web live scorecard
+     U3   auction banner on the live results page
+
+P5 — BLOCKED OR DEFERRED (no action available yet)
+     D19  dev-loop fixes landed; three follow-ups, one gated on D6
+     D7   app-store links — blocked until the listings exist
+     D10  card-on-file at check-in — blocked on D1 Stripe activation
+     T4   thin-service test coverage — low ROI, deliberate defer
+
 ## Deployment path — real-world pilot (2026-07-09)
 Goal: deploy Golf Fundraiser Pro for a real-world test event. Ordered phases;
 mark [x] as completed. D1 items have external lead times — start them first,
@@ -284,7 +324,14 @@ they run in parallel with everything else.
         Entry-fee state lives on the golfer. Do not reintroduce a team-level
         boolean as a source of truth.
 
-[ ] D14. FUND-A-NEED ITEMS ALWAYS REPORT "RAISED: $0.00" (found 2026-07-31)
+[x] D14. FUND-A-NEED ITEMS ALWAYS REPORT "RAISED: $0.00" (found 2026-07-31,
+        fixed 2026-08-01: AuctionService.GetDonationTotalsAsync sums each
+        donation item's bids in ONE query up front — MapItem runs per item, so
+        a lookup inside the map would be the N+1 warned about below. Mirrors
+        GetAuctionRevenueAsync's shape, including its in-memory grouping, which
+        also avoids the EF InMemory GroupBy limit the test suite has hit. Wired
+        into both list paths and the two single-item paths, so editing an item
+        can't report $0 against a list that shows the real total.)
         AuctionService.MapItem (:768) sets TotalRaisedCents = i.CurrentHighBidCents,
         but PlaceBidAsync only writes CurrentHighBidCents for competitive items
         ("if (!isDonation)", :268) — pledges stack rather than outbid, so the
@@ -300,7 +347,10 @@ they run in parallel with everything else.
         query up front, not a lookup inside the map.
         Small, self-contained, and golfer-visible. Good candidate before pilot.
 
-[ ] D15. A GOLFER WITHOUT A TEAM NEVER LEARNS THEY WERE CHECKED IN (found
+[x] D15. (fixed 2026-08-01 exactly as prescribed below: session.tsx now runs
+        TWO effects — score sync still gated on a team, status/check-in/theme
+        polling for every session, with no team in its deps.)
+    D15. A GOLFER WITHOUT A TEAM NEVER LEARNS THEY WERE CHECKED IN (found
         2026-07-31). session.tsx:74 gates the whole foreground poll on
         `!session.team` — it returns early for any golfer with no team. That poll
         is the only thing that refreshes isCheckedIn (and the event theme and
@@ -314,7 +364,7 @@ they run in parallel with everything else.
         status/check-in/theme poll for every session, and keep the score-sync
         half gated on a team.
 
-[ ] D16. "MARK ALL PAID" DOES NOTHING ON A FREE EVENT (found 2026-07-31)
+[x] D16. "MARK ALL PAID" DOES NOTHING ON A FREE EVENT (found 2026-07-31)
         MarkTeamPlayersPaid reads `ReadEntryFeeFromConfig(...) ?? 0` and writes
         that to every golfer, so with no entryFeeCents configured it records 0 —
         which every reader treats as unpaid. The team stays "0/N paid" and the
@@ -325,8 +375,142 @@ they run in parallel with everything else.
         Fix is a product decision, not just code: either hide the fee row when
         entryFeeCents is null/0 (nothing to collect), or treat a free event as
         paid by definition. Prefer the former — a free event has no fee state
-        worth showing. EventDetail already carries entryFeeCents (admin api.ts
-        :314), so the screen has what it needs.
+        worth showing.
+        CORRECTION (2026-08-01): this entry previously said EventDetail carries
+        entryFeeCents at admin api.ts:314 — it does not; :314 is
+        EmailBuilderData. EventDetail exposes the raw `config` record, so the
+        fee is read as evt.config.entryFeeCents. The screen already fetches the
+        event, so no extra request either way.
+        FIXED 2026-08-01 (client half): registration.tsx now hides the Golfers
+        Paid chip, the paid pill and the Mark All Paid button when the fee is
+        null/0. MarkTeamPlayersPaid is deliberately unchanged — with nothing to
+        collect, recording 0 is accurate; the defect was offering the action.
+
+[x] D17. CONCURRENT TOKEN REFRESH CAN LOG THE ORGANIZER OUT MID-EVENT (found
+        2026-08-01 while monitoring a running API; OBSERVED, not theorised).
+        Access tokens live 15 minutes (TokenService.cs:51). When one expires
+        every in-flight request 401s at once and each calls tryRefresh()
+        independently — packages/shared-types/src/apiClient.ts:125 has no
+        single-flight guard. The admin dashboard fires /events/{id}, /teams,
+        /players and /leaderboard together, so several refreshes race holding
+        the SAME refresh token. The server rotates: AuthService.cs:285 revokes
+        the old token BEFORE issuing the new one, and validate-then-revoke is
+        not atomic.
+        Cycle 1: three concurrent refreshes, all 200. Cycle 2: 2x200 + 1x400
+        "The refresh token is invalid or has expired. Please log in again."
+        The session survived ONLY because the 400 returned first (26.4ms) and
+        the two 200s landed behind it, rewriting the tokens it had just
+        cleared. Had the 400 returned last, apiClient.ts:174 would have wiped
+        good tokens and bounced the organizer to the login screen while
+        holding a valid 30-day refresh token. A ~26ms ordering window decides
+        it, every 15 minutes of active use. The failure is invisible when it
+        resolves benignly, which is why it went unnoticed.
+        Successful races also strand live refresh tokens (three issued, one
+        stored, two valid for 30 days) — exactly what the rotation comment at
+        AuthService.cs:281-284 exists to prevent.
+        FIX — two parts, deliberately separable:
+        - CLIENT: module-level in-flight promise in tryRefresh() so concurrent
+          401s await one refresh. Closes the observed failure within a single
+          JS context. adminApi.test.ts:104 already covers the refresh path; add
+          a test asserting three parallel 401s produce exactly one POST
+          /auth/refresh.
+        - SERVER (design decision — do NOT fold into the client fix): two
+          browser tabs, or admin and mobile at once, are separate contexts and
+          still race. Closing that needs a short grace window accepting a
+          just-revoked token, or per-session token families. It changes the
+          rotation security model, so decide it on its own.
+        Touches the client shared by admin, mobile AND web — review separately
+        from any query or UI work.
+        SERVER HALF DONE 2026-08-01 — grace window, not token families.
+        New refresh_tokens."RotatedAt", set ONLY when a successful refresh
+        replaces a token. A rotated token stays valid for
+        TokenService.RefreshReplayGrace (30s), so a second context arriving
+        moments later gets a fresh pair instead of a 400. Logout and
+        RevokeAllUserTokens leave RotatedAt null and so get no grace at all —
+        that separation is the entire reason for the extra column, and is
+        covered by its own tests. Not backfilled: existing revoked rows have an
+        unknown reason and null (= no grace) is the safe reading.
+        WHAT THIS DELIBERATELY GIVES UP: a rotated token is now replayable for
+        up to 30s instead of being dead on arrival. That is a real, if small,
+        reduction in replay protection, taken knowingly — the window is far
+        shorter than the 15-minute access token it mints, so a stolen refresh
+        token is no more useful than it already was. Reuse OUTSIDE the window
+        now logs a loud "Possible token theft" warning naming the user, which
+        is strictly better than the bland 400 it produced before; wire that
+        into D6's error monitoring.
+        AuthServiceTests.Refresh_rotates_tokens_and_revokes_the_old_one
+        asserted the OLD contract (immediate replay throws) and was rewritten,
+        not deleted — the rename records that the contract changed on purpose.
+        VERIFIED: 483 API tests (7 new/changed). Driven live: three concurrent
+        refreshes on one token now return 200/200/200 where the same shape
+        previously produced 2x200 + 1x400; refresh after logout still 400s;
+        a rotated token aged 5 minutes still 400s and logs the theft warning.
+
+[x] D18. (FIXED 2026-08-01: .AsSplitQuery() + .AsNoTracking() on both.)
+    D18. TWO CARTESIAN-EXPLOSION QUERIES (found 2026-08-01 from EF warning
+        20504 raised by the running API). Both load two sibling collection
+        navigations in ONE query, so rows are a product rather than a sum and
+        the whole events row — theme_json and config included — repeats on
+        every row.
+        - EventService.cs:499 GetFundraisingAsync:
+              .Include(e => e.Teams).ThenInclude(t => t.Players)
+              .Include(e => e.Donations)
+          teams x players x donations. The worse of the two: it multiplies by
+          DONATION COUNT, which climbs all through the event, and it backs the
+          organizer's fundraising dashboard — the screen most likely to be open
+          and polling while donations land. 12 teams x 4 players x 30 donations
+          is already ~1,440 rows.
+        - EventService.cs:951 GetPublicChallengesAsync: HoleChallenges->Sponsor
+          plus HoleChallenges->Results->Team. Multiplies by results-per-
+          challenge.
+        Both are read-only paths that ALSO lack .AsNoTracking(), which ten
+        other queries in the same file use — these two are the outliers.
+        FIX: .AsSplitQuery() + .AsNoTracking() on both. There is currently no
+        AsSplitQuery anywhere in the API and no global
+        UseQuerySplittingBehavior, so these two set the precedent — decide
+        whether a global default is wanted rather than letting it spread ad hoc.
+        VERIFY: re-hit both endpoints, confirm warning 20504 is gone and the
+        SQL splits into separate statements.
+
+[ ] D19. DEV-LOOP NOISE AND DEPENDENCY HYGIENE (2026-08-01)
+        FIXED THIS SESSION (uncommitted as of writing):
+        - Metro watched the entire monorepo root (watchFolders = workspaceRoot)
+          while the API appended to api-run.log sitting in that root, so every
+          log write invalidated the graph and the browser full-reloaded roughly
+          every 6 seconds. Added a *.log blockList to
+          apps/admin/metro.config.js AND apps/mobile/metro.config.js (mobile
+          watches the root identically). Appended to the Expo defaults rather
+          than replacing them; verified it matches api-run.log and not source.
+        - api-run.log / api-err.log were TRACKED, so git status was permanently
+          dirty. Added *.log to .gitignore and untracked both (files kept on
+          disk). Redirect local run logs outside the repo.
+        INVESTIGATED AND RULED OUT — do not re-open:
+        - EF warning 10103 on PlaceBid ("First/FirstOrDefault without OrderBy
+          and filter") is a FALSE POSITIVE. The query is raw FromSql —
+          SELECT * FROM auction_items WHERE id = @p0 FOR UPDATE — so the PK
+          filter is invisible to EF's LINQ analyser. That FOR UPDATE is the bid
+          concurrency lock; leave it alone.
+        - SendGrid 401 during /join is the placeholder key in .env.local (37
+          chars against ~69 for a real SG. key). MobileService.cs:692 catches
+          it deliberately and still returns 200 with the code persisted; bypass
+          code 999999 covers dev.
+        - node-vibrant "invalid exports subpath" WARN is an upstream packaging
+          bug (node-vibrant@4.0.4 <- react-native-image-colors <- packages/ui
+          AdaptiveLogoFrame). Metro falls back correctly. Not ours to fix.
+        STILL OPEN, all small:
+        - PRODUCTION consequence of the SendGrid path above: a revoked or
+          over-quota key returns the golfer a 200 with no email ever arriving,
+          visible only server-side, and Resend fails identically. It logs at
+          Error level — confirm D6's error monitoring actually alerts on
+          EmailService failures before the pilot. This is the first step of the
+          golfer funnel and D1 already calls the email path CRITICAL.
+        - apps/admin/package.json does not declare react-native-image-colors;
+          it resolves only because npm hoists mobile's copy to the root. If
+          mobile ever drops it, admin breaks with a confusing resolution error.
+          Declare it.
+        - Expo 56 wants typescript ~6.0.3; root, apps/web, apps/mobile and
+          apps/admin all pin ^5.4.5 (5.9.3 installed). A major bump across four
+          workspaces — its own change with a full typecheck, not a drive-by.
 
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done.
@@ -340,3 +524,63 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         404, and the S4 Draft session-token gate). Remaining orchestration paths
         (create/update/status machine, leaderboard, public event/challenges/
         fundraising) still untested; defer.
+
+  [x] U1. (DONE 2026-08-01) Scoring issues from the admin scoring page.
+        THE KEY CONTEXT (from the user): the admin transcribes PAPER cards after
+        golf is finished — not scoring live on the course. That decided the
+        design. Strokes auto-save per golfer, so a hole holds a partial gross
+        score for as long as it takes to type the foursome; deriving "complete"
+        from "has a score" would lock the hole after the FIRST golfer entered.
+        Completion therefore had to be its own persisted state.
+        (a) STROKES NOW SUM INTO THE TEAM SCORE. handlePlayerShotChange read
+            `existingGross ?? playerTotal`, so once a hole had any score the
+            existing gross won forever: +/- updated the golfer's own row and
+            left the team total stale. Extracted to admin src/lib/scoring.ts
+            (resolveGrossScore) with tests, matching checkIn.ts/eventStatus.ts.
+        (b) HOLE COMPLETE / EDIT SCORE. New scores.completed_at column
+            (migration 20260801000000_U1_ScoreCompletedAt, backfilled from
+            submitted_at so finished rounds don't read as unfinished) plus
+            POST /events/{id}/teams/{teamId}/holes/{n}/complete {complete}.
+            Marking complete locks the card and the per-golfer +/- buttons;
+            "Edit Score" reopens WITHOUT touching the score.
+            THE GOLFER HALF NEEDED NO MOBILE CHANGE: the device only queues a
+            hole for sync once completed_at is set locally
+            (store.ts loadUnsyncedScores), so anything arriving via MobileSync
+            IS the golfer's completion signal — MobileService now stamps it.
+        VERIFIED: 476 API tests (4 new), 138 admin (8 new), 4 workspaces
+        typecheck, migration applied (368 rows backfilled). Driven live against
+        localhost: first golfer -> gross 4 not complete; second -> gross 9 still
+        not complete; complete -> timestamp set; reopen -> cleared, gross 9
+        intact; completing an empty hole 400s.
+        NOT exercised: the admin screen in a browser, and the mobile end of the
+        sync stamp (no RN component-test harness).
+        WHAT THE PER-GOLFER COUNT ACTUALLY MEANS (clarified by the user
+        2026-08-01, and it is the reason the sum is correct): in a scramble
+        every golfer hits from the same spot, but only the shot the TEAM USES is
+        recorded, against the golfer whose shot it was. So each counted shot is
+        exactly one team stroke, and the per-golfer counts sum to the team score
+        by construction — a 4 might read Ann 2, Bo 1, Cal 1. The column is
+        "shots of yours the team used", not "strokes you personally played".
+        An earlier draft of this entry claimed the opposite (that a scramble
+        plays one ball so the sum must be wrong). That was a misreading of the
+        model; the sum is right for scramble, which is the fundraiser default.
+        STILL WORTH CONFIRMING for the other formats in EventFormat, where the
+        same field may not carry the same meaning: Stroke and BestBall have each
+        golfer playing their own ball, so a per-golfer breakdown there would be
+        individual scores and the team gross is "the relevant individual score"
+        (Score.GrossScore's own comment), not a sum. Nobody has exercised admin
+        entry on those formats yet — check before running a non-scramble event.
+
+        AS ORIGINALLY REPORTED: "When entering the strokes for the players the
+        individual strokes should add in to the team score. We also need to add
+        a hole complete button for each hole under the names. after the hole is
+        marked complete by either the admin or the golfer through the mobile app
+        the button should change to edit score."
+
+  [ ] U2. No sponsor banner scrolling across the web live scorecard.
+
+  [ ] U3. Add an auction scrolling banner to the live results web page.
+
+  [ ] U4. When a bid is placed it should be considered a Max bid and only raise the current bid to $1.00 above what the current bid or to the min bid. When someone else bids on the item the current bid should go to $1.00 above what the lowest max bid is set at. If there is a tie on the amount whoever entered their bid first is considered to hold the bid.
+
+  [ ] U5. On scramble events the starting hole should be assigned to each team when the event goes active. The mobile app should start scoring for each team at their assigned hole.

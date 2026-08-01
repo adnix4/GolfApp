@@ -15,4 +15,17 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
+// The workspace root is watched (above), and the API appends to *.log files
+// there while it runs. Without this, every log write invalidates the graph and
+// the browser full-reloads every few seconds. Keep the default patterns.
+const defaultBlockList = config.resolver.blockList;
+config.resolver.blockList = [
+  ...(Array.isArray(defaultBlockList)
+    ? defaultBlockList
+    : defaultBlockList
+      ? [defaultBlockList]
+      : []),
+  /[\\/][^\\/]*\.log$/,
+];
+
 module.exports = config;

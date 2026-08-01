@@ -12,6 +12,19 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
+// The workspace root is watched (above), and the API appends to *.log files
+// there while it runs. Without this, every log write invalidates the graph and
+// the app reloads every few seconds. Keep the default patterns.
+const defaultBlockList = config.resolver.blockList;
+config.resolver.blockList = [
+  ...(Array.isArray(defaultBlockList)
+    ? defaultBlockList
+    : defaultBlockList
+      ? [defaultBlockList]
+      : []),
+  /[\\/][^\\/]*\.log$/,
+];
+
 // zustand (and similar packages) expose an ESM build via the "import" condition
 // that uses import.meta.env, which is invalid in a non-module <script> bundle.
 // Adding "react-native" to web conditions causes Metro to prefer the CJS build

@@ -158,7 +158,7 @@ public class AuthServiceTests
     // ── Refresh + logout ──────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Refresh_rotates_tokens_and_revokes_the_old_one()
+    public async Task Refresh_rotates_tokens_and_the_old_one_stays_briefly_replayable()
     {
         var h = Build();
         var first = await h.Svc.RegisterAsync(Reg());
@@ -166,10 +166,46 @@ public class AuthServiceTests
         var second = await h.Svc.RefreshAsync(first.RefreshToken);
         Assert.NotEqual(first.RefreshToken, second.RefreshToken);
 
-        // Re-using the original (now revoked) token must fail — replay protection.
-        await Assert.ThrowsAsync<ValidationException>(() => h.Svc.RefreshAsync(first.RefreshToken));
+        // CONTRACT CHANGED BY D17. This previously asserted that replaying the
+        // rotated token throws immediately. It no longer does, deliberately:
+        // when an access token expires, a second tab arrives with the same
+        // refresh token a few milliseconds behind the first, and rejecting it
+        // logged the organizer out of a live session. Replay inside the grace
+        // window now succeeds. Replay outside it is still rejected — see
+        // Refresh_rejects_a_token_rotated_long_ago below, and the TokenService
+        // tests for the window boundary itself.
+        Assert.NotNull(await h.Svc.RefreshAsync(first.RefreshToken));
+
         // The freshly issued token still works.
         Assert.NotNull(await h.Svc.RefreshAsync(second.RefreshToken));
+    }
+
+    [Fact]
+    public async Task Refresh_rejects_a_token_rotated_long_ago()
+    {
+        var h = Build();
+        var first = await h.Svc.RegisterAsync(Reg());
+        await h.Svc.RefreshAsync(first.RefreshToken);
+
+        // Age every rotated token past the grace window. A rotated token
+        // resurfacing this late is the stolen-token case, not a racing tab.
+        foreach (var t in h.Db.RefreshTokens.Where(t => t.RotatedAt != null))
+            t.RotatedAt = DateTime.UtcNow.AddMinutes(-5);
+        await h.Db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<ValidationException>(() => h.Svc.RefreshAsync(first.RefreshToken));
+    }
+
+    [Fact]
+    public async Task Logout_kills_the_token_immediately_with_no_grace()
+    {
+        var h = Build();
+        var first = await h.Svc.RegisterAsync(Reg());
+
+        await h.Svc.LogoutAsync(first.RefreshToken);
+
+        // The rotation grace window must never apply to a deliberate logout.
+        await Assert.ThrowsAsync<ValidationException>(() => h.Svc.RefreshAsync(first.RefreshToken));
     }
 
     [Fact]

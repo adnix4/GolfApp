@@ -23,6 +23,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# ── LOCAL RUN LOGS ───────────────────────────────────────────────────────────
+# Redirected stdout/stderr from locally-run services (e.g.
+# `dotnet run > api-run.log 2> api-err.log`). Machine-local runtime output, not
+# source. Metro also blocks *.log from its watcher (see apps/*/metro.config.js).
+*.log
+
 # Local environment files — contain secrets, never commit
 .env
 .env.local

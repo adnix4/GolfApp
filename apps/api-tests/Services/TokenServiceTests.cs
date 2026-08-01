@@ -153,4 +153,89 @@ public class TokenServiceTests
         Assert.Null(await svc.ValidateRefreshTokenAsync(b));
         Assert.Equal(1, db.RefreshTokens.Count(t => t.UserId == "user-2" && !t.IsRevoked));
     }
+
+    // ── Concurrent-refresh grace window (D17) ────────────────────────────────
+    //
+    // Two tabs (or admin + mobile) hit the same expiry with the same refresh
+    // token. Rotation revokes on the first; without a grace window the others
+    // were told "log in again" and cleared a live session.
+
+    [Fact]
+    public async Task Token_rotated_moments_ago_is_still_accepted()
+    {
+        using var db = InMemoryDbFactory.Create();
+        var svc = Build(db);
+        var raw = svc.GenerateRefreshToken();
+        await svc.StoreRefreshTokenAsync("user-1", raw);
+
+        await svc.RevokeRefreshTokenAsync(raw, dueToRotation: true);
+
+        // The losing racer arrives a beat later and must NOT be logged out.
+        Assert.Equal("user-1", await svc.ValidateRefreshTokenAsync(raw));
+    }
+
+    [Fact]
+    public async Task Token_rotated_long_ago_is_rejected_as_reuse()
+    {
+        using var db = InMemoryDbFactory.Create();
+        var svc = Build(db);
+        var raw = svc.GenerateRefreshToken();
+        await svc.StoreRefreshTokenAsync("user-1", raw);
+        await svc.RevokeRefreshTokenAsync(raw, dueToRotation: true);
+
+        // Age it well past the grace window — this is the stolen-token case.
+        var record = db.RefreshTokens.Single();
+        record.RotatedAt = DateTime.UtcNow.AddMinutes(-5);
+        record.RevokedAt = record.RotatedAt;
+        await db.SaveChangesAsync();
+
+        Assert.Null(await svc.ValidateRefreshTokenAsync(raw));
+    }
+
+    [Fact]
+    public async Task Logout_revocation_gets_no_grace()
+    {
+        using var db = InMemoryDbFactory.Create();
+        var svc = Build(db);
+        var raw = svc.GenerateRefreshToken();
+        await svc.StoreRefreshTokenAsync("user-1", raw);
+
+        // Default (dueToRotation: false) is what LogoutAsync uses. A logged-out
+        // token must die immediately — the grace window is only for rotation.
+        await svc.RevokeRefreshTokenAsync(raw);
+
+        Assert.Null(await svc.ValidateRefreshTokenAsync(raw));
+        Assert.Null(db.RefreshTokens.Single().RotatedAt);
+    }
+
+    [Fact]
+    public async Task Password_change_revocation_gets_no_grace()
+    {
+        using var db = InMemoryDbFactory.Create();
+        var svc = Build(db);
+        var raw = svc.GenerateRefreshToken();
+        await svc.StoreRefreshTokenAsync("user-1", raw);
+
+        await svc.RevokeAllUserTokensAsync("user-1");
+
+        Assert.Null(await svc.ValidateRefreshTokenAsync(raw));
+        Assert.Null(db.RefreshTokens.Single().RotatedAt);
+    }
+
+    [Fact]
+    public async Task Expired_token_is_rejected_even_inside_the_grace_window()
+    {
+        using var db = InMemoryDbFactory.Create();
+        var svc = Build(db);
+        var raw = svc.GenerateRefreshToken();
+        await svc.StoreRefreshTokenAsync("user-1", raw);
+        await svc.RevokeRefreshTokenAsync(raw, dueToRotation: true);
+
+        // Grace must not resurrect a token past its 30-day life.
+        var record = db.RefreshTokens.Single();
+        record.ExpiresAt = DateTime.UtcNow.AddSeconds(-1);
+        await db.SaveChangesAsync();
+
+        Assert.Null(await svc.ValidateRefreshTokenAsync(raw));
+    }
 }

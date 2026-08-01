@@ -483,6 +483,10 @@ public class MobileService
                     current.SyncedAt      = DateTime.UtcNow;
                     current.IsConflicted  = false;
                     current.ProposedScore = null;
+                    // The device only queues a hole for sync once the golfer has
+                    // tapped "Hole Complete" (pending_scores.completed_at), so
+                    // arriving here IS the golfer's completion signal (U1).
+                    current.CompletedAt ??= DateTime.UtcNow;
                     accepted++;
                     acceptedScores.Add((request.TeamId, team.Name, pending.HoleNumber, pending.GrossScore));
                 }
@@ -503,6 +507,8 @@ public class MobileService
                     SyncedAt        = DateTime.UtcNow,
                     Source          = ScoreSource.MobileSync,
                     IsConflicted    = false,
+                    // Synced at all means the golfer marked it complete (U1).
+                    CompletedAt     = DateTime.UtcNow,
                 });
                 accepted++;
                 acceptedScores.Add((request.TeamId, team.Name, pending.HoleNumber, pending.GrossScore));

@@ -192,6 +192,7 @@ public class ScoreService
                 PlayerShotsJson = s?.PlayerShotsJson,
                 HasConflict     = s?.IsConflicted ?? false,
                 ProposedScore   = s?.ProposedScore,
+                CompletedAt     = s?.CompletedAt,
             };
         }).ToList();
 
@@ -208,6 +209,72 @@ public class ScoreService
             ToPar         = grossTotal - parTotal,
             HolesComplete = teamScores.Count,
             HasConflicts  = teamScores.Any(s => s.IsConflicted),
+        };
+    }
+
+    // ── HOLE COMPLETION ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Marks a hole finished, or reopens it for editing.
+    ///
+    /// Separate from submitting a score because the two happen at different
+    /// moments: the admin transcribing a paper card auto-saves each golfer's
+    /// strokes as they type, then says "done" once. Reopening ("Edit Score")
+    /// clears the mark without touching the score itself.
+    /// </summary>
+    public async Task<ScorecardHoleEntry> SetHoleCompleteAsync(
+        Guid orgId, Guid eventId, Guid teamId, short holeNumber,
+        bool complete, CancellationToken ct = default)
+    {
+        var evt = await _db.Events
+            .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
+
+        if (evt is null)
+            throw new NotFoundException("Event", eventId);
+
+        if (holeNumber < 1 || holeNumber > evt.Holes)
+            throw new ValidationException(
+                $"Hole number must be between 1 and {evt.Holes} for this event.");
+
+        var teamExists = await _db.Teams
+            .AnyAsync(t => t.Id == teamId && t.EventId == eventId, ct);
+
+        if (!teamExists)
+            throw new NotFoundException("Team", teamId);
+
+        var score = await _db.Scores
+            .FirstOrDefaultAsync(s =>
+                s.EventId    == eventId &&
+                s.TeamId     == teamId &&
+                s.HoleNumber == holeNumber, ct);
+
+        // Nothing to complete: a hole with no strokes recorded isn't finished,
+        // it's empty. Reject rather than create a phantom zero-score row.
+        if (score is null)
+            throw new ValidationException(
+                $"Hole {holeNumber} has no score yet — enter strokes before marking it complete.");
+
+        score.CompletedAt = complete ? DateTime.UtcNow : null;
+        await _db.SaveChangesAsync(ct);
+
+        var par = await _db.Events
+            .Where(e => e.Id == eventId)
+            .Select(e => e.Course!.Holes
+                .Where(h => h.HoleNumber == holeNumber)
+                .Select(h => (short?)h.Par)
+                .FirstOrDefault())
+            .FirstOrDefaultAsync(ct);
+
+        return new ScorecardHoleEntry
+        {
+            HoleNumber      = score.HoleNumber,
+            Par             = par ?? 4,
+            GrossScore      = score.GrossScore,
+            Putts           = score.Putts,
+            PlayerShotsJson = score.PlayerShotsJson,
+            HasConflict     = score.IsConflicted,
+            ProposedScore   = score.ProposedScore,
+            CompletedAt     = score.CompletedAt,
         };
     }
 
