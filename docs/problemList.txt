@@ -656,12 +656,12 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         A hole already set on the admin shotgun screen is NEVER overwritten,
         and re-entering Active on a fully-assigned event is a no-op — a mid-
         event status change must not reshuffle the field.
-        INTERPRETATION TO CONFIRM: this triggers on StartType == Shotgun, not on
-        Format == Scramble as the report worded it. Starting holes are only
-        meaningful for a shotgun; a scramble run on TEE TIMES sends every team
-        off hole 1 in turn, and stamping holes there would make the scorecard
-        lie about where they start. If you have scramble events that are NOT
-        shotgun-start but still want assigned holes, this needs widening.
+        TRIGGER CONFIRMED by the user 2026-08-01: StartType == Shotgun, NOT
+        Format == Scramble as the report was originally worded. Starting holes
+        are only meaningful for a shotgun; a scramble run on TEE TIMES sends
+        every team off hole 1 in turn, and stamping holes there would make the
+        scorecard lie about where they start. This is settled — do not widen it
+        to other start types.
         VERIFIED: 494 API tests (11 new). Driven live — four teams read null
         before the transition and 1/2/3/4 after; a manually-set hole survived;
         a TeeTimes event assigned nothing.
