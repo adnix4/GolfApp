@@ -495,7 +495,13 @@ public class EventService
         Guid eventId,
         CancellationToken ct = default)
     {
+        // Teams->Players and Donations are sibling collections: in one query
+        // the rows are teams x players x donations and the whole event row
+        // (theme_json, config) repeats on each. Split, and don't track — this
+        // is a read-only projection.
         var evt = await _db.Events
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(e => e.Teams).ThenInclude(t => t.Players)
             .Include(e => e.Donations)
             .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
@@ -948,7 +954,11 @@ public class EventService
         string eventCode,
         CancellationToken ct = default)
     {
+        // Challenges and their Results are nested collections: in one query the
+        // rows are challenges x results. Split, and don't track — read-only.
         var evt = await _db.Events
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(e => e.HoleChallenges)
                 .ThenInclude(c => c.Sponsor)
             .Include(e => e.HoleChallenges)

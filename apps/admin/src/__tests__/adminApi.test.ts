@@ -149,6 +149,50 @@ describe('401 auto-refresh', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(mockStorage.clearTokens).toHaveBeenCalled();
   });
+
+  // D17: the dashboard fires several requests at once, so an expiry 401s them
+  // all together. Each used to POST its own refresh with the same token; the
+  // server rotates, so the losers got a 400 and tore down a live session.
+  it('coalesces concurrent 401s into a single refresh (D17 regression)', async () => {
+    let currentToken = 'old-token';
+    mockStorage.getAccessToken.mockImplementation(() => currentToken);
+    mockStorage.getRefreshToken.mockReturnValue('ref-token');
+    mockStorage.setAccessToken.mockImplementation((t: string) => { currentToken = t; });
+
+    let refreshCalls = 0;
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (String(url).includes('/auth/refresh')) {
+        refreshCalls += 1;
+        // Settle late so all three 401s arrive before the first refresh
+        // resolves — without the guard this is where they'd race.
+        return new Promise((resolve) =>
+          setTimeout(() => resolve({
+            ok: true, status: 200,
+            json: () => Promise.resolve({ accessToken: 'new-acc', refreshToken: 'new-ref' }),
+          }), 10),
+        );
+      }
+      const auth = (init?.headers as Record<string, string> | undefined)?.['Authorization'];
+      return Promise.resolve(
+        auth === 'Bearer old-token'
+          ? { ok: false, status: 401, json: () => Promise.resolve({}) }
+          : { ok: true, status: 200, json: () => Promise.resolve([]) },
+      );
+    });
+
+    const results = await Promise.all([
+      eventsApi.list(),
+      eventsApi.list(),
+      eventsApi.list(),
+    ]);
+
+    expect(results).toEqual([[], [], []]);
+    expect(refreshCalls).toBe(1);
+    expect(mockStorage.clearTokens).not.toHaveBeenCalled();
+
+    // Drop the routing implementation so later tests keep using the once-queue.
+    mockFetch.mockReset();
+  });
 });
 
 // ── 204 No Content ─────────────────────────────────────────────────────────────

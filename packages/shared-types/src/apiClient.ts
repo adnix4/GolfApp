@@ -122,23 +122,41 @@ export function createApiClient(opts: CreateApiClientOptions): ApiClient {
     return headers;
   }
 
+  // When an access token expires, every in-flight request 401s at once. Without
+  // this guard each one POSTs its own refresh with the SAME refresh token, and
+  // the server rotates (revokes the old token before issuing the new one), so
+  // the losers of that race get a 400 and tear down a perfectly good session.
+  // One refresh at a time: concurrent callers await the same promise.
+  let inFlightRefresh: Promise<boolean> | null = null;
+
   async function tryRefresh(): Promise<boolean> {
     if (!storage) return false;
-    const refreshToken = await storage.getRefreshToken();
-    if (!refreshToken) return false;
+    if (inFlightRefresh) return inFlightRefresh;
+
+    inFlightRefresh = (async () => {
+      const refreshToken = await storage.getRefreshToken();
+      if (!refreshToken) return false;
+      try {
+        const res = await fetch(`${baseUrl}${refreshPath}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+        if (!res.ok) return false;
+        const data: any = await res.json();
+        await storage.setAccessToken(data.accessToken);
+        if (data.refreshToken) await storage.setRefreshToken(data.refreshToken);
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+
     try {
-      const res = await fetch(`${baseUrl}${refreshPath}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      });
-      if (!res.ok) return false;
-      const data: any = await res.json();
-      await storage.setAccessToken(data.accessToken);
-      if (data.refreshToken) await storage.setRefreshToken(data.refreshToken);
-      return true;
-    } catch {
-      return false;
+      return await inFlightRefresh;
+    } finally {
+      // Clear only after settling, so the next expiry starts a fresh attempt.
+      inFlightRefresh = null;
     }
   }
 

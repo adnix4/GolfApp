@@ -24,6 +24,10 @@ export default function RegistrationScreen() {
   const [teams,   setTeams]   = useState<Team[]>([]);
   const [guests,  setGuests]  = useState<Player[]>([]);
   const [eventStatus, setEventStatus] = useState<string | null>(null);
+  // A free event has no fee state worth showing (D16) — without this the screen
+  // offers "Mark All Paid", which records a 0 that every reader treats as
+  // unpaid, so the button never resolves.
+  const [entryFeeCents, setEntryFeeCents] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
   const [filter,  setFilter]  = useState<Filter>('all');
@@ -46,6 +50,9 @@ export default function RegistrationScreen() {
       // Guests are the team-less attendees — they never appear on a roster.
       setGuests(players.filter(p => p.registrationType === 'Attendee'));
       setEventStatus(evt.status);
+      // Fee lives in the raw event config — EventDetail has no typed field.
+      const fee = evt.config?.entryFeeCents;
+      setEntryFeeCents(typeof fee === 'number' ? fee : null);
     }
     catch (e: any) { setError(e.message ?? 'Failed to load teams.'); }
     finally { setLoading(false); }
@@ -115,6 +122,9 @@ export default function RegistrationScreen() {
   // Fees are per golfer — count paid golfers across all rosters.
   const golfersPaid  = teams.reduce((n, t) => n + t.playersPaid, 0);
   const golfersTotal = teams.reduce((n, t) => n + t.players.length, 0);
+  // Nothing to collect — hide every fee affordance rather than show a state
+  // that can never resolve.
+  const hasEntryFee  = (entryFeeCents ?? 0) > 0;
 
   return (
     <View style={styles.page}>
@@ -154,7 +164,9 @@ export default function RegistrationScreen() {
         ]}>
           <StatChip label="Total"      value={teams.length}              color={theme.colors.primary} style={isMobile ? styles.statHalf : undefined} />
           <StatChip label="Checked In" value={checkedIn}                 color="#27ae60"              style={isMobile ? styles.statHalf : undefined} />
-          <StatChip label={`Golfers Paid (of ${golfersTotal})`} value={golfersPaid} color="#2980b9"   style={isMobile ? styles.statHalf : undefined} />
+          {hasEntryFee && (
+            <StatChip label={`Golfers Paid (of ${golfersTotal})`} value={golfersPaid} color="#2980b9"   style={isMobile ? styles.statHalf : undefined} />
+          )}
           <StatChip label="Pending"    value={teams.length - checkedIn}  color="#f39c12"              style={isMobile ? styles.statHalf : undefined} />
         </View>
       )}
@@ -238,8 +250,9 @@ export default function RegistrationScreen() {
                 </View>
 
                 <View style={styles.cardActions}>
-                  {/* Fee status — per golfer; the button marks the whole roster paid */}
-                  {team.entryFeePaid ? (
+                  {/* Fee status — per golfer; the button marks the whole roster
+                      paid. Suppressed entirely on a free event (D16). */}
+                  {!hasEntryFee ? null : team.entryFeePaid ? (
                     <View style={[styles.pill, { borderColor: '#27ae60' }]}>
                       <Text style={[styles.pillText, { color: '#27ae60' }]}>✓ Fees Paid</Text>
                     </View>

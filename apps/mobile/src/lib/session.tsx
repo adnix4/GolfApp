@@ -70,6 +70,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // Adaptive foreground polling — interval shrinks/stops based on network tier.
   // Piggybacks on the same backoff/mutex as the OS background task.
+  //
+  // SPLIT DELIBERATELY (D15). The score half dereferences session.team, so the
+  // whole effect used to bail out for any team-less golfer — but the status half
+  // below is the ONLY thing that refreshes check-in, theme and sponsors. A guest
+  // or unassigned free agent checked in at the desk therefore kept a stale
+  // session forever: the auction button stayed locked behind "add a card" and
+  // the D8 cardless waiver never reached the device. Rejoining was the only
+  // workaround. Keep these two effects separate.
   useEffect(() => {
     if (!session || !session.team || networkTier === 'offline') return;
     let cancelled = false;
@@ -89,7 +97,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setCompletedHoles(new Set(completedNums));
         setSyncStatus('synced');
       }
+    };
+    poll();
+    const id = setInterval(poll, POLL_INTERVAL_MS[networkTier]);
+    return () => { cancelled = true; clearInterval(id); };
+  // deps are intentionally limited: poll/POLL_INTERVAL_MS are stable and excluding them avoids restarting the interval on every render
+  }, [session?.event.id, session?.team?.id, networkTier]);
 
+  // Status / check-in / branding poll — runs for EVERY session, team or not.
+  useEffect(() => {
+    if (!session || networkTier === 'offline') return;
+    let cancelled = false;
+    const poll = async () => {
       // Branding + sponsor refresh — one cheap public-event read per tick.
       // Theme is applied every phase (incl. active scoring) so an admin
       // colour change repaints without a rejoin; status is deliberately NOT
@@ -125,8 +144,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     poll();
     const id = setInterval(poll, POLL_INTERVAL_MS[networkTier]);
     return () => { cancelled = true; clearInterval(id); };
-  // deps are intentionally limited: poll/POLL_INTERVAL_MS are stable and excluding them avoids restarting the interval on every render
-  }, [session?.event.id, session?.team?.id, networkTier]);
+  // No team in the deps — this half must keep polling for team-less golfers.
+  }, [session?.event.id, networkTier]);
 
   const setSession = useCallback(async (data: JoinEventResponse) => {
     lastSponsorsVersion.current = null;   // new event → re-seed on next poll

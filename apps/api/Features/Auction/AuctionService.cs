@@ -54,7 +54,8 @@ public class AuctionService
             .Where(i => i.EventId == eventId)
             .OrderBy(i => i.DisplayOrder).ThenBy(i => i.CreatedAt)
             .ToListAsync(ct);
-        return items.Select(MapItem).ToList();
+        var donationTotals = await GetDonationTotalsAsync(items, ct);
+        return items.Select(i => MapItem(i, donationTotals)).ToList();
     }
 
     public async Task<List<AuctionItemResponse>> GetPublicItemsAsync(
@@ -65,7 +66,8 @@ public class AuctionService
                      && (i.Status == AuctionItemStatus.Open || i.Status == AuctionItemStatus.Extended))
             .OrderBy(i => i.DisplayOrder).ThenBy(i => i.CreatedAt)
             .ToListAsync(ct);
-        return items.Select(MapItem).ToList();
+        var donationTotals = await GetDonationTotalsAsync(items, ct);
+        return items.Select(i => MapItem(i, donationTotals)).ToList();
     }
 
     public async Task<AuctionItemResponse> CreateItemAsync(
@@ -153,7 +155,7 @@ public class AuctionService
             item.DonationDenominationsJson = JsonSerializer.Serialize(req.DonationDenominations);
 
         await _db.SaveChangesAsync(ct);
-        return MapItem(item);
+        return MapItem(item, await GetDonationTotalsAsync(new[] { item }, ct));
     }
 
     public async Task DeleteItemAsync(Guid orgId, Guid eventId, Guid itemId, CancellationToken ct)
@@ -192,7 +194,7 @@ public class AuctionService
         await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation("Photo uploaded for auction item {ItemId}: {Url}", itemId, url);
-        return MapItem(item);
+        return MapItem(item, await GetDonationTotalsAsync(new[] { item }, ct));
     }
 
     // ── BIDDING ────────────────────────────────────────────────────────────────
@@ -735,7 +737,39 @@ public class AuctionService
         return item;
     }
 
-    private static AuctionItemResponse MapItem(Domain.Entities.AuctionItem i)
+    /// <summary>
+    /// Pledges on a Fund-a-Need STACK rather than outbid, so PlaceBidAsync only
+    /// writes CurrentHighBidCents for competitive items (:268) and the column
+    /// stays 0 on a donation item forever. The running total is the sum of the
+    /// item's bids — the same reasoning already written out in
+    /// EventService.GetAuctionRevenueAsync, and the same query shape.
+    /// One query for the whole page: MapItem runs per item, so a lookup inside
+    /// the map would be an N+1.
+    /// </summary>
+    private async Task<Dictionary<Guid, int>> GetDonationTotalsAsync(
+        IReadOnlyCollection<Domain.Entities.AuctionItem> items, CancellationToken ct)
+    {
+        var donationIds = items
+            .Where(i => i.AuctionType is AuctionType.DonationSilent or AuctionType.DonationLive)
+            .Select(i => i.Id)
+            .ToHashSet();
+
+        if (donationIds.Count == 0) return new Dictionary<Guid, int>();
+
+        var pledges = await _db.Bids
+            .AsNoTracking()
+            .Where(b => donationIds.Contains(b.AuctionItemId))
+            .Select(b => new { b.AuctionItemId, b.AmountCents })
+            .ToListAsync(ct);
+
+        return pledges
+            .GroupBy(b => b.AuctionItemId)
+            .ToDictionary(g => g.Key, g => g.Sum(b => b.AmountCents));
+    }
+
+    private static AuctionItemResponse MapItem(
+        Domain.Entities.AuctionItem i,
+        IReadOnlyDictionary<Guid, int>? donationTotals = null)
     {
         var photos = string.IsNullOrEmpty(i.PhotoUrlsJson)
             ? new List<string>()
@@ -765,7 +799,11 @@ public class AuctionService
             MinimumBidCents       = i.MinimumBidCents,
             FairMarketValueCents  = i.FairMarketValueCents,
             GoalCents             = i.GoalCents,
-            TotalRaisedCents      = i.CurrentHighBidCents,
+            TotalRaisedCents      = i.AuctionType is AuctionType.DonationSilent
+                                                  or AuctionType.DonationLive
+                ? (donationTotals is not null
+                   && donationTotals.TryGetValue(i.Id, out var pledged) ? pledged : 0)
+                : i.CurrentHighBidCents,
         };
     }
 
