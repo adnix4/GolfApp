@@ -23,7 +23,7 @@ P1 — PILOT PATH (external lead times first; D1 gates D3 and D10)
      D6   pilot ops — backups, error monitoring, day-of runbook
 
 P2 — CORRECTNESS THE ORGANIZER WILL HIT ON THE DAY
-     U5   scramble start holes unassigned when the event goes Active
+     [x] U5  auto-assigned on the Active transition 2026-08-01
      D11  desk staff can't record a cash fee (needs a policy decision first)
 
 P3 — PERFORMANCE BEFORE A REAL CROWD
@@ -622,4 +622,27 @@ Captured while filling API test-coverage holes. Mark [x] when done.
 
   [ ] U4. When a bid is placed it should be considered a Max bid and only raise the current bid to $1.00 above what the current bid or to the min bid. When someone else bids on the item the current bid should go to $1.00 above what the lowest max bid is set at. If there is a tie on the amount whoever entered their bid first is considered to hold the bid.
 
-  [ ] U5. On scramble events the starting hole should be assigned to each team when the event goes active. The mobile app should start scoring for each team at their assigned hole.
+  [x] U5. (DONE 2026-08-01) On scramble events the starting hole should be assigned to each team when the event goes active. The mobile app should start scoring for each team at their assigned hole.
+        THE MOBILE HALF WAS ALREADY BUILT — holeUtils.getHoleOrder() rotates the
+        hole order (startingHole=10, 18 holes -> 10..18,1..9) and scorecard.tsx,
+        preflight.tsx, team.tsx and round-end/sync.tsx all use it. Nothing was
+        assigning the holes, so every team arrived null and the scorecard
+        started all of them on hole 1 — the opposite of a shotgun.
+        Now EventService assigns on the → Active transition, via the pure
+        ShotgunAssignmentRules.AssignStartingHoles (tested separately). Fills by
+        lowest occupancy, tie-broken by lowest hole, so a fresh event lays out
+        1,2,3…, a partly-assigned one fills the empty holes, and >18 teams
+        double up evenly (A/B positions) instead of failing. Teams ordered by
+        name for a reproducible layout the organizer can read off the roster.
+        A hole already set on the admin shotgun screen is NEVER overwritten,
+        and re-entering Active on a fully-assigned event is a no-op — a mid-
+        event status change must not reshuffle the field.
+        INTERPRETATION TO CONFIRM: this triggers on StartType == Shotgun, not on
+        Format == Scramble as the report worded it. Starting holes are only
+        meaningful for a shotgun; a scramble run on TEE TIMES sends every team
+        off hole 1 in turn, and stamping holes there would make the scorecard
+        lie about where they start. If you have scramble events that are NOT
+        shotgun-start but still want assigned holes, this needs widening.
+        VERIFIED: 494 API tests (11 new). Driven live — four teams read null
+        before the transition and 1/2/3/4 after; a manually-set hole survived;
+        a TeeTimes event assigned nothing.

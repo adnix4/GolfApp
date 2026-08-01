@@ -216,6 +216,16 @@ public class EventService
                 await _testData.ClearRegistrationAndScoringAsync(orgId, eventId, ct);
             }
 
+            // → Active on a shotgun event: make sure every team has a starting
+            // hole (U5). Without this a shotgun could go Active with all teams
+            // null, and the mobile scorecard would start every one of them on
+            // hole 1 — the opposite of a shotgun. Teams already assigned on the
+            // admin shotgun screen are left exactly as they are.
+            if (request.Status.Value == EventStatus.Active)
+            {
+                await AssignMissingStartingHolesAsync(eventId, evt, ct);
+            }
+
             evt.Status = request.Status.Value;
             _logger.LogInformation(
                 "Event {Id} transitioned to {Status}", eventId, request.Status);
@@ -349,6 +359,44 @@ public class EventService
             "Updated course '{CourseName}' on event {EventId}", evt.Course.Name, eventId);
 
         return MapToEventResponse(evt, await LoadCountsAsync(eventId, ct));
+    }
+
+    /// <summary>
+    /// Fills in starting holes for any team that lacks one, when a Shotgun event
+    /// goes Active (U5).
+    ///
+    /// Shotgun only: on a tee-time event every team starts at hole 1 in turn, so
+    /// a starting hole would be meaningless there. Teams are ordered by name for
+    /// a stable, reproducible layout the organizer can read off the roster.
+    /// </summary>
+    private async Task AssignMissingStartingHolesAsync(
+        Guid eventId, Event evt, CancellationToken ct)
+    {
+        if (evt.StartType != EventStartType.Shotgun) return;
+
+        var teams = await _db.Teams
+            .Where(t => t.EventId == eventId)
+            .OrderBy(t => t.Name)
+            .ToListAsync(ct);
+
+        if (teams.Count == 0) return;
+
+        var assignments = ShotgunAssignmentRules.AssignStartingHoles(
+            teams.Select(t => (t.Id, t.StartingHole)).ToList(),
+            evt.Holes);
+
+        if (assignments.Count == 0) return;
+
+        var byId = teams.ToDictionary(t => t.Id);
+        foreach (var (teamId, hole) in assignments)
+        {
+            byId[teamId].StartingHole = hole;
+        }
+
+        _logger.LogInformation(
+            "Assigned starting holes to {Count} team(s) on shotgun event {EventId} going Active " +
+            "({Preassigned} already had one).",
+            assignments.Count, eventId, teams.Count - assignments.Count);
     }
 
     // ── SHOTGUN ASSIGNMENTS ───────────────────────────────────────────────────
