@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator,
-  Alert, SafeAreaView, ScrollView,
+  SafeAreaView, ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import {
 } from '@stripe/stripe-react-native';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
+import { notify } from '@/lib/notify';
 import { createSetupIntent, confirmSetup } from '@/lib/api';
 
 // Set EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY in your .env file.
@@ -83,11 +84,11 @@ function PaymentSetupContent() {
         });
       }
 
-      Alert.alert('Payment Method Saved', 'Your card has been saved for auction bids.', [
+      notify('Payment Method Saved', 'Your card has been saved for auction bids.', [
         { text: 'OK', onPress: goBack },
       ]);
     } catch (e: unknown) {
-      Alert.alert('Could Not Save Card', e instanceof Error ? e.message : 'Something went wrong. Please try again.');
+      notify('Could Not Save Card', e instanceof Error ? e.message : 'Something went wrong. Please try again.');
     } finally {
       setSaving(false);
     }

@@ -445,6 +445,14 @@ public record FundraisingResponse
     /// <summary>Sum of committed donation amounts across all hole challenges (in cents).</summary>
     public int ChallengeAmountCents { get; init; }
 
+    /// <summary>
+    /// Money the auction has raised (in cents) — winning bids on items that have
+    /// closed, plus what is currently committed on items still taking bids, so
+    /// the figure is meaningful mid-event and does not jump at close. Waived
+    /// charges are excluded; see EventService.GetFundraisingAsync.
+    /// </summary>
+    public int AuctionCents         { get; init; }
+
     /// <summary>Total of all revenue streams (in cents).</summary>
     public int GrandTotalCents      { get; init; }
 
@@ -455,6 +463,16 @@ public record FundraisingResponse
     public int PlayersPaid          { get; init; }
     public int PlayersTotal         { get; init; }
     public int DonationCount        { get; init; }
+
+    /// <summary>Auction items that have closed with at least one winner.</summary>
+    public int AuctionItemsSold     { get; init; }
+
+    /// <summary>
+    /// Won amounts not yet in hand (in cents): charges still Pending or Failed.
+    /// A subset of AuctionCents — the Failed slice is what the Failed Charges
+    /// panel on the fundraising screen lists for re-charge or waiver.
+    /// </summary>
+    public int AuctionUncollectedCents { get; init; }
 }
 
 /// <summary>

@@ -453,4 +453,183 @@ public class EventServiceTests
         Assert.Null((await c.Svc.GetPublicEventStatusAsync("GALA0001", playerId, "")).Player);
         Assert.Null((await c.Svc.GetPublicEventStatusAsync("GALA0001", Guid.NewGuid(), "tok-abc")).Player);
     }
+
+    // ── Fundraising: auction revenue ──────────────────────────────────────────
+    // The auction spans two storage shapes — live bids while an item is open,
+    // AuctionWinner rows once it closes — and the total has to read both or it
+    // sits at zero for the whole of bidding and then jumps.
+
+    private static Guid AddItem(
+        Ctx c, AuctionType type, AuctionItemStatus status, int currentHighBidCents = 0)
+    {
+        var id = Guid.NewGuid();
+        c.Db.AuctionItems.Add(new AuctionItem
+        {
+            Id = id, EventId = c.EventId, Title = $"Item {id:N}",
+            AuctionType = type, Status = status,
+            StartingBidCents = 1000, BidIncrementCents = 500,
+            CurrentHighBidCents = currentHighBidCents,
+        });
+        c.Db.SaveChanges();
+        return id;
+    }
+
+    private static void AddBid(Ctx c, Guid itemId, int amountCents)
+    {
+        c.Db.Bids.Add(new Bid
+        {
+            Id = Guid.NewGuid(), AuctionItemId = itemId,
+            PlayerId = Guid.NewGuid(), AmountCents = amountCents,
+        });
+        c.Db.SaveChanges();
+    }
+
+    private static void AddWinner(Ctx c, Guid itemId, int amountCents, ChargeStatus charge)
+    {
+        c.Db.AuctionWinners.Add(new AuctionWinner
+        {
+            Id = Guid.NewGuid(), AuctionItemId = itemId,
+            PlayerId = Guid.NewGuid(), AmountCents = amountCents, ChargeStatus = charge,
+        });
+        c.Db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task GetFundraising_reports_zero_auction_revenue_when_there_is_no_auction()
+    {
+        var c = Build();
+
+        var resp = await c.Svc.GetFundraisingAsync(c.OrgId, c.EventId);
+
+        Assert.Equal(0, resp.AuctionCents);
+        Assert.Equal(0, resp.AuctionItemsSold);
+        Assert.Equal(0, resp.AuctionUncollectedCents);
+    }
+
+    [Fact]
+    public async Task GetFundraising_counts_the_leading_bid_while_an_item_is_still_open()
+    {
+        var c = Build();
+        AddItem(c, AuctionType.Silent, AuctionItemStatus.Open,     currentHighBidCents: 7500);
+        AddItem(c, AuctionType.Live,   AuctionItemStatus.Extended, currentHighBidCents: 2500);
+
+        var resp = await c.Svc.GetFundraisingAsync(c.OrgId, c.EventId);
+
+        Assert.Equal(10000, resp.AuctionCents);
+        // Nothing has closed, so nothing is sold and nothing is owed yet.
+        Assert.Equal(0, resp.AuctionItemsSold);
+        Assert.Equal(0, resp.AuctionUncollectedCents);
+    }
+
+    [Fact]
+    public async Task GetFundraising_stacks_every_pledge_on_an_open_fund_a_need_item()
+    {
+        // CurrentHighBidCents is never written for donation items — reading it
+        // would report zero no matter how much was pledged.
+        var c    = Build();
+        var item = AddItem(c, AuctionType.DonationSilent, AuctionItemStatus.Open);
+        AddBid(c, item, 2500);
+        AddBid(c, item, 1000);
+        AddBid(c, item, 500);
+
+        var resp = await c.Svc.GetFundraisingAsync(c.OrgId, c.EventId);
+
+        Assert.Equal(4000, resp.AuctionCents);
+    }
+
+    [Fact]
+    public async Task GetFundraising_uses_winner_rows_once_an_item_has_closed()
+    {
+        var c      = Build();
+        var closed = AddItem(c, AuctionType.Silent, AuctionItemStatus.Closed, currentHighBidCents: 9000);
+        AddWinner(c, closed, 9000, ChargeStatus.Succeeded);
+        // Stray losing bids on a closed item must not be double-counted.
+        AddBid(c, closed, 8500);
+        AddBid(c, closed, 9000);
+
+        var resp = await c.Svc.GetFundraisingAsync(c.OrgId, c.EventId);
+
+        Assert.Equal(9000, resp.AuctionCents);
+        Assert.Equal(1, resp.AuctionItemsSold);
+        Assert.Equal(0, resp.AuctionUncollectedCents);
+    }
+
+    [Fact]
+    public async Task GetFundraising_excludes_waived_charges_but_keeps_pending_and_failed()
+    {
+        var c = Build();
+        var a = AddItem(c, AuctionType.Silent, AuctionItemStatus.Awarded);
+        var b = AddItem(c, AuctionType.Silent, AuctionItemStatus.Closed);
+        var d = AddItem(c, AuctionType.Silent, AuctionItemStatus.Closed);
+        AddWinner(c, a, 5000, ChargeStatus.Succeeded);
+        AddWinner(c, b, 3000, ChargeStatus.Failed);    // still owed — recoverable
+        AddWinner(c, d, 4000, ChargeStatus.Waived);    // organizer wrote it off
+
+        var resp = await c.Svc.GetFundraisingAsync(c.OrgId, c.EventId);
+
+        Assert.Equal(8000, resp.AuctionCents);
+        Assert.Equal(3000, resp.AuctionUncollectedCents);
+        // The waived item does not count as sold either.
+        Assert.Equal(2, resp.AuctionItemsSold);
+    }
+
+    [Fact]
+    public async Task GetFundraising_ignores_cancelled_items_entirely()
+    {
+        var c         = Build();
+        var cancelled = AddItem(c, AuctionType.Silent, AuctionItemStatus.Cancelled, currentHighBidCents: 6000);
+        AddBid(c, cancelled, 6000);
+
+        var resp = await c.Svc.GetFundraisingAsync(c.OrgId, c.EventId);
+
+        Assert.Equal(0, resp.AuctionCents);
+    }
+
+    [Fact]
+    public async Task GetFundraising_rolls_the_auction_into_the_grand_total()
+    {
+        var c = Build();
+        c.Db.Sponsors.Add(new Sponsor
+        {
+            Id = Guid.NewGuid(), EventId = c.EventId, Name = "Acme",
+            Tier = SponsorTier.Gold, DonationAmountCents = 25000, PlacementsJson = "{}",
+        });
+        var sold = AddItem(c, AuctionType.Silent, AuctionItemStatus.Closed);
+        AddWinner(c, sold, 9000, ChargeStatus.Succeeded);
+        AddItem(c, AuctionType.Silent, AuctionItemStatus.Open, currentHighBidCents: 1500);
+        c.Db.SaveChanges();
+
+        var resp = await c.Svc.GetFundraisingAsync(c.OrgId, c.EventId);
+
+        Assert.Equal(10500, resp.AuctionCents);
+        Assert.Equal(25000 + 10500, resp.GrandTotalCents);
+    }
+
+    [Fact]
+    public async Task GetFundraising_counts_teams_paid_from_the_roster_not_the_legacy_flag()
+    {
+        // The team flag survives from before the per-golfer fee and was never
+        // backfilled, so a true flag can sit over a roster that has paid nothing.
+        // Counting it made teamsPaid contradict playersPaid in the same payload.
+        var c    = Build();
+        var full = Guid.NewGuid();
+        var stale = Guid.NewGuid();
+        c.Db.Teams.Add(new Team { Id = full,  EventId = c.EventId, Name = "Paid",  MaxPlayers = 4 });
+        c.Db.Teams.Add(new Team { Id = stale, EventId = c.EventId, Name = "Stale", MaxPlayers = 4, EntryFeePaid = true });
+        c.Db.Players.AddRange(
+            new Player { Id = Guid.NewGuid(), EventId = c.EventId, TeamId = full,  FirstName = "A", LastName = "A", Email = "a@x.com", EntryFeePaidCents = 7500 },
+            new Player { Id = Guid.NewGuid(), EventId = c.EventId, TeamId = full,  FirstName = "B", LastName = "B", Email = "b@x.com", EntryFeePaidCents = 7500 },
+            new Player { Id = Guid.NewGuid(), EventId = c.EventId, TeamId = stale, FirstName = "C", LastName = "C", Email = "c@x.com", EntryFeePaidCents = 0 },
+            new Player { Id = Guid.NewGuid(), EventId = c.EventId, TeamId = stale, FirstName = "D", LastName = "D", Email = "d@x.com", EntryFeePaidCents = 0 });
+        c.Db.SaveChanges();
+
+        var resp = await c.Svc.GetFundraisingAsync(c.OrgId, c.EventId);
+
+        Assert.Equal(1, resp.TeamsPaid);
+        Assert.Equal(2, resp.TeamsTotal);
+        // The two views of the same money now agree.
+        Assert.Equal(2, resp.PlayersPaid);
+        Assert.Equal(4, resp.PlayersTotal);
+        Assert.Equal(15000, resp.EntryFeesCents);
+    }
 }

@@ -261,6 +261,49 @@ they run in parallel with everything else.
         Small and Stripe-independent. Confirm who actually staffs the desk before
         changing the policy, since it also controls the roster-wide fee override.
 
+[x] D12. NO ITEM COULD BE BID ON, AND THE FAILURE WAS INVISIBLE (found 2026-07-31,
+        fixed same day). Reported as "a checked-in golfer taps Bid and nothing
+        happens". Check-in (D8) was fine; two unrelated defects compounded:
+        - The bid modal quoted currentHighBidCents + bidIncrementCents as the
+          minimum, while the server uses Max(startingBidCents, high + increment)
+          (AuctionBidRules.MinimumRequired). On any item with no bids yet — all 8
+          in St. Mark Classic — it advertised $5.00 for a $50.00 item, so a bid at
+          the quoted figure came back 400 BID_TOO_LOW. Same client/server drift
+          that caused D8; MinimumRequired now mirrors into shared-types
+          (minimumBidCents) beside needsPaymentMethod, tested case-for-case
+          against AuctionBidRulesTests.
+        - react-native-web ships Alert as a literal no-op (`class Alert { static
+          alert() {} }`), so on the web build EVERY Alert.alert in the app went
+          nowhere — hence "no warning". Replaced by src/lib/notify.ts (real
+          dialog on native, window.alert/confirm on web) across auction,
+          payment-setup and edit-profile; the bid modal additionally shows its
+          error inline under the amount field. Server codes are now translated
+          for humans — golfers were being shown the string "BID_TOO_LOW:5000".
+        Anything new that reports to the golfer must use notify(), not Alert.
+
+[x] D13. REGISTRATION AND FUNDRAISING DISAGREED ON WHO PAID (found 2026-07-31,
+        fixed same day). St. Mark Classic: Fundraising said "14 of 19 golfers
+        paid", Registration showed every team "✓ Fees Paid". Both read the same
+        rows; the team-level view OR-ed in the legacy teams.entry_fee_paid flag:
+          EntryFeePaid = team.EntryFeePaid || all-players-paid
+        which is sticky — once true the roster reads as paid no matter what the
+        golfers paid. Phase14's own migration note already said the flag is
+        "retained for now but no longer read". Two ways it went wrong:
+          - Phase14 added players.entry_fee_paid_cents at default 0 and
+            backfilled nothing, so every team marked paid before 2026-07-06
+            carries a true flag over a wholly unpaid roster (kim's slashers).
+          - A golfer assigned to an already-paid team pays nothing and is not
+            marked, but the flag kept the team reading as paid (Sleepers 3/4).
+            Correct behaviour is that the team stops being fully paid and the
+            organizer gets Mark All Paid back — that is what dropping the flag
+            gives, so no separate cascade is wanted.
+        Fixed in TeamService.MapToTeamResponse AND EventService.GetFundraisingAsync
+        (teamsPaid had the identical OR). The flag is still written for
+        continuity but is now read nowhere. Registration also shows the "0/N
+        paid" pill it used to hide at zero.
+        Entry-fee state lives on the golfer. Do not reintroduce a team-level
+        boolean as a source of truth.
+
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done.
 

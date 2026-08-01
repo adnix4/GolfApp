@@ -425,9 +425,14 @@ export interface LeaderboardEntry {
 export interface FundraisingTotals {
   entryFeesCents: number; donationsCents: number; grandTotalCents: number;
   sponsorAmountCents: number; challengeAmountCents: number;
+  /** Won bids on closed items plus what is committed on items still open. */
+  auctionCents: number;
   teamsPaid: number; teamsTotal: number;
   playersPaid: number; playersTotal: number;
   donationCount: number;
+  auctionItemsSold: number;
+  /** Slice of auctionCents still owed — charges Pending or Failed. */
+  auctionUncollectedCents: number;
 }
 
 export interface SponsorPlacements {

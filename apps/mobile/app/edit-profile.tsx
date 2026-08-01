@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
-  ScrollView, ActivityIndicator, Alert, SafeAreaView,
+  ScrollView, ActivityIndicator, SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
+import { notify } from '@/lib/notify';
 import { updateMyProfile } from '@/lib/api';
 
 export default function EditProfileScreen() {
@@ -23,7 +24,7 @@ export default function EditProfileScreen() {
   async function handleSave() {
     if (!player) return;
     if (!firstName.trim() || !lastName.trim()) {
-      Alert.alert('Required', 'First and last name are required.');
+      notify('Required', 'First and last name are required.');
       return;
     }
     setSaving(true);
@@ -54,7 +55,7 @@ export default function EditProfileScreen() {
 
       router.back();
     } catch (e: unknown) {
-      Alert.alert('Update Failed', e instanceof Error ? e.message : 'Something went wrong.');
+      notify('Update Failed', e instanceof Error ? e.message : 'Something went wrong.');
     } finally {
       setSaving(false);
     }

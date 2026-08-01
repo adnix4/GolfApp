@@ -446,4 +446,116 @@ public class TeamServiceTests
             c.Db.Players.Where(p => p.TeamId == reg.Team.Id).ToList(),
             p => Assert.Equal(CheckInStatus.CheckedIn, p.CheckInStatus));
     }
+
+    // ── Entry fee: the team's paid state is derived from its golfers ───────────
+    // teams.entry_fee_paid is written but never read. It used to be OR-ed into
+    // the response, which made it sticky: once true the team reported paid no
+    // matter what its roster had actually paid, so Registration and Fundraising
+    // gave different answers for the same event.
+
+    [Fact]
+    public async Task MarkFeePaid_records_the_fee_against_every_golfer()
+    {
+        var c   = Build(configJson: FeeConfig);
+        var reg = await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "Payers", MaxPlayers = 4, Players = new() { P("A"), P("B") },
+        });
+
+        var team = await c.Svc.MarkFeePaidAsync(c.OrgId, c.EventId, reg.Team.Id);
+
+        Assert.True(team.EntryFeePaid);
+        Assert.Equal(2, team.PlayersPaid);
+        Assert.All(
+            c.Db.Players.Where(p => p.TeamId == reg.Team.Id).ToList(),
+            p => Assert.Equal(5000, p.EntryFeePaidCents));
+    }
+
+    [Fact]
+    public async Task Team_is_not_paid_when_the_legacy_flag_is_set_but_no_golfer_has_paid()
+    {
+        // Exactly the pre-Phase14 shape: the migration added the per-golfer
+        // columns at a default of 0 and backfilled nothing, so every team marked
+        // paid before it carries a true flag over an entirely unpaid roster.
+        var c   = Build(configJson: FeeConfig);
+        var reg = await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "Legacy", MaxPlayers = 4, Players = new() { P("A"), P("B") },
+        });
+        c.Db.Teams.Single(t => t.Id == reg.Team.Id).EntryFeePaid = true;
+        c.Db.SaveChanges();
+
+        var team = await c.Svc.GetTeamAsync(c.OrgId, c.EventId, reg.Team.Id);
+
+        Assert.False(team.EntryFeePaid);
+        Assert.Equal(0, team.PlayersPaid);
+    }
+
+    [Fact]
+    public async Task A_golfer_assigned_after_the_team_paid_makes_the_team_unpaid_again()
+    {
+        var c   = Build(configJson: FeeConfig);
+        var reg = await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "Growing", MaxPlayers = 4, Players = new() { P("A"), P("B") },
+        });
+        await c.Svc.MarkFeePaidAsync(c.OrgId, c.EventId, reg.Team.Id);
+
+        var agent = await c.Svc.RegisterFreeAgentAsync(c.OrgId, c.EventId,
+            new RegisterFreeAgentRequest { Player = P("Late", "late@x.com") });
+        var team = await c.Svc.AssignFreeAgentAsync(c.OrgId, c.EventId, new AssignFreeAgentRequest
+        {
+            PlayerId = agent.Player!.Id, TeamId = reg.Team.Id,
+        });
+
+        // The newcomer has paid nothing, so the roster is no longer fully paid
+        // and the organizer gets the Mark All Paid action back.
+        Assert.False(team.EntryFeePaid);
+        Assert.Equal(2, team.PlayersPaid);
+        Assert.Equal(3, team.Players.Count);
+    }
+
+    [Fact]
+    public async Task Marking_paid_again_covers_only_the_golfer_who_still_owes()
+    {
+        var c   = Build(configJson: FeeConfig);
+        var reg = await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "Topup", MaxPlayers = 4, Players = new() { P("A"), P("B") },
+        });
+        await c.Svc.MarkFeePaidAsync(c.OrgId, c.EventId, reg.Team.Id);
+        var paidAt = c.Db.Players.First(p => p.TeamId == reg.Team.Id).EntryFeePaidAt;
+
+        var agent = await c.Svc.RegisterFreeAgentAsync(c.OrgId, c.EventId,
+            new RegisterFreeAgentRequest { Player = P("Late", "late2@x.com") });
+        await c.Svc.AssignFreeAgentAsync(c.OrgId, c.EventId, new AssignFreeAgentRequest
+        {
+            PlayerId = agent.Player!.Id, TeamId = reg.Team.Id,
+        });
+
+        var team = await c.Svc.MarkFeePaidAsync(c.OrgId, c.EventId, reg.Team.Id);
+
+        Assert.True(team.EntryFeePaid);
+        Assert.Equal(3, team.PlayersPaid);
+        // The already-paid golfers keep their original timestamp — re-marking is
+        // not a re-charge, so it must not rewrite settled history.
+        Assert.Equal(paidAt, c.Db.Players.First(p => p.TeamId == reg.Team.Id).EntryFeePaidAt);
+    }
+
+    [Fact]
+    public async Task An_empty_team_never_reads_as_paid()
+    {
+        var c = Build(configJson: FeeConfig);
+        var id = Guid.NewGuid();
+        c.Db.Teams.Add(new Team
+        {
+            Id = id, EventId = c.EventId, Name = "Empty", MaxPlayers = 4, EntryFeePaid = true,
+        });
+        c.Db.SaveChanges();
+
+        var team = await c.Svc.GetTeamAsync(c.OrgId, c.EventId, id);
+
+        Assert.False(team.EntryFeePaid);
+        Assert.Equal(0, team.PlayersPaid);
+    }
 }
