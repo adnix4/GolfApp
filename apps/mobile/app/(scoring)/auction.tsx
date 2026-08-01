@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme, MoneyInput } from '@gfp/ui';
-import { formatCentsShort, dollarsToCents, centsToMoneyValue, useLiveAuction } from '@gfp/shared-types';
+import { formatCentsShort, dollarsToCents, centsToMoneyValue, useLiveAuction, needsPaymentMethod } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
 import {
   fetchAuctionItems, placeBid, pledge,
@@ -70,6 +70,17 @@ export default function AuctionScreen() {
   const player = session?.player;
   const eventId = session?.event?.id;
   const eventCode = session?.event?.eventCode;
+
+  // Mirrors the server gate (AuctionBidRules.NeedsPaymentMethod): a saved card
+  // is required ONLY until the golfer checks in. This screen used to test
+  // hasPaymentMethod alone, which blocked checked-in golfers the server would
+  // have accepted. session.tsx refreshes isCheckedIn on the status poll.
+  const cardRequired = needsPaymentMethod(
+    !!player?.hasPaymentMethod, !!player?.isCheckedIn,
+  );
+  // Checked in with no card — worth saying out loud, since the golfer may have
+  // been staring at the "add a card" banner right up until check-in.
+  const bidsUnlockedByCheckIn = !player?.hasPaymentMethod && !!player?.isCheckedIn;
 
   const [tab, setTab]             = useState<Tab>('items');
   const [history, setHistory]     = useState<PlayerBidHistoryItem[]>([]);
@@ -151,7 +162,7 @@ export default function AuctionScreen() {
     } catch (e: unknown) {
       const raw = e instanceof Error ? e.message : '';
       const msg = raw === 'NO_PAYMENT_METHOD'
-        ? 'A saved payment method is required to place bids. Please complete entry fee payment first.'
+        ? 'To bid, either save a card or check in at the registration desk.'
         : raw || 'Something went wrong. Please try again.';
       Alert.alert('Could not place bid', msg);
     } finally {
@@ -171,7 +182,10 @@ export default function AuctionScreen() {
     ? items.find(i => i.id === selectedItem.id) ?? selectedItem
     : null;
 
-  const openItems = items.filter(i => i.status === 'Open');
+  // Extended counts as open — an item that extends on a last-30-second bid is at
+  // its hottest, and dropping it here made it vanish from the golfer's list at
+  // exactly that moment. Matches the server (AuctionService.GetPublicItemsAsync).
+  const openItems = items.filter(i => i.status === 'Open' || i.status === 'Extended');
 
   if (!eventId) return (
     <View style={styles.center}>
@@ -194,8 +208,8 @@ export default function AuctionScreen() {
         </View>
       )}
 
-      {/* No payment method warning */}
-      {!player?.hasPaymentMethod && (
+      {/* No payment method — and not yet checked in, so bidding is still locked */}
+      {cardRequired && (
         <Pressable
           style={styles.paymentWarning}
           onPress={() => router.push('/payment-setup')}
@@ -203,11 +217,20 @@ export default function AuctionScreen() {
         >
           <View style={styles.paymentWarningRow}>
             <Text style={styles.paymentWarningText}>
-              No payment method on file — bids require a saved card.
+              Add a card to bid — or check in at the registration desk.
             </Text>
             <Text style={styles.paymentWarningLink}>Set Up →</Text>
           </View>
         </Pressable>
+      )}
+
+      {/* Checked in without a card — bidding is open, say so */}
+      {bidsUnlockedByCheckIn && (
+        <View style={styles.checkedInNotice}>
+          <Text style={styles.checkedInNoticeText}>
+            You're checked in — no card needed to bid.
+          </Text>
+        </View>
       )}
 
       {/* Live auction banner */}
@@ -341,10 +364,13 @@ export default function AuctionScreen() {
                   placeholder="$0.00"
                   placeholderTextColor="#aaa"
                 />
+                {/* Same gate as the silent-auction modal — this button used to be
+                    ungated entirely, so a cardless golfer's live bid was accepted
+                    locally and then rejected by the server. */}
                 <Pressable
-                  style={[styles.bidBtn, { backgroundColor: theme.colors.primary }]}
+                  style={[styles.bidBtn, { backgroundColor: cardRequired ? '#aaa' : theme.colors.primary }]}
                   onPress={() => handleBid(currentLiveItem)}
-                  disabled={bidding}
+                  disabled={bidding || cardRequired}
                 >
                   {bidding ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.bidBtnText}>Bid</Text>}
                 </Pressable>
@@ -477,10 +503,10 @@ export default function AuctionScreen() {
                   <Pressable
                     style={[
                       styles.bidBtn,
-                      { backgroundColor: player?.hasPaymentMethod ? theme.colors.primary : '#aaa' },
+                      { backgroundColor: cardRequired ? '#aaa' : theme.colors.primary },
                     ]}
                     onPress={() => handleBid(liveSelectedItem)}
-                    disabled={bidding || !player?.hasPaymentMethod}
+                    disabled={bidding || cardRequired}
                   >
                     {bidding
                       ? <ActivityIndicator color="#fff" size="small" />
@@ -562,4 +588,6 @@ const styles = StyleSheet.create({
   paymentWarningRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   paymentWarningText: { color: '#b7770d', fontSize: 13, flex: 1 },
   paymentWarningLink: { color: '#e67e22', fontSize: 13, fontWeight: '700' },
+  checkedInNotice:     { backgroundColor: '#eafaf1', borderLeftWidth: 3, borderLeftColor: '#27ae60', padding: 12 },
+  checkedInNoticeText: { color: '#1e8449', fontSize: 13 },
 });

@@ -21,6 +21,15 @@ public record AddPlayerRequest
 
     /// <summary>Assign to this team. Omit or pass null to add as a free agent.</summary>
     public Guid? TeamId { get; init; }
+
+    /// <summary>
+    /// True to register a non-golfer attendee (spouse, sponsor, banquet guest)
+    /// so they can bid in the auction. Forces a team-less player tagged
+    /// RegistrationType.Attendee, which keeps them off the leaderboard, out of
+    /// pairings, and out of the check-in counts that gate Open Scoring.
+    /// Ignored when TeamId is supplied — an attendee is never on a team.
+    /// </summary>
+    public bool IsAttendee { get; init; }
 }
 
 public record UpdatePlayerRequest

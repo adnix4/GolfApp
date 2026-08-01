@@ -11,12 +11,10 @@ import {
   type Team, type Player, type RegisterTeamPayload, type AddPlayerPayload,
 } from '@/lib/api';
 import { confirmAction } from '@/lib/confirmAction';
-
-const CHECK_IN_STATUS_COLOR: Record<string, string> = {
-  pending:    '#f39c12',
-  checked_in: '#2ecc71',
-  complete:   '#27ae60',
-};
+import {
+  isCheckedIn as statusIsCheckedIn, checkInLabel, checkInColor,
+  checkInConfirmCopy, cardlessHint, canCheckInWholeTeam, golfersWithoutCard,
+} from '@/lib/checkIn';
 
 // ── Team row (memoized) ───────────────────────────────────────────────────────
 // Hoisted out of the FlatList renderItem so the closure doesn't recreate the
@@ -30,6 +28,7 @@ interface TeamRowProps {
   onEditTeam:     (team: Team) => void;
   onRemoveTeam:   (team: Team) => void;
   onCheckIn:      (teamId: string) => void;
+  onCheckInPlayer:(player: Player) => void;
   onEditPlayer:   (player: Player, team: Team) => void;
   onRemovePlayer: (teamId: string, playerId: string) => void;
   onAddPlayer:    (team: Team) => void;
@@ -37,10 +36,15 @@ interface TeamRowProps {
 
 const TeamRow = memo(function TeamRow({
   team, eventStatus,
-  onEditTeam, onRemoveTeam, onCheckIn,
+  onEditTeam, onRemoveTeam, onCheckIn, onCheckInPlayer,
   onEditPlayer, onRemovePlayer, onAddPlayer,
 }: TeamRowProps) {
   const theme = useTheme();
+  // Whole-team check-in is the risk-free fast path only; a roster with any
+  // cardless golfer is checked in one at a time so each warning is accepted.
+  const teamIsIn      = statusIsCheckedIn(team.checkInStatus);
+  const cardless      = golfersWithoutCard(team.players);
+  const canCheckInAll = canCheckInWholeTeam(team.players);
   return (
     <View style={[styles.card, { borderColor: '#e8e8e8' }]}>
       {/* Team header */}
@@ -55,9 +59,8 @@ const TeamRow = memo(function TeamRow({
         </View>
         <View style={styles.cardRight}>
           <StatusPill
-            color={CHECK_IN_STATUS_COLOR[team.checkInStatus] ?? '#aaa'}
-            label={team.checkInStatus.replace('_', ' ')}
-            textTransform="capitalize"
+            color={checkInColor(team.checkInStatus)}
+            label={checkInLabel(team.checkInStatus)}
             size="sm"
           />
           <View style={styles.actionBtns}>
@@ -75,17 +78,24 @@ const TeamRow = memo(function TeamRow({
                 <Text style={[styles.editBtnText, { color: '#e74c3c' }]}>Remove</Text>
               </Pressable>
             )}
-            {team.checkInStatus === 'pending' && eventStatus === 'Active' && (
+            {!teamIsIn && canCheckInAll && eventStatus === 'Active' && (
               <Pressable
                 style={[styles.checkInBtn, { backgroundColor: theme.colors.action }]}
                 onPress={() => onCheckIn(team.id)}
               >
-                <Text style={[styles.checkInText, { color: theme.ctaLabel }]}>Check In</Text>
+                <Text style={[styles.checkInText, { color: theme.ctaLabel }]}>Check In Team</Text>
               </Pressable>
             )}
           </View>
         </View>
       </View>
+
+      {/* Why there is no team button here — the fast path is withheld, not broken */}
+      {!teamIsIn && !canCheckInAll && eventStatus === 'Active' && team.players.length > 0 && (
+        <Text style={[styles.cardlessHint, { color: theme.mutedText }]}>
+          {cardlessHint(cardless.length, team.players.length)}
+        </Text>
+      )}
 
       {/* Players */}
       {team.players.length > 0 && (
@@ -118,6 +128,22 @@ const TeamRow = memo(function TeamRow({
                 )}
               </View>
               <View style={styles.playerActions}>
+                {eventStatus === 'Active' && (
+                  statusIsCheckedIn(p.checkInStatus) ? (
+                    <Text style={[styles.golferDone, { color: '#27ae60' }]}>✓ In</Text>
+                  ) : (
+                    <Pressable
+                      style={[styles.smallBtn, { borderColor: theme.colors.action }]}
+                      onPress={() => {
+                        const c = checkInConfirmCopy(
+                          `${p.firstName} ${p.lastName}`.trim(), p.hasPaymentMethod);
+                        confirmAction(c.title, c.message, () => onCheckInPlayer(p), c.confirmText);
+                      }}
+                    >
+                      <Text style={[styles.smallBtnText, { color: theme.colors.action }]}>Check In</Text>
+                    </Pressable>
+                  )
+                )}
                 <Pressable
                   style={[styles.smallBtn, { borderColor: theme.colors.accent }]}
                   onPress={() => onEditPlayer(p, team)}
@@ -208,6 +234,27 @@ export default function TeamsScreen() {
     }
   }, [id]);
 
+  // Per-golfer check-in. The server promotes the team to Complete once the last
+  // golfer is in, so mirror that locally rather than refetching the whole list.
+  const handleCheckInPlayer = useCallback(async (player: Player) => {
+    try {
+      const updated = await playersApi.checkIn(id, player.id);
+      setTeams(prev => prev.map(t => {
+        if (t.id !== player.teamId) return t;
+        const players = t.players.map(p => p.id === updated.id ? updated : p);
+        return {
+          ...t,
+          players,
+          checkInStatus: players.every(p => statusIsCheckedIn(p.checkInStatus))
+            ? 'Complete'
+            : t.checkInStatus,
+        };
+      }));
+    } catch (e: any) {
+      setError(e.message ?? 'Check-in failed.');
+    }
+  }, [id]);
+
   function handleRegistered(team: Team, inviteUrl?: string | null) {
     setTeams(prev => [...prev, team]);
     setShowAdd(false);
@@ -279,11 +326,12 @@ export default function TeamsScreen() {
       onEditTeam={onEditTeam}
       onRemoveTeam={onRemoveTeam}
       onCheckIn={handleCheckIn}
+      onCheckInPlayer={handleCheckInPlayer}
       onEditPlayer={onEditPlayer}
       onRemovePlayer={handleRemovePlayer}
       onAddPlayer={onAddPlayer}
     />
-  ), [eventStatus, onEditTeam, onRemoveTeam, handleCheckIn, onEditPlayer, handleRemovePlayer, onAddPlayer]);
+  ), [eventStatus, onEditTeam, onRemoveTeam, handleCheckIn, handleCheckInPlayer, onEditPlayer, handleRemovePlayer, onAddPlayer]);
 
   return (
     <View style={styles.page}>
@@ -983,6 +1031,8 @@ const styles = StyleSheet.create({
   editBtnText: { fontSize: 12, fontWeight: '600' },
   checkInBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
   checkInText: { fontSize: 12, fontWeight: '700' },
+  cardlessHint: { fontSize: 12, marginTop: 6, fontStyle: 'italic' },
+  golferDone: { fontSize: 12, fontWeight: '700' },
 
   players: { gap: 8, paddingTop: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#eee' },
   playerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

@@ -319,6 +319,45 @@ public class MobileServiceTests
     }
 
     [Fact]
+    public async Task Join_payload_carries_check_in_and_card_state_for_self_and_teammates()
+    {
+        // The mobile auction screen gates its bid button on exactly these two
+        // fields; a teammate projection that silently defaulted them to false
+        // would misreport the roster.
+        var w = Seed();
+        var mate = new Player
+        {
+            Id = Guid.NewGuid(), EventId = w.EventId, TeamId = w.TeamId,
+            FirstName = "Sam", LastName = "Teammate", Email = "sam@example.com",
+            HasPaymentMethod = true, CheckInStatus = CheckInStatus.CheckedIn,
+        };
+        var self = w.Db.Players.Single(p => p.Id == w.PlayerId);
+        self.CheckInStatus    = CheckInStatus.CheckedIn;
+        self.HasPaymentMethod = false;
+        w.Db.Players.Add(mate);
+        w.Db.SaveChanges();
+
+        var res = await w.Svc.JoinAsync(World.Code, new JoinEventRequest { Email = w.PlayerEmail });
+
+        Assert.True(res.Player.IsCheckedIn);
+        Assert.False(res.Player.HasPaymentMethod);
+
+        var mateDto = res.Team!.Players.Single(p => p.Id == mate.Id);
+        Assert.True(mateDto.IsCheckedIn);
+        Assert.True(mateDto.HasPaymentMethod);
+    }
+
+    [Fact]
+    public async Task Join_reports_a_pending_golfer_as_not_checked_in()
+    {
+        var w = Seed();  // seeded player defaults to Pending / no card
+        var res = await w.Svc.JoinAsync(World.Code, new JoinEventRequest { Email = w.PlayerEmail });
+
+        Assert.False(res.Player.IsCheckedIn);
+        Assert.False(res.Player.HasPaymentMethod);
+    }
+
+    [Fact]
     public async Task Join_reuses_an_existing_session_token()
     {
         var w = Seed(); // token already minted
@@ -344,11 +383,62 @@ public class MobileServiceTests
     }
 
     [Fact]
-    public async Task Join_rejects_completed_event()
+    public async Task Join_is_allowed_after_the_round_completes()
     {
+        // The round ending is not the fundraiser ending — the auction runs on into
+        // the banquet, and the auction API has no event-status coupling at all.
+        // Refusing to join here would lock a late guest out of bidding entirely.
         var w = Seed(status: EventStatus.Completed);
+
+        var res = await w.Svc.JoinAsync(World.Code, new JoinEventRequest { Email = w.PlayerEmail });
+
+        Assert.False(string.IsNullOrEmpty(res.SessionToken));
+        Assert.Equal(w.PlayerId, res.Player.Id);
+    }
+
+    [Fact]
+    public async Task Guest_joins_straight_in_rather_than_waiting_for_a_team()
+    {
+        // A guest is team-less by design, not by queue position — unlike a free
+        // agent there is nothing to await, so the app must not park them on the
+        // "waiting for assignment" screen (which never persists the session).
+        var w = Seed(status: EventStatus.Scoring);
+        var guest = new Player
+        {
+            Id = Guid.NewGuid(), EventId = w.EventId, TeamId = null,
+            FirstName = "Sam", LastName = "Guest", Email = "guest@example.com",
+            RegistrationType = RegistrationType.Attendee,
+            VerifiedDeviceId = "mobile-app",
+        };
+        w.Db.Players.Add(guest);
+        w.Db.SaveChanges();
+
+        var res = await w.Svc.JoinAsync(World.Code, new JoinEventRequest { Email = "guest@example.com" });
+
+        Assert.True(res.IsGuest);
+        Assert.False(res.AwaitingAssignment);
+        Assert.Null(res.Team);
+        Assert.False(string.IsNullOrEmpty(res.SessionToken));
+    }
+
+    [Fact]
+    public async Task Free_agent_is_still_blocked_once_the_round_starts()
+    {
+        // The guest exemption must not weaken the guard for golfers, who really
+        // do need a team before they can score.
+        var w = Seed(status: EventStatus.Scoring);
+        var agent = new Player
+        {
+            Id = Guid.NewGuid(), EventId = w.EventId, TeamId = null,
+            FirstName = "Free", LastName = "Agent", Email = "agent@example.com",
+            RegistrationType = RegistrationType.FreeAgent,
+            VerifiedDeviceId = "mobile-app",
+        };
+        w.Db.Players.Add(agent);
+        w.Db.SaveChanges();
+
         await Assert.ThrowsAsync<ValidationException>(() =>
-            w.Svc.JoinAsync(World.Code, new JoinEventRequest { Email = w.PlayerEmail }));
+            w.Svc.JoinAsync(World.Code, new JoinEventRequest { Email = "agent@example.com" }));
     }
 
     [Fact]

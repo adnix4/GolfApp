@@ -100,6 +100,55 @@ they run in parallel with everything else.
           platform ships first (e.g. Android live, iOS still in review): the
           chooser shows just the live store, which is intended.
 
+[x] D8. LET CHECKED-IN GOLFERS BID WITHOUT A SAVED CARD (added 2026-07-31,
+        done 2026-07-31)
+        DONE — but the job was bigger than described below. Three defects, not
+        one, stood between a checked-in golfer and a cardless bid:
+        (a) Admin's Check In button was DEAD CODE. The API projects
+            CheckInStatus with .ToString() ("Pending"/"CheckedIn"/"Complete")
+            but both screens compared against lowercase, so the button never
+            rendered, the pill was always grey, and every team counted as
+            checked in. Fixed via apps/admin/src/lib/checkIn.ts (single source
+            of truth for the wire format) + packages/ui TeamCard, which had the
+            same bug. shared-types' CheckInStatus union now matches the wire.
+        (b) NOTHING checked in a GOLFER. Admin only called the team endpoint,
+            and TeamService.CheckInTeamAsync set only team.CheckInStatus — it
+            never touched Player.CheckInStatus and emitted no SignalR. It now
+            cascades to every golfer on the roster, sets the team to Complete,
+            and broadcasts. PlayerService.CheckInAsync is now idempotent (it
+            threw), matching what its own endpoint doc already claimed.
+        (c) The mobile client rule, as described below.
+        UI (as specified by the user): a "Check In Team" button that appears
+        ONLY when every golfer on the roster has a card, replaced otherwise by
+        "N of M golfers have no card — check in individually"; a per-golfer
+        Check In button on every roster row; and a confirm popup that states
+        card status either way — the cardless variant warns that a winner must
+        be collected from manually. Copy is single-sourced in checkIn.ts.
+        PLUMBING: PlayerResponse gained HasPaymentMethod (and the two divergent
+        MapToPlayerResponse copies were merged into one — PlayerService's had
+        already drifted, silently dropping the entry-fee columns).
+        PlayerCacheDto gained IsCheckedIn. GET /pub/events/{code}/status now
+        returns the caller's own {isCheckedIn, hasPaymentMethod} when the
+        X-GFP-Player-Id / X-GFP-Session-Token headers are presented (fail-closed
+        to null) — mobile's session poll already ran every tick, so this costs
+        zero extra requests and is what unlocks the button after check-in.
+        The rule itself is now shared: packages/shared-types/src/auctionRules.ts
+        mirrors AuctionBidRules.NeedsPaymentMethod, tested against the same
+        three cases as apps/api-tests/AuctionBidRulesTests.cs.
+        VERIFIED: 450 API tests, 119 admin, 115 mobile, 91 shared-types, 4 apps
+        typecheck clean. Driven live against localhost — team cascade, per-golfer
+        promotion to Complete, idempotency, the status-poll flip, the join
+        payload, and both bid outcomes (cardless+CheckedIn -> 200,
+        cardless+Pending -> 400 NO_PAYMENT_METHOD). Admin UI clicked through in
+        a browser: both popup variants and the team cascade confirmed against
+        the DB. NOT visually exercised: the mobile auction screen itself
+        (apps/mobile has no RN component-test harness and vitest only picks up
+        src/**/*.ts) — its inputs and rule are unit-tested instead.
+        D4 note: the dress-rehearsal sub-item "bid from a phone with no saved
+        card after check-in" is now pre-verified at the API level; only the
+        on-device walk and the failed-charge resolution remain for D4.
+
+        ---- original entry ----
 [ ] D8. LET CHECKED-IN GOLFERS BID WITHOUT A SAVED CARD (added 2026-07-31)
         Pilot-prep item. Removes the hard dependency on Stripe activation for
         the auction, which has business-verification lead time (see D1).
@@ -129,6 +178,88 @@ they run in parallel with everything else.
         chase payment before enabling this for a real event.
         VERIFY AT D4 (dress rehearsal): bid from a phone with no card saved after
         check-in, close the item, and walk the failed-charge resolution in admin.
+
+[x] D9. OPEN-SCORING GATE + THE AUCTION OUTLIVES THE ROUND (2026-07-31)
+        Started as "don't enable Open Scoring until all teams are checked in".
+        That gate is done — Overview greys the button, shows "N of M teams still
+        need check-in", and offers "Open Scoring anyway" behind a confirm naming
+        the outstanding teams, so a no-show foursome can't strand the round. The
+        gate is an admin affordance only; ValidateStatusTransition is unchanged.
+        Counted in TEAMS off counts.teamsCheckedIn (CheckedIn||Complete), which
+        was already on the page — no new request on the normal path.
+        THE BIGGER FIND: the event status machine assumed a golf-only day ending
+        at Completed, but a fundraiser runs on into a banquet. The auction API,
+        the close job and the admin auction UI have ZERO EventStatus coupling —
+        the conflation was entirely in the clients. Fixed without a new status
+        or a migration:
+          - check-in now allowed in Active OR Scoring (EventStatusRules
+            .CheckInAllowed) so late arrivals can still be checked in — which
+            also keeps them eligible to bid under the D8 waiver. Completed and
+            Cancelled stay closed.
+          - /join no longer refuses Completed; the event picker lists a Completed
+            event only while it still has an Open/Extended auction item, so the
+            public directory doesn't accumulate finished events.
+          - the mobile shell no longer hides every tab at Completed (it showed an
+            "Event Ended" wall with no way past, trapping golfers mid-auction).
+            Scoring closes; auction and leaderboard stay reachable.
+          - new POST /events/{id}/auction/sessions/end + "End Auction" button —
+            the organizer's "auction is over" signal. Previously IsActive only
+            flipped when the NEXT session started, so a finished auction stayed
+            "in progress" on every attendee screen. This is the second
+            completion state, without touching the event status machine.
+        GUESTS (non-golfers who only want to bid): new RegistrationType.Attendee
+        — a team-less Player, not a new entity, because bids.player_id /
+        auction_winners.player_id / stripe_customers.player_id are all
+        non-nullable FKs to players. No migration (registration_type is a string
+        column, team_id already nullable). Being team-less keeps them off the
+        leaderboard, out of pairings, out of team capacity and out of the
+        check-in counts that gate Open Scoring. Admin: "Guest — not playing"
+        toggle on the Walk-Up form plus a Guests section on Registration (they
+        appear on no roster, so without it they could never be checked in).
+        They may be added after the round; golfers may not. Mobile: a guest goes
+        straight in (the old free-agent path threw the session token away at
+        join.tsx) with the scorecard and team tabs hidden.
+        ALSO FIXED: auction.tsx dropped Extended items from the golfer's list, so
+        an item that extended on a last-30-second bid vanished at its hottest
+        moment; and registration.tsx rendered Check In buttons after the event
+        left Active (a D8 regression) which 400d.
+        VERIFIED: 459 API / 130 admin / 115 mobile / 91 shared-types tests, four
+        apps typecheck. Driven live: gate blocked -> override dialog names the 5
+        outstanding teams -> cancel leaves it Active -> all checked in -> button
+        enables. Late check-in during Scoring 200s (400d before). After
+        Completed: golfer join 200s, guest joins straight in, cardless checked-in
+        guest bids 200, guest add 201 / golfer add 400, end-session 204 then 200.
+        NOT visually exercised: the mobile screens (no RN component-test harness).
+
+[ ] D10. COLLECT PAYMENT INFO AT CHECK-IN — BLOCKED ON D1 (STRIPE ACTIVATION)
+        Asked 2026-07-31; deferred deliberately, not for lack of time.
+        It cannot be built OR dress-rehearsed before Stripe is live:
+        CreateSetupIntentAsync (PaymentsService.cs:29) has no IsUsableStripeKey
+        guard — it sets the key at :40 and immediately calls Stripe's
+        CustomerService at :52, so the shipped sk_test_REPLACE_WITH… placeholder
+        raises an unhandled StripeException (401), not a graceful 400.
+        IsUsableStripeKey (:305) guards ONLY donations. Unlike the entry-fee path
+        (A8 swallow-and-return-null at TeamService.cs:943-959 → "pay at
+        check-in"), the card-on-file flow has NO degraded mode at all.
+        NOTE THE INTENDED DESIGN IS NOT A WORKER TYPING A CARD. TechSpec:604:
+        "organizer shares a short URL or QR that opens a Stripe-hosted card entry
+        page on the attendee's phone at check-in" — the existing per-player QR
+        machinery (QrService, QrType.PlayerCheckin, GET /pub/qr/scan) could carry
+        that, with no PCI exposure and no staff handling cards.
+        Both current endpoints are gated on the golfer's /join session token
+        (PaymentsService.cs:37,85), which admin never receives and which is null
+        for exactly the golfers a worker would be helping, so staff-authorized
+        variants need designing against a live account.
+        Until then the fallbacks hold: cash entry fees via markFeePaid, and
+        check-in waiving the auction card requirement (D8) with re-charge/waive.
+
+[ ] D11. DESK STAFF CANNOT MARK A CASH FEE PAID (found 2026-07-31)
+        fee-paid is [Authorize(Policy="OrgAdmin")] (TeamController.cs:199) while
+        check-in is EventStaff (PlayerController.cs:91). An EventStaff user
+        working the registration desk can check golfers in but cannot record a
+        cash/check entry fee — they'd have to fetch an org admin mid-queue.
+        Small and Stripe-independent. Confirm who actually staffs the desk before
+        changing the policy, since it also controls the roster-wide fee override.
 
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done.

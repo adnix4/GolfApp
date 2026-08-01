@@ -519,6 +519,25 @@ public record PublicEventStatusResponse
     public string  Status            { get; init; } = string.Empty;
     public string? ResolvedThemeJson { get; init; }
     public int     SponsorsVersion   { get; init; }
+    /// <summary>
+    /// The caller's own player state, populated only when valid per-player
+    /// session headers are presented; null for anonymous callers and for bad
+    /// credentials (fail-closed, no existence leak). Lets a device notice it was
+    /// checked in — which happens after join, so the cached session is stale —
+    /// without adding a second recurring request.
+    /// </summary>
+    public PublicPlayerStatus? Player { get; init; }
+}
+
+/// <summary>
+/// Per-player slice of the status poll. Carries exactly the two inputs to
+/// AuctionBidRules.NeedsPaymentMethod so the client rule cannot drift from the
+/// server's — nothing else about the golfer belongs on a polled endpoint.
+/// </summary>
+public record PublicPlayerStatus
+{
+    public bool IsCheckedIn      { get; init; }
+    public bool HasPaymentMethod { get; init; }
 }
 
 public record PublicCourseInfo

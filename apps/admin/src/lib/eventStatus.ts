@@ -46,6 +46,65 @@ export const NEXT_TRANSITIONS: Record<string, EventStatusTransition[]> = {
   Scoring:      [{ status: 'Completed', label: 'Mark Complete' }],
 };
 
+// ── Open Scoring gate ─────────────────────────────────────────────────────────
+//
+// Opening scoring before the field has checked in means golfers start entering
+// scores before the desk has seen them — and since check-in is also what waives
+// the auction's saved-card requirement (AuctionBidRules.NeedsPaymentMethod), an
+// early flip quietly leaves cardless golfers unable to bid.
+//
+// Deliberately counted in TEAMS, using the counts already on the Overview page.
+// The server computes teamsCheckedIn as CheckedIn || Complete
+// (EventService.LoadCountsAsync), so a team that reached Complete via the
+// per-golfer cascade is counted. Guests (team-less attendees) are invisible to
+// both numbers by design — a spouse who came for the banquet must never be able
+// to hold up the round.
+
+export interface ScoringGate {
+  /** True when every registered team is checked in. */
+  ready:       boolean;
+  /** Teams still to check in. */
+  outstanding: number;
+  total:       number;
+}
+
+export function scoringGate(
+  counts: { teamsRegistered: number; teamsCheckedIn: number },
+): ScoringGate {
+  const total       = Math.max(0, counts.teamsRegistered);
+  const checkedIn   = Math.min(Math.max(0, counts.teamsCheckedIn), total);
+  const outstanding = total - checkedIn;
+  // Zero teams is not "ready" — there is nothing to score.
+  return { ready: total > 0 && outstanding === 0, outstanding, total };
+}
+
+/** Explains why Open Scoring is unavailable. */
+export function scoringGateHint(gate: ScoringGate): string {
+  if (gate.total === 0) return 'No teams are registered yet.';
+  return `${gate.outstanding} of ${gate.total} team${gate.total === 1 ? '' : 's'} still need check-in`;
+}
+
+/**
+ * Confirm copy for the override. A no-show team must never be able to strand
+ * the round, so the organizer can always proceed — but they see exactly who is
+ * missing first, and that those golfers can still be checked in later.
+ */
+export function openScoringEarlyCopy(teamNames: string[]): {
+  title: string; message: string; confirmText: string;
+} {
+  const list = teamNames.length > 0
+    ? teamNames.map(n => `• ${n}`).join('\n')
+    : '• (none)';
+  return {
+    title:   'Open scoring early?',
+    message:
+      `These teams are not checked in:\n\n${list}\n\n` +
+      'Their golfers can still score, and you can still check them in after ' +
+      'scoring opens.',
+    confirmText: 'Open Scoring',
+  };
+}
+
 /** Fallback color for an unknown status, matching previous inline defaults. */
 export const EVENT_STATUS_COLOR_FALLBACK = '#aaa';
 

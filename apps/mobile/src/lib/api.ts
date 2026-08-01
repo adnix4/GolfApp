@@ -38,7 +38,13 @@ function authHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export interface PlayerCacheDto  { id: string; firstName: string; lastName: string; email: string; hasPaymentMethod: boolean; }
+/**
+ * `isCheckedIn` mirrors the second input to the server's bid rule
+ * (AuctionBidRules.NeedsPaymentMethod): a checked-in golfer may bid without a
+ * saved card. Check-in happens after join, so this is refreshed by the status
+ * poll in session.tsx rather than being fixed at join time.
+ */
+export interface PlayerCacheDto  { id: string; firstName: string; lastName: string; email: string; hasPaymentMethod: boolean; isCheckedIn: boolean; }
 export interface HoleCacheDto    { holeNumber: number; par: number; handicapIndex: number; yardageWhite: number | null; yardageBlue: number | null; yardageRed: number | null; sponsorName: string | null; sponsorLogoUrl: string | null; }
 export interface CourseCacheDto  { id: string; name: string; city: string; state: string; holes: HoleCacheDto[]; }
 export interface SponsorCacheDto { id: string; name: string; logoUrl: string; websiteUrl: string | null; tagline: string | null; tier: string; holeNumbers: number[]; }
@@ -77,6 +83,13 @@ export interface JoinEventResponse {
    * The join screen shows a "Check Again" button that re-polls until assigned.
    */
   awaitingAssignment?: boolean;
+  /**
+   * True for a non-golfer guest (spouse, sponsor, banquet attendee) registered
+   * only to bid. `team` is undefined and always will be — unlike
+   * awaitingAssignment there is nothing to wait for, so they go straight in
+   * with scoring hidden.
+   */
+  isGuest?: boolean;
   /**
    * Opaque per-player session token minted by the server at join. Stored in the
    * session and sent back to authorize this player's own actions (profile edit,
@@ -233,20 +246,44 @@ export interface EventStatusResult {
   themeJson: string | null;
   /** Monotonic sponsor-set version — bumps when sponsors change. */
   sponsorsVersion: number;
+  /**
+   * The caller's own player state — present only when session auth was passed
+   * and accepted. Null for anonymous callers and stale/invalid tokens.
+   */
+  player: { isCheckedIn: boolean; hasPaymentMethod: boolean } | null;
 }
 
-export async function fetchEventStatus(eventCode: string): Promise<EventStatusResult> {
+/**
+ * Polls event status. Passing session auth also returns the caller's own
+ * check-in / payment-method state, which is how a device notices it was checked
+ * in — that happens after join, so the cached session would otherwise stay
+ * stale until a rejoin. Piggybacking here keeps it at zero extra requests.
+ */
+export async function fetchEventStatus(
+  eventCode: string,
+  auth?: { playerId: string; sessionToken: string },
+): Promise<EventStatusResult> {
   // Dedicated polling micro-endpoint — a single-row projection server-side.
   // (The full /pub/events/{code} landing payload loads sponsors/teams/
   // donations and 404s Draft/Cancelled; this one reports every status, so
   // test-mode theme refresh and Completed/Cancelled detection work too.)
-  const res = await gfpFetch(`${BASE}/api/v1/pub/events/${eventCode}/status`);
+  const res = await gfpFetch(`${BASE}/api/v1/pub/events/${eventCode}/status`, {
+    headers: auth
+      ? { 'X-GFP-Player-Id': auth.playerId, 'X-GFP-Session-Token': auth.sessionToken }
+      : undefined,
+  });
   if (!res.ok) throw new Error(`Status check failed (${res.status})`);
   const data = await res.json();
   return {
     status:    data.status as string,
     themeJson: (data.resolvedThemeJson ?? null) as string | null,
     sponsorsVersion: (data.sponsorsVersion ?? 0) as number,
+    player: data.player
+      ? {
+          isCheckedIn:      !!data.player.isCheckedIn,
+          hasPaymentMethod: !!data.player.hasPaymentMethod,
+        }
+      : null,
   };
 }
 

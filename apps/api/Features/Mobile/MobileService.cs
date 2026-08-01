@@ -70,10 +70,18 @@ public class MobileService
     // ── ACTIVE EVENTS LIST ────────────────────────────────────────────────────
 
     /// <summary>
-    /// Returns all tournaments currently open for golfers (Registration, Active, or Scoring).
+    /// Returns all tournaments currently open for golfers (Registration, Active, or Scoring),
+    /// plus Completed events whose auction is still running.
     /// League rounds live in their own table and are never included here.
     /// Used by the mobile event picker on the join screen.
     /// </summary>
+    /// <remarks>
+    /// The round ending does not end the fundraiser — the auction typically runs
+    /// on into the banquet. A Completed event stays listed only while it still
+    /// has an Open or Extended item, so a guest arriving for dinner can still
+    /// find it, while finished events drop off this (also public) directory
+    /// instead of accumulating forever.
+    /// </remarks>
     public async Task<List<ActiveEventSummaryDto>> ListActiveEventsAsync(CancellationToken ct = default)
     {
         var openStatuses = new[] { EventStatus.Registration, EventStatus.Active, EventStatus.Scoring };
@@ -83,7 +91,12 @@ public class MobileService
         // pull only the columns the summary needs, not full tracked entities.
         var events = await _db.Events
             .AsNoTracking()
-            .Where(e => openStatuses.Contains(e.Status))
+            .Where(e => openStatuses.Contains(e.Status)
+                     || (e.Status == EventStatus.Completed
+                         && _db.AuctionItems.Any(i =>
+                                i.EventId == e.Id &&
+                                (i.Status == AuctionItemStatus.Open ||
+                                 i.Status == AuctionItemStatus.Extended))))
             .OrderBy(e => e.StartAt)
             .Select(e => new
             {
@@ -158,8 +171,11 @@ public class MobileService
         if (evt.Status is EventStatus.Cancelled)
             throw new ValidationException("This event has been cancelled.");
 
-        if (evt.Status is EventStatus.Completed)
-            throw new ValidationException("This event has already completed.");
+        // Completed is deliberately joinable. The round ending does not end the
+        // fundraiser — the auction runs on into the banquet, and the auction API
+        // has no event-status coupling at all. Refusing to join here would lock a
+        // late guest out of bidding entirely. The mobile shell decides what is
+        // reachable afterwards: the scorecard closes, the auction stays open.
 
         // Find the player by email within this event — check team-assigned players first
         var player = evt.Teams
@@ -178,9 +194,12 @@ public class MobileService
 
             if (freeAgent is not null)
             {
-                // Once scoring is live every player must be on a team — block them
+                // Once scoring is live every GOLFER must be on a team — block them
                 // with an actionable error so they call the organizer immediately.
-                if (evt.Status is EventStatus.Scoring)
+                // Attendees are exempt: a guest is team-less by design and is here
+                // to bid, not to score, so there is nothing to be assigned to.
+                if (evt.Status is EventStatus.Scoring &&
+                    freeAgent.RegistrationType != RegistrationType.Attendee)
                     throw new ValidationException(
                         "The round has started but you haven't been assigned to a team yet. " +
                         "Please contact your event organizer immediately.");
@@ -191,17 +210,23 @@ public class MobileService
                 if (freeAgentChallenge is not null)
                     return freeAgentChallenge;
 
-                // Draft / Registration / Active — the organizer still has time to assign.
-                // Return a minimal response so the mobile app can show a waiting screen.
+                // A guest is team-less permanently, so there is nothing to await —
+                // they go straight in. A free agent is still queued for assignment
+                // and gets the waiting screen.
+                var isGuest = freeAgent.RegistrationType == RegistrationType.Attendee;
+
                 _logger.LogInformation(
-                    "Free agent '{Email}' checked in for event '{Code}' — awaiting assignment",
+                    isGuest
+                        ? "Guest '{Email}' joined event '{Code}'"
+                        : "Free agent '{Email}' checked in for event '{Code}' — awaiting assignment",
                     request.Email, eventCode);
 
                 var freeAgentToken = await EnsureSessionTokenAsync(freeAgent, ct);
 
                 return new JoinEventResponse
                 {
-                    AwaitingAssignment = true,
+                    AwaitingAssignment = !isGuest,
+                    IsGuest            = isGuest,
                     SessionToken = freeAgentToken,
                     Player = new PlayerCacheDto
                     {
@@ -210,6 +235,7 @@ public class MobileService
                         LastName         = freeAgent.LastName,
                         Email            = freeAgent.Email,
                         HasPaymentMethod = freeAgent.HasPaymentMethod,
+                        IsCheckedIn      = freeAgent.CheckInStatus == CheckInStatus.CheckedIn,
                     },
                     Event = new EventCacheDto
                     {
@@ -314,10 +340,12 @@ public class MobileService
                 TeeTime      = team.TeeTime,
                 Players = team.Players.Select(p => new PlayerCacheDto
                 {
-                    Id        = p.Id,
-                    FirstName = p.FirstName,
-                    LastName  = p.LastName,
-                    Email     = p.Email,
+                    Id               = p.Id,
+                    FirstName        = p.FirstName,
+                    LastName         = p.LastName,
+                    Email            = p.Email,
+                    HasPaymentMethod = p.HasPaymentMethod,
+                    IsCheckedIn      = p.CheckInStatus == CheckInStatus.CheckedIn,
                 }).ToList(),
             },
             Player = new PlayerCacheDto
@@ -327,6 +355,7 @@ public class MobileService
                 LastName         = player.LastName,
                 Email            = player.Email,
                 HasPaymentMethod = player.HasPaymentMethod,
+                IsCheckedIn      = player.CheckInStatus == CheckInStatus.CheckedIn,
             },
             Org = new OrgCacheDto
             {
@@ -578,6 +607,7 @@ public class MobileService
             LastName         = player.LastName,
             Email            = player.Email,
             HasPaymentMethod = player.HasPaymentMethod,
+            IsCheckedIn      = player.CheckInStatus == CheckInStatus.CheckedIn,
         };
     }
 

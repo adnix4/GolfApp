@@ -350,6 +350,9 @@ public class EventController : ControllerBase
     /// Mobile devices hit this every 5–60 s; it is a single-row projection so
     /// the poll load stays off the full landing-page query. Reports all
     /// statuses (incl. Draft test mode and Cancelled) — see service comment.
+    /// The optional per-player session headers add the caller's own check-in /
+    /// payment-method state, so a device can notice it was checked in without a
+    /// second recurring request.
     /// </summary>
     [HttpGet("api/v1/pub/events/{eventCode}/status")]
     [AllowAnonymous]
@@ -357,9 +360,12 @@ public class EventController : ControllerBase
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PublicEventStatusResponse>> GetPublicEventStatus(
         [FromRoute] string eventCode,
+        [FromHeader(Name = "X-GFP-Player-Id")] Guid? playerId,
+        [FromHeader(Name = "X-GFP-Session-Token")] string? sessionToken,
         CancellationToken ct)
     {
-        var response = await _eventService.GetPublicEventStatusAsync(eventCode, ct);
+        var response = await _eventService.GetPublicEventStatusAsync(
+            eventCode, playerId, sessionToken, ct);
         return Ok(response);
     }
 

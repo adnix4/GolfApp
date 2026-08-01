@@ -24,6 +24,7 @@ interface SessionContextValue {
   refreshFromServer:  () => Promise<void>;
   updateEventStatus:  (status?: string, themeJson?: string | null) => void;
   updateSponsors:     (sponsors: SponsorCacheDto[]) => Promise<void>;
+  updatePlayer:       (patch: { isCheckedIn: boolean; hasPaymentMethod: boolean }) => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -96,9 +97,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // can't yank the golfer off the scorecard. Sponsors refetch only when
       // the version bumps; seeds silently on the first observation.
       try {
-        const { themeJson, sponsorsVersion } = await fetchEventStatus(session.event.eventCode);
+        const { themeJson, sponsorsVersion, player } = await fetchEventStatus(
+          session.event.eventCode,
+          { playerId: session.player.id, sessionToken: session.sessionToken },
+        );
         if (cancelled) return;
         updateEventStatus(undefined, themeJson);
+        // Check-in happens at the desk after the golfer already joined, so this
+        // is the only thing that unlocks cardless auction bidding on-device.
+        if (player) await updatePlayer(player);
+        if (cancelled) return;
         if (lastSponsorsVersion.current === null) {
           lastSponsorsVersion.current = sponsorsVersion;
         } else if (sponsorsVersion !== lastSponsorsVersion.current) {
@@ -157,6 +165,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSessionState(prev => {
       if (!prev) return prev;
       toSave = { ...prev, sponsors };
+      return toSave;
+    });
+    if (toSave) {
+      try { await saveSession(toSave); } catch { /* keep in-memory update on DB failure */ }
+    }
+  }, []);
+
+  // Merge the golfer's own server-side state (check-in / saved card) from the
+  // status poll. Both are set AFTER join — an organizer checks the golfer in at
+  // the desk, and a card can be added on another device — so the cached join
+  // payload goes stale on its own. Guarded on change so an unchanged tick
+  // triggers no re-render and no SQLite write; persisted so a restart doesn't
+  // briefly re-lock the auction's bid button.
+  const updatePlayer = useCallback(async (
+    patch: { isCheckedIn: boolean; hasPaymentMethod: boolean },
+  ) => {
+    let toSave: JoinEventResponse | null = null;
+    setSessionState(prev => {
+      if (!prev) return prev;
+      if (prev.player.isCheckedIn      === patch.isCheckedIn &&
+          prev.player.hasPaymentMethod === patch.hasPaymentMethod) return prev;
+      toSave = { ...prev, player: { ...prev.player, ...patch } };
       return toSave;
     });
     if (toSave) {
@@ -254,10 +284,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // (the foreground poll fires every 10–30s) re-runs every useSession() caller.
   const value = useMemo<SessionContextValue>(() => ({
     session, deviceId, loading, pendingScores, completedHoles, syncStatus, networkTier,
-    setSession, clearSession: clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors,
+    setSession, clearSession: clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors, updatePlayer,
   }), [
     session, deviceId, loading, pendingScores, completedHoles, syncStatus, networkTier,
-    setSession, clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors,
+    setSession, clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors, updatePlayer,
   ]);
 
   return (

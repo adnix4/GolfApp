@@ -45,10 +45,18 @@ export default function ScoringLayout() {
 
   const isTestMode  = liveStatus === 'Draft';
   const scoringOpen = liveStatus === 'Scoring' || isTestMode;
-  const isEnded     = liveStatus === 'Completed' || liveStatus === 'Cancelled';
+  const isCancelled = liveStatus === 'Cancelled';
+  // The round ending is not the event ending. The auction routinely runs on into
+  // the banquet — and the auction API has no event-status coupling at all — so
+  // Completed closes the scorecard, not the app. Only Cancelled is a dead end.
+  const isEnded     = liveStatus === 'Completed' || isCancelled;
 
-  // Show tabs when scoring is live, in test mode, or the player dismissed the warning.
-  const showTabs = scoringOpen || dismissed;
+  // A guest never scores, so the "scoring not open yet" wall is meaningless to
+  // them — they go straight to the auction.
+  const isGuest = !!session?.isGuest;
+
+  // Show tabs when scoring is live, in test mode, for guests, or once dismissed.
+  const showTabs = scoringOpen || dismissed || (isGuest && !isCancelled);
 
   // Sync status/theme change back to session so preflight, branding, and other
   // screens stay accurate. updateEventStatus no-ops when nothing actually changed.
@@ -128,13 +136,15 @@ export default function ScoringLayout() {
             )}
 
             <Text style={[styles.waitTitle, { color: theme.colors.primary }]}>
-              {isEnded ? statusLabel : 'Scoring Not Open Yet'}
+              {isCancelled ? statusLabel : isEnded ? 'Round Complete' : 'Scoring Not Open Yet'}
             </Text>
 
             <Text style={[styles.waitSub, { color: theme.mutedText }]}>
-              {isEnded
-                ? 'Scoring for this event is no longer available.'
-                : 'The organizer hasn\'t opened scoring yet. You can browse the event now and the scorecard will unlock automatically when the round begins.'}
+              {isCancelled
+                ? 'This event has been cancelled.'
+                : isEnded
+                  ? 'Scoring is closed for the round. You can still view the final leaderboard and bid in the auction.'
+                  : 'The organizer hasn\'t opened scoring yet. You can browse the event now and the scorecard will unlock automatically when the round begins.'}
             </Text>
 
             <View style={[styles.statusPill, { backgroundColor: theme.colors.primary + '18' }]}>
@@ -143,7 +153,10 @@ export default function ScoringLayout() {
               </Text>
             </View>
 
-            {!isEnded && (
+            {/* Offered after the round too — this is the only way through to the
+                auction and final leaderboard once scoring closes. Withholding it
+                trapped golfers on this screen mid-auction. */}
+            {!isCancelled && (
               <Pressable
                 style={({ pressed }) => [
                   styles.continueBtn,
@@ -235,11 +248,14 @@ export default function ScoringLayout() {
           },
         }}
       >
+        {/* Guests have no team and never score — href: null removes the tab
+            without changing the route tree. */}
         <Tabs.Screen
           name="scorecard"
           options={{
             title: 'Scorecard',
             tabBarLabel: 'Scorecard',
+            href: isGuest ? null : undefined,
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'golf' : 'golf-outline'} size={22} color={color} />
             ),
@@ -260,6 +276,7 @@ export default function ScoringLayout() {
           options={{
             title: 'Team',
             tabBarLabel: 'Team',
+            href: isGuest ? null : undefined,
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color} />
             ),

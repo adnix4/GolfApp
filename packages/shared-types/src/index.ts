@@ -45,6 +45,7 @@ export * from './money';
 export * from './phone';
 export * from './eventOptions';
 export * from './apiClient';
+export * from './auctionRules';
 export * from './useLiveLeaderboard';
 export * from './useLiveAuction';
 export * from './tournamentHubEvents';
@@ -101,8 +102,17 @@ export type RegistrationType =
 
 /**
  * CheckInStatus — for both individual players and teams.
+ *
+ * PascalCase because that is what the API actually sends: the enum is projected
+ * with `.ToString()` (TeamService.MapToTeamResponse / PlayerService
+ * .MapToPlayerResponse), not through a snake_case naming policy. This type used
+ * to claim lowercase, and the admin app trusted it — every `=== 'pending'`
+ * comparison silently failed, which left the Check In button unrenderable.
+ *
+ * `complete` is a team-level value meaning every golfer on the roster is in;
+ * individual players are only ever Pending or CheckedIn.
  */
-export type CheckInStatus = 'pending' | 'checked_in' | 'complete';
+export type CheckInStatus = 'Pending' | 'CheckedIn' | 'Complete';
 
 /**
  * SponsorTier — display/pricing tier for event sponsors.
