@@ -182,6 +182,16 @@ export const playersApi = {
   listFreeAgents: (eventId: string) =>
     request<Player[]>(`/api/v1/events/${eventId}/free-agents`),
 
+  /**
+   * Records (or clears) ONE golfer's entry fee — the cash taken at the desk.
+   * EventStaff-callable, unlike teamsApi.markFeePaid which marks a whole roster
+   * and stays OrgAdmin.
+   */
+  markFeePaid: (eventId: string, playerId: string, paid = true) =>
+    request<Player>(`/api/v1/events/${eventId}/players/${playerId}/fee-paid`, {
+      method: 'POST', body: { paid },
+    }),
+
   assignToTeam: (eventId: string, playerId: string, teamId: string) =>
     request<Team>(`/api/v1/events/${eventId}/free-agents/assign`, {
       method: 'POST', body: { playerId, teamId },
