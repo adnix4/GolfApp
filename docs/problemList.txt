@@ -16,7 +16,7 @@ P0 — BREAKS A LIVE EVENT, SMALL FIX, DO FIRST
 
 P1 — PILOT PATH (external lead times first; D1 gates D3 and D10)
      D1   accounts / domain / Apple / Stripe / email — start now, rest waits
-     D2   code hardening — no infra needed, can be done today
+     [x] D2  already complete — verified 2026-08-01, nothing to write
      D3   staging environment
      D4   dress rehearsal — the pilot succeeds or fails here
      D5   mobile distribution (EAS / TestFlight)
@@ -64,7 +64,46 @@ they run in parallel with everything else.
           CRITICAL PATH: join email-verification codes must actually arrive
           once the dev bypass code is off (see A3 history in git).
 
-[ ] D2. CODE HARDENING (no infra needed; can be done now)
+[x] D2. CODE HARDENING — ALREADY COMPLETE, verified 2026-08-01.
+        Picked this up to implement and found every bullet already shipped,
+        piecemeal, across earlier work. Nothing was written; this entry was
+        stale. Evidence per bullet, so nobody re-investigates:
+        - Startup guard: Program.cs:76. Refuses to boot on ANY non-Development
+          environment when JoinVerification:TestBypassCode is set. Note it is
+          STRICTER than this entry asked for ("refuse in Production") — Staging
+          is blocked too. Confirmed live: ASPNETCORE_ENVIRONMENT=Production with
+          the code set throws InvalidOperationException and never listens.
+          (Watch out when testing this: `dotnet run` applies
+          Properties/launchSettings.json, which pins ASPNETCORE_ENVIRONMENT to
+          Development and silently masks the guard. Use --no-launch-profile.)
+        - ForwardedHeaders: Program.cs:166, opt-in via TRUST_FORWARDED_HEADERS,
+          clearing the loopback-only KnownNetworks/KnownProxies defaults because
+          a PaaS proxy address isn't knowable ahead of time. The opt-in flag is
+          itself the trust decision, which is the right call — trusting these
+          headers while exposed directly to the internet would let callers spoof
+          their IP past the per-IP rate limits.
+        - DataProtection: ServiceCollectionExtensions.cs:59, persists to
+          DATA_PROTECTION_KEYS_PATH when set; unset keeps the framework default
+          for local dev.
+        - Production CORS: ServiceCollectionExtensions.cs:55 (AddGfpCors).
+          GfpProduction policy reads CORS_ALLOWED_ORIGINS (comma-separated) and
+          FAILS CLOSED to the canonical domains rather than to "any origin".
+        - /health: Program.cs:283 — GET /api/health, anonymous, returns status
+          and UTC timestamp. Static only; it does NOT probe the DB or Redis, so
+          it answers "the process is up", not "the API can serve". Fine for an
+          uptime ping; if D6 wants dependency health, that is a new task.
+        - Migration story: Program.cs:112. Auto-migrate in Development, opt-in
+          elsewhere via GFP_MIGRATE_ON_STARTUP, and outside Development a failed
+          migration rethrows so a botched schema never serves traffic.
+        - DEPLOYMENT.md: docs/DEPLOYMENT.md exists (112 lines) with topology,
+          per-app sections for api/web/admin/mobile, a pre-pilot checklist, and
+          all four env vars above documented.
+        BONUS FOUND WHILE VERIFYING: ServiceCollectionExtensions.cs:254 already
+        fail-fasts on a missing JWT_SECRET with an actionable message. Confirmed
+        live — a Production start without it throws rather than booting on a
+        weak or absent signing key.
+
+    D2-ORIGINAL. CODE HARDENING (no infra needed; can be done now)
         - Startup guard: refuse to boot in Production when
           JoinVerification:TestBypassCode is set (converts the "999999 must
           never reach production" note into a can't).
