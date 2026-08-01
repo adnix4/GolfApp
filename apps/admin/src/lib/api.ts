@@ -236,6 +236,13 @@ export const scoresApi = {
   submit: (eventId: string, payload: SubmitScorePayload) =>
     request<Score>(`/api/v1/events/${eventId}/scores`, { method: 'POST', body: payload }),
 
+  /** Marks a hole finished, or reopens it for editing ("Edit Score"). */
+  setHoleComplete: (eventId: string, teamId: string, holeNumber: number, complete: boolean) =>
+    request<ScorecardHole>(
+      `/api/v1/events/${eventId}/teams/${teamId}/holes/${holeNumber}/complete`,
+      { method: 'POST', body: { complete } },
+    ),
+
   update: (eventId: string, scoreId: string, payload: { grossScore?: number; putts?: number }) =>
     request<Score>(`/api/v1/events/${eventId}/scores/${scoreId}`, {
       method: 'PATCH', body: payload,
@@ -405,9 +412,23 @@ export interface Score {
   proposedScore: number | null;
 }
 
+export interface ScorecardHole {
+  holeNumber: number; par: number;
+  grossScore: number | null; putts: number | null;
+  playerShotsJson: string | null;
+  hasConflict: boolean; proposedScore: number | null;
+  /**
+   * Set once the hole is marked finished — by the desk, or by a golfer's phone
+   * (a synced hole is complete by definition). Null while a hole is still being
+   * transcribed: it already holds a partial gross score at that point, so the
+   * score alone does not mean "done".
+   */
+  completedAt: string | null;
+}
+
 export interface Scorecard {
   teamId: string; teamName: string;
-  holes: { holeNumber: number; par: number; grossScore: number | null; putts: number | null; playerShotsJson: string | null; hasConflict: boolean; proposedScore: number | null }[];
+  holes: ScorecardHole[];
   grossTotal: number; parTotal: number; toPar: number;
   holesComplete: number; hasConflicts: boolean;
 }

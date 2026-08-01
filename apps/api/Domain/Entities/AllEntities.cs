@@ -634,6 +634,21 @@ public class Score
     [Column("proposed_score")]
     public short? ProposedScore { get; set; }
 
+    /// <summary>
+    /// When this hole was marked finished — by an admin transcribing a paper
+    /// card, or by a golfer tapping "Hole Complete" on their phone.
+    ///
+    /// Deliberately distinct from simply holding a GrossScore: the admin's card
+    /// auto-saves as each golfer's strokes go in, so a hole can carry a partial
+    /// score while it is still being entered. Only this column says it is done.
+    ///
+    /// Mirrors pending_scores.completed_at on the device, which is what makes a
+    /// hole eligible for sync — so anything arriving via MobileSync is complete
+    /// by definition (see MobileService batch sync).
+    /// </summary>
+    [Column("completed_at")]
+    public DateTime? CompletedAt { get; set; }
+
     /// <summary>True for admin-generated test data; cleared when moving to Active.</summary>
     [Column("is_test")]
     public bool IsTest { get; set; } = false;

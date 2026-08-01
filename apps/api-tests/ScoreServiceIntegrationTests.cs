@@ -256,4 +256,69 @@ public class ScoreServiceIntegrationTests
         Assert.Null(result.ProposedScore);
         Assert.Equal(before + 1, rt.PublishScoreCount);
     }
+
+    // ── Hole completion (U1) ──────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Submitting_a_score_does_not_mark_the_hole_complete()
+    {
+        // The whole point of the column: the desk transcribes a paper card and
+        // the hole auto-saves after the FIRST golfer's strokes. If a score
+        // implied completion, the hole would lock while still half-entered.
+        var (svc, db) = Build();
+        var (orgId, eventId, teamId) = await SeedAsync(db);
+
+        await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest
+        {
+            TeamId = teamId, HoleNumber = 1, GrossScore = 4, DeviceId = "admin-dashboard",
+        });
+
+        var card = await svc.GetScorecardAsync(orgId, eventId, teamId);
+        var hole = card.Holes.Single(h => h.HoleNumber == 1);
+
+        Assert.Equal((short)4, hole.GrossScore);
+        Assert.Null(hole.CompletedAt);
+    }
+
+    [Fact]
+    public async Task SetHoleCompleteAsync_marks_and_reopens_a_hole()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId, teamId) = await SeedAsync(db);
+
+        await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest
+        {
+            TeamId = teamId, HoleNumber = 3, GrossScore = 5, DeviceId = "admin-dashboard",
+        });
+
+        var completed = await svc.SetHoleCompleteAsync(orgId, eventId, teamId, 3, complete: true);
+        Assert.NotNull(completed.CompletedAt);
+        Assert.Equal((short)5, completed.GrossScore);
+
+        // "Edit Score" reopens without disturbing the score itself.
+        var reopened = await svc.SetHoleCompleteAsync(orgId, eventId, teamId, 3, complete: false);
+        Assert.Null(reopened.CompletedAt);
+        Assert.Equal((short)5, reopened.GrossScore);
+    }
+
+    [Fact]
+    public async Task SetHoleCompleteAsync_rejects_a_hole_with_no_score()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId, teamId) = await SeedAsync(db);
+
+        // An empty hole isn't "finished" — completing it would invent a score.
+        await Assert.ThrowsAsync<GolfFundraiserPro.Api.Common.Middleware.ValidationException>(
+            () => svc.SetHoleCompleteAsync(orgId, eventId, teamId, 7, complete: true));
+    }
+
+    [Fact]
+    public async Task SetHoleCompleteAsync_rejects_a_hole_outside_the_event()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId, teamId) = await SeedAsync(db);
+
+        await Assert.ThrowsAsync<GolfFundraiserPro.Api.Common.Middleware.ValidationException>(
+            () => svc.SetHoleCompleteAsync(orgId, eventId, teamId, 19, complete: true));
+    }
 }

@@ -142,4 +142,18 @@ public record ScorecardHoleEntry
 
     /// <summary>The golfer-proposed value awaiting admin approval, if any.</summary>
     public short?  ProposedScore   { get; init; }
+
+    /// <summary>
+    /// When the hole was marked finished, by an admin or by a golfer's phone.
+    /// Null while a hole is still being entered — a partially-transcribed hole
+    /// already carries a GrossScore, so the score alone does not mean "done".
+    /// </summary>
+    public DateTime? CompletedAt   { get; init; }
+}
+
+/// <summary>Marks a hole finished, or reopens it for editing.</summary>
+public record SetHoleCompleteRequest
+{
+    /// <summary>True to mark complete; false to reopen ("Edit Score").</summary>
+    public bool Complete { get; init; } = true;
 }

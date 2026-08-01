@@ -68,6 +68,28 @@ public class ScoreController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>
+    /// Marks a hole finished, or reopens it for editing ("Edit Score").
+    /// EventStaff, matching score entry — the desk transcribes paper cards.
+    /// </summary>
+    [HttpPost("api/v1/events/{eventId:guid}/teams/{teamId:guid}/holes/{holeNumber:int}/complete")]
+    [Authorize(Policy = "EventStaff")]
+    [ProducesResponseType(typeof(ScorecardHoleEntry), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ScorecardHoleEntry>> SetHoleComplete(
+        [FromRoute] Guid eventId,
+        [FromRoute] Guid teamId,
+        [FromRoute] int  holeNumber,
+        [FromBody]  SetHoleCompleteRequest request,
+        CancellationToken ct)
+    {
+        var orgId    = GetOrgId();
+        var response = await _scoreService.SetHoleCompleteAsync(
+            orgId, eventId, teamId, (short)holeNumber, request.Complete, ct);
+        return Ok(response);
+    }
+
     /// <summary>Corrects an existing score. Clearing the conflict flag on update.</summary>
     [HttpPatch("api/v1/events/{eventId:guid}/scores/{scoreId:guid}")]
     [Authorize(Policy = "OrgAdmin")]
