@@ -30,7 +30,7 @@ P3 — PERFORMANCE BEFORE A REAL CROWD
      [x] D18  both queries split 2026-08-01
 
 P4 — FEATURES / POLISH
-     U4   proxy (max) bidding — auction behaviour change, needs design
+     U4   proxy (max) bidding — auction behavior change, needs design
      U2   sponsor banner on the web live scorecard
      U3   auction banner on the live results page
 
