@@ -496,6 +496,48 @@ public class AuctionService
         return MapSession(session);
     }
 
+    /// <summary>
+    /// Ends the running live auction session.
+    /// </summary>
+    /// <remarks>
+    /// The organizer's "the auction is over" signal. Until this existed,
+    /// IsActive only ever flipped as a side effect of STARTING the next session,
+    /// so a finished auction stayed "in progress" on every attendee screen for
+    /// the rest of the event. This is deliberately independent of event status:
+    /// the round ending and the auction ending are two different moments.
+    /// Idempotent — ending an already-ended auction is not an error.
+    /// </remarks>
+    public async Task<AuctionSessionResponse?> EndSessionAsync(
+        Guid orgId, Guid eventId, CancellationToken ct)
+    {
+        await VerifyEventOwnershipAsync(orgId, eventId, ct);
+
+        var active = await _db.AuctionSessions
+            .Where(s => s.EventId == eventId && s.IsActive)
+            .ToListAsync(ct);
+
+        if (active.Count == 0) return null;
+
+        var now = DateTime.UtcNow;
+        foreach (var s in active)
+        {
+            s.IsActive       = false;
+            s.EndedAt        = now;
+            s.CurrentItemId  = null;
+        }
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Live auction session ended for event {EventId}", eventId);
+
+        // Reuse the advance signal with no item so every attendee screen drops
+        // out of "current item" mode rather than freezing on the last lot.
+        var evt = await _db.Events.FirstOrDefaultAsync(e => e.Id == eventId, ct);
+        if (evt is not null)
+            await _realTime.SendLiveItemAdvancedAsync(evt.EventCode, null, ct);
+
+        return MapSession(active[^1]);
+    }
+
     public async Task<AuctionSessionResponse> AdvanceItemAsync(
         Guid orgId, Guid eventId, CancellationToken ct)
     {

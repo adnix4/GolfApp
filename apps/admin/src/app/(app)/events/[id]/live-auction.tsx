@@ -7,6 +7,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useTheme, MoneyInput } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { auctionApi, type AuctionItem, type AuctionSession } from '@/lib/api';
+import { confirmAction } from '@/lib/confirmAction';
 
 export default function LiveAuctionScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
@@ -57,6 +58,21 @@ export default function LiveAuctionScreen() {
       setSuccess('Live auction session started.');
     } catch (e: any) {
       setError(e.message ?? 'Could not start the session. Ensure there are live auction items configured.');
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function endSession() {
+    clearFeedback();
+    setWorking(true);
+    try {
+      await auctionApi.endSession(eventId);
+      setSession(null);
+      setCalledAmt('');
+      setSuccess('Live auction ended.');
+    } catch (e: any) {
+      setError(e.message ?? 'Could not end the session.');
     } finally {
       setWorking(false);
     }
@@ -242,6 +258,24 @@ export default function LiveAuctionScreen() {
             {working
               ? <ActivityIndicator color="#fff" />
               : <Text style={styles.bigBtnText}>Next Item →</Text>}
+          </Pressable>
+
+          {/* Ends the auction independently of the event's own status — the
+              round finishing and the auction finishing are different moments. */}
+          <Pressable
+            style={[styles.bigBtn, { backgroundColor: '#7f8c8d', marginTop: 10 }]}
+            onPress={() => confirmAction(
+              'End the live auction?',
+              'Attendee screens will stop showing a live auction. Silent items keep '
+                + 'running on their own timers, and winners can still be charged.',
+              endSession,
+              'End Auction',
+            )}
+            disabled={working}
+          >
+            {working
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.bigBtnText}>End Auction</Text>}
           </Pressable>
 
           {/* Queue */}

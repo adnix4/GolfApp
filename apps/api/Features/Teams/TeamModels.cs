@@ -288,6 +288,14 @@ public record PlayerResponse
     /// <summary>Cents this golfer has paid toward the per-golfer entry fee. 0 = unpaid.</summary>
     public int     EntryFeePaidCents { get; init; }
     public DateTime? EntryFeePaidAt  { get; init; }
+    /// <summary>
+    /// True when this golfer has a Stripe payment method on file. Drives the
+    /// admin check-in UI: a cardless golfer can still be checked in (which
+    /// waives the saved-card requirement for auction bids — see
+    /// AuctionBidRules.NeedsPaymentMethod), but the organizer is warned first
+    /// because a cardless winner cannot be charged automatically.
+    /// </summary>
+    public bool    HasPaymentMethod  { get; init; }
 }
 
 /// <summary>

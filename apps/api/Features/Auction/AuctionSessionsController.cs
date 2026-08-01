@@ -26,6 +26,22 @@ public class AuctionSessionsController : ControllerBase
     }
 
     /// <summary>
+    /// POST /api/v1/events/{id}/auction/sessions/end
+    /// Admin: ends the live auction session — the "auction is over" signal,
+    /// separate from the event's own Completed status. Idempotent; returns 204
+    /// when no session was running.
+    /// </summary>
+    [HttpPost("api/v1/events/{eventId:guid}/auction/sessions/end")]
+    [Authorize(Policy = "EventStaff")]
+    public async Task<IActionResult> EndSession(
+        [FromRoute] Guid eventId, CancellationToken ct)
+    {
+        var orgId = GetOrgId();
+        var session = await _auction.EndSessionAsync(orgId, eventId, ct);
+        return session is null ? NoContent() : Ok(session);
+    }
+
+    /// <summary>
     /// POST /api/v1/events/{id}/auction/sessions/next-item
     /// Admin: advance to the next live item. Fires LiveItemAdvanced.
     /// </summary>

@@ -28,14 +28,18 @@ export function TeamCard({ team, showCheckIn: _showCheckIn = false }: TeamCardPr
 
   /**
    * checkInColor — reflects the team's overall check-in progress.
-   *   complete    → green (all players scanned)
-   *   checked_in  → amber (some players scanned)
-   *   pending     → grey  (no one has scanned yet)
+   *   Complete   → green (every golfer on the roster is in)
+   *   CheckedIn  → amber (some golfers scanned)
+   *   Pending    → grey  (no one has scanned yet)
+   *
+   * PascalCase because that is the wire format — the API projects the enum with
+   * `.ToString()`. These comparisons previously used snake_case and silently
+   * never matched, so every team rendered grey.
    */
   const checkInColor =
-    team.checkInStatus === 'complete'    ? '#27ae60' :
-    team.checkInStatus === 'checked_in'  ? '#f39c12' :
-                                           '#95a5a6';
+    team.checkInStatus === 'Complete'   ? '#27ae60' :
+    team.checkInStatus === 'CheckedIn'  ? '#f39c12' :
+                                          '#95a5a6';
 
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.accent }]}>
@@ -73,10 +77,10 @@ export function TeamCard({ team, showCheckIn: _showCheckIn = false }: TeamCardPr
           </Text>
           <View style={[
             styles.playerStatus,
-            { backgroundColor: player.checkInStatus === 'checked_in' ? '#eafaf1' : '#f8f9fa' }
+            { backgroundColor: player.checkInStatus === 'CheckedIn' ? '#eafaf1' : '#f8f9fa' }
           ]}>
-            <Text style={{ fontSize: 11, color: player.checkInStatus === 'checked_in' ? '#27ae60' : '#95a5a6' }}>
-              {player.checkInStatus === 'checked_in' ? '✓ In' : 'Pending'}
+            <Text style={{ fontSize: 11, color: player.checkInStatus === 'CheckedIn' ? '#27ae60' : '#95a5a6' }}>
+              {player.checkInStatus === 'CheckedIn' ? '✓ In' : 'Pending'}
             </Text>
           </View>
         </View>

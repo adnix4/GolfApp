@@ -735,6 +735,8 @@ public class EventService
     /// </summary>
     public async Task<PublicEventStatusResponse> GetPublicEventStatusAsync(
         string eventCode,
+        Guid? playerId = null,
+        string? sessionToken = null,
         CancellationToken ct = default)
     {
         var row = await _db.Events
@@ -742,6 +744,7 @@ public class EventService
             .Where(e => e.EventCode == eventCode.ToUpperInvariant())
             .Select(e => new
             {
+                e.Id,
                 e.Status,
                 e.ThemeJson,
                 OrgThemeJson = e.Organization.ThemeJson,
@@ -755,6 +758,37 @@ public class EventService
             Status            = row.Status.ToString(),
             ResolvedThemeJson = row.ThemeJson ?? row.OrgThemeJson,
             SponsorsVersion   = row.SponsorsVersion,
+            Player            = await GetPollingPlayerStatusAsync(row.Id, playerId, sessionToken, ct),
+        };
+    }
+
+    /// <summary>
+    /// One extra indexed single-row read for callers that presented per-player
+    /// session headers. Fail-closed like IsJoinedPlayerAsync: missing id/token,
+    /// unknown player, player on another event, or token mismatch all yield null
+    /// rather than an error, so the anonymous response shape is unchanged.
+    /// </summary>
+    private async Task<PublicPlayerStatus?> GetPollingPlayerStatusAsync(
+        Guid eventId,
+        Guid? playerId,
+        string? sessionToken,
+        CancellationToken ct)
+    {
+        if (playerId is null || string.IsNullOrEmpty(sessionToken)) return null;
+
+        var player = await _db.Players
+            .AsNoTracking()
+            .Where(p => p.Id == playerId.Value && p.EventId == eventId)
+            .Select(p => new { p.SessionToken, p.CheckInStatus, p.HasPaymentMethod })
+            .FirstOrDefaultAsync(ct);
+
+        if (player is null || !PlayerSessionAuth.Matches(player.SessionToken, sessionToken))
+            return null;
+
+        return new PublicPlayerStatus
+        {
+            IsCheckedIn      = player.CheckInStatus == CheckInStatus.CheckedIn,
+            HasPaymentMethod = player.HasPaymentMethod,
         };
     }
 

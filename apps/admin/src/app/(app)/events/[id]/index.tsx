@@ -9,9 +9,11 @@ import {
   START_OPTIONS, START_LABELS,
   HOLES_OPTIONS, centsToMoneyValue,
 } from '@gfp/shared-types';
-import { eventsApi, testDataApi, type Course, type EventDetail, type UpdateEventPayload } from '@/lib/api';
+import { eventsApi, testDataApi, teamsApi, type Course, type EventDetail, type UpdateEventPayload } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
+import { confirmAction } from '@/lib/confirmAction';
+import { isCheckedIn } from '@/lib/checkIn';
 import {
   formatDateInput, formatTimeInput,
   validateDateField, validateTimeField,
@@ -19,6 +21,7 @@ import {
 } from '@/lib/dateTime';
 import {
   eventStatusColor, eventStatusLabel, NEXT_TRANSITIONS,
+  scoringGate, scoringGateHint, openScoringEarlyCopy,
 } from '@/lib/eventStatus';
 
 // ── Entry fee helpers ─────────────────────────────────────────────────────────
@@ -54,6 +57,7 @@ export default function EventOverviewScreen() {
   const [seeding,    setSeeding]    = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
   const [showTestWarning, setShowTestWarning] = useState(false);
+  const [checkingTeams, setCheckingTeams] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -90,6 +94,26 @@ export default function EventOverviewScreen() {
     try { setEvent(await eventsApi.update(event.id, { status: newStatus })); }
     catch (e: any) { setError(e.message ?? 'Failed to update status.'); }
     finally { setUpdating(false); }
+  }
+
+  // Override for the Open Scoring gate. The team list isn't loaded on this
+  // screen (only counts), so fetch it lazily here — one request, and only when
+  // the organizer actually reaches for the override.
+  async function handleOpenScoringAnyway() {
+    if (!event || checkingTeams) return;
+    setCheckingTeams(true); setError(null);
+    try {
+      const teams   = await teamsApi.list(event.id);
+      const pending = teams
+        .filter(t => !isCheckedIn(t.checkInStatus))
+        .map(t => t.name);
+      const copy = openScoringEarlyCopy(pending);
+      confirmAction(copy.title, copy.message, () => { doStatusChange('Scoring'); }, copy.confirmText);
+    } catch (e: any) {
+      setError(e.message ?? 'Could not load teams.');
+    } finally {
+      setCheckingTeams(false);
+    }
   }
 
   async function handleSeedTestData() {
@@ -219,24 +243,46 @@ export default function EventOverviewScreen() {
         const nexts = NEXT_TRANSITIONS[event.status] ?? [];
         if (nexts.length === 0 && !['Active', 'Scoring', 'Registration'].includes(event.status)) return null;
 
+        // Only meaningful on the Active → Scoring step.
+        const gate    = scoringGate(event.counts);
+        const blocked = event.status === 'Active' && !gate.ready;
+
         return (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Event Status</Text>
             <StatusDescription status={event.status} event={event} />
+
+            {blocked && (
+              <View style={[styles.blockingNote, { backgroundColor: '#fff8e1', borderColor: '#f39c12' }]}>
+                <Text style={[styles.blockingNoteText, { color: '#856404' }]}>
+                  {scoringGateHint(gate)}
+                </Text>
+              </View>
+            )}
+
             {nexts.length > 0 && (
               <View style={[styles.transitionRow, { marginTop: 14 }]}>
-                {nexts.map(t => (
-                  <Pressable
-                    key={t.status}
-                    style={[styles.advanceBtn, { backgroundColor: theme.colors.primary }, updating && { opacity: 0.6 }]}
-                    onPress={() => handleStatusChange(t.status)}
-                    disabled={updating}
-                  >
-                    {updating
-                      ? <ActivityIndicator color="#fff" size="small" />
-                      : <Text style={styles.advanceBtnText}>{t.label}</Text>}
-                  </Pressable>
-                ))}
+                {nexts.map(t => {
+                  const gated = blocked && t.status === 'Scoring';
+                  return (
+                    <Pressable
+                      key={t.status}
+                      style={[
+                        styles.advanceBtn,
+                        { backgroundColor: gated ? '#bdbdbd' : theme.colors.primary },
+                        updating && { opacity: 0.6 },
+                      ]}
+                      onPress={() => !gated && handleStatusChange(t.status)}
+                      disabled={updating || gated}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: gated }}
+                    >
+                      {updating
+                        ? <ActivityIndicator color="#fff" size="small" />
+                        : <Text style={styles.advanceBtnText}>{t.label}</Text>}
+                    </Pressable>
+                  );
+                })}
                 <Pressable
                   style={[styles.cancelBtn, updating && { opacity: 0.6 }]}
                   onPress={() => handleStatusChange('Cancelled')}
@@ -245,6 +291,24 @@ export default function EventOverviewScreen() {
                   <Text style={styles.cancelBtnText}>Cancel Event</Text>
                 </Pressable>
               </View>
+            )}
+
+            {/* Escape hatch — a no-show team must never strand the round. */}
+            {blocked && (
+              <Pressable
+                style={styles.overrideLink}
+                onPress={handleOpenScoringAnyway}
+                disabled={checkingTeams || updating}
+                accessibilityRole="button"
+              >
+                {checkingTeams
+                  ? <ActivityIndicator size="small" color={theme.mutedText} />
+                  : (
+                    <Text style={[styles.overrideLinkText, { color: theme.mutedText }]}>
+                      Open Scoring anyway →
+                    </Text>
+                  )}
+              </Pressable>
             )}
           </View>
         );
@@ -456,8 +520,8 @@ function StatusDescription({ status, event }: { status: string; event: EventDeta
   const theme = useTheme();
   const descriptions: Record<string, string> = {
     Registration: `Registration is open. Golfers can find and join this tournament in the mobile app. ${event.counts.teamsRegistered} team(s) registered so far.`,
-    Active:       'Day of event — check-in is open. Move to Scoring when play begins.',
-    Scoring:      'Round is in progress. Score entry is open on the mobile app.',
+    Active:       `Day of event — check-in is open. ${event.counts.teamsCheckedIn} of ${event.counts.teamsRegistered} teams checked in. Move to Scoring when play begins.`,
+    Scoring:      'Round is in progress. Score entry is open on the mobile app. Late arrivals can still be checked in.',
     Completed:    'This event is complete. Final results are published.',
     Cancelled:    'This event has been cancelled.',
   };
@@ -809,6 +873,8 @@ const styles = StyleSheet.create({
   transitionRow:  { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   advanceBtn:     { flex: 1, minWidth: 140, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
   advanceBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  overrideLink:     { marginTop: 10, alignSelf: 'flex-start', paddingVertical: 4 },
+  overrideLinkText: { fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
   cancelBtn:      { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1.5, borderColor: '#e74c3c', alignItems: 'center' },
   cancelBtnText:  { fontSize: 14, fontWeight: '600', color: '#e74c3c' },
 

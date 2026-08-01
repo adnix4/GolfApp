@@ -35,6 +35,7 @@ using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
 using GolfFundraiserPro.Api.Domain.Enums;
 using GolfFundraiserPro.Api.Features.Payments;
+using GolfFundraiserPro.Api.Features.RealTime;
 
 namespace GolfFundraiserPro.Api.Features.Teams;
 
@@ -43,6 +44,7 @@ public class TeamService
     private readonly ApplicationDbContext _db;
     private readonly IConfiguration _config;
     private readonly PaymentsService _payments;
+    private readonly IRealTimeService _realTime;
     private readonly ILogger<TeamService> _logger;
 
     /// <summary>Invite tokens expire after 48 hours.</summary>
@@ -52,11 +54,13 @@ public class TeamService
         ApplicationDbContext db,
         IConfiguration config,
         PaymentsService payments,
+        IRealTimeService realTime,
         ILogger<TeamService> logger)
     {
         _db       = db;
         _config   = config;
         _payments = payments;
+        _realTime = realTime;
         _logger   = logger;
     }
 
@@ -388,12 +392,34 @@ public class TeamService
         if (team is null)
             throw new NotFoundException("Team", teamId);
 
-        if (team.Event.Status != EventStatus.Active)
+        if (!Events.EventStatusRules.CheckInAllowed(team.Event.Status))
             throw new ValidationException(
-                $"Check-in is only available when the event is Active. Current status: {team.Event.Status}.");
+                $"Check-in is only available while the event is Active or Scoring. Current status: {team.Event.Status}.");
 
-        team.CheckInStatus = CheckInStatus.CheckedIn;
+        // Checking a team in checks in every golfer on it. The team flag alone is
+        // not enough: the auction's saved-card waiver keys off the PLAYER's
+        // check-in status (AuctionBidRules.NeedsPaymentMethod), so a team-only
+        // flip would leave every golfer unable to bid.
+        var now = DateTime.UtcNow;
+        foreach (var player in team.Players)
+        {
+            if (player.CheckInStatus == CheckInStatus.CheckedIn) continue;  // idempotent
+            player.CheckInStatus = CheckInStatus.CheckedIn;
+            player.CheckInAt     = now;
+        }
+
+        // Complete is the same terminal state PlayerService.CheckInAsync reaches
+        // when the last golfer on a team checks in, so both routes converge.
+        team.CheckInStatus = CheckInStatus.Complete;
         await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Checked in team {TeamId} ({PlayerCount} golfers) for event {EventId}",
+            teamId, team.Players.Count, eventId);
+
+        if (!string.IsNullOrEmpty(team.Event.EventCode))
+            await _realTime.SendCheckInUpdatedAsync(team.Event.EventCode, eventId, ct);
+
         return MapToTeamResponse(team);
     }
 
@@ -997,25 +1023,12 @@ public class TeamService
         Players         = team.Players.Select(MapToPlayerResponse).ToList(),
     };
 
-    private static PlayerResponse MapToPlayerResponse(Player p) => new()
-    {
-        Id               = p.Id,
-        TeamId           = p.TeamId,
-        EventId          = p.EventId,
-        FirstName        = p.FirstName,
-        LastName         = p.LastName,
-        Email            = p.Email,
-        Phone            = p.Phone,
-        HandicapIndex    = p.HandicapIndex,
-        RegistrationType = p.RegistrationType.ToString(),
-        SkillLevel       = p.SkillLevel?.ToString(),
-        AgeGroup         = p.AgeGroup?.ToString(),
-        PairingNote      = p.PairingNote,
-        CheckInStatus    = p.CheckInStatus.ToString(),
-        CheckInAt        = p.CheckInAt,
-        EntryFeePaidCents = p.EntryFeePaidCents,
-        EntryFeePaidAt    = p.EntryFeePaidAt,
-    };
+    /// <summary>
+    /// Delegates to the one shared projection in PlayerService — this used to be
+    /// a second hand-maintained copy and it drifted. Do not re-inline it.
+    /// </summary>
+    private static PlayerResponse MapToPlayerResponse(Player p) =>
+        Players.PlayerService.MapToPlayerResponse(p);
 
     private static FreeAgentResponse MapToFreeAgentResponse(Player p) => new()
     {

@@ -5,8 +5,13 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { teamsApi, type Team } from '@/lib/api';
+import { teamsApi, playersApi, eventsApi, type Team, type Player } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
+import { confirmAction } from '@/lib/confirmAction';
+import {
+  isCheckedIn as statusIsCheckedIn, checkInConfirmCopy, cardlessHint,
+  canCheckInWholeTeam, golfersWithoutCard,
+} from '@/lib/checkIn';
 
 type Filter = 'all' | 'pending' | 'checked_in';
 
@@ -17,15 +22,31 @@ export default function RegistrationScreen() {
   const { isMobile, pagePadding } = useResponsive();
 
   const [teams,   setTeams]   = useState<Team[]>([]);
+  const [guests,  setGuests]  = useState<Player[]>([]);
+  const [eventStatus, setEventStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
   const [filter,  setFilter]  = useState<Filter>('all');
   const [busy,       setBusy]       = useState<Record<string, boolean>>({});
   const [walkUpOpen, setWalkUpOpen] = useState(false);
 
+  // Check-in is Active/Scoring only server-side; without the event status this
+  // screen would render Check In buttons that 400 once the round ends.
+  const checkInOpen = eventStatus === 'Active' || eventStatus === 'Scoring';
+
   const load = useCallback(async () => {
     setLoading(true); setError(null);
-    try { setTeams(await teamsApi.list(id)); }
+    try {
+      const [teamList, players, evt] = await Promise.all([
+        teamsApi.list(id),
+        playersApi.list(id),
+        eventsApi.get(id),
+      ]);
+      setTeams(teamList);
+      // Guests are the team-less attendees — they never appear on a roster.
+      setGuests(players.filter(p => p.registrationType === 'Attendee'));
+      setEventStatus(evt.status);
+    }
     catch (e: any) { setError(e.message ?? 'Failed to load teams.'); }
     finally { setLoading(false); }
   }, [id]);
@@ -34,11 +55,45 @@ export default function RegistrationScreen() {
 
   async function handleCheckIn(teamId: string) {
     setBusy(b => ({ ...b, [teamId + '_ci']: true }));
+    setError(null);
     try {
       const updated = await teamsApi.checkIn(id, teamId);
       setTeams(prev => prev.map(t => t.id === teamId ? updated : t));
     } catch (e: any) { setError(e.message ?? 'Check-in failed.'); }
     finally { setBusy(b => ({ ...b, [teamId + '_ci']: false })); }
+  }
+
+  // Guests have no team, so there is no team status to promote — just merge.
+  async function checkInGuest(guest: Player) {
+    setBusy(b => ({ ...b, [guest.id + '_ci']: true }));
+    setError(null);
+    try {
+      const updated = await playersApi.checkIn(id, guest.id);
+      setGuests(prev => prev.map(g => g.id === updated.id ? updated : g));
+    } catch (e: any) { setError(e.message ?? 'Check-in failed.'); }
+    finally { setBusy(b => ({ ...b, [guest.id + '_ci']: false })); }
+  }
+
+  // Per-golfer check-in. The server promotes the team to Complete once the last
+  // golfer is in, so the team status below repaints from the merged player.
+  async function checkInGolfer(player: Player) {
+    setBusy(b => ({ ...b, [player.id + '_ci']: true }));
+    setError(null);
+    try {
+      const updated = await playersApi.checkIn(id, player.id);
+      setTeams(prev => prev.map(t => {
+        if (t.id !== player.teamId) return t;
+        const players = t.players.map(p => p.id === updated.id ? updated : p);
+        return {
+          ...t,
+          players,
+          checkInStatus: players.every(p => statusIsCheckedIn(p.checkInStatus))
+            ? 'Complete'
+            : t.checkInStatus,
+        };
+      }));
+    } catch (e: any) { setError(e.message ?? 'Check-in failed.'); }
+    finally { setBusy(b => ({ ...b, [player.id + '_ci']: false })); }
   }
 
   async function handleMarkPaid(teamId: string) {
@@ -52,11 +107,11 @@ export default function RegistrationScreen() {
 
   const filtered = teams.filter(t =>
     filter === 'all'        ? true :
-    filter === 'pending'    ? t.checkInStatus === 'pending' :
-    /* checked_in */          t.checkInStatus !== 'pending',
+    filter === 'pending'    ? !statusIsCheckedIn(t.checkInStatus) :
+    /* checked_in */          statusIsCheckedIn(t.checkInStatus),
   );
 
-  const checkedIn   = teams.filter(t => t.checkInStatus !== 'pending').length;
+  const checkedIn   = teams.filter(t => statusIsCheckedIn(t.checkInStatus)).length;
   // Fees are per golfer — count paid golfers across all rosters.
   const golfersPaid  = teams.reduce((n, t) => n + t.playersPaid, 0);
   const golfersTotal = teams.reduce((n, t) => n + t.players.length, 0);
@@ -69,6 +124,7 @@ export default function RegistrationScreen() {
         eventId={id}
         onClose={() => setWalkUpOpen(false)}
         onRegistered={team => { setTeams(prev => [...prev, team]); setWalkUpOpen(false); }}
+        onGuestRegistered={guest => { setGuests(prev => [...prev, guest]); setWalkUpOpen(false); }}
       />
 
       {/* Header */}
@@ -133,16 +189,33 @@ export default function RegistrationScreen() {
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       ) : filtered.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.mutedText }]}>No teams match this filter.</Text>
-        </View>
+        <ScrollView contentContainerStyle={styles.list}>
+          <View style={styles.center}>
+            <Text style={[styles.emptyText, { color: theme.mutedText }]}>No teams match this filter.</Text>
+          </View>
+          <GuestsSection
+            guests={guests} checkInOpen={checkInOpen} busy={busy}
+            onCheckIn={checkInGuest} theme={theme}
+          />
+        </ScrollView>
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={t => t.id}
           contentContainerStyle={styles.list}
+          ListFooterComponent={
+            <GuestsSection
+              guests={guests} checkInOpen={checkInOpen} busy={busy}
+              onCheckIn={checkInGuest} theme={theme}
+            />
+          }
           renderItem={({ item: team }) => {
-            const isCheckedIn = team.checkInStatus !== 'pending';
+            const isCheckedIn = statusIsCheckedIn(team.checkInStatus);
+            // The whole-team fast path is only offered when nobody on the roster
+            // is cardless — a cardless check-in carries a collection risk the
+            // organizer must accept per golfer, not in bulk.
+            const cardless      = golfersWithoutCard(team.players);
+            const canCheckInAll = canCheckInWholeTeam(team.players);
             return (
               <View style={[styles.card, { borderColor: '#e8e8e8' }]}>
                 <View style={styles.cardTop}>
@@ -191,8 +264,8 @@ export default function RegistrationScreen() {
                     </>
                   )}
 
-                  {/* Check-in */}
-                  {!isCheckedIn && (
+                  {/* Whole-team check-in — only when no golfer is cardless */}
+                  {checkInOpen && !isCheckedIn && canCheckInAll && (
                     <Pressable
                       onPress={() => handleCheckIn(team.id)}
                       disabled={busy[team.id + '_ci']}
@@ -200,10 +273,59 @@ export default function RegistrationScreen() {
                     >
                       {busy[team.id + '_ci']
                         ? <ActivityIndicator size="small" color="#fff" />
-                        : <Text style={[styles.actionBtnText, { color: theme.ctaLabel }]}>Check In</Text>}
+                        : <Text style={[styles.actionBtnText, { color: theme.ctaLabel }]}>Check In Team</Text>}
                     </Pressable>
                   )}
                 </View>
+
+                {/* Why the team button is missing — otherwise the organizer just
+                    sees it on some teams and not others with no explanation. */}
+                {checkInOpen && !isCheckedIn && !canCheckInAll && team.players.length > 0 && (
+                  <Text style={[styles.cardlessHint, { color: theme.mutedText }]}>
+                    {cardlessHint(cardless.length, team.players.length)}
+                  </Text>
+                )}
+
+                {/* Roster — per-golfer check-in */}
+                {team.players.length > 0 && (
+                  <View style={styles.roster}>
+                    {team.players.map(player => {
+                      const golferIn = statusIsCheckedIn(player.checkInStatus);
+                      const name = `${player.firstName} ${player.lastName}`.trim();
+                      return (
+                        <View key={player.id} style={styles.golferRow}>
+                          <Text style={[styles.golferName, { color: theme.colors.primary }]} numberOfLines={1}>
+                            {name}
+                          </Text>
+                          <Text style={[
+                            styles.cardTag,
+                            { color: player.hasPaymentMethod ? '#27ae60' : '#f39c12' },
+                          ]}>
+                            {player.hasPaymentMethod ? '✓ card' : '⚠ no card'}
+                          </Text>
+                          {golferIn ? (
+                            <Text style={[styles.golferDone, { color: '#27ae60' }]}>Checked In</Text>
+                          ) : !checkInOpen ? (
+                            <Text style={[styles.golferDone, { color: theme.mutedText }]}>Pending</Text>
+                          ) : (
+                            <Pressable
+                              onPress={() => {
+                                const c = checkInConfirmCopy(name, player.hasPaymentMethod);
+                                confirmAction(c.title, c.message, () => checkInGolfer(player), c.confirmText);
+                              }}
+                              disabled={busy[player.id + '_ci']}
+                              style={[styles.golferBtn, { borderColor: theme.colors.action }]}
+                            >
+                              {busy[player.id + '_ci']
+                                ? <ActivityIndicator size="small" color={theme.colors.action} />
+                                : <Text style={[styles.golferBtnText, { color: theme.colors.action }]}>Check In</Text>}
+                            </Pressable>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
               </View>
             );
           }}
@@ -213,28 +335,97 @@ export default function RegistrationScreen() {
   );
 }
 
+// ── GUESTS ────────────────────────────────────────────────────────────────────
+//
+// Non-golfers registered so they can bid. They have no team, so they appear
+// nowhere in the roster list above — without this section they could never be
+// checked in, and check-in is precisely what lets a cardless guest bid.
+
+interface GuestsSectionProps {
+  guests:      Player[];
+  checkInOpen: boolean;
+  busy:        Record<string, boolean>;
+  onCheckIn:   (guest: Player) => void;
+  theme:       ReturnType<typeof useTheme>;
+}
+
+function GuestsSection({ guests, checkInOpen, busy, onCheckIn, theme }: GuestsSectionProps) {
+  if (guests.length === 0) return null;
+
+  return (
+    <View style={[styles.card, { borderColor: '#e8e8e8' }]}>
+      <Text style={[styles.teamName, { color: theme.colors.primary }]}>
+        Guests ({guests.length})
+      </Text>
+      <Text style={[styles.meta, { color: theme.mutedText }]}>
+        Not playing — auction bidding only
+      </Text>
+
+      <View style={styles.roster}>
+        {guests.map(guest => {
+          const guestIn = statusIsCheckedIn(guest.checkInStatus);
+          const name    = `${guest.firstName} ${guest.lastName}`.trim();
+          return (
+            <View key={guest.id} style={styles.golferRow}>
+              <Text style={[styles.golferName, { color: theme.colors.primary }]} numberOfLines={1}>
+                {name}
+              </Text>
+              <Text style={[
+                styles.cardTag,
+                { color: guest.hasPaymentMethod ? '#27ae60' : '#f39c12' },
+              ]}>
+                {guest.hasPaymentMethod ? '✓ card' : '⚠ no card'}
+              </Text>
+              {guestIn ? (
+                <Text style={[styles.golferDone, { color: '#27ae60' }]}>Checked In</Text>
+              ) : !checkInOpen ? (
+                <Text style={[styles.golferDone, { color: theme.mutedText }]}>Pending</Text>
+              ) : (
+                <Pressable
+                  onPress={() => {
+                    const c = checkInConfirmCopy(name, guest.hasPaymentMethod);
+                    confirmAction(c.title, c.message, () => onCheckIn(guest), c.confirmText);
+                  }}
+                  disabled={busy[guest.id + '_ci']}
+                  style={[styles.golferBtn, { borderColor: theme.colors.action }]}
+                >
+                  {busy[guest.id + '_ci']
+                    ? <ActivityIndicator size="small" color={theme.colors.action} />
+                    : <Text style={[styles.golferBtnText, { color: theme.colors.action }]}>Check In</Text>}
+                </Pressable>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 // ── WALK-UP MODAL ─────────────────────────────────────────────────────────────
 
 interface WalkUpModalProps {
-  visible:     boolean;
-  eventId:     string;
-  onClose:     () => void;
-  onRegistered:(team: Team) => void;
+  visible:          boolean;
+  eventId:          string;
+  onClose:          () => void;
+  onRegistered:     (team: Team) => void;
+  onGuestRegistered:(guest: Player) => void;
 }
 
-function WalkUpModal({ visible, eventId, onClose, onRegistered }: WalkUpModalProps) {
+function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistered }: WalkUpModalProps) {
   const theme = useTheme();
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
   const [email,     setEmail]     = useState('');
   const [teamName,  setTeamName]  = useState('');
   const [handicap,  setHandicap]  = useState('');
+  const [isGuest,   setIsGuest]   = useState(false);
   const [saving,    setSaving]    = useState(false);
   const [err,       setErr]       = useState<string | null>(null);
 
   function reset() {
     setFirstName(''); setLastName(''); setEmail('');
-    setTeamName(''); setHandicap(''); setErr(null);
+    setTeamName(''); setHandicap(''); setIsGuest(false); setErr(null);
   }
 
   function handleClose() { reset(); onClose(); }
@@ -245,6 +436,20 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered }: WalkUpModalPro
     }
     setSaving(true); setErr(null);
     try {
+      if (isGuest) {
+        // A guest is not playing, so they get no team — which keeps them off the
+        // leaderboard, out of pairings, and out of the check-in counts that gate
+        // Open Scoring. They still become a player row so they can bid.
+        const guest = await playersApi.add(eventId, {
+          firstName: firstName.trim(),
+          lastName:  lastName.trim(),
+          email:     email.trim(),
+          isAttendee: true,
+        });
+        reset();
+        onGuestRegistered(guest);
+        return;
+      }
       const name = teamName.trim() || `${lastName.trim()} Walk-up`;
       const hcp  = handicap.trim() ? parseFloat(handicap) : undefined;
       const { team } = await teamsApi.registerTeam(eventId, {
@@ -263,18 +468,48 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered }: WalkUpModalPro
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
         <View style={[styles.modalCard, { backgroundColor: '#fff' }]}>
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Walk-Up Registration</Text>
+            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
+              {isGuest ? 'Add Guest' : 'Walk-Up Registration'}
+            </Text>
             <Pressable onPress={handleClose} style={styles.modalClose}>
               <Text style={{ fontSize: 20, color: theme.mutedText }}>✕</Text>
             </Pressable>
           </View>
 
           <ScrollView style={{ maxHeight: 420 }} keyboardShouldPersistTaps="handled">
+            <Pressable
+              onPress={() => setIsGuest(v => !v)}
+              style={styles.guestToggleRow}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: isGuest }}
+            >
+              <View style={[
+                styles.guestCheckbox,
+                { borderColor: theme.colors.action },
+                isGuest && { backgroundColor: theme.colors.action },
+              ]}>
+                {isGuest && <Text style={styles.guestCheckboxTick}>✓</Text>}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.guestToggleLabel, { color: theme.colors.primary }]}>
+                  Guest — not playing
+                </Text>
+                <Text style={[styles.guestToggleHint, { color: theme.mutedText }]}>
+                  Spouse, sponsor, or banquet guest. They can bid in the auction but
+                  won't join a team, appear on the leaderboard, or be charged an entry fee.
+                </Text>
+              </View>
+            </Pressable>
+
             <LabeledInput label="First Name *" value={firstName} onChangeText={setFirstName} placeholder="Jane" />
             <LabeledInput label="Last Name *"  value={lastName}  onChangeText={setLastName}  placeholder="Smith" />
             <LabeledInput label="Email *"      value={email}     onChangeText={setEmail}     placeholder="jane@example.com" keyboardType="email-address" autoCapitalize="none" />
-            <LabeledInput label="Team Name"    value={teamName}  onChangeText={setTeamName}  placeholder={lastName.trim() ? `${lastName.trim()} Walk-up` : 'Auto-filled from last name'} />
-            <LabeledInput label="Handicap"     value={handicap}  onChangeText={setHandicap}  placeholder="e.g. 12" keyboardType="numeric" />
+            {!isGuest && (
+              <>
+                <LabeledInput label="Team Name"    value={teamName}  onChangeText={setTeamName}  placeholder={lastName.trim() ? `${lastName.trim()} Walk-up` : 'Auto-filled from last name'} />
+                <LabeledInput label="Handicap"     value={handicap}  onChangeText={setHandicap}  placeholder="e.g. 12" keyboardType="numeric" />
+              </>
+            )}
           </ScrollView>
 
           {err && <Text style={styles.modalErr}>{err}</Text>}
@@ -371,4 +606,22 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 13, fontWeight: '600' },
   actionBtn: { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6, minWidth: 110, alignItems: 'center', justifyContent: 'center' },
   actionBtnText: { fontSize: 13, fontWeight: '700' },
+
+  cardlessHint: { fontSize: 12, marginTop: 8, fontStyle: 'italic' },
+  roster: { marginTop: 10, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e8e8e8', gap: 6 },
+  golferRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  golferName: { fontSize: 14, fontWeight: '600', flex: 1 },
+  cardTag: { fontSize: 12, fontWeight: '600', minWidth: 66 },
+  golferDone: { fontSize: 12, fontWeight: '700', minWidth: 96, textAlign: 'right' },
+  golferBtn: { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 4, minWidth: 96, alignItems: 'center', justifyContent: 'center' },
+  golferBtnText: { fontSize: 12, fontWeight: '700' },
+
+  guestToggleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10 },
+  guestCheckbox: {
+    width: 22, height: 22, borderRadius: 5, borderWidth: 2,
+    alignItems: 'center', justifyContent: 'center', marginTop: 1,
+  },
+  guestCheckboxTick: { color: '#fff', fontSize: 14, fontWeight: '900', lineHeight: 16 },
+  guestToggleLabel: { fontSize: 14, fontWeight: '700' },
+  guestToggleHint:  { fontSize: 12, marginTop: 2, lineHeight: 16 },
 });

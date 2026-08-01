@@ -30,7 +30,17 @@ public class PlayerService
         if (evt is null)
             throw new NotFoundException("Event", eventId);
 
-        if (evt.Status is EventStatus.Completed or EventStatus.Cancelled)
+        // A guest is a non-golfer who only needs to bid, so they are never put on
+        // a team. Requesting both is contradictory — the team wins, and they are
+        // treated as an ordinary player.
+        var isAttendee = request.IsAttendee && !request.TeamId.HasValue;
+
+        // Guests may still be added once the round is Completed — the auction
+        // runs on into the banquet, which is exactly when a spouse or sponsor
+        // turns up wanting to bid. Golfers still cannot be added to a finished
+        // event, and nobody can be added to a cancelled one.
+        if (evt.Status is EventStatus.Cancelled ||
+            (evt.Status is EventStatus.Completed && !isAttendee))
             throw new ValidationException($"Cannot add players to a {evt.Status} event.");
 
         Guid? teamId = null;
@@ -61,14 +71,21 @@ public class PlayerService
             Phone         = request.Phone,
             HandicapIndex = request.HandicapIndex,
             CheckInStatus = CheckInStatus.Pending,
+            // Only the guest case is tagged. Golfers added here keep the existing
+            // (unset) default deliberately — switching them to FreeAgent would
+            // change what the Free Agent Board and auto-pair pick up, which is a
+            // separate question from adding guests.
+            RegistrationType = isAttendee
+                ? RegistrationType.Attendee
+                : default,
         };
 
         _db.Players.Add(player);
         await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Added player {PlayerId} to event {EventId} (team: {TeamId})",
-            player.Id, eventId, teamId?.ToString() ?? "free agent");
+            "Added player {PlayerId} to event {EventId} as {Type} (team: {TeamId})",
+            player.Id, eventId, player.RegistrationType, teamId?.ToString() ?? "none");
 
         return MapToPlayerResponse(player);
     }
@@ -150,9 +167,9 @@ public class PlayerService
         if (evt is null)
             throw new NotFoundException("Event", eventId);
 
-        if (evt.Status != EventStatus.Active)
+        if (!Events.EventStatusRules.CheckInAllowed(evt.Status))
             throw new ValidationException(
-                $"Check-in is only available when the event is Active. Current status: {evt.Status}.");
+                $"Check-in is only available while the event is Active or Scoring. Current status: {evt.Status}.");
 
         var player = await _db.Players
             .Include(p => p.Team)
@@ -162,8 +179,11 @@ public class PlayerService
         if (player is null)
             throw new NotFoundException("Player", playerId);
 
+        // Idempotent, as the endpoint doc promises. Organizers now have both a
+        // per-golfer button and a team button that cascades, so repeat calls are
+        // routine rather than an error.
         if (player.CheckInStatus == CheckInStatus.CheckedIn)
-            throw new ValidationException("Player is already checked in.");
+            return MapToPlayerResponse(player);
 
         player.CheckInStatus = CheckInStatus.CheckedIn;
         player.CheckInAt     = DateTime.UtcNow;
@@ -225,9 +245,9 @@ public class PlayerService
         if (evt is null)
             throw new NotFoundException("Event", eventId);
 
-        if (evt.Status != EventStatus.Active)
+        if (!Events.EventStatusRules.CheckInAllowed(evt.Status))
             throw new ValidationException(
-                $"Check-in is only available when the event is Active. Current status: {evt.Status}.");
+                $"Check-in is only available while the event is Active or Scoring. Current status: {evt.Status}.");
 
         var player = await _db.Players
             .Include(p => p.Team)
@@ -270,21 +290,29 @@ public class PlayerService
             throw new NotFoundException("Event", eventId);
     }
 
+    /// <summary>
+    /// The single Player → PlayerResponse projection. TeamService maps through
+    /// this too; a second copy previously lived there and had already drifted
+    /// (it silently dropped the entry-fee columns), so keep this the only one.
+    /// </summary>
     internal static PlayerResponse MapToPlayerResponse(Domain.Entities.Player p) => new()
     {
-        Id               = p.Id,
-        TeamId           = p.TeamId,
-        EventId          = p.EventId,
-        FirstName        = p.FirstName,
-        LastName         = p.LastName,
-        Email            = p.Email,
-        Phone            = p.Phone,
-        HandicapIndex    = p.HandicapIndex,
-        RegistrationType = p.RegistrationType.ToString(),
-        SkillLevel       = p.SkillLevel?.ToString(),
-        AgeGroup         = p.AgeGroup?.ToString(),
-        PairingNote      = p.PairingNote,
-        CheckInStatus    = p.CheckInStatus.ToString(),
-        CheckInAt        = p.CheckInAt,
+        Id                = p.Id,
+        TeamId            = p.TeamId,
+        EventId           = p.EventId,
+        FirstName         = p.FirstName,
+        LastName          = p.LastName,
+        Email             = p.Email,
+        Phone             = p.Phone,
+        HandicapIndex     = p.HandicapIndex,
+        RegistrationType  = p.RegistrationType.ToString(),
+        SkillLevel        = p.SkillLevel?.ToString(),
+        AgeGroup          = p.AgeGroup?.ToString(),
+        PairingNote       = p.PairingNote,
+        CheckInStatus     = p.CheckInStatus.ToString(),
+        CheckInAt         = p.CheckInAt,
+        EntryFeePaidCents = p.EntryFeePaidCents,
+        EntryFeePaidAt    = p.EntryFeePaidAt,
+        HasPaymentMethod  = p.HasPaymentMethod,
     };
 }

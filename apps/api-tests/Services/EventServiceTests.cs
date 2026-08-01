@@ -380,4 +380,77 @@ public class EventServiceTests
         var c = Build();
         await Assert.ThrowsAsync<NotFoundException>(() => c.Svc.GetPublicEventStatusAsync("NOPE9999"));
     }
+
+    // ── Status micro-endpoint: per-player block ───────────────────────────────
+    //
+    // This is how a device learns it was checked in. Check-in happens at the desk
+    // AFTER the golfer joined, so the cached join payload is stale by definition,
+    // and the check-in state is what waives the auction's saved-card requirement.
+
+    /// <summary>Seeds a player on the built event and returns (playerId, token).</summary>
+    private static (Guid PlayerId, string Token) SeedPlayer(
+        Ctx c, bool checkedIn = false, bool hasCard = false, string token = "tok-abc")
+    {
+        var id = Guid.NewGuid();
+        c.Db.Players.Add(new Player
+        {
+            Id = id, EventId = c.EventId, FirstName = "Pat", LastName = "Golfer",
+            Email = $"{id:N}@x.com", SessionToken = token,
+            HasPaymentMethod = hasCard,
+            CheckInStatus = checkedIn ? CheckInStatus.CheckedIn : CheckInStatus.Pending,
+        });
+        c.Db.SaveChanges();
+        return (id, token);
+    }
+
+    [Fact]
+    public async Task GetPublicEventStatus_omits_the_player_block_when_anonymous()
+    {
+        var c = Build();
+        SeedPlayer(c);
+
+        var resp = await c.Svc.GetPublicEventStatusAsync("GALA0001");
+
+        Assert.Null(resp.Player);
+    }
+
+    [Fact]
+    public async Task GetPublicEventStatus_returns_the_callers_own_state()
+    {
+        var c = Build();
+        var (playerId, token) = SeedPlayer(c, checkedIn: true, hasCard: false);
+
+        var resp = await c.Svc.GetPublicEventStatusAsync("GALA0001", playerId, token);
+
+        Assert.NotNull(resp.Player);
+        Assert.True(resp.Player!.IsCheckedIn);
+        Assert.False(resp.Player.HasPaymentMethod);
+    }
+
+    [Fact]
+    public async Task GetPublicEventStatus_tracks_a_pending_golfer_with_a_card()
+    {
+        var c = Build();
+        var (playerId, token) = SeedPlayer(c, checkedIn: false, hasCard: true);
+
+        var resp = await c.Svc.GetPublicEventStatusAsync("GALA0001", playerId, token);
+
+        Assert.NotNull(resp.Player);
+        Assert.False(resp.Player!.IsCheckedIn);
+        Assert.True(resp.Player.HasPaymentMethod);
+    }
+
+    [Fact]
+    public async Task GetPublicEventStatus_fails_closed_on_a_bad_token()
+    {
+        // Wrong token, missing token, and an unknown player must all degrade to
+        // the anonymous shape rather than leaking or erroring.
+        var c = Build();
+        var (playerId, _) = SeedPlayer(c, checkedIn: true);
+
+        Assert.Null((await c.Svc.GetPublicEventStatusAsync("GALA0001", playerId, "wrong")).Player);
+        Assert.Null((await c.Svc.GetPublicEventStatusAsync("GALA0001", playerId, null)).Player);
+        Assert.Null((await c.Svc.GetPublicEventStatusAsync("GALA0001", playerId, "")).Player);
+        Assert.Null((await c.Svc.GetPublicEventStatusAsync("GALA0001", Guid.NewGuid(), "tok-abc")).Player);
+    }
 }

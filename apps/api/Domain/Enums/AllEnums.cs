@@ -135,7 +135,21 @@ public enum RegistrationType
     FreeAgentAssigned,
 
     /// <summary>Added same-day at check-in by event staff (walk-up registration).</summary>
-    WalkUp
+    WalkUp,
+
+    /// <summary>
+    /// A non-golfer attending the event — spouse, sponsor, or banquet guest —
+    /// registered so they can bid in the auction. Always team-less.
+    /// </summary>
+    /// <remarks>
+    /// Bidding requires a players row (bids.player_id is a non-nullable FK), so
+    /// guests are Players rather than a separate entity. Being team-less keeps
+    /// them off the leaderboard, out of pairings and team capacity, and out of
+    /// the check-in counts that gate Open Scoring. Distinct from FreeAgent —
+    /// which means "a golfer awaiting a team" — so the free-agent pairing
+    /// surfaces skip them.
+    /// </remarks>
+    Attendee
 }
 
 /// <summary>

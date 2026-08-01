@@ -156,6 +156,12 @@ export interface AddPlayerPayload {
   phone?:        string;
   handicapIndex?: number;
   teamId?:       string | null;
+  /**
+   * Register a non-golfer guest (spouse, sponsor, banquet attendee) so they can
+   * bid in the auction. Forces a team-less player, so they stay off the
+   * leaderboard and out of the check-in counts that gate Open Scoring.
+   */
+  isAttendee?:   boolean;
 }
 
 export interface UpdatePlayerPayload {
@@ -169,6 +175,10 @@ export interface UpdatePlayerPayload {
 }
 
 export const playersApi = {
+  /** Every player on the event, including team-less guests (registrationType 'Attendee'). */
+  list: (eventId: string) =>
+    request<Player[]>(`/api/v1/events/${eventId}/players`),
+
   listFreeAgents: (eventId: string) =>
     request<Player[]>(`/api/v1/events/${eventId}/free-agents`),
 
@@ -185,6 +195,16 @@ export const playersApi = {
 
   remove: (eventId: string, playerId: string) =>
     request<void>(`/api/v1/events/${eventId}/players/${playerId}`, { method: 'DELETE' }),
+
+  /**
+   * Checks in one golfer. Idempotent server-side, and the only call that sets
+   * a PLAYER's check-in status — the team check-in cascades to this same state.
+   * Requires the event to be Active.
+   */
+  checkIn: (eventId: string, playerId: string) =>
+    request<Player>(`/api/v1/events/${eventId}/players/${playerId}/check-in`, {
+      method: 'POST', body: {},
+    }),
 };
 
 // ── CHALLENGES ────────────────────────────────────────────────────────────────
@@ -363,12 +383,19 @@ export interface Player {
   firstName: string; lastName: string; email: string;
   phone?: string | null;
   handicapIndex: number | null; checkInStatus: string;
+  /** 'FullTeam' | 'IndividualJoin' | 'FreeAgent' | 'FreeAgentAssigned' | 'WalkUp' | 'Attendee' */
+  registrationType: string;
   skillLevel?: string | null;
   ageGroup?: string | null;
   pairingNote?: string | null;
   /** Cents this golfer has paid toward the per-golfer entry fee. 0 = unpaid. */
   entryFeePaidCents: number;
   entryFeePaidAt?: string | null;
+  /**
+   * True when this golfer has a card saved with Stripe. Checking in a golfer
+   * without one lets them bid anyway, so the check-in UI warns first.
+   */
+  hasPaymentMethod: boolean;
 }
 
 export interface Score {
@@ -496,6 +523,14 @@ export const auctionApi = {
 
   nextItem: (eventId: string) =>
     request<AuctionSession>(`/api/v1/events/${eventId}/auction/sessions/next-item`, { method: 'POST', body: {} }),
+
+  /**
+   * Ends the live auction — the organizer's "auction is over" signal, separate
+   * from the event's own Completed status. Returns 204 (void) when nothing was
+   * running, so the response may be empty.
+   */
+  endSession: (eventId: string) =>
+    request<AuctionSession | void>(`/api/v1/events/${eventId}/auction/sessions/end`, { method: 'POST', body: {} }),
 
   updateCalledAmount: (eventId: string, amountCents: number) =>
     request<AuctionSession>(`/api/v1/events/${eventId}/auction/sessions/called-amount`, {

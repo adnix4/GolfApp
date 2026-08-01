@@ -13,6 +13,7 @@ import {
   fetchAuctionItems, placeBid, pledge,
   createSetupIntent, confirmSetup,
   fetchPlayerBidHistory, fetchActiveAuctionSession,
+  fetchEventStatus,
 } from '../lib/api';
 import type { PendingScore } from '../lib/api';
 
@@ -416,6 +417,48 @@ describe('fetchPlayerBidHistory', () => {
     mockOk([]);
     const result = await fetchPlayerBidHistory('pl1');
     expect(result).toHaveLength(0);
+  });
+});
+
+// ── fetchEventStatus ──────────────────────────────────────────────────────────
+//
+// The optional session auth is what lets a device notice it was checked in —
+// check-in happens at the desk after join, so the cached session goes stale and
+// the auction bid button would stay locked without this.
+
+describe('fetchEventStatus', () => {
+  const status = { status: 'Active', resolvedThemeJson: null, sponsorsVersion: 3 };
+
+  it('polls anonymously with no session headers', async () => {
+    mockOk(status);
+    const res = await fetchEventStatus('ABCD1234');
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit | undefined];
+    expect(url).toContain('/pub/events/ABCD1234/status');
+    const headers = (opts?.headers ?? {}) as Record<string, string>;
+    expect(headers['X-GFP-Player-Id']).toBeUndefined();
+    expect(res.player).toBeNull();
+  });
+
+  it('sends the per-player session headers when given auth', async () => {
+    mockOk(status);
+    await fetchEventStatus('ABCD1234', { playerId: 'pl1', sessionToken: 'tok-1' });
+    const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit | undefined];
+    const headers = (opts?.headers ?? {}) as Record<string, string>;
+    expect(headers['X-GFP-Player-Id']).toBe('pl1');
+    expect(headers['X-GFP-Session-Token']).toBe('tok-1');
+  });
+
+  it('surfaces the player block when the server returns one', async () => {
+    mockOk({ ...status, player: { isCheckedIn: true, hasPaymentMethod: false } });
+    const res = await fetchEventStatus('ABCD1234', { playerId: 'pl1', sessionToken: 'tok-1' });
+    expect(res.player).toEqual({ isCheckedIn: true, hasPaymentMethod: false });
+  });
+
+  it('reports a null player block rather than throwing when auth is rejected', async () => {
+    mockOk(status);
+    const res = await fetchEventStatus('ABCD1234', { playerId: 'pl1', sessionToken: 'stale' });
+    expect(res.player).toBeNull();
+    expect(res.status).toBe('Active');
   });
 });
 

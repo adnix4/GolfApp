@@ -24,4 +24,19 @@ public static class EventStatusRules
         => Transitions.TryGetValue(current, out var allowed)
             ? allowed
             : Array.Empty<EventStatus>();
+
+    /// <summary>
+    /// True when the desk may still check golfers in.
+    /// </summary>
+    /// <remarks>
+    /// Scoring counts, not just Active: golfers arriving after a shotgun start
+    /// are routine, and the organizer may deliberately open scoring before the
+    /// whole field is in. Refusing them would be permanent — check-in is also
+    /// what waives the auction's saved-card requirement
+    /// (AuctionBidRules.NeedsPaymentMethod), so a late arrival would be locked
+    /// out of bidding for the rest of the event.
+    /// Completed and Cancelled stay closed: the day is over.
+    /// </remarks>
+    public static bool CheckInAllowed(EventStatus status)
+        => status is EventStatus.Active or EventStatus.Scoring;
 }

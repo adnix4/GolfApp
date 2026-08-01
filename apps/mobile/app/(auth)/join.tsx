@@ -89,7 +89,9 @@ export default function JoinScreen() {
 
   /** Shared landing logic once the server returns a real join payload. */
   async function enterEvent(data: JoinEventResponse, code: string, emailT: string) {
-    if (data.awaitingAssignment) {
+    // A guest is team-less by design, not by queue position — they go straight
+    // in. Only a free agent genuinely awaiting a team gets the waiting screen.
+    if (data.awaitingAssignment && !data.isGuest) {
       // Free agent registered but not yet assigned to a team — show waiting screen
       setWaitingEventCode(code);
       setWaitingEmail(emailT);
@@ -101,7 +103,9 @@ export default function JoinScreen() {
 
     await setSession(data);
     registerForPushNotifications(data.player.id).catch(() => {});
-    router.replace('/preflight');
+    // Preflight checks the device for a round of scoring (battery, storage,
+    // connectivity) — irrelevant to a guest who is only here to bid.
+    router.replace(data.isGuest ? '/(scoring)/auction' : '/preflight');
   }
 
   async function handleJoin() {

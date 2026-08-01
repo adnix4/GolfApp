@@ -47,7 +47,7 @@ public class TeamServiceTests
         });
         db.SaveChanges();
         var payments = new PaymentsService(db, config, NullLogger<PaymentsService>.Instance);
-        return new Ctx { Db = db, Svc = new TeamService(db, config, payments, NullLogger<TeamService>.Instance), OrgId = orgId, EventId = eventId };
+        return new Ctx { Db = db, Svc = new TeamService(db, config, payments, new NullRealTimeService(), NullLogger<TeamService>.Instance), OrgId = orgId, EventId = eventId };
     }
 
     private static PlayerInput P(string last, string? email = null) =>
@@ -335,5 +335,115 @@ public class TeamServiceTests
         });
         await Assert.ThrowsAsync<ValidationException>(() =>
             c.Svc.DeleteTeamAsync(c.OrgId, c.EventId, reg.Team.Id));
+    }
+
+    // ── Team check-in ───────────────────────────────────────────────────────────
+
+    private sealed class CapturingRealTime : NullRealTimeService
+    {
+        public int CheckInBroadcasts;
+        public override Task SendCheckInUpdatedAsync(
+            string eventCode, Guid eventId, CancellationToken ct = default)
+        {
+            CheckInBroadcasts++;
+            return Task.CompletedTask;
+        }
+    }
+
+    /// <summary>
+    /// Builds in Registration (teams can only be created there without walk-up
+    /// enabled) with a capturing real-time stub. Call Activate before check-in,
+    /// which is Active-only — the same order a real event follows.
+    /// </summary>
+    private static (Ctx Ctx, CapturingRealTime Rt) BuildForCheckIn()
+    {
+        var c  = Build(EventStatus.Registration);
+        var rt = new CapturingRealTime();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["JWT_SECRET"] = Secret })
+            .Build();
+        var payments = new PaymentsService(c.Db, config, NullLogger<PaymentsService>.Instance);
+        c.Svc = new TeamService(c.Db, config, payments, rt, NullLogger<TeamService>.Instance);
+        return (c, rt);
+    }
+
+    private static void Activate(Ctx c)
+    {
+        c.Db.Events.Single(e => e.Id == c.EventId).Status = EventStatus.Active;
+        c.Db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task CheckInTeam_checks_in_every_golfer_on_the_roster()
+    {
+        // The auction's saved-card waiver keys off the PLAYER's check-in status,
+        // so a team-only flip would leave the whole roster unable to bid.
+        var (c, _) = BuildForCheckIn();
+        var reg = await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "Bandits", Players = new() { P("A"), P("B"), P("C") },
+        });
+        Activate(c);
+
+        await c.Svc.CheckInTeamAsync(c.OrgId, c.EventId, reg.Team.Id);
+
+        var players = c.Db.Players.Where(p => p.TeamId == reg.Team.Id).ToList();
+        Assert.Equal(3, players.Count);
+        Assert.All(players, p => Assert.Equal(CheckInStatus.CheckedIn, p.CheckInStatus));
+        Assert.All(players, p => Assert.NotNull(p.CheckInAt));
+        Assert.Equal(CheckInStatus.Complete, c.Db.Teams.Single(t => t.Id == reg.Team.Id).CheckInStatus);
+    }
+
+    [Fact]
+    public async Task CheckInTeam_broadcasts_and_is_repeatable()
+    {
+        var (c, rt) = BuildForCheckIn();
+        var reg = await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "Bandits", Players = new() { P("A"), P("B") },
+        });
+        Activate(c);
+
+        await c.Svc.CheckInTeamAsync(c.OrgId, c.EventId, reg.Team.Id);
+        var stamps = c.Db.Players.Where(p => p.TeamId == reg.Team.Id)
+            .Select(p => p.CheckInAt).ToList();
+        Assert.Equal(1, rt.CheckInBroadcasts);
+
+        // Re-tapping the button must not error or re-stamp anyone.
+        await c.Svc.CheckInTeamAsync(c.OrgId, c.EventId, reg.Team.Id);
+        Assert.Equal(stamps, c.Db.Players.Where(p => p.TeamId == reg.Team.Id)
+            .Select(p => p.CheckInAt).ToList());
+    }
+
+    [Fact]
+    public async Task CheckInTeam_is_rejected_before_the_day_of_the_event()
+    {
+        var c = Build(EventStatus.Registration);
+        var reg = await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "Early", Players = new() { P("A") },
+        });
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            c.Svc.CheckInTeamAsync(c.OrgId, c.EventId, reg.Team.Id));
+    }
+
+    [Fact]
+    public async Task CheckInTeam_still_works_once_the_round_has_started()
+    {
+        // The organizer can open scoring with teams outstanding (the admin gate
+        // has an override for no-shows), so a late team must still be checkable.
+        var (c, _) = BuildForCheckIn();
+        var reg = await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "Latecomers", Players = new() { P("A"), P("B") },
+        });
+        c.Db.Events.Single(e => e.Id == c.EventId).Status = EventStatus.Scoring;
+        c.Db.SaveChanges();
+
+        await c.Svc.CheckInTeamAsync(c.OrgId, c.EventId, reg.Team.Id);
+
+        Assert.All(
+            c.Db.Players.Where(p => p.TeamId == reg.Team.Id).ToList(),
+            p => Assert.Equal(CheckInStatus.CheckedIn, p.CheckInStatus));
     }
 }

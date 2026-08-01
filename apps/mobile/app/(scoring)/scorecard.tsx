@@ -422,7 +422,9 @@ export default function ScorecardScreen() {
         {!scoringEnabled && (
           <View style={[styles.readOnlyNotice, { backgroundColor: theme.colors.surface, borderColor: theme.colors.accent + '55' }]}>
             <Text style={[styles.readOnlyText, { color: theme.mutedText }]}>
-              Scorecard is read-only — scoring opens when the organizer starts the round
+              {session.event.status === 'Completed'
+                ? 'Scorecard is read-only — the round is complete'
+                : 'Scorecard is read-only — scoring opens when the organizer starts the round'}
             </Text>
           </View>
         )}

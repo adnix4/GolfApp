@@ -127,6 +127,14 @@ public record JoinEventResponse
     public bool AwaitingAssignment { get; init; } = false;
 
     /// <summary>
+    /// True when the caller is a non-golfer guest (spouse, sponsor, banquet
+    /// attendee) registered only so they can bid. Team is null and always will
+    /// be — unlike AwaitingAssignment, there is nothing to wait for. The mobile
+    /// app should land them straight in the event with scoring hidden.
+    /// </summary>
+    public bool IsGuest { get; init; } = false;
+
+    /// <summary>
     /// True when the golfer must prove email ownership before joining (A3). A
     /// one-time code was just emailed to the registered address; every other
     /// field in this response is null/empty — the app should show a code-entry
@@ -170,6 +178,14 @@ public record PlayerCacheDto
     public string LastName         { get; init; } = string.Empty;
     public string Email            { get; init; } = string.Empty;
     public bool   HasPaymentMethod { get; init; }
+    /// <summary>
+    /// True once the golfer has checked in at the event. Mirrors the second
+    /// input to AuctionBidRules.NeedsPaymentMethod: a checked-in golfer may bid
+    /// without a saved card. Exposed as a bool rather than the CheckInStatus
+    /// enum because the client only needs the rule's input, and the enum
+    /// serializes PascalCase while TS mirrors historically expected snake_case.
+    /// </summary>
+    public bool   IsCheckedIn      { get; init; }
 }
 
 public record UpdateSelfRequest
