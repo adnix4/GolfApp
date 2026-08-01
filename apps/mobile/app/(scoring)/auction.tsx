@@ -1,13 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Pressable, StyleSheet, FlatList,
-  Modal, ScrollView, ActivityIndicator, Alert, Image,
+  Modal, ScrollView, ActivityIndicator, Image,
   useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme, MoneyInput } from '@gfp/ui';
-import { formatCentsShort, dollarsToCents, centsToMoneyValue, useLiveAuction, needsPaymentMethod } from '@gfp/shared-types';
+import {
+  formatCentsShort, dollarsToCents, centsToMoneyValue, useLiveAuction,
+  needsPaymentMethod, minimumBidCents, isDonationItem,
+} from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
+import { notify } from '@/lib/notify';
 import {
   fetchAuctionItems, placeBid, pledge,
   fetchPlayerBidHistory, fetchActiveAuctionSession,
@@ -62,6 +66,29 @@ function PhotoViewer({ url, screenWidth, screenHeight, onClose }: {
   );
 }
 
+/**
+ * Turns the server's bid rejection codes into something a golfer can act on.
+ * These arrive as bare machine strings ("BID_TOO_LOW:5000") and used to be shown
+ * verbatim, so the one message that told the golfer what to do next — the actual
+ * minimum — was buried in a code.
+ */
+function describeBidError(raw: string): string {
+  if (raw === 'NO_PAYMENT_METHOD')
+    return 'To bid, either save a card or check in at the registration desk.';
+  if (raw === 'AUCTION_CLOSED')
+    return 'This item just closed. Pull down to refresh the list.';
+
+  const tooLow = raw.match(/^BID_TOO_LOW:(\d+)$/);
+  if (tooLow)
+    return `That is below the minimum — bids on this item start at ${formatCentsShort(Number(tooLow[1]))}.`;
+
+  // A session-token mismatch comes back as the generic player-not-found text.
+  if (/was not found/i.test(raw))
+    return 'Your session has expired. Rejoin the event and try again.';
+
+  return raw || 'Something went wrong. Please try again.';
+}
+
 export default function AuctionScreen() {
   const theme  = useTheme();
   const router = useRouter();
@@ -89,6 +116,10 @@ export default function AuctionScreen() {
   const [expandedPhotoUrl, setExpandedPhotoUrl] = useState<string | null>(null);
   const [bidAmt, setBidAmt]       = useState('');
   const [bidding, setBidding]     = useState(false);
+  // Bid failures show up inline, right under the amount field. A dialog was the
+  // wrong place for this even on native — the golfer's next move is to change
+  // the number they just typed, and it is the only place a web build can put it.
+  const [bidError, setBidError]   = useState<string | null>(null);
   const [raisingHand, setRaisingHand] = useState(false);
   const [handRaised,  setHandRaised]  = useState(false);
 
@@ -124,7 +155,7 @@ export default function AuctionScreen() {
       const data = await fetchPlayerBidHistory(player.id);
       setHistory(data);
     } catch {
-      Alert.alert('Could not load bid history', 'Check your connection and try again.');
+      notify('Could not load bid history', 'Check your connection and try again.');
     }
   }, [player?.id]);
 
@@ -145,26 +176,39 @@ export default function AuctionScreen() {
 
   async function handleBid(item: AuctionItemDto) {
     if (!player?.id) return;
+    const isDonation = isDonationItem(item.auctionType);
     const cents = dollarsToCents(bidAmt);
-    if (cents <= 0) { Alert.alert('Invalid Amount', 'Please enter an amount greater than zero.'); return; }
+    if (cents <= 0) {
+      setBidError('Enter an amount greater than zero.');
+      return;
+    }
+    // Client-side floor check, so the common mistake is caught before a round
+    // trip. The server still decides — another golfer's bid can raise the bar
+    // between this render and the request landing.
+    const min = minimumBidCents(item);
+    if (cents < min) {
+      setBidError(isDonation
+        ? `The smallest pledge for this item is ${fmt(min)}.`
+        : `Bids start at ${fmt(min)} for this item.`);
+      return;
+    }
+    setBidError(null);
     setBidding(true);
     try {
-      const isDonation = item.auctionType.includes('Donation');
       if (isDonation) {
         await pledge(item.id, player.id, cents, session!.sessionToken);
       } else {
         await placeBid(item.id, player.id, cents, session!.sessionToken);
       }
-      Alert.alert('Success', isDonation ? 'Pledge recorded!' : 'Bid placed!');
+      notify('Success', isDonation ? 'Pledge recorded!' : 'Bid placed!');
       setBidAmt('');
       setSelectedItem(null);
       refresh();
     } catch (e: unknown) {
-      const raw = e instanceof Error ? e.message : '';
-      const msg = raw === 'NO_PAYMENT_METHOD'
-        ? 'To bid, either save a card or check in at the registration desk.'
-        : raw || 'Something went wrong. Please try again.';
-      Alert.alert('Could not place bid', msg);
+      setBidError(describeBidError(e instanceof Error ? e.message : ''));
+      // Someone else may have raised the item since this screen last rendered —
+      // pull the current amounts in so the message and the label agree.
+      refresh();
     } finally {
       setBidding(false);
     }
@@ -264,11 +308,11 @@ export default function AuctionScreen() {
           refreshing={loading}
           onRefresh={refresh}
           renderItem={({ item }) => {
-            const isDonation = item.auctionType.includes('Donation');
+            const isDonation = isDonationItem(item.auctionType);
             return (
               <Pressable
                 style={[styles.card, { backgroundColor: theme.colors.surface }]}
-                onPress={() => { setSelectedItem(item); setBidAmt(''); }}
+                onPress={() => { setSelectedItem(item); setBidAmt(''); setBidError(null); }}
               >
                 <View style={styles.cardRow}>
                   {/* Thumbnail only — tapping it expands the photo full-screen
@@ -356,11 +400,14 @@ export default function AuctionScreen() {
               <Text style={[styles.sectionTitle, { color: theme.colors.primary, marginTop: 16 }]}>
                 Pledge / Bid on this item
               </Text>
+              <Text style={styles.bidLabel}>
+                Min bid: {fmt(minimumBidCents(currentLiveItem))}
+              </Text>
               <View style={styles.bidRow}>
                 <MoneyInput
                   style={[styles.bidInput, { borderColor: theme.colors.accent }]}
                   value={bidAmt}
-                  onChangeText={setBidAmt}
+                  onChangeText={t => { setBidAmt(t); setBidError(null); }}
                   placeholder="$0.00"
                   placeholderTextColor="#aaa"
                 />
@@ -375,6 +422,9 @@ export default function AuctionScreen() {
                   {bidding ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.bidBtnText}>Bid</Text>}
                 </Pressable>
               </View>
+              {bidError && (
+                <Text style={styles.bidError} accessibilityRole="alert">{bidError}</Text>
+              )}
             </View>
           ) : (
             <View style={styles.center}>
@@ -429,7 +479,7 @@ export default function AuctionScreen() {
         visible={selectedItem !== null}
         animationType="slide"
         transparent
-        onRequestClose={() => setSelectedItem(null)}
+        onRequestClose={() => { setSelectedItem(null); setBidError(null); }}
       >
         <View style={styles.modalOverlay}>
           {/* Bounded height + internal scroll so tall content (photos, denom
@@ -460,7 +510,7 @@ export default function AuctionScreen() {
                 )}
                 <Text style={{ color: '#555', marginBottom: 12 }}>{liveSelectedItem.description}</Text>
 
-                {liveSelectedItem.auctionType.includes('Donation') ? (
+                {isDonationItem(liveSelectedItem.auctionType) ? (
                   <>
                     {liveSelectedItem.donationDenominations ? (
                       <View style={styles.denomRow}>
@@ -488,7 +538,11 @@ export default function AuctionScreen() {
                 ) : (
                   <Text style={styles.bidLabel}>
                     Current bid: {fmt(liveSelectedItem.currentHighBidCents)}
-                    {'\n'}Min bid: {fmt(liveSelectedItem.currentHighBidCents + liveSelectedItem.bidIncrementCents)}
+                    {/* Must be the shared rule, not currentHigh + increment: on
+                        an item with no bids yet the server still requires the
+                        starting bid, and the naive sum advertised $5 on a $50
+                        item — every bid at the quoted figure was rejected. */}
+                    {'\n'}Min bid: {fmt(minimumBidCents(liveSelectedItem))}
                   </Text>
                 )}
 
@@ -496,7 +550,7 @@ export default function AuctionScreen() {
                   <MoneyInput
                     style={[styles.bidInput, { borderColor: theme.colors.accent, flex: 1 }]}
                     value={bidAmt}
-                    onChangeText={setBidAmt}
+                    onChangeText={t => { setBidAmt(t); setBidError(null); }}
                     placeholder="$0.00"
                     placeholderTextColor="#aaa"
                   />
@@ -511,14 +565,18 @@ export default function AuctionScreen() {
                     {bidding
                       ? <ActivityIndicator color="#fff" size="small" />
                       : <Text style={styles.bidBtnText}>
-                          {liveSelectedItem.auctionType.includes('Donation') ? 'Pledge' : 'Bid'}
+                          {isDonationItem(liveSelectedItem.auctionType) ? 'Pledge' : 'Bid'}
                         </Text>}
                   </Pressable>
                 </View>
 
+                {bidError && (
+                  <Text style={styles.bidError} accessibilityRole="alert">{bidError}</Text>
+                )}
+
                 <Pressable
                   style={[styles.cancelBtn]}
-                  onPress={() => setSelectedItem(null)}
+                  onPress={() => { setSelectedItem(null); setBidError(null); }}
                 >
                   <Text style={{ color: '#888' }}>Cancel</Text>
                 </Pressable>
@@ -572,6 +630,7 @@ const styles = StyleSheet.create({
   bidBtn:      { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, justifyContent: 'center' },
   bidBtnText:  { color: '#fff', fontWeight: '700', fontSize: 15 },
   bidLabel:    { color: '#555', fontSize: 14, marginBottom: 8 },
+  bidError:    { color: '#c0392b', fontSize: 13, fontWeight: '600', marginTop: 10 },
   denomRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   denomBtn:    { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1.5, borderColor: '#27ae60' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },

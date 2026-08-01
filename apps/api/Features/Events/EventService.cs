@@ -511,8 +511,12 @@ public class EventService
             .ToListAsync(ct);
         var entryTotal   = allPlayers.Sum();
         var playersPaid  = allPlayers.Count(c => c > 0);
+        // Same derivation as TeamService.MapToTeamResponse — roster only. The
+        // legacy teams.entry_fee_paid flag is not consulted; OR-ing it in here
+        // counted teams as paid whose golfers had paid nothing, so this figure
+        // contradicted the per-golfer one two lines up.
         var teamsPaid    = evt.Teams.Count(t =>
-            t.EntryFeePaid || (t.Players.Count > 0 && t.Players.All(p => p.EntryFeePaidCents > 0)));
+            t.Players.Count > 0 && t.Players.All(p => p.EntryFeePaidCents > 0));
         // Only money actually in hand: offline donations the organizer recorded,
         // plus online ones Stripe confirmed. Abandoned card payments are excluded.
         var collectedDonations = evt.Donations.Where(d => d.IsCollected).ToList();
@@ -526,19 +530,91 @@ public class EventService
             .Where(c => c.EventId == eventId)
             .SumAsync(c => (int)(c.DonationAmountCents ?? 0), ct);
 
+        var auction = await GetAuctionRevenueAsync(eventId, ct);
+
         return new FundraisingResponse
         {
             EntryFeesCents       = entryTotal,
             DonationsCents       = donationTotal,
             SponsorAmountCents   = sponsorTotal,
             ChallengeAmountCents = challengeTotal,
-            GrandTotalCents      = entryTotal + donationTotal + sponsorTotal + challengeTotal,
+            AuctionCents         = auction.TotalCents,
+            GrandTotalCents      = entryTotal + donationTotal + sponsorTotal
+                                 + challengeTotal + auction.TotalCents,
             TeamsPaid            = teamsPaid,
             TeamsTotal           = evt.Teams.Count,
             PlayersPaid          = playersPaid,
             PlayersTotal         = allPlayers.Count,
             DonationCount        = collectedDonations.Count,
+            AuctionItemsSold     = auction.ItemsSold,
+            AuctionUncollectedCents = auction.UncollectedCents,
         };
+    }
+
+    /// <summary>
+    /// What the auction has raised. Deliberately spans both halves of an item's
+    /// life so the organizer's total climbs during bidding instead of sitting at
+    /// zero until the close job runs:
+    ///
+    ///   • closed / awarded items → their AuctionWinner rows, which is the
+    ///     amount actually owed (one row per pledger on a Fund-a-Need item, one
+    ///     for the top bid on a competitive one). Waived charges are dropped —
+    ///     an organizer waives precisely when the money is not coming.
+    ///   • items still taking bids → what is committed right now: the leading
+    ///     bid on a competitive item, every pledge on a Fund-a-Need one (they
+    ///     stack rather than outbid each other, which is why this cannot just
+    ///     read CurrentHighBidCents — that column is never written for
+    ///     donation items).
+    ///
+    /// Cancelled items contribute nothing under either branch.
+    /// </summary>
+    private async Task<(int TotalCents, int ItemsSold, int UncollectedCents)>
+        GetAuctionRevenueAsync(Guid eventId, CancellationToken ct)
+    {
+        var items = await _db.AuctionItems
+            .AsNoTracking()
+            .Where(i => i.EventId == eventId)
+            .Select(i => new { i.Id, i.Status, i.AuctionType, i.CurrentHighBidCents })
+            .ToListAsync(ct);
+
+        if (items.Count == 0) return (0, 0, 0);
+
+        var settledIds = items
+            .Where(i => i.Status is AuctionItemStatus.Closed or AuctionItemStatus.Awarded)
+            .Select(i => i.Id)
+            .ToHashSet();
+
+        var winners = await _db.AuctionWinners
+            .AsNoTracking()
+            .Where(w => settledIds.Contains(w.AuctionItemId)
+                     && w.ChargeStatus != ChargeStatus.Waived)
+            .Select(w => new { w.AuctionItemId, w.AmountCents, w.ChargeStatus })
+            .ToListAsync(ct);
+
+        var settledTotal = winners.Sum(w => w.AmountCents);
+        var itemsSold    = winners.Select(w => w.AuctionItemId).Distinct().Count();
+        var uncollected  = winners
+            .Where(w => w.ChargeStatus is ChargeStatus.Pending or ChargeStatus.Failed)
+            .Sum(w => w.AmountCents);
+
+        var liveIds = items
+            .Where(i => i.Status is AuctionItemStatus.Open or AuctionItemStatus.Extended)
+            .Select(i => i.Id)
+            .ToHashSet();
+
+        var livePledges = await _db.Bids
+            .AsNoTracking()
+            .Where(b => liveIds.Contains(b.AuctionItemId))
+            .Select(b => new { b.AuctionItemId, b.AmountCents })
+            .ToListAsync(ct);
+
+        var liveTotal = items
+            .Where(i => liveIds.Contains(i.Id))
+            .Sum(i => i.AuctionType is AuctionType.DonationSilent or AuctionType.DonationLive
+                ? livePledges.Where(b => b.AuctionItemId == i.Id).Sum(b => b.AmountCents)
+                : i.CurrentHighBidCents);
+
+        return (settledTotal + liveTotal, itemsSold, uncollected);
     }
 
     // ── EVENT BRANDING ────────────────────────────────────────────────────────

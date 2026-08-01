@@ -150,34 +150,23 @@ export default function FundraisingScreen() {
             </Text>
           </View>
 
-          {/* Breakdown cards */}
+          {/* Breakdown cards — one wrapping grid rather than fixed pairs, so the
+              streams stay in step regardless of how many there are. */}
           <View style={styles.breakdown}>
-            <View style={[styles.breakdownCard, { borderColor: '#e8e8e8' }]}>
-              <Text style={[styles.breakdownLabel, { color: theme.mutedText }]}>Entry Fees</Text>
-              <Text style={[styles.breakdownAmount, { color: theme.colors.primary }]}>
-                {formatCurrency(totals.entryFeesCents)}
-              </Text>
-            </View>
-            <View style={[styles.breakdownCard, { borderColor: '#e8e8e8' }]}>
-              <Text style={[styles.breakdownLabel, { color: theme.mutedText }]}>Donations</Text>
-              <Text style={[styles.breakdownAmount, { color: theme.colors.primary }]}>
-                {formatCurrency(totals.donationsCents)}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.breakdown}>
-            <View style={[styles.breakdownCard, { borderColor: '#e8e8e8' }]}>
-              <Text style={[styles.breakdownLabel, { color: theme.mutedText }]}>Sponsors</Text>
-              <Text style={[styles.breakdownAmount, { color: theme.colors.primary }]}>
-                {formatCurrency(totals.sponsorAmountCents)}
-              </Text>
-            </View>
-            <View style={[styles.breakdownCard, { borderColor: '#e8e8e8' }]}>
-              <Text style={[styles.breakdownLabel, { color: theme.mutedText }]}>Hole Challenges</Text>
-              <Text style={[styles.breakdownAmount, { color: theme.colors.primary }]}>
-                {formatCurrency(totals.challengeAmountCents)}
-              </Text>
-            </View>
+            {([
+              ['Entry Fees',      totals.entryFeesCents],
+              ['Donations',       totals.donationsCents],
+              ['Sponsors',        totals.sponsorAmountCents],
+              ['Hole Challenges', totals.challengeAmountCents],
+              ['Auction',         totals.auctionCents],
+            ] as [string, number][]).map(([label, cents]) => (
+              <View key={label} style={[styles.breakdownCard, { borderColor: '#e8e8e8' }]}>
+                <Text style={[styles.breakdownLabel, { color: theme.mutedText }]}>{label}</Text>
+                <Text style={[styles.breakdownAmount, { color: theme.colors.primary }]}>
+                  {formatCurrency(cents)}
+                </Text>
+              </View>
+            ))}
           </View>
 
           {/* Entry fee progress */}
@@ -224,6 +213,33 @@ export default function FundraisingScreen() {
               </Text>
             )}
           </View>
+
+          {/* Auction detail — only worth the space once an auction exists. The
+              grand total counts money still owed, so say how much that is
+              rather than leaving the organizer to assume it is all banked. */}
+          {(totals.auctionCents > 0 || totals.auctionItemsSold > 0) && (
+            <View style={[styles.section, { borderColor: '#e8e8e8' }]}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Auction</Text>
+              <View style={styles.donationStat}>
+                <Text style={[styles.donationCount, { color: theme.colors.primary }]}>
+                  {totals.auctionItemsSold}
+                </Text>
+                <Text style={[styles.donationLabel, { color: theme.mutedText }]}>
+                  item{totals.auctionItemsSold !== 1 ? 's' : ''} sold
+                </Text>
+              </View>
+              {totals.auctionUncollectedCents > 0 && (
+                <Text style={[styles.avgDonation, { color: theme.mutedText }]}>
+                  {formatCurrency(totals.auctionUncollectedCents)} not yet charged
+                </Text>
+              )}
+              {totals.auctionCents > 0 && totals.auctionItemsSold === 0 && (
+                <Text style={[styles.avgDonation, { color: theme.mutedText }]}>
+                  Bidding is still open — nothing has been charged yet.
+                </Text>
+              )}
+            </View>
+          )}
 
           {/* Failed auction charges */}
           {failedCharges.length > 0 && (
@@ -305,10 +321,15 @@ const styles = StyleSheet.create({
   grandTotalAmount: { fontSize: 48, fontWeight: '800', marginTop: 8 },
   breakdown: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
   breakdownCard: {
-    flex: 1,
+    // Grow to share the row, but never narrower than this — five cards sit in
+    // one row on a desktop window and wrap to two/three on a narrow one.
+    flexGrow: 1,
+    flexBasis: 170,
+    minWidth: 170,
     borderWidth: 1,
     borderRadius: 12,
     padding: 18,

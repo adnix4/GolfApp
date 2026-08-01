@@ -449,7 +449,10 @@ public class TeamService
 
     /// <summary>
     /// Organizer cash/check override: records the per-golfer fee against every
-    /// golfer on the roster (or clears it), keeping the legacy team flag in sync.
+    /// golfer on the roster (or clears it). The player rows are the record —
+    /// teams.entry_fee_paid is written for continuity with pre-Phase14 data but
+    /// is never read back (see MapToTeamResponse), so it cannot go stale against
+    /// the roster the way it used to.
     /// </summary>
     private static void MarkTeamPlayersPaid(Team team, bool paid)
     {
@@ -1011,10 +1014,19 @@ public class TeamService
         CaptainPlayerId = team.CaptainPlayerId,
         StartingHole    = team.StartingHole,
         TeeTime         = team.TeeTime,
-        // Fee is per golfer: the team reads as paid when every golfer has paid.
-        // The legacy team flag still counts so pre-Phase14 manual marks survive.
-        EntryFeePaid    = team.EntryFeePaid
-                          || (team.Players.Count > 0 && team.Players.All(p => p.EntryFeePaidCents > 0)),
+        // Fee is per golfer: the team reads as paid only when every golfer has.
+        //
+        // The legacy teams.entry_fee_paid flag is deliberately NOT consulted.
+        // OR-ing it in made the flag sticky and authoritative, so a team read as
+        // fully paid whatever its roster actually paid — which broke in both
+        // directions: teams marked paid before Phase14 kept the flag while the
+        // migration left every player at 0 cents (no backfill), and a golfer
+        // added to an already-paid team was reported paid without ever paying.
+        // Registration said "Fees Paid" while Fundraising, which counts golfers,
+        // disagreed. Phase14's own migration note is the contract here:
+        // "teams.entry_fee_paid is retained for now but no longer read; the
+        // team's paid state is derived from its players."
+        EntryFeePaid    = team.Players.Count > 0 && team.Players.All(p => p.EntryFeePaidCents > 0),
         PlayersPaid     = team.Players.Count(p => p.EntryFeePaidCents > 0),
         MaxPlayers      = team.MaxPlayers,
         CheckInStatus   = team.CheckInStatus.ToString(),

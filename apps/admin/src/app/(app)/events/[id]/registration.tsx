@@ -245,13 +245,14 @@ export default function RegistrationScreen() {
                     </View>
                   ) : (
                     <>
-                      {team.playersPaid > 0 && (
-                        <View style={[styles.pill, { borderColor: '#f39c12' }]}>
-                          <Text style={[styles.pillText, { color: '#f39c12' }]}>
-                            {team.playersPaid}/{team.players.length} paid
-                          </Text>
-                        </View>
-                      )}
+                      {/* Always show the count, including 0 — hiding it at zero
+                          left a team with an unpaid roster looking identical to
+                          one with no fee at all. */}
+                      <View style={[styles.pill, { borderColor: '#f39c12' }]}>
+                        <Text style={[styles.pillText, { color: '#f39c12' }]}>
+                          {team.playersPaid}/{team.players.length} paid
+                        </Text>
+                      </View>
                       <Pressable
                         onPress={() => handleMarkPaid(team.id)}
                         disabled={busy[team.id + '_fee']}

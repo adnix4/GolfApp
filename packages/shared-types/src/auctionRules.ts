@@ -9,8 +9,8 @@
 // people the server would happily have accepted.
 //
 // Keep this file in lockstep with:
-//   apps/api/Features/Auction/AuctionBidRules.cs  (NeedsPaymentMethod)
-//   apps/api-tests/AuctionBidRulesTests.cs        (the three cases)
+//   apps/api/Features/Auction/AuctionBidRules.cs  (NeedsPaymentMethod, MinimumRequired)
+//   apps/api-tests/AuctionBidRulesTests.cs        (the same cases, per rule)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -26,4 +26,36 @@ export function needsPaymentMethod(
   isCheckedIn: boolean,
 ): boolean {
   return !hasPaymentMethod && !isCheckedIn;
+}
+
+/** The `auctionType` values the server treats as Fund-a-Need rather than competitive. */
+const DONATION_TYPES = ['DonationSilent', 'DonationLive'];
+
+/** True for a Fund-a-Need item, where every pledge stands on its own. */
+export function isDonationItem(auctionType: string): boolean {
+  return DONATION_TYPES.includes(auctionType);
+}
+
+/**
+ * Minimum accepted bid, in cents. Mirrors AuctionBidRules.MinimumRequired.
+ *
+ * The starting bid is a floor, not just a seed: on an item with no bids yet the
+ * server still demands it, so `currentHighBidCents + bidIncrementCents` alone
+ * understates the minimum by the whole opening price. The mobile bid modal used
+ * to compute exactly that and told golfers a $50 item could be had for $5 —
+ * every such bid came back BID_TOO_LOW.
+ *
+ * Donation items ignore the running total (multiple pledges are the point) and
+ * take minimumBidCents when set, else the starting bid.
+ */
+export function minimumBidCents(item: {
+  auctionType:         string;
+  startingBidCents:    number;
+  bidIncrementCents:   number;
+  currentHighBidCents: number;
+  minimumBidCents?:    number | null;
+}): number {
+  return isDonationItem(item.auctionType)
+    ? (item.minimumBidCents ?? item.startingBidCents)
+    : Math.max(item.startingBidCents, item.currentHighBidCents + item.bidIncrementCents);
 }
