@@ -42,6 +42,24 @@ export const TOURNAMENT_HUB_EVENTS = [
 export type TournamentHubEvent = (typeof TOURNAMENT_HUB_EVENTS)[number];
 
 /**
+ * The subset above that changes what an auction surface displays. Broken out so
+ * a screen wanting only "did the auction move?" can subscribe to the family
+ * without restating it — useLiveAuction refetches on these, and
+ * useLiveLeaderboard forwards them to its onAuctionChanged callback.
+ */
+export const AUCTION_HUB_EVENTS = [
+  'BidPlaced',
+  'PledgeReceived',
+  'AuctionTotalUpdated',
+  'AuctionAmountUpdated',
+  'ItemClosed',
+  'AuctionExtended',
+  'LiveAuctionStarted',
+  'LiveItemAdvanced',
+  'BidderCountUpdated',
+] as const satisfies readonly TournamentHubEvent[];
+
+/**
  * Registers a no-op handler for every TournamentHub broadcast the caller does
  * NOT already handle, so SignalR doesn't warn about unhandled group messages.
  * Call after registering the hook's real handlers.

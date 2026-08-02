@@ -30,9 +30,10 @@ P3 — PERFORMANCE BEFORE A REAL CROWD
      [x] D18  both queries split 2026-08-01
 
 P4 — FEATURES / POLISH
-     U4   proxy (max) bidding — auction behavior change, needs design
-     U2   sponsor banner on the web live scorecard
-     U3   auction banner on the live results page
+     [x] U4  proxy bidding, Silent items only, steps by the item's increment 2026-08-01
+     [x] U2  }  one combined marquee (sponsors + open lots), normal AND
+     [x] U3  }  TV mode, on the existing socket 2026-08-01
+     This tier is now clear.
 
 P5 — BLOCKED OR DEFERRED (no action available yet)
      D19  dev-loop fixes landed; three follow-ups, one gated on D6
@@ -635,11 +636,108 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         marked complete by either the admin or the golfer through the mobile app
         the button should change to edit score."
 
-  [ ] U2. No sponsor banner scrolling across the web live scorecard.
+  [x] U2. (DONE 2026-08-01) No sponsor banner scrolling across the web live scorecard.
+  [x] U3. (DONE 2026-08-01) Add an auction scrolling banner to the live results web page.
+        DONE TOGETHER AS ONE TICKER, at the user's choice 2026-08-01 ("both
+        modes, one ticker"): sponsors and open auction lots share a single
+        continuous marquee (EventTicker.tsx) on BOTH the normal web scorecard
+        and the ?tv=1 kiosk board. Sponsors lead — they paid for placement and
+        their entry is static, so a fixed position is worth more to them than
+        sitting next to the bidding.
+        WHAT WAS THERE BEFORE was a TV-ONLY SponsorTicker that faded between
+        sponsors one at a time. Two problems it had: the normal scorecard —
+        which is what nearly every golfer and guest actually opens — carried no
+        sponsor recognition at all, and at one name per 5s a sponsor twelfth in
+        the list was effectively never seen. The old component is deleted.
+        NO SECOND SOCKET. The scores page is the busiest public page there is,
+        so rather than mounting useLiveAuction alongside useLiveLeaderboard,
+        useLiveLeaderboard gained an `onAuctionChanged` callback that forwards
+        the auction hub events over its EXISTING connection — the same trick
+        `onSponsorsChanged` already used. AUCTION_HUB_EVENTS moved into
+        tournamentHubEvents.ts so both hooks read one list. Refetch is debounced
+        400ms (one bid can emit BidPlaced + AuctionExtended) and falls back to
+        the 15s HTTP poll while the socket is down.
+        Reduced motion is honoured two ways: a CSS media query stops the
+        animation before hydration, and matchMedia then drops the duplicated
+        copy (which exists only to make the loop seamless) so the strip becomes
+        a plain swipeable list instead of the content twice.
+        VERIFIED: driven live at localhost:3000 against a seeded event with 3
+        sponsors + 4 lots. Normal mode 1280px and TV mode 1920px both render a
+        clipped, animating track (gfp-ticker 36s) with the page itself NOT
+        scrolling horizontally; screenshots reviewed. A bid posted while the
+        page sat open moved the strip from "Current bid $400.00" to
+        "$405.00" with no reload — proving the shared-socket signal path.
+        Closed lots are absent (GetPublicItemsAsync only returns Open/Extended).
+        NOT exercised: an actual projector, and reduced-motion rendering.
 
-  [ ] U3. Add an auction scrolling banner to the live results web page.
+  [x] U4. (DONE 2026-08-01) When a bid is placed it should be considered a Max bid and only raise the current bid to $1.00 above what the current bid or to the min bid. When someone else bids on the item the current bid should go to $1.00 above what the lowest max bid is set at. If there is a tie on the amount whoever entered their bid first is considered to hold the bid.
+        TWO DECISIONS THE USER MADE 2026-08-01, both of which change the numbers:
+        - THE STEP IS THE ITEM'S bid_increment_cents, NOT a flat $1.00, capped
+          at the winner's own max. So on a $5-increment lot a $70 max is beaten
+          at $75, not $71. The report said $1.00; the organizer already
+          configures an increment per item and two competing step sizes would
+          contradict each other.
+        - SILENT ITEMS ONLY. A Live lot is called out loud by an auctioneer, so
+          a hidden max would put the app and the room on different numbers, and
+          Fund-a-Need pledges stack rather than compete. Both keep the literal
+          "you bid what you typed" behavior. Do not widen this.
+        NO SCHEMA CHANGE. bids.amount_cents simply MEANS the golfer's max on a
+        Silent item; auction_items.current_high_bid_cents holds the public
+        price. The pure rule is AuctionBidRules.ResolveProxy: collapse to one
+        standing max per golfer, sort (max desc, placed asc), price =
+        min(leaderMax, max(startingBid, runnerUpMax + increment)). The tie rule
+        falls out of that sort rather than needing a special case — the cap and
+        the step meet at the tied figure, so a tie sells AT the tied amount to
+        whoever bid it first.
+        THREE PLACES THE MAX WOULD HAVE LEAKED OR OVERCHARGED, all fixed:
+        - CloseItemInternalAsync awarded the top bid AT ITS OWN AMOUNT. Under
+          proxy that bills the winner their private ceiling — $200 on a lot the
+          board showed at $75. It now awards the ladder leader at the settled
+          price (and prefers the column, so a buy-now sale bills the posted
+          price).
+        - SendBidPlacedAsync broadcast the submitted amount to EVERY client in
+          the event group. Now sends the public price on proxy items.
+        - The outbid email quoted the same submitted amount. Same fix.
+        Also: GetPlayerBidsAsync can no longer decide Winning/Outbid from the
+        golfer's own row (their max normally sits above the price, and on a tie
+        both golfers sit exactly at it), so it resolves the ladder per open
+        Silent item — one query for the set, not per item.
+        BidResponse gained CurrentHighBidCents because a proxy bid can be
+        ACCEPTED AND LOSE in the same breath; mobile now says "Bid placed — you
+        were outbid" instead of a flat "Bid placed!", labels the input as a
+        maximum, and prefixes history rows with "max".
+        VERIFIED: 520 API tests (26 new), 108 shared-types, 115 mobile, 138
+        admin, 33 theme; 0 TS errors, lint clean. Driven live end to end: sole
+        $200 max opened at $50; a $70 max pushed it to $75 and was outbid on
+        the spot; the leader raising to $400 did NOT move the price; a tie at
+        $400 sold at $400 to the earlier bidder; the public payload exposed only
+        the price; a Live lot still posted the called amount; and on close the
+        winner was billed $75, not $200.
+        NOT exercised: the mobile screens in a simulator (no RN component-test
+        harness), and a real Stripe charge (local keys are placeholders, so the
+        winner row lands in failed-charges — which is where the billed amount
+        was read from).
 
-  [ ] U4. When a bid is placed it should be considered a Max bid and only raise the current bid to $1.00 above what the current bid or to the min bid. When someone else bids on the item the current bid should go to $1.00 above what the lowest max bid is set at. If there is a tie on the amount whoever entered their bid first is considered to hold the bid.
+        ORGANIZER WARNING ON AN OVERSIZED INCREMENT (added 2026-08-01 at the
+        user's request). Making the increment the proxy step raised the cost of
+        setting it too high, so the admin item form now warns as the organizer
+        types (apps/admin/src/lib/auctionSetup.ts, bidIncrementWarning).
+        The increment does two jobs on a competitive lot and an oversized one
+        hurts in both: it is the ENTRY PRICE for every new bidder (the server
+        demands currentPrice + increment, so a $25 lot with a $50 increment asks
+        the second bidder for $75 before anyone has shown interest), and under
+        proxy it is the STEP spent on a golfer's behalf, so it burns through a
+        maximum in a couple of moves and the slow climb never happens. The
+        organizer sees a lot "nobody wanted" when nobody could get in cheaply.
+        Two tiers — a soft note past a quarter of the starting bid, a blunt one
+        at or above it — each quoting what the SECOND BIDDER would have to pay
+        and suggesting ~10% snapped to a typable figure. Amber, never blocking:
+        the API accepts any increment and this is a judgement call, not a rule.
+        Deliberately quiet on ordinary setups; a warning that fires on $5-on-$50
+        would teach organizers to ignore the box.
+        VERIFIED: 150 admin tests (12 new), including one that asserts the
+        suggested increment never itself trips the warning. NOT exercised: the
+        admin screen in a browser.
 
   [x] U5. (DONE 2026-08-01) On scramble events the starting hole should be assigned to each team when the event goes active. The mobile app should start scoring for each team at their assigned hole.
         THE MOBILE HALF WAS ALREADY BUILT — holeUtils.getHoleOrder() rotates the

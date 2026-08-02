@@ -28,7 +28,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as signalR from '@microsoft/signalr';
-import { silenceUnhandledHubEvents } from './tournamentHubEvents';
+import { AUCTION_HUB_EVENTS, silenceUnhandledHubEvents } from './tournamentHubEvents';
 
 export interface HoleInOneAlert {
   teamName:   string;
@@ -59,6 +59,19 @@ export interface UseLiveLeaderboardOptions<TStanding> {
    * of opening a second socket. No-op when omitted.
    */
   onSponsorsChanged?: (version: number) => void;
+  /**
+   * Called when the hub emits any auction-mutating broadcast (a bid, a pledge,
+   * an item closing or extending, the live lot advancing). Same reasoning as
+   * onSponsorsChanged: the scoreboard is the busiest public page there is, and
+   * opening a second socket per viewer just to keep an auction ticker current
+   * would double the connection count for a decorative strip.
+   *
+   * Deliberately carries no payload — bid broadcasts only ever contained
+   * partial data, and under proxy bidding the submitted amount is private. This
+   * is an invalidation signal; refetch the public snapshot. Fires once per
+   * broadcast, so debounce if a burst matters to you.
+   */
+  onAuctionChanged?: () => void;
 }
 
 export interface UseLiveLeaderboardResult<TStanding> {
@@ -91,6 +104,7 @@ export function useLiveLeaderboard<TStanding>(
     pollIntervalMs = DEFAULT_POLL_MS,
     fetchStandings,
     onSponsorsChanged,
+    onAuctionChanged,
   } = opts;
 
   const [standings, setStandings]     = useState<TStanding[] | null>(initialStandings);
@@ -111,6 +125,9 @@ export function useLiveLeaderboard<TStanding>(
   // each render doesn't tear down and rebuild the SignalR connection below.
   const sponsorsChangedRef = useRef(onSponsorsChanged);
   useEffect(() => { sponsorsChangedRef.current = onSponsorsChanged; }, [onSponsorsChanged]);
+
+  const auctionChangedRef = useRef(onAuctionChanged);
+  useEffect(() => { auctionChangedRef.current = onAuctionChanged; }, [onAuctionChanged]);
 
   const refresh = useCallback(() => {
     if (!eventCode || disabled) return;
@@ -154,11 +171,21 @@ export function useLiveLeaderboard<TStanding>(
       sponsorsChangedRef.current?.(payload?.version ?? 0);
     });
 
-    // The server also broadcasts ScoreUpdated (per hole) and the auction/check-in
-    // events to this same group; this screen only consumes the coalesced
+    // Every auction broadcast collapses to the same "something moved" signal.
+    // Registered unconditionally: reading the ref here to decide would freeze
+    // the decision at mount, and these handlers are a no-op when no consumer
+    // asked for them — the same thing silenceUnhandledHubEvents would install.
+    for (const evt of AUCTION_HUB_EVENTS) {
+      hub.on(evt, () => { auctionChangedRef.current?.(); });
+    }
+
+    // The server also broadcasts ScoreUpdated (per hole) and the check-in events
+    // to this same group; this screen only consumes the coalesced
     // LeaderboardRefreshed, so no-op the rest to avoid SignalR "no client method
     // found" warnings on every score.
-    silenceUnhandledHubEvents(hub, ['LeaderboardRefreshed', 'HoleInOneAlert', 'SponsorsChanged']);
+    silenceUnhandledHubEvents(hub, [
+      'LeaderboardRefreshed', 'HoleInOneAlert', 'SponsorsChanged', ...AUCTION_HUB_EVENTS,
+    ]);
 
     hub.onreconnecting(() => setConnected(false));
     hub.onreconnected(() => {

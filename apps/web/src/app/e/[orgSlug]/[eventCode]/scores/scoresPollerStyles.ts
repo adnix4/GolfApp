@@ -39,6 +39,18 @@ export const cssKeyframes = `
     0%, 100% { box-shadow: 0 4px 32px rgba(245,158,11,0.45), 0 0 0 0 rgba(245,158,11,0.3); }
     50%       { box-shadow: 0 4px 48px rgba(245,158,11,0.8), 0 0 0 8px rgba(245,158,11,0);  }
   }
+  /* The track renders its cells twice, so travelling exactly -50% lands the
+     second copy where the first started — the loop has no visible seam. */
+  @keyframes gfp-ticker {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+  /* Motion-sensitive viewers get the same content as a strip they can swipe or
+     drag instead of one that moves on its own. */
+  @media (prefers-reduced-motion: reduce) {
+    .gfp-ticker-track { animation: none !important; }
+    .gfp-ticker-viewport { overflow-x: auto !important; }
+  }
 `;
 
 // ── HOLE-IN-ONE BANNER ────────────────────────────────────────────────────────
@@ -112,6 +124,18 @@ export const nm = {
   footerInner: { maxWidth: 960, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' },
   footerMeta:  { fontSize: '0.8rem', color: '#4b5563' },
   footerError: { fontSize: '0.8rem', color: '#e74c3c', fontWeight: 600 },
+
+  // Ticker — full-bleed under the header, so it reads as part of the board
+  // rather than a card floating in the content column.
+  ticker:         { backgroundColor: '#fff', borderBottom: '1px solid #e0e0e0', padding: '0.5rem 0' },
+  tickerViewport: { overflow: 'hidden' },
+  tickerCell:     { display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0 1.5rem' },
+  tickerChip:     { fontSize: '0.6rem', fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase' as const, color: 'var(--color-primary)', opacity: 0.55 },
+  tickerLogo:     { height: 22, width: 'auto', objectFit: 'contain' as const },
+  tickerName:     { fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-primary)' },
+  tickerTagline:  { fontSize: '0.8rem', color: '#4b5563' },
+  tickerPrice:    { fontSize: '0.85rem', fontWeight: 800, color: '#0f7a3d' },
+  tickerSep:      { color: '#c9ced6' },
 } as const;
 
 // ── TV MODE ───────────────────────────────────────────────────────────────────
@@ -152,14 +176,18 @@ export const tv = {
   statusMeta:  { fontSize: '0.85rem', color: '#484f58' },
   statusError: { fontSize: '0.85rem', color: '#f85149', fontWeight: 600 },
 
-  // Sponsor ticker — runs across the TOP, directly under the header, so the
-  // divider sits on its bottom edge.
-  ticker:        { padding: '0.875rem 2.5rem', backgroundColor: '#161b22', borderBottom: '1px solid #30363d', display: 'flex', alignItems: 'center', gap: '1.25rem', flexShrink: 0 },
-  tickerLabel:   { fontSize: '0.65rem', fontWeight: 800, color: '#484f58', textTransform: 'uppercase' as const, letterSpacing: 2, flexShrink: 0 },
-  tickerContent: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
-  tickerLogo:    { height: 28, width: 'auto', objectFit: 'contain' as const, borderRadius: 4, backgroundColor: '#fff', padding: '2px 6px' },
-  tickerName:    { fontSize: '1rem', fontWeight: 700, color: '#e6edf3' },
-  tickerTagline: { fontSize: '0.85rem', color: '#8b949e' },
+  // Ticker — runs across the TOP, directly under the header, so the divider
+  // sits on its bottom edge. flexShrink:0 keeps it off the table's height
+  // budget; the table is the thing that scrolls in TV mode.
+  ticker:         { padding: '0.75rem 0', backgroundColor: '#161b22', borderBottom: '1px solid #30363d', flexShrink: 0 },
+  tickerViewport: { overflow: 'hidden' },
+  tickerCell:     { display: 'inline-flex', alignItems: 'center', gap: '0.75rem', padding: '0 2.5rem' },
+  tickerChip:     { fontSize: '0.65rem', fontWeight: 800, color: '#484f58', textTransform: 'uppercase' as const, letterSpacing: 2 },
+  tickerLogo:     { height: 28, width: 'auto', objectFit: 'contain' as const, borderRadius: 4, backgroundColor: '#fff', padding: '2px 6px' },
+  tickerName:     { fontSize: '1rem', fontWeight: 700, color: '#e6edf3' },
+  tickerTagline:  { fontSize: '0.85rem', color: '#8b949e' },
+  tickerPrice:    { fontSize: '1rem', fontWeight: 800, color: '#3fb950' },
+  tickerSep:      { color: '#30363d' },
 } as const;
 
 // ── ROW BACKGROUND ALTERNATION ────────────────────────────────────────────────

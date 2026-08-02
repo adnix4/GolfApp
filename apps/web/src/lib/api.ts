@@ -152,6 +152,39 @@ export async function fetchPublicEventFresh(eventCode: string): Promise<PublicEv
   }
 }
 
+/** An auction lot open for bidding, as shown on the public scoreboard ticker. */
+export interface PublicAuctionItem {
+  id:                   string;
+  title:                string;
+  auctionType:          string;
+  status:               string;
+  currentHighBidCents:  number;
+  /** Pledge total on a Fund-a-Need item; the public price on a competitive one. */
+  totalRaisedCents:     number;
+  goalCents:            number | null;
+  closesAt:             string | null;
+}
+
+/**
+ * Open auction lots for the ticker. Keyed by event ID rather than code because
+ * that is what the auction endpoints take.
+ *
+ * Returns [] rather than throwing on any failure: the ticker is decorative, and
+ * an event with the auction feature switched off answers 404 here. A scoreboard
+ * must never fail to render because a marketing strip couldn't load.
+ */
+export async function fetchPublicAuctionItems(eventId: string): Promise<PublicAuctionItem[]> {
+  try {
+    const res = await fetch(`${BASE}/api/v1/events/${eventId}/auction/items/public`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchPublicLeaderboard(eventCode: string): Promise<PublicLeaderboard | null> {
   try {
     const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/leaderboard`, {
