@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { useTheme, MoneyInput } from '@gfp/ui';
 import {
   formatCentsShort, dollarsToCents, centsToMoneyValue, useLiveAuction,
-  needsPaymentMethod, minimumBidCents, isDonationItem,
+  needsPaymentMethod, minimumBidCents, isDonationItem, usesProxyBidding,
 } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
 import { notify } from '@/lib/notify';
@@ -197,10 +197,21 @@ export default function AuctionScreen() {
     try {
       if (isDonation) {
         await pledge(item.id, player.id, cents, session!.sessionToken);
+        notify('Success', 'Pledge recorded!');
       } else {
-        await placeBid(item.id, player.id, cents, session!.sessionToken);
+        const res = await placeBid(item.id, player.id, cents, session!.sessionToken);
+        // A proxy bid can be accepted and lose in the same breath — someone
+        // else's standing max was already higher. Saying "Bid placed!" and
+        // nothing else would leave that golfer thinking they were in the lead.
+        notify(
+          res.isWinning ? 'You\'re the high bidder' : 'Bid placed — you were outbid',
+          usesProxyBidding(item.auctionType)
+            ? res.isWinning
+              ? `The bid is at ${fmt(res.currentHighBidCents)}. We'll bid for you up to ${fmt(cents)}.`
+              : `Another golfer's maximum is higher. The bid is now ${fmt(res.currentHighBidCents)}.`
+            : 'Bid placed!',
+        );
       }
-      notify('Success', isDonation ? 'Pledge recorded!' : 'Bid placed!');
       setBidAmt('');
       setSelectedItem(null);
       refresh();
@@ -448,7 +459,9 @@ export default function AuctionScreen() {
             <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
               <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.itemTitle}</Text>
               <Text style={{ color: '#555', fontSize: 13 }}>
-                {fmt(item.amountCents)} · {item.status}
+                {/* "max" matters here: on a proxy item this row is the ceiling
+                    the golfer set, not what the item is going for. */}
+                {usesProxyBidding(item.auctionType) ? 'max ' : ''}{fmt(item.amountCents)} · {item.status}
               </Text>
               <Text style={{ color: '#888', fontSize: 11, marginTop: 2 }}>
                 {new Date(item.placedAt).toLocaleString()}
@@ -543,6 +556,16 @@ export default function AuctionScreen() {
                         starting bid, and the naive sum advertised $5 on a $50
                         item — every bid at the quoted figure was rejected. */}
                     {'\n'}Min bid: {fmt(minimumBidCents(liveSelectedItem))}
+                    {/* Say it before they type, not after they've lost: on a
+                        proxy item the number entered is a ceiling, and the item
+                        will sit well below it until someone pushes. */}
+                    {usesProxyBidding(liveSelectedItem.auctionType) && (
+                      <Text style={{ color: '#888' }}>
+                        {'\n'}Enter your maximum — we bid only enough to keep you
+                        in front, in {fmt(liveSelectedItem.bidIncrementCents)} steps,
+                        and never more than your maximum.
+                      </Text>
+                    )}
                   </Text>
                 )}
 

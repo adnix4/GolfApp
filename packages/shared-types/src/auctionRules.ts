@@ -37,6 +37,24 @@ export function isDonationItem(auctionType: string): boolean {
 }
 
 /**
+ * True where the amount a golfer submits is a private MAXIMUM the server bids
+ * up to on their behalf, not the bid itself. Mirrors
+ * AuctionBidRules.UsesProxyBidding.
+ *
+ * Silent items only. A Live lot is called out loud by an auctioneer, so a
+ * hidden max would put the app and the room on different numbers, and
+ * Fund-a-Need pledges stack rather than compete.
+ *
+ * The UI difference is not cosmetic: on a proxy item the amount entered will
+ * usually NOT become the displayed price, and a bid can be accepted and still
+ * lose on the spot, so the label has to say "max" and the confirmation has to
+ * read `isWinning` rather than assume success.
+ */
+export function usesProxyBidding(auctionType: string): boolean {
+  return auctionType === 'Silent';
+}
+
+/**
  * Minimum accepted bid, in cents. Mirrors AuctionBidRules.MinimumRequired.
  *
  * The starting bid is a floor, not just a seed: on an item with no bids yet the

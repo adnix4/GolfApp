@@ -87,9 +87,15 @@ public record BidResponse
     public Guid     Id             { get; init; }
     public Guid     AuctionItemId  { get; init; }
     public Guid     PlayerId       { get; init; }
+    /// <summary>The amount submitted. On a Silent item this is the bidder's own
+    /// private maximum, not what the item now stands at — see CurrentHighBidCents.</summary>
     public int      AmountCents    { get; init; }
     public DateTime PlacedAt       { get; init; }
     public bool     IsWinning      { get; init; }
+    /// <summary>The item's public price after this bid. Under proxy bidding a bid
+    /// can be accepted and still lose, so the client needs both numbers to say
+    /// what actually happened.</summary>
+    public int      CurrentHighBidCents { get; init; }
     public DateTime? NewClosesAt   { get; init; }
 }
 
@@ -119,6 +125,9 @@ public record PlayerBidHistoryItem
 {
     public Guid    AuctionItemId   { get; init; }
     public string  ItemTitle       { get; init; } = string.Empty;
+    /// <summary>Lets the client label a Silent row "max $X" — on a proxy item the
+    /// amount below is the golfer's ceiling, not what the item stands at.</summary>
+    public string  AuctionType     { get; init; } = string.Empty;
     public int     AmountCents     { get; init; }
     public string  Status          { get; init; } = string.Empty; // Winning / Outbid / Won / Lost
     public DateTime PlacedAt       { get; init; }

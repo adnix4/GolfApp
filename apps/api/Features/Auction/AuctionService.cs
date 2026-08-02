@@ -230,6 +230,7 @@ public class AuctionService
             throw new ValidationException("NO_PAYMENT_METHOD");
 
         var isDonation = item.AuctionType is AuctionType.DonationSilent or AuctionType.DonationLive;
+        var usesProxy  = AuctionBidRules.UsesProxyBidding(item.AuctionType);
 
         var minRequired = AuctionBidRules.MinimumRequired(
             item.AuctionType, item.StartingBidCents, item.BidIncrementCents,
@@ -238,9 +239,28 @@ public class AuctionService
         if (req.AmountCents < minRequired)
             throw new ValidationException($"BID_TOO_LOW:{minRequired}");
 
-        // Capture outgoing high bidder before we overwrite (for outbid notification)
+        // Capture the outgoing leader before we overwrite (for outbid notification).
         Guid? previousHighBidderId = null;
-        if (!isDonation && item.CurrentHighBidCents > 0 && req.AmountCents > item.CurrentHighBidCents)
+        List<AuctionBidRules.ProxyBid>? proxyBids = null;
+
+        if (usesProxy)
+        {
+            // The whole ladder, not just the top row: under proxy bidding the
+            // price is a function of every standing max, so a single bid can
+            // move it without becoming the new high max.
+            var rows = await _db.Bids
+                .Where(b => b.AuctionItemId == itemId)
+                .Select(b => new { b.PlayerId, b.AmountCents, b.PlacedAt })
+                .ToListAsync(ct);
+            proxyBids = rows
+                .Select(r => new AuctionBidRules.ProxyBid(r.PlayerId, r.AmountCents, r.PlacedAt))
+                .ToList();
+
+            previousHighBidderId = AuctionBidRules
+                .ResolveProxy(proxyBids, item.StartingBidCents, item.BidIncrementCents)
+                .LeaderPlayerId;
+        }
+        else if (!isDonation && item.CurrentHighBidCents > 0 && req.AmountCents > item.CurrentHighBidCents)
         {
             previousHighBidderId = await _db.Bids
                 .Where(b => b.AuctionItemId == itemId && b.AmountCents == item.CurrentHighBidCents)
@@ -267,8 +287,31 @@ public class AuctionService
         };
         _db.Bids.Add(bid);
 
-        if (!isDonation)
+        Guid? leaderId = null;
+        if (usesProxy)
+        {
+            proxyBids!.Add(new AuctionBidRules.ProxyBid(req.PlayerId, req.AmountCents, now0));
+            var state = AuctionBidRules.ResolveProxy(
+                proxyBids, item.StartingBidCents, item.BidIncrementCents);
+            leaderId = state.LeaderPlayerId;
+
+            // Buy-now is a purchase at the posted price, not a proxy duel: the
+            // amount typed is still a private ceiling, and posting (or charging)
+            // it would bill the buyer above the advertised price.
+            item.CurrentHighBidCents = closedByBuyNow
+                ? item.BuyNowPriceCents!.Value
+                : state.PriceCents;
+
+            // Only a genuine change of hands is an outbid. A golfer raising
+            // their own max, or one whose max lands under the standing leader's,
+            // leaves the holder where they were.
+            if (previousHighBidderId == leaderId || previousHighBidderId == req.PlayerId)
+                previousHighBidderId = null;
+        }
+        else if (!isDonation)
+        {
             item.CurrentHighBidCents = Math.Max(item.CurrentHighBidCents, req.AmountCents);
+        }
 
         DateTime? newClosesAt = null;
         if (!closedByBuyNow)
@@ -293,8 +336,11 @@ public class AuctionService
             if (newClosesAt.HasValue)
                 await _realTime.SendAuctionExtendedAsync(evt.EventCode, itemId, newClosesAt.Value, ct);
 
+            // Broadcast the PUBLIC price, never the submitted amount: under proxy
+            // bidding that amount is the bidder's private ceiling, and the hub
+            // fans this payload out to every client joined to the event.
             await _realTime.SendBidPlacedAsync(evt.EventCode, itemId, req.PlayerId,
-                req.AmountCents, isDonation, ct);
+                usesProxy ? item.CurrentHighBidCents : req.AmountCents, isDonation, ct);
 
             if (isDonation)
             {
@@ -305,26 +351,31 @@ public class AuctionService
             }
 
             if (closedByBuyNow)
-                await _realTime.SendItemClosedAsync(evt.EventCode, itemId, req.PlayerId, req.AmountCents, ct);
+                await _realTime.SendItemClosedAsync(
+                    evt.EventCode, itemId, req.PlayerId, item.CurrentHighBidCents, ct);
         }
 
-        // Send outbid notification to the previous high bidder (fire-and-forget)
+        // Send outbid notification to the previous high bidder (fire-and-forget).
+        // Quotes the public price for the same reason the hub payload does.
         if (previousHighBidderId.HasValue)
             _ = Task.Run(() => SendOutbidNotificationAsync(
-                previousHighBidderId.Value, item.Title, req.AmountCents, CancellationToken.None));
+                previousHighBidderId.Value, item.Title, item.CurrentHighBidCents, CancellationToken.None));
 
         if (closedByBuyNow)
             await CloseItemInternalAsync(item, ct);
 
         return new BidResponse
         {
-            Id            = bid.Id,
-            AuctionItemId = itemId,
-            PlayerId      = req.PlayerId,
-            AmountCents   = req.AmountCents,
-            PlacedAt      = bid.PlacedAt,
-            IsWinning     = !isDonation && item.CurrentHighBidCents == req.AmountCents,
-            NewClosesAt   = newClosesAt,
+            Id                  = bid.Id,
+            AuctionItemId       = itemId,
+            PlayerId            = req.PlayerId,
+            AmountCents         = req.AmountCents,
+            PlacedAt            = bid.PlacedAt,
+            IsWinning           = usesProxy
+                ? leaderId == req.PlayerId
+                : !isDonation && item.CurrentHighBidCents == req.AmountCents,
+            CurrentHighBidCents = item.CurrentHighBidCents,
+            NewClosesAt         = newClosesAt,
         };
     }
 
@@ -408,12 +459,45 @@ public class AuctionService
                 });
             }
         }
+        else if (AuctionBidRules.UsesProxyBidding(item.AuctionType))
+        {
+            // Proxy item: the highest max holds it, but it sells at the PUBLIC
+            // price the ladder settled on — charging the winner's ceiling would
+            // bill them well above the figure the board showed all evening.
+            var rows = await _db.Bids
+                .Where(b => b.AuctionItemId == item.Id)
+                .Select(b => new { b.PlayerId, b.AmountCents, b.PlacedAt })
+                .ToListAsync(ct);
+
+            var state = AuctionBidRules.ResolveProxy(
+                rows.Select(r => new AuctionBidRules.ProxyBid(r.PlayerId, r.AmountCents, r.PlacedAt)),
+                item.StartingBidCents, item.BidIncrementCents);
+
+            if (state.LeaderPlayerId is Guid winnerId)
+            {
+                // CurrentHighBidCents is kept in step with the ladder on every
+                // bid; a buy-now sale overwrites it with the posted price, which
+                // ResolveProxy has no way to know about, so prefer the column.
+                _db.AuctionWinners.Add(new AuctionWinner
+                {
+                    Id            = Guid.NewGuid(),
+                    AuctionItemId = item.Id,
+                    PlayerId      = winnerId,
+                    AmountCents   = item.CurrentHighBidCents > 0
+                        ? item.CurrentHighBidCents
+                        : state.PriceCents,
+                    ChargeStatus  = ChargeStatus.Pending,
+                    CreatedAt     = DateTime.UtcNow,
+                });
+            }
+        }
         else
         {
-            // Highest single bid wins
+            // Highest single bid wins; an exact tie goes to whoever got there first.
             var topBid = await _db.Bids
                 .Where(b => b.AuctionItemId == item.Id)
                 .OrderByDescending(b => b.AmountCents)
+                .ThenBy(b => b.PlacedAt)
                 .FirstOrDefaultAsync(ct);
 
             if (topBid is not null)
@@ -611,6 +695,27 @@ public class AuctionService
             .OrderByDescending(b => b.PlacedAt)
             .ToListAsync(ct);
 
+        // Winning/Outbid on a proxy item can't be read off the golfer's own row.
+        // Their amount is a private ceiling that normally sits ABOVE the public
+        // price, so the naive "my amount >= current high" test calls every
+        // trailing bidder a winner; and on a tied max both golfers sit exactly at
+        // the price while only the earlier one holds the item. Resolve the ladder
+        // once per open Silent item instead.
+        var openProxyItems = bids
+            .Select(b => b.AuctionItem)
+            .Where(i => AuctionBidRules.UsesProxyBidding(i.AuctionType)
+                     && i.Status is AuctionItemStatus.Open or AuctionItemStatus.Extended)
+            .DistinctBy(i => i.Id)
+            .ToList();
+
+        var proxyLeaders = await ResolveProxyLeadersAsync(openProxyItems, ct);
+
+        // Only a golfer's standing (highest) max can be the winning one — an
+        // earlier, lower bid of their own is superseded, not still in the running.
+        var myMaxByItem = bids
+            .GroupBy(b => b.AuctionItemId)
+            .ToDictionary(g => g.Key, g => g.Max(b => b.AmountCents));
+
         return bids.Select(b =>
         {
             var isDonation = b.AuctionItem.AuctionType is AuctionType.DonationSilent or AuctionType.DonationLive;
@@ -622,7 +727,11 @@ public class AuctionService
             }
             else if (b.AuctionItem.Status == AuctionItemStatus.Open || b.AuctionItem.Status == AuctionItemStatus.Extended)
             {
-                status = b.AmountCents >= b.AuctionItem.CurrentHighBidCents ? "Winning" : "Outbid";
+                status = AuctionBidRules.UsesProxyBidding(b.AuctionItem.AuctionType)
+                    ? (proxyLeaders.GetValueOrDefault(b.AuctionItemId) == playerId
+                       && b.AmountCents == myMaxByItem[b.AuctionItemId]
+                        ? "Winning" : "Outbid")
+                    : b.AmountCents >= b.AuctionItem.CurrentHighBidCents ? "Winning" : "Outbid";
             }
             else
             {
@@ -635,6 +744,7 @@ public class AuctionService
             {
                 AuctionItemId = b.AuctionItemId,
                 ItemTitle     = b.AuctionItem.Title,
+                AuctionType   = b.AuctionItem.AuctionType.ToString(),
                 AmountCents   = b.AmountCents,
                 Status        = status,
                 PlacedAt      = b.PlacedAt,
@@ -739,7 +849,7 @@ public class AuctionService
 
     /// <summary>
     /// Pledges on a Fund-a-Need STACK rather than outbid, so PlaceBidAsync only
-    /// writes CurrentHighBidCents for competitive items (:268) and the column
+    /// writes CurrentHighBidCents for competitive items and the column
     /// stays 0 on a donation item forever. The running total is the sum of the
     /// item's bids — the same reasoning already written out in
     /// EventService.GetAuctionRevenueAsync, and the same query shape.
@@ -765,6 +875,35 @@ public class AuctionService
         return pledges
             .GroupBy(b => b.AuctionItemId)
             .ToDictionary(g => g.Key, g => g.Sum(b => b.AmountCents));
+    }
+
+    /// <summary>
+    /// Maps each proxy item to the golfer currently holding it. One query for the
+    /// whole set — the caller has a list of items, so a lookup per item would be
+    /// an N+1 (same reasoning as GetDonationTotalsAsync).
+    /// </summary>
+    private async Task<Dictionary<Guid, Guid?>> ResolveProxyLeadersAsync(
+        IReadOnlyCollection<Domain.Entities.AuctionItem> items, CancellationToken ct)
+    {
+        var leaders = new Dictionary<Guid, Guid?>();
+        if (items.Count == 0) return leaders;
+
+        var itemIds = items.Select(i => i.Id).ToHashSet();
+        var rows = await _db.Bids
+            .AsNoTracking()
+            .Where(b => itemIds.Contains(b.AuctionItemId))
+            .Select(b => new { b.AuctionItemId, b.PlayerId, b.AmountCents, b.PlacedAt })
+            .ToListAsync(ct);
+
+        var byItem = rows.ToLookup(r => r.AuctionItemId);
+        foreach (var item in items)
+        {
+            leaders[item.Id] = AuctionBidRules.ResolveProxy(
+                byItem[item.Id].Select(r =>
+                    new AuctionBidRules.ProxyBid(r.PlayerId, r.AmountCents, r.PlacedAt)),
+                item.StartingBidCents, item.BidIncrementCents).LeaderPlayerId;
+        }
+        return leaders;
     }
 
     private static AuctionItemResponse MapItem(

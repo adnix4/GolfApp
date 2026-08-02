@@ -110,7 +110,7 @@ public class AuctionCloseJobIntegrationTests
     }
 
     private static Bid AddBid(GolfFundraiserPro.Api.Data.ApplicationDbContext db,
-        Guid itemId, Guid playerId, int amountCents)
+        Guid itemId, Guid playerId, int amountCents, DateTime? placedAt = null)
     {
         var bid = new Bid
         {
@@ -118,7 +118,7 @@ public class AuctionCloseJobIntegrationTests
             AuctionItemId = itemId,
             PlayerId      = playerId,
             AmountCents   = amountCents,
-            PlacedAt      = DateTime.UtcNow,
+            PlacedAt      = placedAt ?? DateTime.UtcNow,
         };
         db.Bids.Add(bid);
         return bid;
@@ -181,6 +181,97 @@ public class AuctionCloseJobIntegrationTests
         Assert.Single(winners);
         Assert.Equal(p2.Id,  winners[0].PlayerId);
         Assert.Equal(8000,   winners[0].AmountCents);
+    }
+
+    // ── Silent auction: proxy bidding decides who wins and at what price ──────
+
+    [Fact]
+    public async Task Silent_winner_is_charged_the_settled_price_not_their_own_maximum()
+    {
+        // The whole point of U4: the $200 ceiling is private. Charging it would
+        // bill the winner $125 more than the board ever showed.
+        var (svc, db) = Build();
+        var (_, eventId) = await SeedEventAsync(db);
+        var ann  = AddPlayer(db, eventId);
+        var bo   = AddPlayer(db, eventId);
+        var item = AddItem(db, eventId, AuctionType.Silent, DateTime.UtcNow.AddMinutes(-1),
+                           startingBidCents: 5000, bidIncrementCents: 500);
+
+        AddBid(db, item.Id, ann.Id, 20000);
+        AddBid(db, item.Id, bo.Id,   7000);
+        await db.SaveChangesAsync();
+
+        await svc.ProcessExpiredItemsAsync();
+
+        var winner = Assert.Single(db.AuctionWinners.Where(w => w.AuctionItemId == item.Id));
+        Assert.Equal(ann.Id, winner.PlayerId);
+        Assert.Equal(7500,   winner.AmountCents); // Bo's $70 + one $5 increment
+    }
+
+    [Fact]
+    public async Task Silent_item_tied_on_maximum_is_won_by_the_earlier_bidder()
+    {
+        var (svc, db) = Build();
+        var (_, eventId) = await SeedEventAsync(db);
+        var ann  = AddPlayer(db, eventId);
+        var bo   = AddPlayer(db, eventId);
+        var item = AddItem(db, eventId, AuctionType.Silent, DateTime.UtcNow.AddMinutes(-1),
+                           startingBidCents: 5000, bidIncrementCents: 500);
+
+        var t0 = DateTime.UtcNow.AddMinutes(-30);
+        AddBid(db, item.Id, bo.Id,  10000, t0.AddSeconds(90));
+        AddBid(db, item.Id, ann.Id, 10000, t0);           // same amount, in first
+        await db.SaveChangesAsync();
+
+        await svc.ProcessExpiredItemsAsync();
+
+        var winner = Assert.Single(db.AuctionWinners.Where(w => w.AuctionItemId == item.Id));
+        Assert.Equal(ann.Id, winner.PlayerId);
+        Assert.Equal(10000,  winner.AmountCents); // a tie sells at the tied amount
+    }
+
+    [Fact]
+    public async Task Silent_winner_pays_the_recorded_price_when_the_item_carries_one()
+    {
+        // A buy-now sale posts the advertised price to CurrentHighBidCents, which
+        // the bid ladder alone can't reconstruct — the column has to win.
+        var (svc, db) = Build();
+        var (_, eventId) = await SeedEventAsync(db);
+        var ann  = AddPlayer(db, eventId);
+        var item = AddItem(db, eventId, AuctionType.Silent, DateTime.UtcNow.AddMinutes(-1),
+                           startingBidCents: 5000, bidIncrementCents: 500);
+        item.BuyNowPriceCents    = 15000;
+        item.CurrentHighBidCents = 15000;
+
+        AddBid(db, item.Id, ann.Id, 18000); // typed a max at or above buy-now
+        await db.SaveChangesAsync();
+
+        await svc.ProcessExpiredItemsAsync();
+
+        var winner = Assert.Single(db.AuctionWinners.Where(w => w.AuctionItemId == item.Id));
+        Assert.Equal(15000, winner.AmountCents);
+    }
+
+    [Fact]
+    public async Task Live_items_still_sell_for_exactly_what_was_bid()
+    {
+        // Proxy bidding is Silent-only — an auctioneer's hammer price is the bid.
+        var (svc, db) = Build();
+        var (_, eventId) = await SeedEventAsync(db);
+        var ann  = AddPlayer(db, eventId);
+        var bo   = AddPlayer(db, eventId);
+        var item = AddItem(db, eventId, AuctionType.Live, DateTime.UtcNow.AddMinutes(-1),
+                           startingBidCents: 5000, bidIncrementCents: 500);
+
+        AddBid(db, item.Id, bo.Id,   7000);
+        AddBid(db, item.Id, ann.Id, 20000);
+        await db.SaveChangesAsync();
+
+        await svc.ProcessExpiredItemsAsync();
+
+        var winner = Assert.Single(db.AuctionWinners.Where(w => w.AuctionItemId == item.Id));
+        Assert.Equal(ann.Id, winner.PlayerId);
+        Assert.Equal(20000,  winner.AmountCents);
     }
 
     // ── Donation item: every bidder wins ─────────────────────────────────────
