@@ -3,7 +3,13 @@ import {
   EVENT_STATUS_COLOR, EVENT_STATUS_LABEL, NEXT_TRANSITIONS,
   eventStatusColor, eventStatusLabel,
   scoringGate, scoringGateHint, openScoringEarlyCopy,
+  completionGate, markCompleteCopy, markCompleteUncheckedCopy, cancelEventCopy,
 } from '../lib/eventStatus';
+
+/** Builds a leaderboard-shaped row; `thru` below `holes` means unfinished. */
+function team(teamName: string, holesComplete: number, holes = 18) {
+  return { teamName, holesComplete, isComplete: holesComplete >= holes };
+}
 
 describe('event status palette', () => {
   it('defines a color for every status in the state machine', () => {
@@ -97,5 +103,100 @@ describe('openScoringEarlyCopy', () => {
 
   it('degrades gracefully when the list is empty', () => {
     expect(openScoringEarlyCopy([]).message).toContain('(none)');
+  });
+});
+
+// Completing closes scoring server-side (ScoreService + MobileService both
+// reject anything but Active/Scoring), so a premature flip strands the field.
+describe('completionGate', () => {
+  it('is ready once every team has finished', () => {
+    const g = completionGate([team('Sleepers', 18), team('Bogey Boys', 18)]);
+    expect(g).toEqual({ ready: true, unfinished: [], total: 2 });
+  });
+
+  it('reports who is still out and how far they got', () => {
+    const g = completionGate([team('Sleepers', 18), team('Bogey Boys', 12), team('Slicers', 0)]);
+    expect(g.ready).toBe(false);
+    expect(g.total).toBe(3);
+    expect(g.unfinished).toEqual([
+      { name: 'Bogey Boys', thru: 12 },
+      { name: 'Slicers',    thru: 0  },
+    ]);
+  });
+
+  it('trusts the server isComplete flag, so 9-hole events work unchanged', () => {
+    expect(completionGate([team('Niners', 9, 9)]).ready).toBe(true);
+    expect(completionGate([team('Niners', 8, 9)]).ready).toBe(false);
+  });
+
+  it('is not ready with an empty leaderboard — no scores at all is worth a confirm', () => {
+    expect(completionGate([])).toEqual({ ready: false, unfinished: [], total: 0 });
+  });
+});
+
+describe('markCompleteCopy', () => {
+  it('names each unfinished team with its hole count', () => {
+    const c = markCompleteCopy(completionGate([team('Sleepers', 18), team('peter Klom', 12)]));
+    expect(c.title).toBe('End scoring early?');
+    expect(c.confirmText).toBe('Mark Complete');
+    expect(c.message).toContain('1 of 2 teams has not finished all holes');
+    expect(c.message).toContain('• peter Klom — thru 12');
+    expect(c.message).not.toContain('Sleepers');
+  });
+
+  it('warns that scoring closes, including offline holes, and cannot be undone', () => {
+    const c = markCompleteCopy(completionGate([team('A', 3)]));
+    expect(c.message).toContain('no longer enter or sync scores');
+    expect(c.message).toContain('saved offline on their phones');
+    expect(c.message).toContain('cannot be undone');
+  });
+
+  it('truncates a long field instead of producing an unreadable dialog', () => {
+    const many = Array.from({ length: 14 }, (_, i) => team(`Team ${i + 1}`, 5));
+    const c = markCompleteCopy(completionGate(many));
+    expect(c.message).toContain('• Team 10 — thru 5');
+    expect(c.message).not.toContain('• Team 11 —');
+    expect(c.message).toContain('…and 4 more teams');
+  });
+
+  it('singularizes the tail for exactly one hidden team', () => {
+    const many = Array.from({ length: 11 }, (_, i) => team(`Team ${i + 1}`, 5));
+    expect(markCompleteCopy(completionGate(many)).message).toContain('…and 1 more team');
+  });
+
+  it('says so plainly when no team has scored at all', () => {
+    const c = markCompleteCopy(completionGate([]));
+    expect(c.message).toContain('No teams have scored yet.');
+    expect(c.message).not.toContain('•');
+  });
+
+  it('still confirms when everyone is in, because the status is terminal', () => {
+    const c = markCompleteCopy(completionGate([team('A', 18), team('B', 18)]));
+    expect(c.title).toBe('Mark event complete?');
+    expect(c.message).toContain('All 2 teams have finished');
+    expect(c.message).toContain('cannot be undone');
+  });
+
+  it('singularizes a one-team finished event', () => {
+    expect(markCompleteCopy(completionGate([team('A', 18)])).message)
+      .toContain('All 1 team has finished');
+  });
+});
+
+describe('markCompleteUncheckedCopy', () => {
+  it('admits progress is unknown but still offers the confirm', () => {
+    // A failed lookup must not lock the organizer out of finishing the event.
+    const c = markCompleteUncheckedCopy();
+    expect(c.confirmText).toBe('Mark Complete');
+    expect(c.message).toContain('Could not check scoring progress');
+    expect(c.message).toContain('cannot be undone');
+  });
+});
+
+describe('cancelEventCopy', () => {
+  it('warns that cancelling is terminal', () => {
+    const c = cancelEventCopy();
+    expect(c.confirmText).toBe('Cancel Event');
+    expect(c.message).toContain('cannot be undone');
   });
 });

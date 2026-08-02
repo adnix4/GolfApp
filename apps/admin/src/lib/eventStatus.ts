@@ -105,6 +105,129 @@ export function openScoringEarlyCopy(teamNames: string[]): {
   };
 }
 
+// ── Mark Complete gate ────────────────────────────────────────────────────────
+//
+// Completing the event is terminal — EventStatusRules has no transition out of
+// Completed — and it closes scoring server-side: ScoreService rejects entry for
+// anything but Active/Scoring, and MobileService rejects batch sync the same
+// way. Holes still queued offline on a golfer's phone therefore become
+// unsyncable, and the mobile shell deliberately does NOT propagate a mid-round
+// status flip, so the field keeps playing and only discovers the loss at sync.
+//
+// Counted in TEAMS via the leaderboard, which already reports per-team progress
+// (holesComplete / isComplete). The event's own counts.holesScored is DISTINCT
+// hole numbers across the whole field, not per-team progress, and would call a
+// half-finished round "done".
+//
+// This is a warning, not a block. A team that walks off at hole 14 must never
+// be able to hold the organizer hostage — but they should see who is still out
+// there before they commit.
+
+/** Minimal per-team shape this gate needs — a subset of LeaderboardEntry. */
+export interface TeamProgress {
+  teamName:      string;
+  holesComplete: number;
+  isComplete:    boolean;
+}
+
+export interface CompletionGate {
+  /** True when at least one team exists and every one has finished. */
+  ready:      boolean;
+  /** Teams still out on the course, with how many holes they have scored. */
+  unfinished: { name: string; thru: number }[];
+  total:      number;
+}
+
+/**
+ * Splits the leaderboard into finished / unfinished teams. Trusts the server's
+ * isComplete flag (computed against the event's hole count) rather than
+ * re-deriving it, so 9-hole events work without special-casing.
+ *
+ * An empty leaderboard is NOT ready — no scores at all is itself worth a
+ * confirm, not a silent pass.
+ */
+export function completionGate(entries: TeamProgress[]): CompletionGate {
+  const unfinished = entries
+    .filter(e => !e.isComplete)
+    .map(e => ({ name: e.teamName, thru: Math.max(0, e.holesComplete) }));
+  return { ready: entries.length > 0 && unfinished.length === 0, unfinished, total: entries.length };
+}
+
+/** Longest team list we will put in a confirm dialog before truncating. */
+const MAX_LISTED_TEAMS = 10;
+
+/**
+ * Confirm copy for Mark Complete — the early-finish warning when teams are
+ * still scoring, and a short terminal-action confirm when they are all in.
+ */
+export function markCompleteCopy(gate: CompletionGate): {
+  title: string; message: string; confirmText: string;
+} {
+  const confirmText = 'Mark Complete';
+
+  if (gate.ready) {
+    return {
+      title: 'Mark event complete?',
+      message:
+        `All ${gate.total} team${gate.total === 1 ? ' has' : 's have'} finished scoring.\n\n` +
+        'Completing the event closes scoring for good — this cannot be undone.',
+      confirmText,
+    };
+  }
+
+  const shown  = gate.unfinished.slice(0, MAX_LISTED_TEAMS);
+  const hidden = gate.unfinished.length - shown.length;
+  const list   = shown.map(t => `• ${t.name} — thru ${t.thru}`).join('\n')
+    + (hidden > 0 ? `\n• …and ${hidden} more team${hidden === 1 ? '' : 's'}` : '');
+
+  const count = gate.total === 0
+    ? 'No teams have scored yet.'
+    : `${gate.unfinished.length} of ${gate.total} team${gate.total === 1 ? '' : 's'} ` +
+      `${gate.unfinished.length === 1 ? 'has' : 'have'} not finished all holes:`;
+
+  return {
+    title: 'End scoring early?',
+    message:
+      `${count}${gate.total === 0 ? '' : `\n\n${list}`}\n\n` +
+      'Marking the event complete closes scoring — golfers can no longer enter ' +
+      'or sync scores, including holes still saved offline on their phones. ' +
+      'This cannot be undone.',
+    confirmText,
+  };
+}
+
+/**
+ * Fallback copy when the scoring-progress lookup fails. The organizer is at the
+ * course with a banquet starting; a failed request must not lock them out of
+ * finishing the event, so we still offer the confirm — just honestly.
+ */
+export function markCompleteUncheckedCopy(): {
+  title: string; message: string; confirmText: string;
+} {
+  return {
+    title: 'Mark event complete?',
+    message:
+      'Could not check scoring progress, so some teams may still be out on the course.\n\n' +
+      'Marking the event complete closes scoring — golfers can no longer enter ' +
+      'or sync scores, including holes still saved offline on their phones. ' +
+      'This cannot be undone.',
+    confirmText: 'Mark Complete',
+  };
+}
+
+/** Confirm copy for Cancel Event — the other terminal, unrecoverable status. */
+export function cancelEventCopy(): {
+  title: string; message: string; confirmText: string;
+} {
+  return {
+    title: 'Cancel this event?',
+    message:
+      'Cancelling closes registration, check-in and scoring, and removes the ' +
+      'event from the public list.\n\nThis cannot be undone.',
+    confirmText: 'Cancel Event',
+  };
+}
+
 /** Fallback color for an unknown status, matching previous inline defaults. */
 export const EVENT_STATUS_COLOR_FALLBACK = '#aaa';
 
