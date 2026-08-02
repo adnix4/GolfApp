@@ -86,6 +86,34 @@ public class AuctionItemsController : ControllerBase
         return Ok(items);
     }
 
+    // ── END AUCTION ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// What ending the auction now would do. Drives the confirm dialog so the
+    /// organizer sees the damage before committing, not after.
+    /// </summary>
+    [HttpGet("api/v1/events/{eventId:guid}/auction/end/preview")]
+    [Authorize(Policy = "EventStaff")]
+    public async Task<IActionResult> PreviewEndAuction([FromRoute] Guid eventId, CancellationToken ct)
+    {
+        var orgId   = GetOrgId();
+        var summary = await _auction.PreviewEndAuctionAsync(orgId, eventId, ct);
+        return Ok(summary);
+    }
+
+    /// <summary>
+    /// Closes every lot still taking bids and ends any running live session.
+    /// Live lots the host never awarded are left for a manual award decision.
+    /// </summary>
+    [HttpPost("api/v1/events/{eventId:guid}/auction/end")]
+    [Authorize(Policy = "EventStaff")]
+    public async Task<IActionResult> EndAuction([FromRoute] Guid eventId, CancellationToken ct)
+    {
+        var orgId   = GetOrgId();
+        var summary = await _auction.EndAuctionAsync(orgId, eventId, ct);
+        return Ok(summary);
+    }
+
     // ── FAILED CHARGE RESOLUTION ──────────────────────────────────────────────
 
     [HttpGet("api/v1/events/{eventId:guid}/auction/failed-charges")]

@@ -1133,6 +1133,29 @@ public class AuctionWinner
     [Column("receipt_sent")]
     public bool ReceiptSent { get; set; } = false;
 
+    // ── Checkout ──────────────────────────────────────────────────────────────
+    // Closing a lot no longer charges anybody: it records a Pending winner, and
+    // the money is settled at the checkout desk when the winner collects the
+    // item. Payment and handover are tracked separately because they genuinely
+    // come apart — a guest can pay now and collect later, or take the item and
+    // settle at the desk on the way out.
+
+    /// <summary>How the winner paid. Null until they check out.</summary>
+    [Column("settlement_method")]
+    public SettlementMethod? SettlementMethod { get; set; }
+
+    /// <summary>When payment was settled (card charged, or cash/check recorded).</summary>
+    [Column("checked_out_at")]
+    public DateTime? CheckedOutAt { get; set; }
+
+    /// <summary>When the item was physically handed over.</summary>
+    [Column("picked_up_at")]
+    public DateTime? PickedUpAt { get; set; }
+
+    /// <summary>Staff member who settled this winner at the desk. Null for a self-service checkout by the golfer.</summary>
+    [Column("settled_by_user_id")]
+    public Guid? SettledByUserId { get; set; }
+
     /// <summary>True for admin-generated test data; cleared when moving to Active.</summary>
     [Column("is_test")]
     public bool IsTest { get; set; } = false;

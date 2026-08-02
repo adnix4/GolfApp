@@ -9,6 +9,10 @@ import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared
 import { auctionApi, resolveUrl, type AuctionItem, type CreateAuctionItemPayload } from '@/lib/api';
 import { bidIncrementWarning } from '@/lib/auctionSetup';
 import {
+  auctionStatusColor, auctionStatusLabel, isAuctionStatusFinal,
+  endAuctionCopy, endAuctionResult,
+} from '@/lib/auctionEnd';
+import {
   formatDateInput, formatTimeInput,
   buildIsoDateTime, parseIsoToFields,
 } from '@/lib/dateTime';
@@ -84,6 +88,8 @@ export default function AuctionScreen() {
   const [fieldErrors,  setFieldErrors]  = useState<Record<string, string>>({});
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [ending,   setEnding]   = useState(false);
+  const [endNotice, setEndNotice] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -99,6 +105,34 @@ export default function AuctionScreen() {
   }, [eventId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Ending the auction is irreversible and closes every lot at once, so ask the
+  // server what it would do first and put those numbers in the confirm. The
+  // preview has no side effects, so a cancelled dialog costs nothing.
+  async function handleEndAuction() {
+    if (ending) return;
+    setEnding(true); setError(null); setEndNotice(null);
+    try {
+      const preview = await auctionApi.endPreview(eventId);
+      const copy    = endAuctionCopy(preview);
+      confirmAction(copy.title, copy.message, async () => {
+        setEnding(true);
+        try {
+          const summary = await auctionApi.endAuction(eventId);
+          setEndNotice(endAuctionResult(summary));
+          await load();
+        } catch (e: any) {
+          setError(e.message ?? 'Failed to end the auction.');
+        } finally {
+          setEnding(false);
+        }
+      }, copy.confirmText);
+    } catch (e: any) {
+      setError(e.message ?? 'Could not check what ending the auction would do.');
+    } finally {
+      setEnding(false);
+    }
+  }
 
   function openCreate() {
     setEditItem(null);
@@ -257,10 +291,30 @@ export default function AuctionScreen() {
         <Text style={[styles.title, { color: theme.colors.primary }]}>
           Auction Items ({items.length})
         </Text>
-        <Pressable style={[styles.btn, { backgroundColor: theme.colors.primary }]} onPress={openCreate}>
-          <Text style={styles.btnText}>+ Add Item</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          {items.some(i => !isAuctionStatusFinal(i.status)) && (
+            <Pressable
+              style={[styles.btn, styles.endBtn, ending && { opacity: 0.6 }]}
+              onPress={handleEndAuction}
+              disabled={ending}
+              accessibilityRole="button"
+            >
+              {ending
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={styles.btnText}>End Auction</Text>}
+            </Pressable>
+          )}
+          <Pressable style={[styles.btn, { backgroundColor: theme.colors.primary }]} onPress={openCreate}>
+            <Text style={styles.btnText}>+ Add Item</Text>
+          </Pressable>
+        </View>
       </View>
+
+      {endNotice && (
+        <View style={styles.noticeBox} accessibilityRole="alert">
+          <Text style={styles.noticeText}>{endNotice}</Text>
+        </View>
+      )}
 
       {error && (
         <View style={styles.errorBox}>
@@ -290,12 +344,20 @@ export default function AuctionScreen() {
                 </View>
               )}
               <View style={{ flex: 1 }}>
-                <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Text>
+                <View style={styles.titleRow}>
+                  <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Text>
+                  {/* A sold lot and a no-bid lot used to render identically. */}
+                  <View style={[styles.statusPill, { backgroundColor: auctionStatusColor(item.status) }]}>
+                    <Text style={styles.statusPillText}>{auctionStatusLabel(item.status)}</Text>
+                  </View>
+                </View>
                 <Text style={{ color: theme.mutedText, fontSize: 12, marginTop: 2 }}>
-                  {TYPE_LABELS[item.auctionType] ?? item.auctionType} · {item.status}
+                  {TYPE_LABELS[item.auctionType] ?? item.auctionType}
                 </Text>
                 <Text style={{ color: '#555', fontSize: 13, marginTop: 4 }}>
-                  Starting: {fmt(item.startingBidCents)} · High bid: {fmt(item.currentHighBidCents)}
+                  {item.status === 'Unsold'
+                    ? `Starting: ${fmt(item.startingBidCents)} · no bids received`
+                    : `Starting: ${fmt(item.startingBidCents)} · High bid: ${fmt(item.currentHighBidCents)}`}
                 </Text>
                 {item.closesAt && (
                   <Text style={{ color: '#888', fontSize: 12, marginTop: 2 }}>
@@ -574,8 +636,22 @@ const styles = StyleSheet.create({
   listThumbIcon: { fontSize: 24 },
   cardActions: { flexDirection: 'column', marginLeft: 12, alignItems: 'flex-end' },
   itemTitle: { fontSize: 15, fontWeight: '700' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  statusPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  statusPillText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   btn:     { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  // Amber, not red: ending the auction is the intended end of the night, not a
+  // destructive accident — but it is irreversible, so it should not look like
+  // the primary "add another item" action either.
+  endBtn:  { backgroundColor: '#d97706' },
+  noticeBox: {
+    backgroundColor: '#ecfdf5', borderRadius: 8, padding: 12,
+    marginHorizontal: 16, marginBottom: 12,
+    borderLeftWidth: 3, borderLeftColor: '#10b981',
+  },
+  noticeText: { color: '#065f46', fontSize: 14 },
   smallBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1 },
   label:   { fontSize: 13, fontWeight: '600', marginTop: 14, marginBottom: 4, color: '#333' },
   input: {

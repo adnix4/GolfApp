@@ -413,7 +413,10 @@ public class AuctionService
 
         await _realTime.SendItemClosedAsync(item.Event.EventCode, itemId, req.PlayerId, req.AmountCents, ct);
 
-        await ChargeWinnersForItemAsync(itemId, ct);
+        // Awarded on stage, paid at the checkout desk — same as every other
+        // competitive lot. See CloseItemInternalAsync for why closing no longer
+        // charges.
+        await NotifyWinnersAsync(item, ct);
     }
 
     // ── CLOSE JOB (called by Hangfire every 10s) ───────────────────────────────
@@ -433,31 +436,139 @@ public class AuctionService
         }
     }
 
-    private async Task CloseItemInternalAsync(AuctionItem item, CancellationToken ct)
+    // ── END AUCTION (organizer settlement) ────────────────────────────────────
+
+    /// <summary>
+    /// Shows what ending the auction right now would do, without doing it.
+    /// </summary>
+    public Task<AuctionEndSummary> PreviewEndAuctionAsync(
+        Guid orgId, Guid eventId, CancellationToken ct = default) =>
+        EndAuctionCoreAsync(orgId, eventId, commit: false, ct);
+
+    /// <summary>
+    /// Ends the auction: closes every silent and Fund-a-Need lot still taking
+    /// bids, regardless of its timer, and ends the live session if one is
+    /// running.
+    /// </summary>
+    /// <remarks>
+    /// Live lots are deliberately left Open — see ParkedLiveLot. The rest close
+    /// through the ordinary close path, so proxy ladders, ties, buy-now pricing
+    /// and Fund-a-Need multi-winners all behave exactly as they do on the timer.
+    ///
+    /// Idempotent: with nothing left open this is a no-op returning zeroes, so a
+    /// double tap at the end of a long night cannot do damage.
+    /// </remarks>
+    public Task<AuctionEndSummary> EndAuctionAsync(
+        Guid orgId, Guid eventId, CancellationToken ct = default) =>
+        EndAuctionCoreAsync(orgId, eventId, commit: true, ct);
+
+    private async Task<AuctionEndSummary> EndAuctionCoreAsync(
+        Guid orgId, Guid eventId, bool commit, CancellationToken ct)
     {
-        item.Status = AuctionItemStatus.Closed;
+        await VerifyEventOwnershipAsync(orgId, eventId, ct);
 
-        var isDonation = item.AuctionType is AuctionType.DonationSilent or AuctionType.DonationLive;
+        var open = await _db.AuctionItems
+            .Include(i => i.Event)
+            .Where(i => i.EventId == eventId
+                     && (i.Status == AuctionItemStatus.Open || i.Status == AuctionItemStatus.Extended))
+            .ToListAsync(ct);
 
-        if (isDonation)
+        // A Live lot with a timer set is treated as timed, not as an on-stage
+        // lot: the timer is what the bidders were watching.
+        var parked = open
+            .Where(i => i.AuctionType == AuctionType.Live && i.ClosesAt is null)
+            .ToList();
+
+        var closing = open.Except(parked).ToList();
+
+        var lotsSold           = 0;
+        var winnersCreated     = 0;
+        var outstandingCents   = 0;
+        var playersWinning     = new HashSet<Guid>();
+
+        foreach (var item in closing)
         {
-            // One winner row per pledger
+            var resolved = await ResolveWinnersAsync(item, ct);
+            if (resolved.Count > 0) lotsSold++;
+            winnersCreated += resolved.Count;
+
+            // Fund-a-Need pledges charge on close, so they are never owed at the
+            // desk and must not inflate the figure the organizer settles against.
+            var isDonation = item.AuctionType is AuctionType.DonationSilent or AuctionType.DonationLive;
+            if (!isDonation)
+            {
+                outstandingCents += resolved.Sum(r => r.AmountCents);
+                foreach (var (playerId, _) in resolved) playersWinning.Add(playerId);
+            }
+
+            if (commit) await CloseItemInternalAsync(item, ct);
+        }
+
+        var withoutCard = playersWinning.Count == 0
+            ? 0
+            : await _db.Players
+                .Where(p => playersWinning.Contains(p.Id) && !p.HasPaymentMethod)
+                .CountAsync(ct);
+
+        var liveSessionRunning = await _db.AuctionSessions
+            .AnyAsync(s => s.EventId == eventId && s.IsActive, ct);
+
+        if (commit && liveSessionRunning)
+            await EndSessionAsync(orgId, eventId, ct);
+
+        if (commit)
+        {
+            _logger.LogInformation(
+                "Auction ended for event {EventId}: {Closed} lots closed ({Sold} sold), "
+                + "{Winners} winners owing {Cents}c, {Parked} live lots awaiting award",
+                eventId, closing.Count, lotsSold, winnersCreated, outstandingCents, parked.Count);
+        }
+
+        return new AuctionEndSummary
+        {
+            LotsClosed          = closing.Count,
+            LotsSold            = lotsSold,
+            LotsUnsold          = closing.Count - lotsSold,
+            WinnersCreated      = winnersCreated,
+            OutstandingCents    = outstandingCents,
+            WinnersWithoutCard  = withoutCard,
+            LiveSessionEnded    = liveSessionRunning,
+            LiveLotsAwaitingAward = parked
+                .OrderBy(i => i.Title)
+                .Select(i => new ParkedLiveLot
+                {
+                    ItemId              = i.Id,
+                    Title               = i.Title,
+                    CurrentHighBidCents = i.CurrentHighBidCents,
+                })
+                .ToList(),
+        };
+    }
+
+    /// <summary>
+    /// Works out who wins a lot and at what price, WITHOUT writing anything.
+    /// Returns one entry per winner — several for a Fund-a-Need, one or none for
+    /// a competitive lot.
+    ///
+    /// Extracted so the End Auction preview can tell the organizer exactly what
+    /// closing would produce, using the same code that then produces it. A
+    /// preview computed by a parallel implementation would drift, and this is
+    /// the number people settle money against.
+    /// </summary>
+    private async Task<List<(Guid PlayerId, int AmountCents)>> ResolveWinnersAsync(
+        AuctionItem item, CancellationToken ct)
+    {
+        var winners = new List<(Guid, int)>();
+
+        if (item.AuctionType is AuctionType.DonationSilent or AuctionType.DonationLive)
+        {
+            // Fund-a-Need: everyone who pledged wins, at their own amount.
             var bids = await _db.Bids
                 .Where(b => b.AuctionItemId == item.Id)
+                .Select(b => new { b.PlayerId, b.AmountCents })
                 .ToListAsync(ct);
 
-            foreach (var bid in bids)
-            {
-                _db.AuctionWinners.Add(new AuctionWinner
-                {
-                    Id            = Guid.NewGuid(),
-                    AuctionItemId = item.Id,
-                    PlayerId      = bid.PlayerId,
-                    AmountCents   = bid.AmountCents,
-                    ChargeStatus  = ChargeStatus.Pending,
-                    CreatedAt     = DateTime.UtcNow,
-                });
-            }
+            winners.AddRange(bids.Select(b => (b.PlayerId, b.AmountCents)));
         }
         else if (AuctionBidRules.UsesProxyBidding(item.AuctionType))
         {
@@ -478,17 +589,9 @@ public class AuctionService
                 // CurrentHighBidCents is kept in step with the ladder on every
                 // bid; a buy-now sale overwrites it with the posted price, which
                 // ResolveProxy has no way to know about, so prefer the column.
-                _db.AuctionWinners.Add(new AuctionWinner
-                {
-                    Id            = Guid.NewGuid(),
-                    AuctionItemId = item.Id,
-                    PlayerId      = winnerId,
-                    AmountCents   = item.CurrentHighBidCents > 0
-                        ? item.CurrentHighBidCents
-                        : state.PriceCents,
-                    ChargeStatus  = ChargeStatus.Pending,
-                    CreatedAt     = DateTime.UtcNow,
-                });
+                winners.Add((
+                    winnerId,
+                    item.CurrentHighBidCents > 0 ? item.CurrentHighBidCents : state.PriceCents));
             }
         }
         else
@@ -498,21 +601,50 @@ public class AuctionService
                 .Where(b => b.AuctionItemId == item.Id)
                 .OrderByDescending(b => b.AmountCents)
                 .ThenBy(b => b.PlacedAt)
+                .Select(b => new { b.PlayerId, b.AmountCents })
                 .FirstOrDefaultAsync(ct);
 
             if (topBid is not null)
-            {
-                _db.AuctionWinners.Add(new AuctionWinner
-                {
-                    Id            = Guid.NewGuid(),
-                    AuctionItemId = item.Id,
-                    PlayerId      = topBid.PlayerId,
-                    AmountCents   = topBid.AmountCents,
-                    ChargeStatus  = ChargeStatus.Pending,
-                    CreatedAt     = DateTime.UtcNow,
-                });
-            }
+                winners.Add((topBid.PlayerId, topBid.AmountCents));
         }
+
+        return winners;
+    }
+
+    /// <summary>
+    /// Closes one lot: works out who won, records them, and tells them.
+    ///
+    /// Deliberately does NOT charge competitive lots. The winner settles at the
+    /// checkout desk when they collect the item, so nobody is billed for a lot
+    /// they never picked up, a winner with no saved card can still pay, and a 3DS
+    /// challenge happens with the cardholder standing there to answer it.
+    /// Fund-a-Need pledges are the exception — there is nothing to collect, so
+    /// they charge on close exactly as before.
+    /// </summary>
+    private async Task CloseItemInternalAsync(AuctionItem item, CancellationToken ct)
+    {
+        var isDonation = item.AuctionType is AuctionType.DonationSilent or AuctionType.DonationLive;
+        var resolved   = await ResolveWinnersAsync(item, ct);
+
+        foreach (var (playerId, amountCents) in resolved)
+        {
+            _db.AuctionWinners.Add(new AuctionWinner
+            {
+                Id            = Guid.NewGuid(),
+                AuctionItemId = item.Id,
+                PlayerId      = playerId,
+                AmountCents   = amountCents,
+                ChargeStatus  = ChargeStatus.Pending,
+                CreatedAt     = DateTime.UtcNow,
+            });
+        }
+
+        // A lot nobody bid on has no winner to charge and nothing to hand over.
+        // Calling that "Closed" made it indistinguishable from a sold lot, so the
+        // organizer had no way to see what failed to sell and could be re-offered.
+        item.Status = resolved.Count > 0
+            ? AuctionItemStatus.Closed
+            : AuctionItemStatus.Unsold;
 
         await _db.SaveChangesAsync(ct);
 
@@ -528,7 +660,18 @@ public class AuctionService
                 winner?.PlayerId, winner?.AmountCents ?? 0, ct);
         }
 
-        await ChargeWinnersForItemAsync(item.Id, ct);
+        if (isDonation)
+        {
+            // Fund-a-Need: the pledger named their own amount and has nothing to
+            // collect, so there is no desk visit to wait for.
+            await ChargeWinnersForItemAsync(item.Id, ct);
+        }
+        else
+        {
+            // Competitive lot: the winner pays at checkout. Tell them they won —
+            // until now the only signal was a Stripe receipt that may never arrive.
+            await NotifyWinnersAsync(item, ct);
+        }
     }
 
     private async Task ChargeWinnersForItemAsync(Guid itemId, CancellationToken ct)
@@ -992,6 +1135,75 @@ public class AuctionService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Outbid notification failed for player {PlayerId}", playerId);
+        }
+    }
+
+    /// <summary>
+    /// Tells everyone who won a lot that they won it, and to settle up at
+    /// checkout. Fire-and-forget alongside the close, like the outbid notice —
+    /// a dead push token must never hold up closing an auction.
+    ///
+    /// Before this existed the winner's only notice was the Stripe receipt after
+    /// the automatic charge, so a winner whose charge failed (or who had no card)
+    /// heard nothing at all.
+    /// </summary>
+    private async Task NotifyWinnersAsync(AuctionItem item, CancellationToken ct)
+    {
+        List<AuctionWinner> winners;
+        try
+        {
+            winners = await _db.AuctionWinners
+                .Include(w => w.Player)
+                .Where(w => w.AuctionItemId == item.Id && w.CheckedOutAt == null)
+                .ToListAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not load winners to notify for item {ItemId}", item.Id);
+            return;
+        }
+
+        foreach (var winner in winners)
+        {
+            var player = winner.Player;
+            if (player is null) continue;
+
+            var amount = $"${winner.AmountCents / 100.0:F2}";
+
+            try
+            {
+                if (!string.IsNullOrEmpty(player.ExpoPushToken))
+                {
+                    await _push.SendAsync(
+                        new[] { player.ExpoPushToken },
+                        "You won!",
+                        $"You won \"{item.Title}\" for {amount}. Visit checkout to collect and pay.",
+                        new Dictionary<string, string>
+                        {
+                            ["type"]      = "auctionWon",
+                            ["itemTitle"] = item.Title,
+                        },
+                        ct);
+                }
+
+                var html = $"""
+                    <p>Hi {player.FirstName},</p>
+                    <p>Congratulations — you won <strong>{item.Title}</strong> for <strong>{amount}</strong>.</p>
+                    <p>Stop by the auction checkout desk to collect your item and settle up. You can also
+                    confirm your payment method in the app before you get there.</p>
+                    """;
+                await _email.SendTransactionalAsync(
+                    player.Email,
+                    $"{player.FirstName} {player.LastName}",
+                    $"You won \"{item.Title}\"!",
+                    html,
+                    ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex, "Win notification failed for winner {WinnerId}", winner.Id);
+            }
         }
     }
 }

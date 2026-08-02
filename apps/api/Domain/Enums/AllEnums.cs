@@ -367,7 +367,26 @@ public enum AuctionItemStatus
     Extended,
 
     /// <summary>Live auction item manually awarded by host. Winner assigned; charges pending or complete.</summary>
-    Awarded
+    Awarded,
+
+    /// <summary>Bidding closed with no bids at all — nothing sold, nobody to charge. Distinguished from Closed so the organizer can see what to re-offer.</summary>
+    Unsold
+}
+
+/// <summary>
+/// How an auction winner actually settled up at checkout.
+/// Maps to auction_winners.settlement_method. Null until checkout happens.
+/// </summary>
+public enum SettlementMethod
+{
+    /// <summary>Charged to a card via Stripe (on file, or entered at the desk).</summary>
+    Card,
+
+    /// <summary>Cash handed over at the checkout desk and recorded by staff.</summary>
+    Cash,
+
+    /// <summary>Check handed over at the checkout desk and recorded by staff.</summary>
+    Check
 }
 
 /// <summary>
@@ -499,5 +518,8 @@ public enum EmailTriggerType
     OutbidNotice,
 
     /// <summary>Sent to the auction winner after their charge succeeds — includes item, amount, FMV for 501c3 deductibility.</summary>
-    AuctionReceipt
+    AuctionReceipt,
+
+    /// <summary>Sent the moment a lot closes in the winner's favour, telling them to visit checkout to collect and pay. Distinct from AuctionReceipt, which follows the charge.</summary>
+    AuctionWon
 }

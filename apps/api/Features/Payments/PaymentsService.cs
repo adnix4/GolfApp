@@ -37,6 +37,33 @@ public class PaymentsService
         if (!Common.PlayerSessionAuth.Matches(player.SessionToken, sessionToken))
             throw new Common.Middleware.NotFoundException("Player", playerId);
 
+        return await CreateSetupIntentCoreAsync(player, ct);
+    }
+
+    /// <summary>
+    /// Same SetupIntent, authorized by event staff instead of the golfer.
+    /// </summary>
+    /// <remarks>
+    /// For the golfer who cannot or will not use the app: staff key the card in
+    /// at the registration desk or at auction checkout, with the cardholder
+    /// standing there. The card itself goes straight to Stripe from the browser,
+    /// so it never reaches this API.
+    ///
+    /// Authorization is org+event ownership of the player rather than a session
+    /// token. The session-token path above is untouched — a golfer's own device
+    /// still cannot attach a card to somebody else's account.
+    /// </remarks>
+    public async Task<string> CreateSetupIntentForStaffAsync(
+        Guid orgId, Guid eventId, Guid playerId, CancellationToken ct = default)
+    {
+        var player = await LoadPlayerForStaffAsync(orgId, eventId, playerId, ct);
+        return await CreateSetupIntentCoreAsync(player, ct);
+    }
+
+    private async Task<string> CreateSetupIntentCoreAsync(Player player, CancellationToken ct)
+    {
+        var playerId = player.Id;
+
         StripeConfiguration.ApiKey = _config["STRIPE_SECRET_KEY"]
             ?? throw new InvalidOperationException("STRIPE_SECRET_KEY not configured");
 
@@ -84,6 +111,39 @@ public class PaymentsService
         // Authorization: same session-token gate as CreateSetupIntent.
         if (!Common.PlayerSessionAuth.Matches(player.SessionToken, sessionToken))
             throw new Common.Middleware.NotFoundException("Player", playerId);
+
+        await ConfirmSetupCoreAsync(player, setupIntentId, ct);
+    }
+
+    /// <summary>
+    /// Saves the card staff just entered on a golfer's behalf. Staff-authorized
+    /// twin of <see cref="ConfirmSetupAsync"/>.
+    /// </summary>
+    public async Task ConfirmSetupForStaffAsync(
+        Guid orgId, Guid eventId, Guid playerId, string setupIntentId, CancellationToken ct = default)
+    {
+        var player = await LoadPlayerForStaffAsync(orgId, eventId, playerId, ct);
+        await ConfirmSetupCoreAsync(player, setupIntentId, ct);
+    }
+
+    /// <summary>
+    /// Loads a player only if they really belong to an event this org owns —
+    /// the staff-side equivalent of checking a session token.
+    /// </summary>
+    private async Task<Player> LoadPlayerForStaffAsync(
+        Guid orgId, Guid eventId, Guid playerId, CancellationToken ct)
+    {
+        var owns = await _db.Events.AnyAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
+        if (!owns) throw new Common.Middleware.NotFoundException("Event", eventId);
+
+        return await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId && p.EventId == eventId, ct)
+            ?? throw new Common.Middleware.NotFoundException("Player", playerId);
+    }
+
+    private async Task ConfirmSetupCoreAsync(
+        Player player, string setupIntentId, CancellationToken ct)
+    {
+        var playerId = player.Id;
 
         StripeConfiguration.ApiKey = _config["STRIPE_SECRET_KEY"]
             ?? throw new InvalidOperationException("STRIPE_SECRET_KEY not configured");

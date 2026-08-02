@@ -454,9 +454,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         {
             winner.Property(w => w.Id).ValueGeneratedNever();
             winner.Property(w => w.ChargeStatus).HasConversion<string>();
+            winner.Property(w => w.SettlementMethod).HasConversion<string>();
 
             winner.HasIndex(w => w.AuctionItemId)
                   .HasDatabaseName("IX_auction_winners_auction_item_id");
+            // PlayerId — which the checkout desk queries by — is already indexed
+            // by EF convention off the Player FK below.
 
             winner.HasOne(w => w.AuctionItem)
                   .WithMany(i => i.Winners)
