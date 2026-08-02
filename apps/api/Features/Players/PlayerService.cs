@@ -208,6 +208,84 @@ public class PlayerService
         return MapToPlayerResponse(player);
     }
 
+    /// <summary>
+    /// Records (or clears) the entry fee for ONE golfer — the cash or check
+    /// actually handed over at the registration desk (D11).
+    ///
+    /// Deliberately per-golfer and separate from the team-level fee-paid
+    /// endpoint, which marks a whole roster at once and stays OrgAdmin. Desk
+    /// staff should be able to record the money in front of them without also
+    /// holding the roster-wide override. Fee state lives on the golfer (D13) —
+    /// this writes the same columns every reader already uses.
+    /// </summary>
+    public async Task<PlayerResponse> MarkFeePaidAsync(
+        Guid orgId, Guid eventId, Guid playerId, bool paid, CancellationToken ct = default)
+    {
+        var evt = await _db.Events
+            .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
+
+        if (evt is null)
+            throw new NotFoundException("Event", eventId);
+
+        var player = await _db.Players
+            .Include(p => p.Team)
+            .FirstOrDefaultAsync(p => p.Id == playerId && p.EventId == eventId, ct);
+
+        if (player is null)
+            throw new NotFoundException("Player", playerId);
+
+        if (!paid)
+        {
+            player.EntryFeePaidCents = 0;
+            player.EntryFeePaidAt    = null;
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation(
+                "Cleared entry fee for player {PlayerId} on event {EventId}", playerId, eventId);
+            return MapToPlayerResponse(player);
+        }
+
+        // A free event has no fee to record. Writing 0 would read as UNPAID to
+        // every consumer (D16), leaving the desk staring at a button that never
+        // resolves — so refuse with something actionable instead.
+        var fee = ReadEntryFeeFromConfig(evt.ConfigJson);
+        if (fee is null or <= 0)
+            throw new ValidationException(
+                "This event has no entry fee configured, so there is nothing to record as paid.");
+
+        // Idempotent: a golfer who already paid (online or at the desk) stays as
+        // they are rather than having their recorded amount overwritten.
+        if (player.EntryFeePaidCents > 0)
+            return MapToPlayerResponse(player);
+
+        player.EntryFeePaidCents = fee.Value;
+        player.EntryFeePaidAt    = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Recorded {Cents}c entry fee for player {PlayerId} on event {EventId}",
+            fee.Value, playerId, eventId);
+
+        return MapToPlayerResponse(player);
+    }
+
+    /// <summary>
+    /// Per-golfer entry fee from events.config. Mirrors TeamService's reader —
+    /// the config shape is the same and both write the same player columns.
+    /// </summary>
+    private static int? ReadEntryFeeFromConfig(string? json)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            var doc = System.Text.Json.JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty("entryFeeCents", out var v)
+                   && v.ValueKind == System.Text.Json.JsonValueKind.Number
+                ? v.GetInt32()
+                : null;
+        }
+        catch { return null; }
+    }
+
     public async Task RemoveAsync(
         Guid orgId, Guid eventId, Guid playerId, CancellationToken ct = default)
     {

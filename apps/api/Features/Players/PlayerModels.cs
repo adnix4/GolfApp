@@ -54,3 +54,12 @@ public record UpdatePlayerRequest
 
     public bool? ClearTeam { get; init; }
 }
+
+/// <summary>
+/// Records or clears ONE golfer's entry fee at the registration desk (D11).
+/// </summary>
+public record MarkPlayerFeePaidRequest
+{
+    /// <summary>True to record the fee as paid; false to clear a mistake.</summary>
+    public bool Paid { get; init; } = true;
+}

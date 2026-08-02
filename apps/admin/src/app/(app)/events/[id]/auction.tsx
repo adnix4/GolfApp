@@ -7,6 +7,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useTheme, MoneyInput } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { auctionApi, resolveUrl, type AuctionItem, type CreateAuctionItemPayload } from '@/lib/api';
+import { bidIncrementWarning } from '@/lib/auctionSetup';
 import {
   formatDateInput, formatTimeInput,
   buildIsoDateTime, parseIsoToFields,
@@ -116,6 +117,13 @@ export default function AuctionScreen() {
     setPendingPhotos([]);
     setShowModal(true);
   }
+
+  // Recomputed as the organizer types, so the warning appears and clears with
+  // the field rather than waiting for a save that is never going to fail.
+  const incrementWarning = bidIncrementWarning(
+    dollarsToCents(form.startingBid),
+    dollarsToCents(form.bidIncrement),
+  );
 
   function validate(): boolean {
     const errs: Record<string, string> = {};
@@ -390,6 +398,19 @@ export default function AuctionScreen() {
                   placeholderTextColor="#999"
                 />
               </View>
+              <Text style={styles.fieldHint}>
+                {form.auctionType === 'Silent'
+                  ? 'The step the app bids on a golfer\'s behalf, and the least a new bidder must add.'
+                  : 'The least a new bidder must add to the current bid.'}
+              </Text>
+              {/* A warning, not a validation error — the API accepts any
+                  increment, and this is the last moment the organizer can
+                  reconsider before the lot is live and people are bidding. */}
+              {incrementWarning && (
+                <Text style={styles.fieldWarning} accessibilityRole="alert">
+                  ⚠ {incrementWarning}
+                </Text>
+              )}
             </>
           )}
 
@@ -564,6 +585,14 @@ const styles = StyleSheet.create({
   },
   inputError: { borderColor: '#e74c3c', backgroundColor: '#fdf2f2' },
   fieldError: { color: '#e74c3c', fontSize: 12, marginTop: 3 },
+  fieldHint:  { color: '#6b7280', fontSize: 12, marginTop: 3 },
+  // Amber, not red: nothing here blocks the save.
+  fieldWarning: {
+    color: '#92400e', backgroundColor: '#fffbeb',
+    borderLeftWidth: 3, borderLeftColor: '#f59e0b',
+    fontSize: 12, lineHeight: 17, marginTop: 6,
+    paddingVertical: 6, paddingHorizontal: 8, borderRadius: 4,
+  },
   errorBox: {
     backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, marginBottom: 12,
     borderLeftWidth: 3, borderLeftColor: '#e74c3c',

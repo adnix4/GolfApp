@@ -16,23 +16,24 @@ P0 — BREAKS A LIVE EVENT, SMALL FIX, DO FIRST
 
 P1 — PILOT PATH (external lead times first; D1 gates D3 and D10)
      D1   accounts / domain / Apple / Stripe / email — start now, rest waits
-     D2   code hardening — no infra needed, can be done today
+     [x] D2  already complete — verified 2026-08-01, nothing to write
      D3   staging environment
      D4   dress rehearsal — the pilot succeeds or fails here
      D5   mobile distribution (EAS / TestFlight)
      D6   pilot ops — backups, error monitoring, day-of runbook
 
-P2 — CORRECTNESS THE ORGANIZER WILL HIT ON THE DAY
-     U5   scramble start holes unassigned when the event goes Active
-     D11  desk staff can't record a cash fee (needs a policy decision first)
+P2 — CORRECTNESS THE ORGANIZER WILL HIT ON THE DAY  (tier clear)
+     [x] U5  auto-assigned on the Active transition 2026-08-01
+     [x] D11 per-golfer fee endpoint at EventStaff 2026-08-01
 
 P3 — PERFORMANCE BEFORE A REAL CROWD
      [x] D18  both queries split 2026-08-01
 
 P4 — FEATURES / POLISH
-     U4   proxy (max) bidding — auction behaviour change, needs design
-     U2   sponsor banner on the web live scorecard
-     U3   auction banner on the live results page
+     [x] U4  proxy bidding, Silent items only, steps by the item's increment 2026-08-01
+     [x] U2  }  one combined marquee (sponsors + open lots), normal AND
+     [x] U3  }  TV mode, on the existing socket 2026-08-01
+     This tier is now clear.
 
 P5 — BLOCKED OR DEFERRED (no action available yet)
      D19  dev-loop fixes landed; three follow-ups, one gated on D6
@@ -64,7 +65,46 @@ they run in parallel with everything else.
           CRITICAL PATH: join email-verification codes must actually arrive
           once the dev bypass code is off (see A3 history in git).
 
-[ ] D2. CODE HARDENING (no infra needed; can be done now)
+[x] D2. CODE HARDENING — ALREADY COMPLETE, verified 2026-08-01.
+        Picked this up to implement and found every bullet already shipped,
+        piecemeal, across earlier work. Nothing was written; this entry was
+        stale. Evidence per bullet, so nobody re-investigates:
+        - Startup guard: Program.cs:76. Refuses to boot on ANY non-Development
+          environment when JoinVerification:TestBypassCode is set. Note it is
+          STRICTER than this entry asked for ("refuse in Production") — Staging
+          is blocked too. Confirmed live: ASPNETCORE_ENVIRONMENT=Production with
+          the code set throws InvalidOperationException and never listens.
+          (Watch out when testing this: `dotnet run` applies
+          Properties/launchSettings.json, which pins ASPNETCORE_ENVIRONMENT to
+          Development and silently masks the guard. Use --no-launch-profile.)
+        - ForwardedHeaders: Program.cs:166, opt-in via TRUST_FORWARDED_HEADERS,
+          clearing the loopback-only KnownNetworks/KnownProxies defaults because
+          a PaaS proxy address isn't knowable ahead of time. The opt-in flag is
+          itself the trust decision, which is the right call — trusting these
+          headers while exposed directly to the internet would let callers spoof
+          their IP past the per-IP rate limits.
+        - DataProtection: ServiceCollectionExtensions.cs:59, persists to
+          DATA_PROTECTION_KEYS_PATH when set; unset keeps the framework default
+          for local dev.
+        - Production CORS: ServiceCollectionExtensions.cs:55 (AddGfpCors).
+          GfpProduction policy reads CORS_ALLOWED_ORIGINS (comma-separated) and
+          FAILS CLOSED to the canonical domains rather than to "any origin".
+        - /health: Program.cs:283 — GET /api/health, anonymous, returns status
+          and UTC timestamp. Static only; it does NOT probe the DB or Redis, so
+          it answers "the process is up", not "the API can serve". Fine for an
+          uptime ping; if D6 wants dependency health, that is a new task.
+        - Migration story: Program.cs:112. Auto-migrate in Development, opt-in
+          elsewhere via GFP_MIGRATE_ON_STARTUP, and outside Development a failed
+          migration rethrows so a botched schema never serves traffic.
+        - DEPLOYMENT.md: docs/DEPLOYMENT.md exists (112 lines) with topology,
+          per-app sections for api/web/admin/mobile, a pre-pilot checklist, and
+          all four env vars above documented.
+        BONUS FOUND WHILE VERIFYING: ServiceCollectionExtensions.cs:254 already
+        fail-fasts on a missing JWT_SECRET with an actionable message. Confirmed
+        live — a Production start without it throws rather than booting on a
+        weak or absent signing key.
+
+    D2-ORIGINAL. CODE HARDENING (no infra needed; can be done now)
         - Startup guard: refuse to boot in Production when
           JoinVerification:TestBypassCode is set (converts the "999999 must
           never reach production" note into a can't).
@@ -273,13 +313,32 @@ they run in parallel with everything else.
         Until then the fallbacks hold: cash entry fees via markFeePaid, and
         check-in waiving the auction card requirement (D8) with re-charge/waive.
 
-[ ] D11. DESK STAFF CANNOT MARK A CASH FEE PAID (found 2026-07-31)
+[x] D11. DESK STAFF CANNOT MARK A CASH FEE PAID (found 2026-07-31)
         fee-paid is [Authorize(Policy="OrgAdmin")] (TeamController.cs:199) while
         check-in is EventStaff (PlayerController.cs:91). An EventStaff user
         working the registration desk can check golfers in but cannot record a
         cash/check entry fee — they'd have to fetch an org admin mid-queue.
         Small and Stripe-independent. Confirm who actually staffs the desk before
         changing the policy, since it also controls the roster-wide fee override.
+        RESOLVED 2026-08-01 — user chose the per-golfer route, not a policy flip.
+        Investigating turned up something the entry above missed: fee-paid is the
+        ONLY fee endpoint and it is TEAM-level, so "let staff record cash" and
+        "let staff override a whole foursome" were the same permission. Moving it
+        to EventStaff would have handed every desk volunteer the bulk override —
+        the same tool that papered over an unpaid roster in D13.
+        So: NEW POST /events/{id}/players/{playerId}/fee-paid at EventStaff,
+        recording one golfer at the configured per-golfer fee. The team-level
+        endpoint is UNCHANGED and stays OrgAdmin. This also matches D13's rule
+        that entry-fee state lives on the golfer, so nothing new is a source of
+        truth. Admin registration gains a per-golfer "Take Fee" button beside
+        Check In, hidden on free events under the same D16 rule as the team row.
+        Idempotent (a golfer who already paid keeps their recorded amount, which
+        may differ if they paid online), reversible (paid:false clears a
+        mis-tap), and it refuses on a free event rather than writing a 0 that
+        every reader treats as unpaid.
+        VERIFIED: 500 API tests (6 new), admin typecheck + 138 tests. Driven
+        live — one golfer 7500 while their team-mate stayed 0, clearing returned
+        it to 0, and a free event 400s with an actionable message.
 
 [x] D12. NO ITEM COULD BE BID ON, AND THE FAILURE WAS INVISIBLE (found 2026-07-31,
         fixed same day). Reported as "a checked-in golfer taps Bid and nothing
@@ -577,10 +636,130 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         marked complete by either the admin or the golfer through the mobile app
         the button should change to edit score."
 
-  [ ] U2. No sponsor banner scrolling across the web live scorecard.
+  [x] U2. (DONE 2026-08-01) No sponsor banner scrolling across the web live scorecard.
+  [x] U3. (DONE 2026-08-01) Add an auction scrolling banner to the live results web page.
+        DONE TOGETHER AS ONE TICKER, at the user's choice 2026-08-01 ("both
+        modes, one ticker"): sponsors and open auction lots share a single
+        continuous marquee (EventTicker.tsx) on BOTH the normal web scorecard
+        and the ?tv=1 kiosk board. Sponsors lead — they paid for placement and
+        their entry is static, so a fixed position is worth more to them than
+        sitting next to the bidding.
+        WHAT WAS THERE BEFORE was a TV-ONLY SponsorTicker that faded between
+        sponsors one at a time. Two problems it had: the normal scorecard —
+        which is what nearly every golfer and guest actually opens — carried no
+        sponsor recognition at all, and at one name per 5s a sponsor twelfth in
+        the list was effectively never seen. The old component is deleted.
+        NO SECOND SOCKET. The scores page is the busiest public page there is,
+        so rather than mounting useLiveAuction alongside useLiveLeaderboard,
+        useLiveLeaderboard gained an `onAuctionChanged` callback that forwards
+        the auction hub events over its EXISTING connection — the same trick
+        `onSponsorsChanged` already used. AUCTION_HUB_EVENTS moved into
+        tournamentHubEvents.ts so both hooks read one list. Refetch is debounced
+        400ms (one bid can emit BidPlaced + AuctionExtended) and falls back to
+        the 15s HTTP poll while the socket is down.
+        Reduced motion is honoured two ways: a CSS media query stops the
+        animation before hydration, and matchMedia then drops the duplicated
+        copy (which exists only to make the loop seamless) so the strip becomes
+        a plain swipeable list instead of the content twice.
+        VERIFIED: driven live at localhost:3000 against a seeded event with 3
+        sponsors + 4 lots. Normal mode 1280px and TV mode 1920px both render a
+        clipped, animating track (gfp-ticker 36s) with the page itself NOT
+        scrolling horizontally; screenshots reviewed. A bid posted while the
+        page sat open moved the strip from "Current bid $400.00" to
+        "$405.00" with no reload — proving the shared-socket signal path.
+        Closed lots are absent (GetPublicItemsAsync only returns Open/Extended).
+        NOT exercised: an actual projector, and reduced-motion rendering.
 
-  [ ] U3. Add an auction scrolling banner to the live results web page.
+  [x] U4. (DONE 2026-08-01) When a bid is placed it should be considered a Max bid and only raise the current bid to $1.00 above what the current bid or to the min bid. When someone else bids on the item the current bid should go to $1.00 above what the lowest max bid is set at. If there is a tie on the amount whoever entered their bid first is considered to hold the bid.
+        TWO DECISIONS THE USER MADE 2026-08-01, both of which change the numbers:
+        - THE STEP IS THE ITEM'S bid_increment_cents, NOT a flat $1.00, capped
+          at the winner's own max. So on a $5-increment lot a $70 max is beaten
+          at $75, not $71. The report said $1.00; the organizer already
+          configures an increment per item and two competing step sizes would
+          contradict each other.
+        - SILENT ITEMS ONLY. A Live lot is called out loud by an auctioneer, so
+          a hidden max would put the app and the room on different numbers, and
+          Fund-a-Need pledges stack rather than compete. Both keep the literal
+          "you bid what you typed" behavior. Do not widen this.
+        NO SCHEMA CHANGE. bids.amount_cents simply MEANS the golfer's max on a
+        Silent item; auction_items.current_high_bid_cents holds the public
+        price. The pure rule is AuctionBidRules.ResolveProxy: collapse to one
+        standing max per golfer, sort (max desc, placed asc), price =
+        min(leaderMax, max(startingBid, runnerUpMax + increment)). The tie rule
+        falls out of that sort rather than needing a special case — the cap and
+        the step meet at the tied figure, so a tie sells AT the tied amount to
+        whoever bid it first.
+        THREE PLACES THE MAX WOULD HAVE LEAKED OR OVERCHARGED, all fixed:
+        - CloseItemInternalAsync awarded the top bid AT ITS OWN AMOUNT. Under
+          proxy that bills the winner their private ceiling — $200 on a lot the
+          board showed at $75. It now awards the ladder leader at the settled
+          price (and prefers the column, so a buy-now sale bills the posted
+          price).
+        - SendBidPlacedAsync broadcast the submitted amount to EVERY client in
+          the event group. Now sends the public price on proxy items.
+        - The outbid email quoted the same submitted amount. Same fix.
+        Also: GetPlayerBidsAsync can no longer decide Winning/Outbid from the
+        golfer's own row (their max normally sits above the price, and on a tie
+        both golfers sit exactly at it), so it resolves the ladder per open
+        Silent item — one query for the set, not per item.
+        BidResponse gained CurrentHighBidCents because a proxy bid can be
+        ACCEPTED AND LOSE in the same breath; mobile now says "Bid placed — you
+        were outbid" instead of a flat "Bid placed!", labels the input as a
+        maximum, and prefixes history rows with "max".
+        VERIFIED: 520 API tests (26 new), 108 shared-types, 115 mobile, 138
+        admin, 33 theme; 0 TS errors, lint clean. Driven live end to end: sole
+        $200 max opened at $50; a $70 max pushed it to $75 and was outbid on
+        the spot; the leader raising to $400 did NOT move the price; a tie at
+        $400 sold at $400 to the earlier bidder; the public payload exposed only
+        the price; a Live lot still posted the called amount; and on close the
+        winner was billed $75, not $200.
+        NOT exercised: the mobile screens in a simulator (no RN component-test
+        harness), and a real Stripe charge (local keys are placeholders, so the
+        winner row lands in failed-charges — which is where the billed amount
+        was read from).
 
-  [ ] U4. When a bid is placed it should be considered a Max bid and only raise the current bid to $1.00 above what the current bid or to the min bid. When someone else bids on the item the current bid should go to $1.00 above what the lowest max bid is set at. If there is a tie on the amount whoever entered their bid first is considered to hold the bid.
+        ORGANIZER WARNING ON AN OVERSIZED INCREMENT (added 2026-08-01 at the
+        user's request). Making the increment the proxy step raised the cost of
+        setting it too high, so the admin item form now warns as the organizer
+        types (apps/admin/src/lib/auctionSetup.ts, bidIncrementWarning).
+        The increment does two jobs on a competitive lot and an oversized one
+        hurts in both: it is the ENTRY PRICE for every new bidder (the server
+        demands currentPrice + increment, so a $25 lot with a $50 increment asks
+        the second bidder for $75 before anyone has shown interest), and under
+        proxy it is the STEP spent on a golfer's behalf, so it burns through a
+        maximum in a couple of moves and the slow climb never happens. The
+        organizer sees a lot "nobody wanted" when nobody could get in cheaply.
+        Two tiers — a soft note past a quarter of the starting bid, a blunt one
+        at or above it — each quoting what the SECOND BIDDER would have to pay
+        and suggesting ~10% snapped to a typable figure. Amber, never blocking:
+        the API accepts any increment and this is a judgement call, not a rule.
+        Deliberately quiet on ordinary setups; a warning that fires on $5-on-$50
+        would teach organizers to ignore the box.
+        VERIFIED: 150 admin tests (12 new), including one that asserts the
+        suggested increment never itself trips the warning. NOT exercised: the
+        admin screen in a browser.
 
-  [ ] U5. On scramble events the starting hole should be assigned to each team when the event goes active. The mobile app should start scoring for each team at their assigned hole.
+  [x] U5. (DONE 2026-08-01) On scramble events the starting hole should be assigned to each team when the event goes active. The mobile app should start scoring for each team at their assigned hole.
+        THE MOBILE HALF WAS ALREADY BUILT — holeUtils.getHoleOrder() rotates the
+        hole order (startingHole=10, 18 holes -> 10..18,1..9) and scorecard.tsx,
+        preflight.tsx, team.tsx and round-end/sync.tsx all use it. Nothing was
+        assigning the holes, so every team arrived null and the scorecard
+        started all of them on hole 1 — the opposite of a shotgun.
+        Now EventService assigns on the → Active transition, via the pure
+        ShotgunAssignmentRules.AssignStartingHoles (tested separately). Fills by
+        lowest occupancy, tie-broken by lowest hole, so a fresh event lays out
+        1,2,3…, a partly-assigned one fills the empty holes, and >18 teams
+        double up evenly (A/B positions) instead of failing. Teams ordered by
+        name for a reproducible layout the organizer can read off the roster.
+        A hole already set on the admin shotgun screen is NEVER overwritten,
+        and re-entering Active on a fully-assigned event is a no-op — a mid-
+        event status change must not reshuffle the field.
+        TRIGGER CONFIRMED by the user 2026-08-01: StartType == Shotgun, NOT
+        Format == Scramble as the report was originally worded. Starting holes
+        are only meaningful for a shotgun; a scramble run on TEE TIMES sends
+        every team off hole 1 in turn, and stamping holes there would make the
+        scorecard lie about where they start. This is settled — do not widen it
+        to other start types.
+        VERIFIED: 494 API tests (11 new). Driven live — four teams read null
+        before the transition and 1/2/3/4 after; a manually-set hole survived;
+        a TeeTimes event assigned nothing.

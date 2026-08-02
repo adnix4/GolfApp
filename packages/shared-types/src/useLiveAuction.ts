@@ -35,7 +35,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as signalR from '@microsoft/signalr';
-import { silenceUnhandledHubEvents } from './tournamentHubEvents';
+import { AUCTION_HUB_EVENTS, silenceUnhandledHubEvents } from './tournamentHubEvents';
 
 export interface UseLiveAuctionOptions<TData> {
   /** Base URL of the API, no trailing slash. */
@@ -81,17 +81,7 @@ const DEFAULT_POLL_MS = 15_000;
 const DEFAULT_DEBOUNCE_MS = 400;
 
 /** Auction hub events that change what the Items/Live tabs display. */
-const AUCTION_EVENTS = [
-  'BidPlaced',
-  'PledgeReceived',
-  'AuctionTotalUpdated',
-  'AuctionAmountUpdated',
-  'ItemClosed',
-  'AuctionExtended',
-  'LiveAuctionStarted',
-  'LiveItemAdvanced',
-  'BidderCountUpdated',
-] as const;
+const AUCTION_EVENTS = AUCTION_HUB_EVENTS;
 
 export function useLiveAuction<TData>(
   opts: UseLiveAuctionOptions<TData>,

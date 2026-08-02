@@ -103,6 +103,27 @@ export default function RegistrationScreen() {
     finally { setBusy(b => ({ ...b, [player.id + '_ci']: false })); }
   }
 
+  // Per-golfer fee (D11). This is the cash actually handed over at the desk, so
+  // EventStaff can record it; the roster-wide "Mark All Paid" below stays
+  // OrgAdmin. Updates the team's playersPaid count so the pill repaints.
+  async function markGolferPaid(player: Player) {
+    setBusy(b => ({ ...b, [player.id + '_fee']: true }));
+    setError(null);
+    try {
+      const updated = await playersApi.markFeePaid(id, player.id);
+      setTeams(prev => prev.map(t => {
+        if (t.id !== player.teamId) return t;
+        const players = t.players.map(p => p.id === updated.id ? updated : p);
+        return {
+          ...t,
+          players,
+          playersPaid: players.filter(p => p.entryFeePaidCents > 0).length,
+        };
+      }));
+    } catch (e: any) { setError(e.message ?? 'Failed to record the fee.'); }
+    finally { setBusy(b => ({ ...b, [player.id + '_fee']: false })); }
+  }
+
   async function handleMarkPaid(teamId: string) {
     setBusy(b => ({ ...b, [teamId + '_fee']: true }));
     try {
@@ -317,6 +338,29 @@ export default function RegistrationScreen() {
                           ]}>
                             {player.hasPaymentMethod ? '✓ card' : '⚠ no card'}
                           </Text>
+                          {/* Cash/check taken at the desk — one golfer (D11).
+                              Hidden on free events, same rule as the team row. */}
+                          {hasEntryFee && (
+                            player.entryFeePaidCents > 0 ? (
+                              <Text style={[styles.cardTag, { color: '#27ae60' }]}>✓ paid</Text>
+                            ) : (
+                              <Pressable
+                                onPress={() => confirmAction(
+                                  'Record entry fee?',
+                                  `Mark ${name} as having paid the entry fee in cash or by check. `
+                                  + 'This records only this golfer, not the rest of the team.',
+                                  () => markGolferPaid(player),
+                                  'Record Payment',
+                                )}
+                                disabled={busy[player.id + '_fee']}
+                                style={[styles.golferBtn, { borderColor: '#2980b9' }]}
+                              >
+                                {busy[player.id + '_fee']
+                                  ? <ActivityIndicator size="small" color="#2980b9" />
+                                  : <Text style={[styles.golferBtnText, { color: '#2980b9' }]}>Take Fee</Text>}
+                              </Pressable>
+                            )
+                          )}
                           {golferIn ? (
                             <Text style={[styles.golferDone, { color: '#27ae60' }]}>Checked In</Text>
                           ) : !checkInOpen ? (

@@ -291,4 +291,96 @@ public class PlayerServiceTests
         await c.Db.SaveChangesAsync();
         return id;
     }
+
+    // ── Per-golfer entry fee at the desk (D11) ──────────────────────────────
+
+    private static void SetEntryFee(Ctx c, int cents)
+    {
+        c.Db.Events.Single(e => e.Id == c.EventId).ConfigJson =
+            $"{{\"entryFeeCents\":{cents}}}";
+        c.Db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task MarkFeePaid_records_the_configured_fee_for_one_golfer()
+    {
+        var c = Build();
+        SetEntryFee(c, 7500);
+        var added = await c.Svc.AddAsync(c.OrgId, c.EventId, NewPlayer());
+
+        await c.Svc.MarkFeePaidAsync(c.OrgId, c.EventId, added.Id, paid: true);
+
+        var player = c.Db.Players.Single(p => p.Id == added.Id);
+        Assert.Equal(7500, player.EntryFeePaidCents);
+        Assert.NotNull(player.EntryFeePaidAt);
+    }
+
+    [Fact]
+    public async Task MarkFeePaid_touches_only_the_named_golfer()
+    {
+        // The whole point of D11: this is NOT the roster-wide override.
+        var c = Build();
+        SetEntryFee(c, 7500);
+        var teamId = AddTeam(c);
+        var one = await c.Svc.AddAsync(c.OrgId, c.EventId, NewPlayer(teamId, "One"));
+        var two = await c.Svc.AddAsync(c.OrgId, c.EventId, NewPlayer(teamId, "Two"));
+
+        await c.Svc.MarkFeePaidAsync(c.OrgId, c.EventId, one.Id, paid: true);
+
+        Assert.Equal(7500, c.Db.Players.Single(p => p.Id == one.Id).EntryFeePaidCents);
+        Assert.Equal(0,    c.Db.Players.Single(p => p.Id == two.Id).EntryFeePaidCents);
+    }
+
+    [Fact]
+    public async Task MarkFeePaid_can_clear_a_mistake()
+    {
+        var c = Build();
+        SetEntryFee(c, 7500);
+        var added = await c.Svc.AddAsync(c.OrgId, c.EventId, NewPlayer());
+        await c.Svc.MarkFeePaidAsync(c.OrgId, c.EventId, added.Id, paid: true);
+
+        await c.Svc.MarkFeePaidAsync(c.OrgId, c.EventId, added.Id, paid: false);
+
+        var player = c.Db.Players.Single(p => p.Id == added.Id);
+        Assert.Equal(0, player.EntryFeePaidCents);
+        Assert.Null(player.EntryFeePaidAt);
+    }
+
+    [Fact]
+    public async Task MarkFeePaid_does_not_overwrite_an_amount_already_paid()
+    {
+        // A golfer who paid online at a different price keeps that record.
+        var c = Build();
+        SetEntryFee(c, 7500);
+        var added = await c.Svc.AddAsync(c.OrgId, c.EventId, NewPlayer());
+        var player = c.Db.Players.Single(p => p.Id == added.Id);
+        player.EntryFeePaidCents = 5000;
+        c.Db.SaveChanges();
+
+        await c.Svc.MarkFeePaidAsync(c.OrgId, c.EventId, added.Id, paid: true);
+
+        Assert.Equal(5000, c.Db.Players.Single(p => p.Id == added.Id).EntryFeePaidCents);
+    }
+
+    [Fact]
+    public async Task MarkFeePaid_refuses_on_a_free_event()
+    {
+        // D16: recording 0 reads as UNPAID to every consumer, so the desk would
+        // be left tapping a button that never resolves.
+        var c = Build();                       // ConfigJson = "{}" — no fee
+        var added = await c.Svc.AddAsync(c.OrgId, c.EventId, NewPlayer());
+
+        await Assert.ThrowsAsync<ValidationException>(
+            () => c.Svc.MarkFeePaidAsync(c.OrgId, c.EventId, added.Id, paid: true));
+    }
+
+    [Fact]
+    public async Task MarkFeePaid_rejects_a_golfer_from_another_event()
+    {
+        var c = Build();
+        SetEntryFee(c, 7500);
+
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => c.Svc.MarkFeePaidAsync(c.OrgId, c.EventId, Guid.NewGuid(), paid: true));
+    }
 }

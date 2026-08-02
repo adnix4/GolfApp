@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLiveLeaderboard } from '@gfp/shared-types';
-import type { PublicEventData, PublicLeaderboard, PublicLeaderboardEntry } from '@/lib/api';
-import { fetchPublicEventFresh } from '@/lib/api';
+import type {
+  PublicAuctionItem, PublicEventData, PublicLeaderboard, PublicLeaderboardEntry,
+} from '@/lib/api';
+import { fetchPublicAuctionItems, fetchPublicEventFresh } from '@/lib/api';
 import {
   buildThemeCss, cssKeyframes, hio, nm, tv,
 } from './scoresPollerStyles';
 import { ScoresRow } from './ScoresRow';
-import SponsorTicker from './SponsorTicker';
+import EventTicker from './EventTicker';
 import UpdatedAgo from './UpdatedAgo';
 
 const FALLBACK_POLL_MS = 15_000; // spec: 15-second SSE/HTTP fallback when WebSocket unavailable
@@ -30,13 +32,15 @@ async function fetchStandings(eventCode: string): Promise<PublicLeaderboardEntry
 export default function ScoresPoller({
   event,
   initialLeaderboard,
+  initialAuctionItems,
   eventCode,
   tvMode = false,
 }: {
-  event:              PublicEventData;
-  initialLeaderboard: PublicLeaderboard | null;
-  eventCode:          string;
-  tvMode?:            boolean;
+  event:               PublicEventData;
+  initialLeaderboard:  PublicLeaderboard | null;
+  initialAuctionItems: PublicAuctionItem[];
+  eventCode:           string;
+  tvMode?:             boolean;
 }) {
   // Live sponsor list — seeded from SSR, refreshed when the event's
   // SponsorsVersion bumps (via the SponsorsChanged signal, or the poll
@@ -51,6 +55,25 @@ export default function ScoresPoller({
     sponsorsVersionRef.current = fresh.sponsorsVersion;
     setSponsors(fresh.sponsors);
   }, [eventCode]);
+
+  // Open auction lots for the ticker. Unlike sponsors there's no version
+  // counter to compare against, so every signal costs a refetch — hence the
+  // debounce: one bid emits BidPlaced and can emit AuctionExtended with it.
+  const [auctionItems, setAuctionItems] = useState(initialAuctionItems);
+  const auctionDebounceRef              = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const refreshAuction = useCallback(async () => {
+    setAuctionItems(await fetchPublicAuctionItems(event.id));
+  }, [event.id]);
+
+  const scheduleAuctionRefresh = useCallback(() => {
+    if (auctionDebounceRef.current) clearTimeout(auctionDebounceRef.current);
+    auctionDebounceRef.current = setTimeout(refreshAuction, 400);
+  }, [refreshAuction]);
+
+  useEffect(() => () => {
+    if (auctionDebounceRef.current) clearTimeout(auctionDebounceRef.current);
+  }, []);
 
   const {
     standings: liveStandings,
@@ -69,16 +92,18 @@ export default function ScoresPoller({
     onSponsorsChanged: (version) => {
       if (version !== sponsorsVersionRef.current) refreshSponsors();
     },
+    // Reuses this hook's socket rather than opening a second one for the ticker.
+    onAuctionChanged: scheduleAuctionRefresh,
   });
 
-  // Poll fallback: while the hub is disconnected, check for a sponsor change
-  // on the same cadence as the standings fallback. No-op while connected —
-  // the SponsorsChanged signal covers that case.
+  // Poll fallback: while the hub is disconnected, check for a sponsor or
+  // auction change on the same cadence as the standings fallback. No-op while
+  // connected — the SponsorsChanged / auction signals cover that case.
   useEffect(() => {
     if (connected) return;
-    const id = setInterval(refreshSponsors, FALLBACK_POLL_MS);
+    const id = setInterval(() => { refreshSponsors(); refreshAuction(); }, FALLBACK_POLL_MS);
     return () => clearInterval(id);
-  }, [connected, refreshSponsors]);
+  }, [connected, refreshSponsors, refreshAuction]);
 
   const tableRef = useRef<HTMLDivElement>(null);
 
@@ -181,10 +206,9 @@ export default function ScoresPoller({
           </div>
         </header>
 
-        {/* ── SPONSOR TICKER (top, under the header) ── */}
-        {tvMode && sponsors.length > 0 && (
-          <SponsorTicker sponsors={sponsors} />
-        )}
+        {/* ── SPONSOR + AUCTION TICKER (top, under the header) ── */}
+        <EventTicker sponsors={sponsors} auctionItems={auctionItems} tvMode={tvMode} />
+
 
         {/* ── TABLE ── */}
         <main style={st.main}>

@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { needsPaymentMethod, minimumBidCents, isDonationItem } from '../auctionRules';
+import {
+  needsPaymentMethod, minimumBidCents, isDonationItem, usesProxyBidding,
+} from '../auctionRules';
 
 // Mirrors apps/api-tests/AuctionBidRulesTests.cs → NeedsPaymentMethodTests.
 // If one side changes, this file should fail before the drift reaches a golfer.
@@ -94,5 +96,19 @@ describe('isDonationItem', () => {
 
   it.each(['Silent', 'Live'])('treats %s as competitive', t => {
     expect(isDonationItem(t)).toBe(false);
+  });
+});
+
+// Mirrors apps/api-tests/AuctionBidRulesTests.cs → UsesProxyBiddingTests. The
+// client can't compute the proxy price itself (it never sees other golfers'
+// maxes), but it must know WHICH items hide a max, or the bid box tells people
+// the amount they typed is what the item now costs.
+describe('usesProxyBidding', () => {
+  it('applies to silent items', () => {
+    expect(usesProxyBidding('Silent')).toBe(true);
+  });
+
+  it.each(['Live', 'DonationSilent', 'DonationLive'])('does not apply to %s', t => {
+    expect(usesProxyBidding(t)).toBe(false);
   });
 });

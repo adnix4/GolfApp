@@ -391,9 +391,13 @@ export interface BidResponse {
   id: string;
   auctionItemId: string;
   playerId: string;
+  /** What was submitted. On a Silent item that's the bidder's own private max. */
   amountCents: number;
   placedAt: string;
   isWinning: boolean;
+  /** The item's public price after the bid — under proxy bidding this is usually
+   *  lower than amountCents, and a bid can be accepted while isWinning is false. */
+  currentHighBidCents: number;
   newClosesAt: string | null;
 }
 
@@ -410,6 +414,8 @@ export interface AuctionSessionDto {
 export interface PlayerBidHistoryItem {
   auctionItemId: string;
   itemTitle: string;
+  auctionType: string;
+  /** On a Silent (proxy) item this is the golfer's own maximum, not the price. */
   amountCents: number;
   status: string;
   placedAt: string;

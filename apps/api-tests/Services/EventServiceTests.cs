@@ -632,4 +632,77 @@ public class EventServiceTests
         Assert.Equal(4, resp.PlayersTotal);
         Assert.Equal(15000, resp.EntryFeesCents);
     }
+
+    // ── Shotgun starting holes on going Active (U5) ──────────────────────────
+
+    /// <summary>Going Active needs a course attached, plus some teams.</summary>
+    private static void SeedCourseAndTeams(Ctx c, params string[] teamNames)
+    {
+        var courseId = Guid.NewGuid();
+        c.Db.Courses.Add(new Course
+        {
+            Id = courseId, Name = "Test Links", Address = "1 Fairway",
+            City = "Testville", State = "MN", Zip = "55555",
+        });
+        var evt = c.Db.Events.Single(e => e.Id == c.EventId);
+        evt.CourseId = courseId;
+
+        foreach (var name in teamNames)
+        {
+            c.Db.Teams.Add(new Team
+            {
+                Id = Guid.NewGuid(), EventId = c.EventId, Name = name, MaxPlayers = 4,
+            });
+        }
+        c.Db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task Going_Active_assigns_starting_holes_on_a_shotgun_event()
+    {
+        var c = Build(EventStatus.Registration);
+        SeedCourseAndTeams(c, "Alpha", "Bravo", "Charlie");
+
+        await c.Svc.UpdateAsync(c.OrgId, c.EventId,
+            new UpdateEventRequest { Status = EventStatus.Active });
+
+        var holes = c.Db.Teams.Where(t => t.EventId == c.EventId)
+            .OrderBy(t => t.Name).Select(t => t.StartingHole).ToList();
+
+        Assert.All(holes, h => Assert.NotNull(h));
+        Assert.Equal(3, holes.Distinct().Count());
+    }
+
+    [Fact]
+    public async Task Going_Active_leaves_a_manually_assigned_team_alone()
+    {
+        var c = Build(EventStatus.Registration);
+        SeedCourseAndTeams(c, "Alpha", "Bravo");
+        var alpha = c.Db.Teams.Single(t => t.Name == "Alpha");
+        alpha.StartingHole = 12;          // set on the admin shotgun screen
+        c.Db.SaveChanges();
+
+        await c.Svc.UpdateAsync(c.OrgId, c.EventId,
+            new UpdateEventRequest { Status = EventStatus.Active });
+
+        Assert.Equal((short)12, c.Db.Teams.Single(t => t.Name == "Alpha").StartingHole);
+        Assert.NotNull(c.Db.Teams.Single(t => t.Name == "Bravo").StartingHole);
+    }
+
+    [Fact]
+    public async Task Going_Active_does_not_assign_holes_on_a_tee_time_event()
+    {
+        // Tee-time events start every team at hole 1 in turn, so a starting
+        // hole would be meaningless — and would make the scorecard lie.
+        var c = Build(EventStatus.Registration);
+        SeedCourseAndTeams(c, "Alpha", "Bravo");
+        c.Db.Events.Single(e => e.Id == c.EventId).StartType = EventStartType.TeeTimes;
+        c.Db.SaveChanges();
+
+        await c.Svc.UpdateAsync(c.OrgId, c.EventId,
+            new UpdateEventRequest { Status = EventStatus.Active });
+
+        Assert.All(c.Db.Teams.Where(t => t.EventId == c.EventId),
+                   t => Assert.Null(t.StartingHole));
+    }
 }

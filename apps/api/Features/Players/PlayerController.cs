@@ -84,6 +84,31 @@ public class PlayerController : ControllerBase
     }
 
     /// <summary>
+    /// Records (or clears) ONE golfer's entry fee — the cash or check taken at
+    /// the registration desk (D11).
+    ///
+    /// EventStaff, matching check-in: a desk volunteer who can check a golfer in
+    /// can also record the money that golfer just handed over. The team-level
+    /// fee-paid endpoint marks a whole roster at once and stays OrgAdmin.
+    /// </summary>
+    [HttpPost("api/v1/events/{eventId:guid}/players/{playerId:guid}/fee-paid")]
+    [Authorize(Policy = "EventStaff")]
+    [ProducesResponseType(typeof(PlayerResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PlayerResponse>> MarkFeePaid(
+        [FromRoute] Guid eventId,
+        [FromRoute] Guid playerId,
+        [FromBody]  MarkPlayerFeePaidRequest request,
+        CancellationToken ct)
+    {
+        var orgId    = GetOrgId();
+        var response = await _playerService.MarkFeePaidAsync(
+            orgId, eventId, playerId, request.Paid, ct);
+        return Ok(response);
+    }
+
+    /// <summary>
     /// Manually checks in a player. Idempotent — safe to call if already checked in.
     /// Also marks the team as Complete when the last player on the team is checked in.
     /// </summary>
