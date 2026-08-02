@@ -166,3 +166,52 @@ public record FailedChargeResponse
     public string StripePaymentIntentId { get; init; } = string.Empty;
     public DateTime FailedAt           { get; init; }
 }
+
+// ── END AUCTION ────────────────────────────────────────────────────────────────
+//
+// The organizer's end-of-night settlement. Preview and result share one shape on
+// purpose: the preview promises what the POST will do, and returning the same
+// record makes a mismatch obvious instead of subtle.
+
+public record AuctionEndSummary
+{
+    /// <summary>Lots that closed (or would close) in this pass.</summary>
+    public int LotsClosed        { get; init; }
+
+    /// <summary>Of those, how many had at least one bid and produced a winner.</summary>
+    public int LotsSold          { get; init; }
+
+    /// <summary>Of those, how many received no bids at all and end Unsold.</summary>
+    public int LotsUnsold        { get; init; }
+
+    /// <summary>Winner rows created (or that would be) — a Fund-a-Need produces one per pledger.</summary>
+    public int WinnersCreated    { get; init; }
+
+    /// <summary>Total owed at checkout across those winners, excluding Fund-a-Need pledges which charge on close.</summary>
+    public int OutstandingCents  { get; init; }
+
+    /// <summary>
+    /// Winners with no card on file. They can still pay at the desk by card,
+    /// cash or check — but the organizer wants to know before settling, because
+    /// check-in waives the saved-card requirement for bidding.
+    /// </summary>
+    public int WinnersWithoutCard { get; init; }
+
+    /// <summary>True if a live session was running (and has now been ended).</summary>
+    public bool LiveSessionEnded { get; init; }
+
+    /// <summary>
+    /// Live lots the host never awarded. Deliberately left Open rather than
+    /// force-closed: on-stage bidding is tracked by called amount, not by real
+    /// bid rows, so the highest recorded bid may belong to someone who stopped
+    /// bidding long before the hammer fell.
+    /// </summary>
+    public List<ParkedLiveLot> LiveLotsAwaitingAward { get; init; } = [];
+}
+
+public record ParkedLiveLot
+{
+    public Guid   ItemId              { get; init; }
+    public string Title               { get; init; } = string.Empty;
+    public int    CurrentHighBidCents { get; init; }
+}

@@ -131,7 +131,9 @@ public class AuctionCloseJobIntegrationTests
     {
         var (svc, db) = Build();
         var (_, eventId) = await SeedEventAsync(db);
+        var player = AddPlayer(db, eventId);
         var item = AddItem(db, eventId, AuctionType.Silent, DateTime.UtcNow.AddMinutes(-5));
+        AddBid(db, item.Id, player.Id, 5000); // a lot that sold — see Unsold test below
         await db.SaveChangesAsync();
 
         await svc.ProcessExpiredItemsAsync();
@@ -303,11 +305,14 @@ public class AuctionCloseJobIntegrationTests
         Assert.Contains(winners, w => w.PlayerId == p3.Id && w.AmountCents == 2500);
     }
 
-    // ── Silent item with no bids gets closed but creates no winner ────────────
+    // ── Silent item with no bids ends Unsold, not Closed ──────────────────────
 
     [Fact]
-    public async Task ProcessExpiredItemsAsync_closes_silent_item_with_no_bids_and_no_winner()
+    public async Task ProcessExpiredItemsAsync_marks_a_silent_item_with_no_bids_Unsold()
     {
+        // Unsold exists so the organizer can see what failed to sell and re-offer
+        // it. Ending as plain Closed made a no-bid lot indistinguishable from one
+        // that sold for real money.
         var (svc, db) = Build();
         var (_, eventId) = await SeedEventAsync(db);
         var item = AddItem(db, eventId, AuctionType.Silent, DateTime.UtcNow.AddMinutes(-1));
@@ -315,7 +320,7 @@ public class AuctionCloseJobIntegrationTests
 
         await svc.ProcessExpiredItemsAsync();
 
-        Assert.Equal(AuctionItemStatus.Closed, (await db.AuctionItems.FindAsync(item.Id))!.Status);
+        Assert.Equal(AuctionItemStatus.Unsold, (await db.AuctionItems.FindAsync(item.Id))!.Status);
         Assert.Empty(db.AuctionWinners.Where(w => w.AuctionItemId == item.Id));
     }
 
@@ -335,8 +340,53 @@ public class AuctionCloseJobIntegrationTests
 
         await svc.ProcessExpiredItemsAsync();
 
-        Assert.Equal(AuctionItemStatus.Closed, (await db.AuctionItems.FindAsync(i1.Id))!.Status);
-        Assert.Equal(AuctionItemStatus.Closed, (await db.AuctionItems.FindAsync(i2.Id))!.Status);
+        // Neither expired lot drew a bid, so both end Unsold rather than Closed.
+        Assert.Equal(AuctionItemStatus.Unsold, (await db.AuctionItems.FindAsync(i1.Id))!.Status);
+        Assert.Equal(AuctionItemStatus.Unsold, (await db.AuctionItems.FindAsync(i2.Id))!.Status);
         Assert.Equal(AuctionItemStatus.Open,   (await db.AuctionItems.FindAsync(i3.Id))!.Status);
+    }
+
+    // ── Closing no longer charges: the winner settles at the checkout desk ────
+
+    [Fact]
+    public async Task Closing_a_competitive_lot_leaves_the_winner_Pending_and_charges_nobody()
+    {
+        // The whole point of the checkout desk. Charging on close billed people
+        // for items they had not collected, and a 3DS challenge died unanswered
+        // because nobody was there to answer it.
+        var (svc, db) = Build();
+        var (_, eventId) = await SeedEventAsync(db);
+        var player = AddPlayer(db, eventId);
+        var item   = AddItem(db, eventId, AuctionType.Silent, DateTime.UtcNow.AddMinutes(-1));
+        AddBid(db, item.Id, player.Id, 9000);
+        await db.SaveChangesAsync();
+
+        await svc.ProcessExpiredItemsAsync();
+
+        var winner = Assert.Single(db.AuctionWinners.Where(w => w.AuctionItemId == item.Id));
+        Assert.Equal(ChargeStatus.Pending, winner.ChargeStatus);
+        Assert.Null(winner.StripePaymentIntentId);
+        Assert.Null(winner.CheckedOutAt);
+        Assert.Null(winner.SettlementMethod);
+        Assert.Null(winner.PickedUpAt);
+    }
+
+    [Fact]
+    public async Task Closing_a_Fund_a_Need_still_charges_on_close()
+    {
+        // A pledge has nothing to collect, so there is no desk visit to wait for.
+        // With no Stripe customer configured the attempt fails — which is itself
+        // the proof that a charge WAS attempted, unlike a competitive lot.
+        var (svc, db) = Build();
+        var (_, eventId) = await SeedEventAsync(db);
+        var player = AddPlayer(db, eventId);
+        var item   = AddItem(db, eventId, AuctionType.DonationSilent, DateTime.UtcNow.AddMinutes(-1));
+        AddBid(db, item.Id, player.Id, 2500);
+        await db.SaveChangesAsync();
+
+        await svc.ProcessExpiredItemsAsync();
+
+        var winner = Assert.Single(db.AuctionWinners.Where(w => w.AuctionItemId == item.Id));
+        Assert.NotEqual(ChargeStatus.Pending, winner.ChargeStatus);
     }
 }

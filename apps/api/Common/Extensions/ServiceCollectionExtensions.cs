@@ -237,6 +237,7 @@ public static class ServiceCollectionExtensions
         // Phase 4: Payments + Auction
         services.AddScoped<Features.Payments.PaymentsService>();
         services.AddScoped<Features.Auction.AuctionService>();
+        services.AddScoped<Features.Auction.AuctionCheckoutService>();
         services.AddScoped<Features.Auction.AuctionCloseJob>();
 
         // Phase 5: League Play

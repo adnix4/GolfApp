@@ -12,6 +12,7 @@ import {
   isCheckedIn as statusIsCheckedIn, checkInConfirmCopy, cardlessHint,
   canCheckInWholeTeam, golfersWithoutCard,
 } from '@/lib/checkIn';
+import { AddCardModal, cardCaptureEnabled } from '@/components/AddCardModal';
 
 type Filter = 'all' | 'pending' | 'checked_in';
 
@@ -33,6 +34,9 @@ export default function RegistrationScreen() {
   const [filter,  setFilter]  = useState<Filter>('all');
   const [busy,       setBusy]       = useState<Record<string, boolean>>({});
   const [walkUpOpen, setWalkUpOpen] = useState(false);
+  // Capturing a card at the desk is what stops a checked-in golfer bidding all
+  // evening against a charge that can never land.
+  const [cardFor, setCardFor] = useState<Player | null>(null);
 
   // Check-in is Active/Scoring only server-side; without the event status this
   // screen would render Check In buttons that 400 once the round ends.
@@ -332,12 +336,18 @@ export default function RegistrationScreen() {
                           <Text style={[styles.golferName, { color: theme.colors.primary }]} numberOfLines={1}>
                             {name}
                           </Text>
-                          <Text style={[
-                            styles.cardTag,
-                            { color: player.hasPaymentMethod ? '#27ae60' : '#f39c12' },
-                          ]}>
-                            {player.hasPaymentMethod ? '✓ card' : '⚠ no card'}
-                          </Text>
+                          {player.hasPaymentMethod ? (
+                            <Text style={[styles.cardTag, { color: '#27ae60' }]}>✓ card</Text>
+                          ) : cardCaptureEnabled ? (
+                            // Tap the warning to key the card in at the desk.
+                            <Pressable onPress={() => setCardFor(player)}>
+                              <Text style={[styles.cardTag, styles.cardTagAction, { color: '#f39c12' }]}>
+                                ⚠ add card
+                              </Text>
+                            </Pressable>
+                          ) : (
+                            <Text style={[styles.cardTag, { color: '#f39c12' }]}>⚠ no card</Text>
+                          )}
                           {/* Cash/check taken at the desk — one golfer (D11).
                               Hidden on free events, same rule as the team row. */}
                           {hasEntryFee && (
@@ -387,6 +397,17 @@ export default function RegistrationScreen() {
               </View>
             );
           }}
+        />
+      )}
+
+      {cardFor && (
+        <AddCardModal
+          visible
+          eventId={id}
+          playerId={cardFor.id}
+          playerName={`${cardFor.firstName} ${cardFor.lastName}`.trim()}
+          onClose={() => setCardFor(null)}
+          onSaved={load}
         />
       )}
     </View>
@@ -670,6 +691,7 @@ const styles = StyleSheet.create({
   golferRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   golferName: { fontSize: 14, fontWeight: '600', flex: 1 },
   cardTag: { fontSize: 12, fontWeight: '600', minWidth: 66 },
+  cardTagAction: { textDecorationLine: 'underline' },
   golferDone: { fontSize: 12, fontWeight: '700', minWidth: 96, textAlign: 'right' },
   golferBtn: { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 4, minWidth: 96, alignItems: 'center', justifyContent: 'center' },
   golferBtnText: { fontSize: 12, fontWeight: '700' },

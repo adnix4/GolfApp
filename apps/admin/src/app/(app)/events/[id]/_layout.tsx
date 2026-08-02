@@ -46,6 +46,7 @@ const GROUPS: Group[] = [
       { label: 'Challenges',   path: 'challenges'  },
       { label: 'Auction Items',path: 'auction'     },
       { label: 'Live Auction', path: 'live-auction'},
+      { label: 'Checkout',     path: 'checkout'    },
     ],
   },
   {

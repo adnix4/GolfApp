@@ -261,6 +261,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("charge_status");
 
+                    b.Property<DateTime?>("CheckedOutAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("checked_out_at");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -269,6 +273,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_test");
 
+                    b.Property<DateTime?>("PickedUpAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("picked_up_at");
+
                     b.Property<Guid>("PlayerId")
                         .HasColumnType("uuid")
                         .HasColumnName("player_id");
@@ -276,6 +284,14 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                     b.Property<bool>("ReceiptSent")
                         .HasColumnType("boolean")
                         .HasColumnName("receipt_sent");
+
+                    b.Property<Guid?>("SettledByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("settled_by_user_id");
+
+                    b.Property<string>("SettlementMethod")
+                        .HasColumnType("text")
+                        .HasColumnName("settlement_method");
 
                     b.Property<string>("StripePaymentIntentId")
                         .HasMaxLength(100)

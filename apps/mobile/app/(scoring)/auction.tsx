@@ -17,7 +17,8 @@ import {
   fetchPlayerBidHistory, fetchActiveAuctionSession,
   raiseHand,
   resolveUrl,
-  AuctionItemDto, AuctionSessionDto, PlayerBidHistoryItem,
+  fetchMyCheckout,
+  AuctionItemDto, AuctionSessionDto, PlayerBidHistoryItem, CheckoutCartDto,
 } from '@/lib/api';
 
 type Tab = 'items' | 'history' | 'live';
@@ -122,6 +123,9 @@ export default function AuctionScreen() {
   const [bidError, setBidError]   = useState<string | null>(null);
   const [raisingHand, setRaisingHand] = useState(false);
   const [handRaised,  setHandRaised]  = useState(false);
+  // Winnings. A closed lot drops straight out of the list, so without this the
+  // golfer's only sign they won anything was a status string on a My Bids row.
+  const [cart, setCart] = useState<CheckoutCartDto | null>(null);
 
   // Live auction snapshot: SignalR bid/pledge/close events trigger a coalesced
   // refetch so amounts update without a manual pull-to-refresh. The hook keys
@@ -162,6 +166,16 @@ export default function AuctionScreen() {
   useEffect(() => {
     if (tab === 'history') loadHistory();
   }, [tab, loadHistory]);
+
+  // Winnings, refreshed whenever the auction data changes — an ItemClosed event
+  // is exactly when a golfer becomes a winner.
+  const loadCart = useCallback(async () => {
+    if (!player?.id || !session?.sessionToken) return;
+    try { setCart(await fetchMyCheckout(player.id, session.sessionToken)); }
+    catch { /* non-critical: the banner just stays hidden */ }
+  }, [player?.id, session?.sessionToken]);
+
+  useEffect(() => { loadCart(); }, [loadCart, items.length]);
 
   async function handleRaiseHand() {
     if (!eventId || raisingHand) return;
@@ -261,6 +275,28 @@ export default function AuctionScreen() {
         <View style={styles.errorBanner}>
           <Text style={styles.errorBannerText}>Could not load auction data. Pull down to retry.</Text>
         </View>
+      )}
+
+      {/* Won something. Sits above the card prompt because collecting an item
+          you already won matters more than bidding on the next one. */}
+      {cart && cart.lines.length > 0 && (
+        <Pressable
+          style={styles.wonBanner}
+          onPress={() => router.push('/auction-checkout')}
+          accessibilityRole="button"
+        >
+          <View style={styles.paymentWarningRow}>
+            <Text style={styles.wonBannerText}>
+              🎉 You won {cart.lines.length} item{cart.lines.length === 1 ? '' : 's'}
+              {cart.outstandingCents > 0
+                ? ` — ${formatCentsShort(cart.outstandingCents)} to pay`
+                : ' — paid, ready to collect'}
+            </Text>
+            <Text style={styles.wonBannerLink}>
+              {cart.outstandingCents > 0 ? 'Check Out →' : 'View →'}
+            </Text>
+          </View>
+        </Pressable>
       )}
 
       {/* No payment method — and not yet checked in, so bidding is still locked */}
@@ -670,6 +706,10 @@ const styles = StyleSheet.create({
   paymentWarningRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   paymentWarningText: { color: '#b7770d', fontSize: 13, flex: 1 },
   paymentWarningLink: { color: '#e67e22', fontSize: 13, fontWeight: '700' },
+  // Green, not amber: winning is good news, and it must not read as another warning.
+  wonBanner:     { backgroundColor: '#ecfdf5', borderLeftWidth: 3, borderLeftColor: '#10b981', padding: 12 },
+  wonBannerText: { color: '#065f46', fontSize: 13, fontWeight: '600', flex: 1 },
+  wonBannerLink: { color: '#059669', fontSize: 13, fontWeight: '700' },
   checkedInNotice:     { backgroundColor: '#eafaf1', borderLeftWidth: 3, borderLeftColor: '#27ae60', padding: 12 },
   checkedInNoticeText: { color: '#1e8449', fontSize: 13 },
 });

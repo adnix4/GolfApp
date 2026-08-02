@@ -547,6 +547,77 @@ export async function fetchPlayerBidHistory(playerId: string): Promise<PlayerBid
   return res.json();
 }
 
+// ── AUCTION CHECKOUT ──────────────────────────────────────────────────────────
+//
+// Closing a lot no longer charges the winner: they settle at the checkout desk
+// when they collect the item, or confirm their saved card here first so the desk
+// visit is just a handover.
+
+export interface CheckoutLineDto {
+  winnerId:         string;
+  auctionItemId:    string;
+  itemTitle:        string;
+  amountCents:      number;
+  chargeStatus:     'Pending' | 'Succeeded' | 'Failed' | 'Waived';
+  settlementMethod: 'Card' | 'Cash' | 'Check' | null;
+  checkedOutAt:     string | null;
+  pickedUpAt:       string | null;
+}
+
+export interface CheckoutCartDto {
+  playerId:         string;
+  playerName:       string;
+  playerEmail:      string;
+  hasPaymentMethod: boolean;
+  totalCents:       number;
+  settledCents:     number;
+  outstandingCents: number;
+  lines:            CheckoutLineDto[];
+}
+
+export interface SettleResultDto {
+  settled:      number;
+  failed:       number;
+  settledCents: number;
+  cart:         CheckoutCartDto;
+}
+
+/** What this golfer won and still owes. Authorized by the /join session token. */
+export async function fetchMyCheckout(
+  playerId: string, sessionToken: string,
+): Promise<CheckoutCartDto> {
+  const res = await gfpFetch(
+    `${BASE}/api/v1/players/${playerId}/auction/checkout`
+    + `?sessionToken=${encodeURIComponent(sessionToken)}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `Checkout fetch failed (${res.status})`);
+  }
+  return res.json();
+}
+
+/**
+ * Confirms the saved card and pays for everything won. Card only — cash and
+ * check are things staff physically receive at the desk.
+ */
+export async function confirmMyCheckout(
+  playerId: string, sessionToken: string,
+): Promise<SettleResultDto> {
+  const res = await gfpFetch(
+    `${BASE}/api/v1/players/${playerId}/auction/checkout/confirm`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionToken }),
+    });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    // NO_PAYMENT_METHOD is expected — the screen routes to card setup.
+    throw new Error(err.error ?? `Checkout failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export async function fetchActiveAuctionSession(eventId: string): Promise<AuctionSessionDto | null> {
   const res = await gfpFetch(`${BASE}/api/v1/events/${eventId}/auction/sessions/active`);
   if (res.status === 204) return null;

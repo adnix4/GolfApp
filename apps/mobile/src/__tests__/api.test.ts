@@ -14,6 +14,7 @@ import {
   createSetupIntent, confirmSetup,
   fetchPlayerBidHistory, fetchActiveAuctionSession,
   fetchEventStatus,
+  fetchMyCheckout, confirmMyCheckout,
 } from '../lib/api';
 import type { PendingScore } from '../lib/api';
 
@@ -489,5 +490,73 @@ describe('fetchActiveAuctionSession', () => {
     mockErr(500, { error: 'Internal error' });
     const result = await fetchActiveAuctionSession('ev1');
     expect(result).toBeNull();
+  });
+});
+
+// ── Auction checkout ──────────────────────────────────────────────────────────
+//
+// Closing a lot no longer charges the winner — they settle at the desk, or
+// confirm their saved card here first.
+
+describe('fetchMyCheckout', () => {
+  const cart = {
+    playerId: 'p1', playerName: 'Dana Winner', playerEmail: 'd@t.com',
+    hasPaymentMethod: false,
+    totalCents: 3500, settledCents: 0, outstandingCents: 3500,
+    lines: [{
+      winnerId: 'w1', auctionItemId: 'i1', itemTitle: 'Signed Flag',
+      amountCents: 3500, chargeStatus: 'Pending',
+      settlementMethod: null, checkedOutAt: null, pickedUpAt: null,
+    }],
+  };
+
+  it('passes the session token, which is the whole authorization', async () => {
+    // Golfers have no password, so without this the request cannot identify them.
+    mockOk(cart);
+    await fetchMyCheckout('p1', 'tok-abc');
+    const url = mockFetch.mock.calls[0][0] as string;
+    expect(url).toContain('/api/v1/players/p1/auction/checkout');
+    expect(url).toContain('sessionToken=tok-abc');
+  });
+
+  it('url-encodes a token containing url-unsafe characters', async () => {
+    mockOk(cart);
+    await fetchMyCheckout('p1', 'a+b/c=d');
+    expect(mockFetch.mock.calls[0][0] as string).toContain('sessionToken=a%2Bb%2Fc%3Dd');
+  });
+
+  it('returns the cart with its outstanding balance', async () => {
+    mockOk(cart);
+    const result = await fetchMyCheckout('p1', 'tok');
+    expect(result.outstandingCents).toBe(3500);
+    expect(result.lines[0].itemTitle).toBe('Signed Flag');
+  });
+
+  it('throws when the token is rejected', async () => {
+    mockErr(404, { error: 'Player not found' });
+    await expect(fetchMyCheckout('p1', 'wrong')).rejects.toThrow('Player not found');
+  });
+});
+
+describe('confirmMyCheckout', () => {
+  it('posts the session token in the body', async () => {
+    mockOk({ settled: 1, failed: 0, settledCents: 3500, cart: {} });
+    await confirmMyCheckout('p1', 'tok-abc');
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toContain('/api/v1/players/p1/auction/checkout/confirm');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ sessionToken: 'tok-abc' });
+  });
+
+  it('surfaces NO_PAYMENT_METHOD so the screen can route to card setup', async () => {
+    mockErr(400, { error: 'NO_PAYMENT_METHOD' });
+    await expect(confirmMyCheckout('p1', 'tok')).rejects.toThrow('NO_PAYMENT_METHOD');
+  });
+
+  it('reports a declined card rather than pretending it settled', async () => {
+    mockOk({ settled: 0, failed: 1, settledCents: 0, cart: { outstandingCents: 3500 } });
+    const result = await confirmMyCheckout('p1', 'tok');
+    expect(result.failed).toBe(1);
+    expect(result.settledCents).toBe(0);
   });
 });

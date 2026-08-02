@@ -582,6 +582,21 @@ export const auctionApi = {
       method: 'POST', body: { playerId, amountCents },
     }),
 
+  /**
+   * What ending the auction now would do — no side effects. Drives the confirm
+   * dialog so the organizer sees the damage before committing to something the
+   * app cannot undo.
+   */
+  endPreview: (eventId: string) =>
+    request<AuctionEndSummary>(`/api/v1/events/${eventId}/auction/end/preview`),
+
+  /**
+   * Closes every lot still taking bids and ends any running live session. Live
+   * lots the host never awarded are deliberately left Open for a manual award.
+   */
+  endAuction: (eventId: string) =>
+    request<AuctionEndSummary>(`/api/v1/events/${eventId}/auction/end`, { method: 'POST', body: {} }),
+
   getFailedCharges: (eventId: string) =>
     request<FailedCharge[]>(`/api/v1/events/${eventId}/auction/failed-charges`),
 
@@ -656,6 +671,111 @@ export interface FailedCharge {
   stripePaymentIntentId: string;
   failedAt: string;
 }
+
+export interface ParkedLiveLot {
+  itemId: string;
+  title: string;
+  currentHighBidCents: number;
+}
+
+export interface AuctionEndSummary {
+  lotsClosed: number;
+  lotsSold: number;
+  lotsUnsold: number;
+  winnersCreated: number;
+  /** Owed at the checkout desk. Excludes Fund-a-Need pledges, which charge on close. */
+  outstandingCents: number;
+  /** Winners with no card on file — they can still pay by card, cash or check at the desk. */
+  winnersWithoutCard: number;
+  liveSessionEnded: boolean;
+  liveLotsAwaitingAward: ParkedLiveLot[];
+}
+
+// ── AUCTION CHECKOUT ─────────────────────────────────────────────────────────
+
+export type SettlementMethod = 'Card' | 'Cash' | 'Check';
+
+export interface CheckoutDeskRow {
+  playerId: string;
+  playerName: string;
+  playerEmail: string;
+  itemsWon: number;
+  itemsPickedUp: number;
+  totalCents: number;
+  settledCents: number;
+  outstandingCents: number;
+  hasPaymentMethod: boolean;
+  /** Paid in full AND everything handed over. */
+  isComplete: boolean;
+}
+
+export interface CheckoutLine {
+  winnerId: string;
+  auctionItemId: string;
+  itemTitle: string;
+  amountCents: number;
+  chargeStatus: 'Pending' | 'Succeeded' | 'Failed' | 'Waived';
+  settlementMethod: SettlementMethod | null;
+  checkedOutAt: string | null;
+  pickedUpAt: string | null;
+}
+
+export interface CheckoutCart {
+  playerId: string;
+  playerName: string;
+  playerEmail: string;
+  hasPaymentMethod: boolean;
+  totalCents: number;
+  settledCents: number;
+  outstandingCents: number;
+  lines: CheckoutLine[];
+}
+
+export interface SettleResult {
+  settled: number;
+  failed: number;
+  settledCents: number;
+  cart: CheckoutCart;
+}
+
+/**
+ * Saving a card on a golfer's behalf, keyed in by staff with the cardholder
+ * present. Authorized by the staff JWT plus org+event ownership of the player —
+ * deliberately not the golfer's session token, which they would have to produce.
+ */
+export const paymentMethodApi = {
+  createSetupIntent: (eventId: string, playerId: string) =>
+    request<{ clientSecret: string }>(
+      `/api/v1/events/${eventId}/players/${playerId}/payment-method/setup-intent`,
+      { method: 'POST', body: {} }),
+
+  confirmSetup: (eventId: string, playerId: string, setupIntentId: string) =>
+    request<{ hasPaymentMethod: boolean }>(
+      `/api/v1/events/${eventId}/players/${playerId}/payment-method/confirm`,
+      { method: 'POST', body: { setupIntentId } }),
+};
+
+/**
+ * The auction checkout desk. Winners are no longer charged when a lot closes —
+ * they settle here when they collect the item.
+ */
+export const checkoutApi = {
+  getDesk: (eventId: string) =>
+    request<CheckoutDeskRow[]>(`/api/v1/events/${eventId}/auction/checkout`),
+
+  getCart: (eventId: string, playerId: string) =>
+    request<CheckoutCart>(`/api/v1/events/${eventId}/auction/checkout/${playerId}`),
+
+  /** Settles everything one golfer owes: card on file, or cash/check taken at the desk. */
+  settle: (eventId: string, playerId: string, method: SettlementMethod, markPickedUp: boolean) =>
+    request<SettleResult>(`/api/v1/events/${eventId}/auction/checkout/${playerId}/settle`, {
+      method: 'POST', body: { method, markPickedUp },
+    }),
+
+  /** Hands one item over, independently of payment. */
+  markPickedUp: (winnerId: string) =>
+    request<void>(`/api/v1/auction/winners/${winnerId}/pickup`, { method: 'POST', body: {} }),
+};
 
 // ── ORG SETTINGS ─────────────────────────────────────────────────────────────
 

@@ -74,6 +74,104 @@ public class PaymentsServiceTests
             () => svc.ConfirmSetupAsync(playerId, "seti_x", "wrong-token"));
     }
 
+    // ── Staff-entered cards ─────────────────────────────────────────────────────
+    //
+    // Staff can save a card for a golfer who cannot use the app. Authorization is
+    // org+event ownership of that player instead of a session token, so these
+    // guards are what stand between one organizer and another org's golfers.
+
+    private static (Guid orgId, Guid eventId) SeedEvent(ApplicationDbContext db)
+    {
+        var orgId   = Guid.NewGuid();
+        var eventId = Guid.NewGuid();
+        db.Organizations.Add(new Organization { Id = orgId, Name = "Org", Slug = $"org-{orgId:N}" });
+        db.Events.Add(new Event
+        {
+            Id = eventId, OrgId = orgId, Name = "Gala", EventCode = "STAFFCRD",
+            Format = GolfFundraiserPro.Api.Domain.Enums.EventFormat.Scramble,
+            StartType = GolfFundraiserPro.Api.Domain.Enums.EventStartType.Shotgun,
+            Holes = 18, Status = GolfFundraiserPro.Api.Domain.Enums.EventStatus.Active,
+            ConfigJson = "{}",
+        });
+        db.SaveChanges();
+        return (orgId, eventId);
+    }
+
+    private static Guid SeedPlayerInEvent(ApplicationDbContext db, Guid eventId)
+    {
+        var id = Guid.NewGuid();
+        db.Players.Add(new Player
+        {
+            Id = id, EventId = eventId, FirstName = "No", LastName = "Phone",
+            Email = $"{id}@example.com", SessionToken = null,
+        });
+        db.SaveChanges();
+        return id;
+    }
+
+    [Fact]
+    public async Task Staff_setup_intent_refuses_an_event_belonging_to_another_org()
+    {
+        var (svc, db) = Build();
+        var (_, eventId) = SeedEvent(db);
+        var playerId = SeedPlayerInEvent(db, eventId);
+
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => svc.CreateSetupIntentForStaffAsync(Guid.NewGuid(), eventId, playerId));
+    }
+
+    [Fact]
+    public async Task Staff_setup_intent_refuses_a_player_from_a_different_event()
+    {
+        // Same org, wrong event — the player must belong to the event in the route
+        // or an organizer could card any golfer they can guess the id of.
+        var (svc, db) = Build();
+        var (orgId, eventId)   = SeedEvent(db);
+        var (_,     otherEvent) = SeedEvent(db);
+        var strangerId = SeedPlayerInEvent(db, otherEvent);
+
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => svc.CreateSetupIntentForStaffAsync(orgId, eventId, strangerId));
+    }
+
+    [Fact]
+    public async Task Staff_confirm_refuses_an_event_belonging_to_another_org()
+    {
+        var (svc, db) = Build();
+        var (_, eventId) = SeedEvent(db);
+        var playerId = SeedPlayerInEvent(db, eventId);
+
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => svc.ConfirmSetupForStaffAsync(Guid.NewGuid(), eventId, playerId, "seti_x"));
+    }
+
+    [Fact]
+    public async Task Staff_confirm_refuses_a_player_from_a_different_event()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId)   = SeedEvent(db);
+        var (_,     otherEvent) = SeedEvent(db);
+        var strangerId = SeedPlayerInEvent(db, otherEvent);
+
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => svc.ConfirmSetupForStaffAsync(orgId, eventId, strangerId, "seti_x"));
+    }
+
+    [Fact]
+    public async Task The_staff_path_does_not_weaken_the_golfers_own_session_token_gate()
+    {
+        // A golfer with no session token at all (the desk-entered case) still
+        // cannot be carded through the self-service endpoints, which fail closed.
+        var (svc, db) = Build();
+        var (_, eventId) = SeedEvent(db);
+        var playerId = SeedPlayerInEvent(db, eventId);   // SessionToken == null
+
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => svc.CreateSetupIntentAsync(playerId, "anything"));
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => svc.ConfirmSetupAsync(playerId, "seti_x", "anything"));
+    }
+
     // ── ChargeWinner ──────────────────────────────────────────────────────────────
 
     [Fact]
