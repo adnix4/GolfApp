@@ -9,7 +9,8 @@ import {
   START_OPTIONS, START_LABELS,
   HOLES_OPTIONS, centsToMoneyValue,
 } from '@gfp/shared-types';
-import { eventsApi, testDataApi, teamsApi, type Course, type EventDetail, type UpdateEventPayload } from '@/lib/api';
+import { eventsApi, testDataApi, teamsApi, auctionApi, type Course, type EventDetail, type UpdateEventPayload } from '@/lib/api';
+import { isAuctionStatusFinal } from '@/lib/auctionEnd';
 import { useResponsive } from '@/lib/responsive';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 import { confirmAction } from '@/lib/confirmAction';
@@ -111,16 +112,24 @@ export default function EventOverviewScreen() {
   }
 
   // Completing closes scoring server-side and can't be undone, so warn first if
-  // anyone is still on the course. Per-team progress isn't on this screen (only
-  // event-wide counts), so fetch the leaderboard lazily here — one request, and
+  // anyone is still on the course. Neither per-team progress nor the auction is
+  // on this screen (only event-wide counts), so fetch both lazily here — and
   // only when the organizer actually reaches for the button.
   async function handleMarkComplete() {
     if (!event || checkingScores) return;
     setCheckingScores(true); setError(null);
     let copy;
     try {
-      const board = await eventsApi.getLeaderboard(event.id);
-      copy = markCompleteCopy(completionGate(board));
+      // The auction is a footnote to this decision, not a gate on it, so a
+      // failed lot count degrades to 0 (no mention) instead of taking the whole
+      // dialog down with it.
+      const [board, openLots] = await Promise.all([
+        eventsApi.getLeaderboard(event.id),
+        auctionApi.getItems(event.id)
+          .then(items => items.filter(i => !isAuctionStatusFinal(i.status)).length)
+          .catch(() => 0),
+      ]);
+      copy = markCompleteCopy(completionGate(board), openLots);
     } catch {
       // A failed lookup must not strand the organizer at the banquet — offer
       // the confirm anyway, saying plainly that progress is unknown.

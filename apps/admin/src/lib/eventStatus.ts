@@ -157,19 +157,43 @@ export function completionGate(entries: TeamProgress[]): CompletionGate {
 const MAX_LISTED_TEAMS = 10;
 
 /**
+ * Reminds the organizer the auction is still running.
+ *
+ * Completing the event deliberately does nothing to the auction — the round
+ * ending and the fundraiser ending are two different moments, and the auction
+ * usually runs on into the banquet. That decoupling is right, but it means an
+ * organizer can mark the event complete and walk away believing they closed
+ * everything, while lots keep taking bids with nobody watching.
+ *
+ * So: mention it, never act on it. Ending the auction stays a separate,
+ * deliberate press of End Auction on the auction screen.
+ */
+function openLotsNote(openAuctionLots: number): string {
+  if (openAuctionLots <= 0) return '';
+  return `\n\n${openAuctionLots} auction lot${openAuctionLots === 1 ? ' is' : 's are'} `
+    + 'still open for bidding. Completing the event does not close the auction — '
+    + 'use End Auction on the Auction Items tab when you are ready.';
+}
+
+/**
  * Confirm copy for Mark Complete — the early-finish warning when teams are
  * still scoring, and a short terminal-action confirm when they are all in.
+ *
+ * `openAuctionLots` is optional so a caller that cannot cheaply count them (or
+ * whose lookup failed) still gets sound copy rather than a wrong number.
  */
-export function markCompleteCopy(gate: CompletionGate): {
-  title: string; message: string; confirmText: string;
-} {
+export function markCompleteCopy(
+  gate: CompletionGate, openAuctionLots = 0,
+): { title: string; message: string; confirmText: string } {
   const confirmText = 'Mark Complete';
+  const auction     = openLotsNote(openAuctionLots);
 
   if (gate.ready) {
     return {
       title: 'Mark event complete?',
       message:
-        `All ${gate.total} team${gate.total === 1 ? ' has' : 's have'} finished scoring.\n\n` +
+        `All ${gate.total} team${gate.total === 1 ? ' has' : 's have'} finished scoring.` +
+        auction + '\n\n' +
         'Completing the event closes scoring for good — this cannot be undone.',
       confirmText,
     };
@@ -191,7 +215,7 @@ export function markCompleteCopy(gate: CompletionGate): {
       `${count}${gate.total === 0 ? '' : `\n\n${list}`}\n\n` +
       'Marking the event complete closes scoring — golfers can no longer enter ' +
       'or sync scores, including holes still saved offline on their phones. ' +
-      'This cannot be undone.',
+      'This cannot be undone.' + auction,
     confirmText,
   };
 }

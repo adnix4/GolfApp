@@ -183,6 +183,51 @@ describe('markCompleteCopy', () => {
   });
 });
 
+// Completing the event deliberately does nothing to the auction — the round and
+// the fundraiser end at different moments. That decoupling is right, but it lets
+// an organizer walk away believing they closed everything.
+describe('markCompleteCopy — open auction lots', () => {
+  const done = completionGate([team('A', 18)]);
+  const busy = completionGate([team('A', 18), team('B', 9)]);
+
+  it('says nothing about the auction when no lots are open', () => {
+    expect(markCompleteCopy(done, 0).message).not.toContain('auction');
+  });
+
+  it('defaults to silence when the caller does not know the count', () => {
+    // A caller whose lookup failed must not imply "no lots are open".
+    expect(markCompleteCopy(done).message).not.toContain('auction');
+  });
+
+  it('warns that completing the event does not close the auction', () => {
+    const m = markCompleteCopy(done, 3).message;
+    expect(m).toContain('3 auction lots are still open for bidding');
+    expect(m).toContain('does not close the auction');
+    expect(m).toContain('End Auction');
+  });
+
+  it('singularizes a lone open lot', () => {
+    expect(markCompleteCopy(done, 1).message).toContain('1 auction lot is still open');
+  });
+
+  it('mentions the auction on the early-finish branch too', () => {
+    // The organizer ending early is exactly the one most likely to forget.
+    const m = markCompleteCopy(busy, 2).message;
+    expect(m).toContain('has not finished all holes');
+    expect(m).toContain('2 auction lots are still open');
+  });
+
+  it('keeps the scoring warning ahead of the auction footnote', () => {
+    // Losing offline scores is the consequence that should land first.
+    const m = markCompleteCopy(busy, 2).message;
+    expect(m.indexOf('cannot be undone')).toBeLessThan(m.indexOf('auction'));
+  });
+
+  it('ignores a negative count rather than printing nonsense', () => {
+    expect(markCompleteCopy(done, -1).message).not.toContain('auction');
+  });
+});
+
 describe('markCompleteUncheckedCopy', () => {
   it('admits progress is unknown but still offers the confirm', () => {
     // A failed lookup must not lock the organizer out of finishing the event.
