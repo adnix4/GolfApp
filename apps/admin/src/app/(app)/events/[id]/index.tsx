@@ -22,6 +22,7 @@ import {
 import {
   eventStatusColor, eventStatusLabel, NEXT_TRANSITIONS,
   scoringGate, scoringGateHint, openScoringEarlyCopy,
+  completionGate, markCompleteCopy, markCompleteUncheckedCopy, cancelEventCopy,
 } from '@/lib/eventStatus';
 
 // ── Entry fee helpers ─────────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ export default function EventOverviewScreen() {
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
   const [showTestWarning, setShowTestWarning] = useState(false);
   const [checkingTeams, setCheckingTeams] = useState(false);
+  const [checkingScores, setCheckingScores] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -85,6 +87,18 @@ export default function EventOverviewScreen() {
       return;
     }
 
+    // Both terminal statuses get a confirm — there is no way back from either.
+    if (newStatus === 'Completed') {
+      await handleMarkComplete();
+      return;
+    }
+
+    if (newStatus === 'Cancelled') {
+      const copy = cancelEventCopy();
+      confirmAction(copy.title, copy.message, () => { doStatusChange('Cancelled'); }, copy.confirmText);
+      return;
+    }
+
     await doStatusChange(newStatus);
   }
 
@@ -94,6 +108,27 @@ export default function EventOverviewScreen() {
     try { setEvent(await eventsApi.update(event.id, { status: newStatus })); }
     catch (e: any) { setError(e.message ?? 'Failed to update status.'); }
     finally { setUpdating(false); }
+  }
+
+  // Completing closes scoring server-side and can't be undone, so warn first if
+  // anyone is still on the course. Per-team progress isn't on this screen (only
+  // event-wide counts), so fetch the leaderboard lazily here — one request, and
+  // only when the organizer actually reaches for the button.
+  async function handleMarkComplete() {
+    if (!event || checkingScores) return;
+    setCheckingScores(true); setError(null);
+    let copy;
+    try {
+      const board = await eventsApi.getLeaderboard(event.id);
+      copy = markCompleteCopy(completionGate(board));
+    } catch {
+      // A failed lookup must not strand the organizer at the banquet — offer
+      // the confirm anyway, saying plainly that progress is unknown.
+      copy = markCompleteUncheckedCopy();
+    } finally {
+      setCheckingScores(false);
+    }
+    confirmAction(copy.title, copy.message, () => { doStatusChange('Completed'); }, copy.confirmText);
   }
 
   // Override for the Open Scoring gate. The team list isn't loaded on this
@@ -270,23 +305,23 @@ export default function EventOverviewScreen() {
                       style={[
                         styles.advanceBtn,
                         { backgroundColor: gated ? '#bdbdbd' : theme.colors.primary },
-                        updating && { opacity: 0.6 },
+                        (updating || checkingScores) && { opacity: 0.6 },
                       ]}
                       onPress={() => !gated && handleStatusChange(t.status)}
-                      disabled={updating || gated}
+                      disabled={updating || gated || checkingScores}
                       accessibilityRole="button"
                       accessibilityState={{ disabled: gated }}
                     >
-                      {updating
+                      {updating || checkingScores
                         ? <ActivityIndicator color="#fff" size="small" />
                         : <Text style={styles.advanceBtnText}>{t.label}</Text>}
                     </Pressable>
                   );
                 })}
                 <Pressable
-                  style={[styles.cancelBtn, updating && { opacity: 0.6 }]}
+                  style={[styles.cancelBtn, (updating || checkingScores) && { opacity: 0.6 }]}
                   onPress={() => handleStatusChange('Cancelled')}
-                  disabled={updating}
+                  disabled={updating || checkingScores}
                 >
                   <Text style={styles.cancelBtnText}>Cancel Event</Text>
                 </Pressable>
