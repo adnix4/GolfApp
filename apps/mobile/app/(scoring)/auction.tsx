@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, FlatList,
-  Modal, ScrollView, ActivityIndicator, Image,
+  Modal, ScrollView, ActivityIndicator, Image, Platform,
   useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import { useTheme, MoneyInput } from '@gfp/ui';
 import {
   formatCentsShort, dollarsToCents, centsToMoneyValue, useLiveAuction,
   needsPaymentMethod, minimumBidCents, isDonationItem, usesProxyBidding,
+  foldPlayerBidsByItem, bidTone, buildBidConfirmation, type BidTone,
 } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
 import { notify } from '@/lib/notify';
@@ -29,6 +30,18 @@ const FALLBACK_POLL_MS = 15_000;
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 type AuctionSnapshot = { items: AuctionItemDto[]; session: AuctionSessionDto | null };
+
+/**
+ * How the item's current price reads to THIS golfer. Local literals rather than
+ * theme tokens because the theme carries no success/danger colors (see
+ * ThemeContextValue) — same three values this screen already hardcodes for the
+ * price, errors and muted text.
+ */
+const TONE_COLOR: Record<BidTone, string> = {
+  winning: '#27ae60',
+  outbid:  '#c0392b',
+  none:    '#1a1a1a',
+};
 
 // Full-screen photo viewer. Window-based sizing (not % of parent) so the photo
 // always fits the view; the ScrollView catches any remaining overflow. Rendered
@@ -112,6 +125,7 @@ export default function AuctionScreen() {
 
   const [tab, setTab]             = useState<Tab>('items');
   const [history, setHistory]     = useState<PlayerBidHistoryItem[]>([]);
+  const [historyError, setHistoryError] = useState(false);
   const [selectedItem, setSelectedItem] = useState<AuctionItemDto | null>(null);
   // Full-screen photo viewer — set by tapping an item thumbnail in the list.
   const [expandedPhotoUrl, setExpandedPhotoUrl] = useState<string | null>(null);
@@ -121,6 +135,8 @@ export default function AuctionScreen() {
   // wrong place for this even on native — the golfer's next move is to change
   // the number they just typed, and it is the only place a web build can put it.
   const [bidError, setBidError]   = useState<string | null>(null);
+  // Guards the synchronous window.confirm on web only — see handleBid.
+  const bidInFlightRef = useRef(false);
   const [raisingHand, setRaisingHand] = useState(false);
   const [handRaised,  setHandRaised]  = useState(false);
   // Winnings. A closed lot drops straight out of the list, so without this the
@@ -143,7 +159,7 @@ export default function AuctionScreen() {
     }
   }, [eventId]);
 
-  const { data, loading, error: loadError, refresh } = useLiveAuction<AuctionSnapshot>({
+  const { data, loading, error: loadError, lastUpdated, refresh } = useLiveAuction<AuctionSnapshot>({
     baseUrl:        BASE,
     eventCode,
     fetchAuction,
@@ -153,19 +169,38 @@ export default function AuctionScreen() {
   const items       = data?.items ?? [];
   const liveSession = data?.session ?? null;
 
+  // Overlapping history fetches are routine now that this runs on every
+  // snapshot (a hub burst and a poll can land together), and an older response
+  // arriving late would re-paint an outbid card green. Only the newest request
+  // is allowed to write.
+  const historyReqRef = useRef(0);
+
   const loadHistory = useCallback(async () => {
     if (!player?.id) return;
+    const req = ++historyReqRef.current;
     try {
-      const data = await fetchPlayerBidHistory(player.id);
-      setHistory(data);
+      const rows = await fetchPlayerBidHistory(player.id);
+      if (req === historyReqRef.current) {
+        setHistory(rows);
+        setHistoryError(false);
+      }
     } catch {
-      notify('Could not load bid history', 'Check your connection and try again.');
+      // Deliberately silent: this now runs in the background every time the
+      // auction refreshes, and a dialog raised behind the golfer every 15 s
+      // would be worse than a stale card. The last known rows are kept, and the
+      // My Bids tab shows an inline banner instead.
+      if (req === historyReqRef.current) setHistoryError(true);
     }
   }, [player?.id]);
 
-  useEffect(() => {
-    if (tab === 'history') loadHistory();
-  }, [tab, loadHistory]);
+  // Runs on mount and after every successful snapshot, so a bid that moves the
+  // price also re-reads where this golfer stands. Previously this only fired on
+  // opening the My Bids tab, which is why the items list knew nothing about the
+  // golfer at all.
+  useEffect(() => { loadHistory(); }, [loadHistory, lastUpdated]);
+
+  /** This golfer's standing bid per item — drives the card color and max line. */
+  const myBidsByItem = useMemo(() => foldPlayerBidsByItem(history), [history]);
 
   // Winnings, refreshed whenever the auction data changes — an ItemClosed event
   // is exactly when a golfer becomes a winner.
@@ -188,7 +223,14 @@ export default function AuctionScreen() {
     finally { setRaisingHand(false); }
   }
 
-  async function handleBid(item: AuctionItemDto) {
+  /**
+   * Validates, then reads the amount back to the golfer before anything posts.
+   *
+   * Only the dialog is new here — the floor checks still report inline under the
+   * amount field, because the golfer's next move after one of those is to edit
+   * the number they just typed, not to dismiss a box.
+   */
+  function handleBid(item: AuctionItemDto) {
     if (!player?.id) return;
     const isDonation = isDonationItem(item.auctionType);
     const cents = dollarsToCents(bidAmt);
@@ -207,6 +249,37 @@ export default function AuctionScreen() {
       return;
     }
     setBidError(null);
+
+    // Web only, and deliberately so. There, notify() is window.confirm: it runs
+    // synchronously inside this handler, so a setState would not have flushed in
+    // time to block a second tap — hence a ref — and it can only ever return
+    // true or false, so the flag cannot get stranded.
+    //
+    // Native needs no guard: Alert is a system-modal dialog, so the Bid button
+    // underneath cannot be tapped while it is up. Applying the ref there WOULD
+    // strand it — Android dismisses an alert on the back button without calling
+    // any button handler, and the flag would then block every later bid with no
+    // message at all. That is the D12 dead-button failure exactly.
+    if (Platform.OS === 'web') {
+      if (bidInFlightRef.current) return;
+      bidInFlightRef.current = true;
+    }
+
+    const prompt = buildBidConfirmation(item, cents);
+    notify(prompt.title, prompt.message, [
+      { text: 'Cancel', style: 'cancel', onPress: () => { bidInFlightRef.current = false; } },
+      { text: prompt.confirmLabel, onPress: () => { void submitBid(item, cents); } },
+    ]);
+  }
+
+  /**
+   * Posts the amount the golfer confirmed. Takes `cents` as an argument rather
+   * than re-reading `bidAmt`: on native the dialog sits over a live field, and
+   * what gets charged must be the number they were shown.
+   */
+  async function submitBid(item: AuctionItemDto, cents: number) {
+    if (!player?.id) return;
+    const isDonation = isDonationItem(item.auctionType);
     setBidding(true);
     try {
       if (isDonation) {
@@ -236,6 +309,7 @@ export default function AuctionScreen() {
       refresh();
     } finally {
       setBidding(false);
+      bidInFlightRef.current = false;
     }
   }
 
@@ -356,6 +430,10 @@ export default function AuctionScreen() {
           onRefresh={refresh}
           renderItem={({ item }) => {
             const isDonation = isDonationItem(item.auctionType);
+            // Where this golfer stands on this item: their own standing bid and
+            // whether it is still in front.
+            const mine = myBidsByItem.get(item.id);
+            const tone = bidTone(mine);
             return (
               <Pressable
                 style={[styles.card, { backgroundColor: theme.colors.surface }]}
@@ -384,17 +462,49 @@ export default function AuctionScreen() {
                       {item.closesAt ? `  · Closes: ${new Date(item.closesAt).toLocaleTimeString()}` : ''}
                     </Text>
                     {isDonation ? (
-                      <Text style={{ color: '#27ae60', fontWeight: '700', marginTop: 4 }}>
-                        Raised: {fmt(item.totalRaisedCents)}
-                        {item.goalCents ? ` / ${fmt(item.goalCents)}` : ''}
-                      </Text>
-                    ) : (
-                      <Text style={{ color: '#27ae60', fontWeight: '700', marginTop: 4 }}>
-                        Current: {fmt(item.currentHighBidCents)}
-                        <Text style={{ color: '#888', fontWeight: '400' }}>
-                          {'  '}min increment: {fmt(item.bidIncrementCents)}
+                      <>
+                        {/* Pledges stack rather than compete, so this stays the
+                            green "money raised" line for everyone. */}
+                        <Text style={{ color: '#27ae60', fontWeight: '700', marginTop: 4 }}>
+                          Raised: {fmt(item.totalRaisedCents)}
+                          {item.goalCents ? ` / ${fmt(item.goalCents)}` : ''}
                         </Text>
-                      </Text>
+                        {mine && (
+                          <Text style={{ color: theme.mutedText, fontSize: 12, marginTop: 2 }}>
+                            You Pledged: {fmt(mine.maxCents)}
+                          </Text>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {/* Green when this golfer leads, red when they have been
+                            outbid, black when they have not bid. The word after
+                            the amount carries the same meaning as the color —
+                            colour alone is invisible to a colour-blind golfer
+                            and weak in sunlight on a phone. */}
+                        <Text
+                          style={{ color: TONE_COLOR[tone], fontWeight: '700', marginTop: 4 }}
+                          accessibilityLabel={
+                            `Current bid ${fmt(item.currentHighBidCents)}`
+                            + (tone === 'winning' ? ', you are winning'
+                              : tone === 'outbid' ? ', you have been outbid' : '')
+                          }
+                        >
+                          Current: {fmt(item.currentHighBidCents)}
+                          {tone === 'winning' ? ' · Winning' : tone === 'outbid' ? ' · Outbid' : ''}
+                        </Text>
+                        {mine && (
+                          <Text style={{ color: theme.mutedText, fontSize: 12, marginTop: 2 }}>
+                            {/* Only a Silent bid is a ceiling; calling a called-out
+                                Live bid a "maximum" would be wrong. */}
+                            {usesProxyBidding(item.auctionType) ? 'Your Max Bid' : 'Your Bid'}
+                            : {fmt(mine.maxCents)}
+                          </Text>
+                        )}
+                        <Text style={{ color: '#888', fontSize: 12, marginTop: 2 }}>
+                          min increment: {fmt(item.bidIncrementCents)}
+                        </Text>
+                      </>
                     )}
                   </View>
                 </View>
@@ -489,6 +599,13 @@ export default function AuctionScreen() {
       {tab === 'history' && (
         <FlatList
           data={history}
+          ListHeaderComponent={historyError ? (
+            <View style={[styles.errorBanner, { marginBottom: 12 }]}>
+              <Text style={styles.errorBannerText}>
+                Could not refresh your bids. Showing the last ones we loaded.
+              </Text>
+            </View>
+          ) : null}
           keyExtractor={i => `${i.auctionItemId}-${i.placedAt}`}
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           renderItem={({ item }) => (
