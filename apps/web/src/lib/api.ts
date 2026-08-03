@@ -163,6 +163,8 @@ export interface PublicAuctionItem {
   totalRaisedCents:     number;
   goalCents:            number | null;
   closesAt:             string | null;
+  /** Lot photos in organizer order; the first is what the ticker shows. */
+  photoUrls:            string[];
 }
 
 /**
@@ -179,7 +181,13 @@ export async function fetchPublicAuctionItems(eventId: string): Promise<PublicAu
       cache: 'no-store',
     });
     if (!res.ok) return [];
-    return await res.json();
+    const items: PublicAuctionItem[] = await res.json();
+    // Photos land here as API-relative /uploads/… paths under local storage;
+    // absolutize them at the boundary like every other upload URL.
+    return items.map(i => ({
+      ...i,
+      photoUrls: (i.photoUrls ?? []).map(u => resolveUploadUrl(u)),
+    }));
   } catch {
     return [];
   }

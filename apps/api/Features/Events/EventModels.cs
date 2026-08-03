@@ -500,7 +500,7 @@ public record PublicEventResponse
     /// <summary>Basic course info for the landing page map card.</summary>
     public PublicCourseInfo? Course  { get; init; }
 
-    /// <summary>Sponsors filtered to those with landingPage placement enabled.</summary>
+    /// <summary>Public sponsors — every sponsor except those explicitly placed off the landing page.</summary>
     public List<PublicSponsorInfo> Sponsors { get; init; } = new();
 
     /// <summary>Fundraising thermometer data for the donation widget.</summary>

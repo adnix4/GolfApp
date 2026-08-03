@@ -30,8 +30,11 @@ const SECONDS_PER_CELL = 6;
 const MIN_DURATION_S   = 20;
 
 type Cell =
+  | { kind: 'heading'; key: string; text: string }
+  | { kind: 'gap';     key: string }
   | { kind: 'sponsor'; key: string; name: string; logoUrl: string; tagline: string | null }
-  | { kind: 'lot';     key: string; title: string; label: string; amount: string };
+  | { kind: 'lot';     key: string; title: string; label: string; amount: string;
+      photoUrl: string | null };
 
 function buildCells(
   sponsors: PublicEventData['sponsors'],
@@ -53,7 +56,13 @@ function buildCells(
       title:  item.title,
       // A Fund-a-Need has no "current bid" to beat — pledges stack — so quoting
       // one would invite people to try to top it.
+      //
+      // The label is the fallback for a lot with no photo. Where there IS one,
+      // the thumbnail takes its place: a picture of the item sells it across a
+      // ballroom better than the words "Bidding now", and the price beside it
+      // already says the lot is live.
       label:  donation ? 'Fund a need' : 'Bidding now',
+      photoUrl: item.photoUrls?.[0] ?? null,
       amount: donation
         ? `${formatCents(item.totalRaisedCents)} raised${
             item.goalCents ? ` of ${formatCents(item.goalCents)}` : ''}`
@@ -63,7 +72,28 @@ function buildCells(
     };
   });
 
-  return [...sponsorCells, ...lotCells];
+  // Two announced runs rather than one undifferentiated stream: a heading tells
+  // the room what it's looking at, which is what makes the sponsor run read as
+  // thanks and the lot run read as a call to bid. Each section is omitted whole
+  // when it's empty — no heading over nothing.
+  const cells: Cell[] = [];
+
+  if (sponsorCells.length > 0) {
+    cells.push({ kind: 'heading', key: 'h-sponsors', text: 'Thank You to Our Sponsors' });
+    cells.push(...sponsorCells);
+  }
+
+  if (lotCells.length > 0) {
+    if (cells.length > 0) cells.push({ kind: 'gap', key: 'g-mid' });
+    cells.push({ kind: 'heading', key: 'h-lots', text: 'Bid on These Items' });
+    cells.push(...lotCells);
+  }
+
+  // Trailing gap so the wrap — last lot straight into the repeated sponsor
+  // heading — gets the same breathing room as the seam in the middle.
+  if (cells.length > 0) cells.push({ kind: 'gap', key: 'g-end' });
+
+  return cells;
 }
 
 export default function EventTicker({
@@ -94,28 +124,49 @@ export default function EventTicker({
 
   const durationS = Math.max(MIN_DURATION_S, cells.length * SECONDS_PER_CELL);
 
-  const renderCell = (cell: Cell) => (
-    <span key={cell.key} style={st.tickerCell}>
-      {cell.kind === 'sponsor' ? (
-        <>
-          <span style={st.tickerChip}>Sponsor</span>
-          {/* Plain <img>, as everywhere else sponsor art appears: the URL comes
-              from whatever host the organizer uploaded to, and next/image would
-              need each one allowlisted. alt="" because the name follows it. */}
-          {cell.logoUrl && <img src={cell.logoUrl} alt="" style={st.tickerLogo} />}
-          <span style={st.tickerName}>{cell.name}</span>
-          {cell.tagline && <span style={st.tickerTagline}>{cell.tagline}</span>}
-        </>
-      ) : (
-        <>
-          <span style={st.tickerChip}>{cell.label}</span>
-          <span style={st.tickerName}>{cell.title}</span>
-          <span style={st.tickerSep}>·</span>
-          <span style={st.tickerPrice}>{cell.amount}</span>
-        </>
-      )}
-    </span>
-  );
+  const renderCell = (cell: Cell) => {
+    switch (cell.kind) {
+      case 'gap':
+        // Empty, aria-hidden: it is spacing, and a screen reader walking the
+        // strip should go straight from the last lot to the next heading.
+        return <span key={cell.key} aria-hidden="true" style={st.tickerGap} />;
+
+      case 'heading':
+        return (
+          <span key={cell.key} style={st.tickerCell}>
+            <span style={st.tickerHeading}>{cell.text}</span>
+          </span>
+        );
+
+      case 'sponsor':
+        return (
+          <span key={cell.key} style={st.tickerCell}>
+            {/* Plain <img>, as everywhere else sponsor art appears: the URL comes
+                from whatever host the organizer uploaded to, and next/image would
+                need each one allowlisted. alt="" because the name follows it. */}
+            {cell.logoUrl && <img src={cell.logoUrl} alt="" style={st.tickerLogo} />}
+            <span style={st.tickerName}>{cell.name}</span>
+            {cell.tagline && <span style={st.tickerTagline}>{cell.tagline}</span>}
+          </span>
+        );
+
+      case 'lot':
+        return (
+          <span key={cell.key} style={st.tickerCell}>
+            {cell.photoUrl ? (
+              /* alt="" — the title reads out immediately after, so a screen
+                 reader gains nothing from describing the same lot twice. */
+              <img src={cell.photoUrl} alt="" style={st.tickerThumb} />
+            ) : (
+              <span style={st.tickerChip}>{cell.label}</span>
+            )}
+            <span style={st.tickerName}>{cell.title}</span>
+            <span style={st.tickerSep}>·</span>
+            <span style={st.tickerPrice}>{cell.amount}</span>
+          </span>
+        );
+    }
+  };
 
   return (
     <div style={st.ticker}>

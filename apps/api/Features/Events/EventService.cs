@@ -1332,17 +1332,25 @@ public class EventService
     }
 
     /// <summary>
-    /// Checks whether a sponsor's placements JSON includes landingPage = true.
+    /// Whether a sponsor appears on the public event page and scoreboard ticker.
+    ///
+    /// Opt-OUT, not opt-in: the admin sponsor form writes only holeNumbers into
+    /// placements, so no sponsor created through the UI ever carries
+    /// landingPage = true. Requiring it hid every sponsor on every event —
+    /// people who paid for recognition got none. An explicit false is still
+    /// honoured, for a sponsor an organizer deliberately keeps off the public
+    /// pages (or a placement toggle we add later).
     /// </summary>
     private static bool IsLandingPageSponsor(string placementsJson)
     {
         try
         {
             var doc = JsonDocument.Parse(placementsJson);
-            return doc.RootElement.TryGetProperty("landingPage", out var v) &&
+            return !doc.RootElement.TryGetProperty("landingPage", out var v) ||
+                   v.ValueKind is not (JsonValueKind.True or JsonValueKind.False) ||
                    v.GetBoolean();
         }
-        catch { return false; }
+        catch { return true; }
     }
 
     /// <summary>

@@ -7,7 +7,7 @@ import type {
 } from '@/lib/api';
 import { fetchPublicAuctionItems, fetchPublicEventFresh } from '@/lib/api';
 import {
-  buildThemeCss, cssKeyframes, hio, nm, tv,
+  buildThemeCss, buildTvThemeCss, cssKeyframes, hio, nm, tv,
 } from './scoresPollerStyles';
 import { ScoresRow } from './ScoresRow';
 import EventTicker from './EventTicker';
@@ -158,7 +158,12 @@ export default function ScoresPoller({
   const eventUrl    = `/e/${event.orgSlug}/${eventCode}`;
 
   const st = tvMode ? tv : nm;
-  const themeCss = buildThemeCss(event.resolvedThemeJson);
+  // Brand tokens for both modes; the derived dark-board palette only for TV,
+  // where the brand has to survive being placed on a near-black surface.
+  const themeCss = [
+    buildThemeCss(event.resolvedThemeJson),
+    tvMode ? buildTvThemeCss(event.resolvedThemeJson) : '',
+  ].filter(Boolean).join(';');
 
   return (
     <>
@@ -189,6 +194,13 @@ export default function ScoresPoller({
               <a href={eventUrl} style={st.backBtn} aria-label="Back to event page">
                 ← Event
               </a>
+              {/* TV only: the normal-mode header is a narrow strip above a
+                  scrollable page, and the event page one screen away already
+                  leads with the logo. A board left running on a screen has no
+                  such context — it has to identify itself. */}
+              {tvMode && event.resolvedLogoUrl && (
+                <img src={event.resolvedLogoUrl} alt="" style={tv.logo} />
+              )}
               <div>
                 <p style={st.orgName}>{event.orgName}</p>
                 <h1 style={st.eventName}>{event.name}</h1>

@@ -5,6 +5,8 @@ import {
   validateContrast,
   getContrastRatio,
   readableTextOn,
+  readableOn,
+  mixHex,
   isLightSurface,
   buildCSSVars,
   buildThemeContext,
@@ -44,6 +46,63 @@ describe('getContrastRatio', () => {
     // Intentionally below 4.5 — action is used for links and icons, not body text on surface.
     expect(ratio).toBeGreaterThan(3);
     expect(ratio).toBeLessThan(4.5);
+  });
+});
+
+describe('mixHex', () => {
+  it('returns the first color at weight 1 and the second at weight 0', () => {
+    expect(mixHex('#ff0000', '#0000ff', 1)).toBe('#ff0000');
+    expect(mixHex('#ff0000', '#0000ff', 0)).toBe('#0000ff');
+  });
+
+  it('lands halfway at weight 0.5', () => {
+    expect(mixHex('#000000', '#ffffff', 0.5)).toBe('#808080');
+  });
+
+  it('clamps weights outside 0–1', () => {
+    expect(mixHex('#ff0000', '#0000ff', 2)).toBe('#ff0000');
+    expect(mixHex('#ff0000', '#0000ff', -1)).toBe('#0000ff');
+  });
+
+  it('handles shorthand hex on either side', () => {
+    expect(mixHex('#000', '#fff', 0.5)).toBe('#808080');
+  });
+});
+
+describe('readableOn', () => {
+  it('leaves a color that already clears the ratio untouched', () => {
+    expect(readableOn('#ffffff', '#000000', 4.5)).toBe('#ffffff');
+  });
+
+  it('lightens a dark brand color placed on a dark surface until it reads', () => {
+    // A dark-navy primary is invisible on the TV board until it is lifted.
+    const board  = '#0d1117';
+    const before = getContrastRatio('#1f3a5f', board);
+    const after  = readableOn('#1f3a5f', board, 4.5);
+
+    expect(before).toBeLessThan(4.5);
+    expect(getContrastRatio(after, board)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('darkens a pale brand color placed on a light surface', () => {
+    const after = readableOn('#ffe680', '#ffffff', 4.5);
+    expect(getContrastRatio(after, '#ffffff')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('keeps the brand hue rather than collapsing to white', () => {
+    // Result should still be recognizably blue: blue channel dominant.
+    const after = readableOn('#1f3a5f', '#0d1117', 4.5);
+    const r = parseInt(after.slice(1, 3), 16);
+    const b = parseInt(after.slice(5, 7), 16);
+    expect(b).toBeGreaterThan(r);
+    expect(after).not.toBe('#ffffff');
+  });
+
+  it('meets the requested ratio for every token of the default palette on the TV board', () => {
+    for (const color of Object.values(ECO_GREEN_DEFAULT)) {
+      const out = readableOn(color, '#0d1117', 4.5);
+      expect(getContrastRatio(out, '#0d1117')).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });
 
