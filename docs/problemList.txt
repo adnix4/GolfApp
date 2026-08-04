@@ -33,7 +33,11 @@ P4 — FEATURES / POLISH
      [x] U4  proxy bidding, Silent items only, steps by the item's increment 2026-08-01
      [x] U2  }  one combined marquee (sponsors + open lots), normal AND
      [x] U3  }  TV mode, on the existing socket 2026-08-01
-     This tier is now clear.
+     U6   evaluate buy-it-now — what triggers it, what it bills, and whether it
+          belongs on a proxy lot at all. Decision needed, not a coded fix.
+     U7   follow-ups from the 2026-08-02/03 work (sponsors, ticker, TV branding,
+          bid confirmation). (a) is a security item — pull it forward if the
+          pilot ships before this tier.
 
 P5 — BLOCKED OR DEFERRED (no action available yet)
      D19  dev-loop fixes landed; three follow-ups, one gated on D6
@@ -763,3 +767,145 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         VERIFIED: 494 API tests (11 new). Driven live — four teams read null
         before the transition and 1/2/3/4 after; a manually-set hole survived;
         a TeeTimes event assigned nothing.
+
+  [ ] U6. (OPEN, added 2026-08-03) EVALUATE BUY-IT-NOW. Not a reported bug —
+        raised while adding the mobile bid-confirmation dialog (2026-08-03),
+        which had to warn about this and made the design worth a decision.
+        HOW IT WORKS TODAY. AuctionBidRules.IsBuyNow is `amount >= buyNowPrice`,
+        evaluated in PlaceBidAsync for EVERY auction type, and it closes the item
+        on the spot. The separate POST /auction/items/{id}/buy-now route is
+        cosmetic — BidController.BuyNow calls the same PlaceBidAsync, so nothing
+        distinguishes "I meant to buy it" from "I typed a big number".
+        WHY THAT COLLIDES WITH U4. On a Silent lot the amount submitted is a
+        PRIVATE MAXIMUM the server spends on the golfer's behalf. The ceiling and
+        the purchase trigger are therefore the same number: a golfer who sets a
+        deliberately generous max to stop being outbid all night crosses the
+        buy-now price and buys the lot outright instead. Those are opposite
+        intents expressed by one field.
+        FOUR QUESTIONS TO DECIDE:
+        (a) Should a proxy maximum be able to trigger buy-now at all, or should
+            buying require an explicit action (its own button, priced at the
+            posted figure) with the max capped below it?
+        (b) The price billed is inconsistent. A proxy buy-now bills
+            BuyNowPriceCents (AuctionService.cs:301-303, deliberate — the
+            ceiling must never be charged). A LIVE buy-now falls through to
+            `CurrentHighBidCents = Math.Max(current, amount)`, so a golfer who
+            types more than the posted price PAYS more than the posted price.
+            Same act, two prices; pick one.
+        (c) IsBuyNow is evaluated unconditionally, so a Fund-a-Need item with a
+            buy-now price set CLOSES on a large enough pledge — ending the
+            "everyone pledges" item because someone was generous. Probably wants
+            to be excluded outright, the way donations are excluded from proxy.
+        (d) The golfer cannot see the price they might trip over. The admin item
+            form offers a buy-now field (admin auction.tsx:484), but mobile only
+            carries buyNowPriceCents in the DTO (mobile api.ts:379) — no screen
+            renders it. The bid modal should show it, not just the confirmation
+            dialog after the fact.
+        MITIGATION ALREADY SHIPPED, so this is not urgent: the confirmation
+        dialog names the buy-now price, says the bidding ends now, quotes the
+        figure that will actually be billed, and tells the golfer what to enter
+        to bid instead (shared-types buildBidConfirmation, tested per branch).
+        Nobody buys a lot silently today — but they can still buy one they only
+        meant to bid on, and (b)/(c) are live inconsistencies either way.
+
+  [ ] U7. (OPEN, added 2026-08-03) KNOWN ISSUES AND CONFLICTS LEFT BY THE
+        2026-08-02/03 WORK — sponsors on the scoreboard, the ticker rewrite, TV
+        branding, and the mobile bid confirmation. Written at the time by the
+        author of those changes, so nobody has to re-derive them. None of these
+        block the work that shipped; each is a decision or a follow-up.
+
+        (a) SECURITY — GET /api/v1/players/{id}/bids IS UNAUTHENTICATED AND NOW
+            POLLED CONTINUOUSLY. BidController.cs:76-87 is [AllowAnonymous] with
+            no session-token check: anyone holding a player's GUID can read that
+            golfer's bid history, INCLUDING their private Silent maxima. That
+            predates this work, but the mobile auction screen used to call it
+            only when the golfer opened My Bids and now calls it after every
+            auction refresh, so it is load-bearing and continuously exercised.
+            Two conflicts, not just an exposure: it contradicts U4's premise that
+            a max is private, and it is the only player-data endpoint left
+            without the per-player token every sibling uses (bids, score sync,
+            checkout cart — Phase11 / the 2026-06-22 security review). Fix is
+            small: PlayerSessionAuth.Matches, exactly as PlaceBidAsync does, plus
+            the token on the client call.
+
+        (b) A SPONSOR PLACEMENT TOGGLE WOULD BE WIPED BY THE ADMIN FORM.
+            IsLandingPageSponsor is now opt-OUT (absent key = show), because the
+            admin form never wrote landingPage at all and every sponsor on every
+            event was therefore hidden from the public page and the ticker. The
+            explicit `landingPage:false` escape hatch survives — but the sponsor
+            form posts `placements: { holeNumbers: selectedHoles }`
+            (admin sponsors.tsx:312), REPLACING the whole object, so the next
+            save from the UI drops it. Anyone adding placement checkboxes must
+            merge into the existing placements, not overwrite them.
+
+        (c) EVERY EVENT'S PUBLIC PAGE GAINED ITS SPONSORS AT ONCE. Same change,
+            wider blast radius than the ticker it was made for: the event
+            landing page's sponsor banner was empty everywhere and now is not.
+            Intended, but no organizer asked for it and none were told.
+
+        (d) PRE-EXISTING, NOW MORE VISIBLE — hole challenges can never render on
+            the event page. web PublicSponsorInfo declares optional holeNumbers /
+            challengeDescription, and page.tsx computes hasChallenges from
+            s.holeNumbers, but the API's PublicSponsorInfo (EventModels.cs:568)
+            carries only Name/LogoUrl/Tagline/Tier. The flag is always false.
+            The data exists on the mobile/public-sponsors DTO; this DTO just
+            never got the field.
+
+        (e) TICKER CYCLE LENGTH SCALES WITH CONTENT. SECONDS_PER_CELL is 6 and
+            the headings and section gaps are cells too, so St. Mark Classic
+            (4 sponsors + 8 lots + 2 headings + 2 gaps) runs a ~96-second loop.
+            A sponsor near the end of the run waits over a minute between
+            appearances. Tune SECONDS_PER_CELL, or split sponsors and lots into
+            two tracks, if an organizer complains.
+
+        (f) LOT THUMBNAILS ARE THE FULL-SIZE UPLOAD, SCALED BY CSS. The ticker
+            shows the organizer's original photo at 64x44 (TV) — no server-side
+            thumbnail. A board left running all night re-downloads them on every
+            reload. Worth a resize at upload if photos get large.
+
+        (g) TV CONTRAST IS PROVEN FOR THE PALETTE, NOT FOR THE SEMANTIC COLORS.
+            The board tint backs off until near-white body text clears 7:1, and
+            that was checked against seven palettes including white, black and
+            hot magenta. But the LIVE pill (#da3633), the Final badge (#238636)
+            and the to-par green/red are still fixed literals, re-checked only
+            on the palettes tested. They are bounded by the same backoff but not
+            individually derived. If a brand ever looks wrong on the board, that
+            is where to look first.
+
+        (h) THE EVENT LOGO ON THE TV HEADER IS WHATEVER WAS UPLOADED.
+            St. Mark Classic's is a .ico — browsers render it, but it is low
+            resolution at 64px on a projector. Nothing in admin guides format or
+            size for a logo that now appears on a large screen.
+
+        (i) ONE EXTRA REQUEST PER AUCTION REFRESH, PER GOLFER. The bid history
+            fetch trails every snapshot; SignalR bursts are debounced to 400 ms,
+            so a hot lot can drive ~2.5 requests/second/golfer, each resolving
+            the proxy ladder server-side. Fine at pilot scale. The real fix, if
+            it bites, is to personalize AuctionItemResponse with the caller's
+            max and status so the item list carries it and the second request
+            disappears — that also removes (a).
+
+        (j) STATUS TRAILS THE PRICE BY ONE REQUEST. The card can show a new
+            current bid with the old tone for a moment after someone else bids.
+            Self-correcting, and the golfer's own bid response tells them the
+            truth immediately. A failed history fetch degrades to black with no
+            "Your Max Bid" line — deliberately indistinguishable from "never bid
+            on this", which is the safe direction but does hide the failure.
+
+        (k) THE "· Winning" / "· Outbid" WORD BESIDE THE AMOUNT WAS NOT ASKED
+            FOR. The request was colour only; the word was added because colour
+            alone fails a colour-blind golfer and reads poorly on a phone in
+            sunlight. One line in the card render if it should go.
+
+        (l) STALE HELP COPY, STILL. help.tsx:51 and :96 tell golfers bids are
+            queued offline and sent on reconnect. handleBid has never done that,
+            and the confirmation dialog makes the online-only path more obvious.
+            Either build the queue or fix the copy.
+
+        (m) THE CONFIRMATION COPY ENCODES SERVER PRICING. buildBidConfirmation
+            quotes the buy-now price on a proxy lot and the typed amount on a
+            live one, because PlaceBidAsync bills them differently (see U6b). If
+            that server logic changes, the dialog misquotes money to a golfer.
+            The branch tests pin the copy, but they are client-side only — the
+            lockstep comment at the head of auctionRules.ts names the server
+            file to change with it.

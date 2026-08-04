@@ -129,6 +129,48 @@ export function readableTextOn(background: string): string {
 }
 
 /**
+ * mixHex — blends two hex colors, `weightA` of the way from b to a.
+ *
+ * Channel-wise in sRGB space (not linear): this is for *tinting a surface*,
+ * where matching what a designer expects from a 10%-opacity overlay matters
+ * more than photometric correctness. Weight is clamped to [0,1].
+ */
+export function mixHex(a: string, b: string, weightA: number): string {
+  const w  = Math.min(1, Math.max(0, weightA));
+  const ca = hexToRGB255(a);
+  const cb = hexToRGB255(b);
+  const ch = (x: number, y: number) =>
+    Math.round(x * w + y * (1 - w)).toString(16).padStart(2, '0');
+  return `#${ch(ca.r, cb.r)}${ch(ca.g, cb.g)}${ch(ca.b, cb.b)}`;
+}
+
+/**
+ * readableOn — nudges a brand color away from a background until the pair
+ * clears `minRatio`, keeping as much of the original hue as it can.
+ *
+ * WHY THIS EXISTS:
+ *   readableTextOn answers "black or white?"; this answers "how do I keep the
+ *   brand color and still be legible?" Brand tokens are validated only against
+ *   a LIGHT surface (see MIN_SURFACE_LUMINANCE), so a dark-navy primary is
+ *   invisible the moment it lands on a dark surface — which is exactly what the
+ *   TV scoreboard is. Lightening toward white (or darkening toward near-black
+ *   on a light background) preserves the hue that makes it recognizable as the
+ *   brand while restoring contrast.
+ *
+ * Returns the original color untouched when it already clears the ratio.
+ */
+export function readableOn(color: string, background: string, minRatio = 4.5): string {
+  const target = getRelativeLuminance(background) > 0.179 ? '#1a1a1a' : '#ffffff';
+  // 2% steps: fine enough that the result still reads as the brand hue, coarse
+  // enough to settle in a handful of iterations.
+  for (let w = 1; w >= 0; w -= 0.02) {
+    const candidate = mixHex(color, target, w);
+    if (getContrastRatio(candidate, background) >= minRatio) return candidate;
+  }
+  return target;
+}
+
+/**
  * MIN_SURFACE_LUMINANCE — floor for isLightSurface().
  *
  * WHY 0.4:
@@ -163,26 +205,35 @@ function getRelativeLuminance(hex: string): number {
 }
 
 /**
- * hexToLinearRGB — converts a hex color string to linear (gamma-corrected) RGB.
- * The sRGB gamma curve must be undone before luminance math is valid.
+ * hexToRGB255 — parses a hex color (long or shorthand) into 0–255 channels.
  */
-function hexToLinearRGB(hex: string): { r: number; g: number; b: number } {
+function hexToRGB255(hex: string): { r: number; g: number; b: number } {
   // Strip leading '#' and expand shorthand (#abc → #aabbcc)
   const clean = hex.replace('#', '');
   const full  = clean.length === 3
     ? clean.split('').map(c => c + c).join('')
     : clean;
 
-  const r8 = parseInt(full.slice(0, 2), 16) / 255;
-  const g8 = parseInt(full.slice(2, 4), 16) / 255;
-  const b8 = parseInt(full.slice(4, 6), 16) / 255;
+  return {
+    r: parseInt(full.slice(0, 2), 16),
+    g: parseInt(full.slice(2, 4), 16),
+    b: parseInt(full.slice(4, 6), 16),
+  };
+}
+
+/**
+ * hexToLinearRGB — converts a hex color string to linear (gamma-corrected) RGB.
+ * The sRGB gamma curve must be undone before luminance math is valid.
+ */
+function hexToLinearRGB(hex: string): { r: number; g: number; b: number } {
+  const { r, g, b } = hexToRGB255(hex);
 
   // Apply inverse sRGB gamma: values ≤ 0.04045 use linear scale,
   // values above use the power curve defined by the sRGB spec.
   const linearize = (c: number) =>
     c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 
-  return { r: linearize(r8), g: linearize(g8), b: linearize(b8) };
+  return { r: linearize(r / 255), g: linearize(g / 255), b: linearize(b / 255) };
 }
 
 // ── PLATFORM ADAPTERS ─────────────────────────────────────────────────────────
