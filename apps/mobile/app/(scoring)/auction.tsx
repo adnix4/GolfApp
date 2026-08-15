@@ -176,10 +176,10 @@ export default function AuctionScreen() {
   const historyReqRef = useRef(0);
 
   const loadHistory = useCallback(async () => {
-    if (!player?.id) return;
+    if (!player?.id || !session?.sessionToken) return;
     const req = ++historyReqRef.current;
     try {
-      const rows = await fetchPlayerBidHistory(player.id);
+      const rows = await fetchPlayerBidHistory(player.id, session.sessionToken);
       if (req === historyReqRef.current) {
         setHistory(rows);
         setHistoryError(false);
@@ -191,7 +191,7 @@ export default function AuctionScreen() {
       // My Bids tab shows an inline banner instead.
       if (req === historyReqRef.current) setHistoryError(true);
     }
-  }, [player?.id]);
+  }, [player?.id, session?.sessionToken]);
 
   // Runs on mount and after every successful snapshot, so a bid that moves the
   // price also re-reads where this golfer stands. Previously this only fired on
