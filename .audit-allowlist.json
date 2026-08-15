@@ -1,0 +1,17 @@
+{
+  "_comment": "Accepted high/critical advisories in PRODUCTION dependencies. Read by scripts/audit-prod.js, which runs in CI. Every entry needs a reason and a reviewBy date; the build fails once reviewBy passes, and again if the entry stops matching anything. Do not add an entry to silence a finding that has a patched version available - upgrade instead.",
+  "allow": [
+    {
+      "advisory": "GHSA-w3rx-r6r6-pgpr",
+      "package": "image-size",
+      "reason": "Build-time only, never shipped. Sole path is expo > @expo/metro > metro > image-size, i.e. the Metro bundler. It parses assets from this repo at build time; it is absent from the C# API, the Next.js runtime and the compiled RN bundle, so the DoS has no untrusted input and no production reachability. Advisory range is '*' - no fixed version exists to upgrade to.",
+      "reviewBy": "2026-11-15"
+    },
+    {
+      "advisory": "GHSA-5p2g-fcmc-qvqq",
+      "package": "image-size",
+      "reason": "Same package, same dependency path and same rationale as GHSA-w3rx-r6r6-pgpr; this advisory covers the JXL and HEIF parsers rather than ICNS.",
+      "reviewBy": "2026-11-15"
+    }
+  ]
+}

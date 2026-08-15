@@ -104,11 +104,22 @@ jobs:
         # Calls Railway's GraphQL API to trigger a redeploy of the service.
         # Skipped gracefully if RAILWAY_TOKEN or RAILWAY_SERVICE_ID are not
         # configured yet — the Docker image is still pushed to ghcr.io.
-        if: ${{ secrets.RAILWAY_TOKEN != '' && secrets.RAILWAY_SERVICE_ID != '' }}
+        #
+        # The skip is checked INSIDE the script, not in an `if:`. The `secrets`
+        # context is not available to a step-level `if`, and using it there is a
+        # workflow validation error that kills the whole file before any job
+        # starts — this workflow never once ran between 2026-05-23 and
+        # 2026-08-15 for exactly that reason. Step-level `env` is not reliably
+        # readable from its own `if` either, so the guard lives in bash.
         env:
           RAILWAY_TOKEN:      ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
         run: |
+          if [ -z "$RAILWAY_TOKEN" ] || [ -z "$RAILWAY_SERVICE_ID" ]; then
+            echo "Railway secrets not configured — skipping deploy."
+            echo "The image was still pushed to ghcr.io and can be deployed by hand."
+            exit 0
+          fi
           curl -sf -X POST \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \

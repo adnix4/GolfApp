@@ -120,6 +120,15 @@ jobs:
   # tooling vulns (vitest/vite) and the Expo build-tool moderates — none of which
   # ship in the API or app runtime, and can't be fixed without major upgrades —
   # are reported but don't block. Runs against the committed lockfile; no install.
+  #
+  # The gate is scripts/audit-prod.js rather than a bare `npm audit` because the
+  # same "doesn't ship in the API or app runtime" reasoning above eventually
+  # applies to a HIGH as well — image-size reaches us only through the Metro
+  # bundler and has no fixed version to move to. Dropping the threshold to
+  # `critical` would have hidden real highs (the js-yaml and nanoid ones fixed on
+  # 2026-08-14), so instead each accepted high is named in .audit-allowlist.json
+  # with a reason and an expiry date. The script fails on anything unlisted, on
+  # an entry past its reviewBy, and on an entry that has stopped matching.
   dependency-audit:
     name: Dependency Audit (prod, high+)
     runs-on: ubuntu-latest
@@ -133,8 +142,8 @@ jobs:
         with:
           node-version: '20'
 
-      - name: npm audit (production deps, high+ fails)
-        run: npm audit --omit=dev --audit-level=high
+      - name: npm audit (production deps, high+ fails unless allowlisted)
+        run: npm run audit:prod
 
       - name: Full audit report (informational, never fails)
         if: always()
