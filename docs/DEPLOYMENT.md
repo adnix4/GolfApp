@@ -91,8 +91,10 @@ handles client routing).
 ## Mobile (`apps/mobile`)
 
 - `EXPO_PUBLIC_API_URL=https://api.<domain>` at build time.
-- EAS builds: iOS requires Apple Developer Program; SDK 56 builds set
-  **iOS 16.4 minimum** (drops older devices — confirm before release).
+- EAS builds: iOS requires Apple Developer Program; SDK 57 builds set
+  **iOS 16.4 minimum** (drops older devices — confirm before release). The floor
+  did not move with the SDK 56 → 57 upgrade: ExpoModulesCore.podspec still
+  declares `:ios => '16.4'`, so the device-support commitment is unchanged.
 - Push notifications ride the EAS project credentials; verify a real push
   end-to-end during the dress rehearsal.
 - Expo Go is NOT viable for a real event — distribute installable builds

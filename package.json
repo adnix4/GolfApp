@@ -19,7 +19,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@vitest/coverage-v8": "^4.1.9",
-    "babel-preset-expo": "~56.0.15",
+    "babel-preset-expo": "~57.0.7",
     "eslint": "^9.39.4",
     "globals": "^17.5.0",
     "prettier": "^3.2.5",
@@ -31,7 +31,7 @@
   "overrides": {
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-native": "0.85.3",
+    "react-native": "0.86.2",
     "react-native-screens": "4.26.2",
     "postcss": "^8.5.23",
     "sharp": "^0.35.3"

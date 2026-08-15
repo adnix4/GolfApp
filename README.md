@@ -13,7 +13,7 @@ golf-fundraiser-pro/              ← Turborepo monorepo root
   apps/
     api/       → ASP.NET Core .NET 8  — REST API (port 5000)
     admin/     → Expo Router web      — Organizer dashboard (port 8081)
-    mobile/    → Expo SDK 55          — iOS/Android scoring app
+    mobile/    → Expo SDK 57          — iOS/Android scoring app
     web/       → Next.js 15           — Public leaderboard + landing page (port 3000)
   packages/
     ui/          → Shared React Native components (mobile + admin)
@@ -38,7 +38,7 @@ golf-fundraiser-pro/              ← Turborepo monorepo root
 | Cache | Redis 7 | Leaderboard cache + SignalR backplane |
 | Admin Dashboard | Expo Router web | Shares UI components with mobile |
 | Public Web | Next.js 15 App Router | SSR, Vercel, JSON-LD structured data |
-| Mobile App | React Native + Expo SDK 55 | New Architecture, EAS Build |
+| Mobile App | React Native + Expo SDK 57 | New Architecture, EAS Build |
 | Real-Time | ASP.NET SignalR | Phase 3 |
 | Payments | Stripe | Phase 4 |
 | Email | SendGrid | 100/day free tier |
