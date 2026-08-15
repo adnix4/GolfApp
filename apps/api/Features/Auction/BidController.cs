@@ -75,14 +75,18 @@ public class BidController : ControllerBase
 
     /// <summary>
     /// GET /api/v1/players/{id}/bids
-    /// Player's bid history.
+    /// Player's own bid history. Requires the per-player session token minted at
+    /// /join — the history exposes private Silent maxima, so a player GUID alone
+    /// is not enough to read it. Same shape as GetPlayerCart on the checkout
+    /// controller: anonymous route, token in the query string.
     /// </summary>
     [HttpGet("api/v1/players/{playerId:guid}/bids")]
     public async Task<IActionResult> GetPlayerBids(
         [FromRoute] Guid playerId,
+        [FromQuery] string? sessionToken,
         CancellationToken ct)
     {
-        var history = await _auction.GetPlayerBidsAsync(playerId, ct);
+        var history = await _auction.GetPlayerBidsAsync(playerId, sessionToken, ct);
         return Ok(history);
     }
 }

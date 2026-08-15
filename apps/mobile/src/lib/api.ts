@@ -538,8 +538,14 @@ export async function updateMyProfile(
   return res.json();
 }
 
-export async function fetchPlayerBidHistory(playerId: string): Promise<PlayerBidHistoryItem[]> {
-  const res = await gfpFetch(`${BASE}/api/v1/players/${playerId}/bids`);
+// The history carries this golfer's private Silent maxima, so the server wants the
+// same session token a bid does — a player id on its own no longer reads it.
+export async function fetchPlayerBidHistory(
+  playerId: string, sessionToken: string,
+): Promise<PlayerBidHistoryItem[]> {
+  const res = await gfpFetch(
+    `${BASE}/api/v1/players/${playerId}/bids`
+    + `?sessionToken=${encodeURIComponent(sessionToken)}`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? `Bid history fetch failed (${res.status})`);

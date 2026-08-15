@@ -830,8 +830,19 @@ public class AuctionService
     // ── BID HISTORY ────────────────────────────────────────────────────────────
 
     public async Task<List<PlayerBidHistoryItem>> GetPlayerBidsAsync(
-        Guid playerId, CancellationToken ct)
+        Guid playerId, string? sessionToken, CancellationToken ct)
     {
+        // Authorization: a golfer's history carries their PRIVATE Silent maxima —
+        // the ceiling U4's proxy bidding is built on staying secret. Reading it
+        // needs the same per-player token PlaceBidAsync requires to write to it.
+        // A bad token answers exactly as a bad id does, so this cannot be used to
+        // probe which player GUIDs are real.
+        var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == playerId, ct)
+            ?? throw new NotFoundException("Player", playerId);
+
+        if (!Common.PlayerSessionAuth.Matches(player.SessionToken, sessionToken))
+            throw new NotFoundException("Player", playerId);
+
         var bids = await _db.Bids
             .Include(b => b.AuctionItem)
             .Where(b => b.PlayerId == playerId)

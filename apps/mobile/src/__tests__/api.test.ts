@@ -401,22 +401,35 @@ describe('fetchPlayerBidHistory', () => {
 
   it('sends GET to /players/{id}/bids', async () => {
     mockOk([historyItem]);
-    await fetchPlayerBidHistory('pl1');
+    await fetchPlayerBidHistory('pl1', 'tok-abc');
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit | undefined];
     expect(url).toContain('/players/pl1/bids');
     expect((opts?.headers as Record<string, string>)['X-GFP-Device']).toBeTruthy();
   });
 
+  it('passes the session token — the history exposes private Silent maxima', async () => {
+    // Without it the server answers 404, the same as it would for a bad player id.
+    mockOk([historyItem]);
+    await fetchPlayerBidHistory('pl1', 'tok-abc');
+    expect(mockFetch.mock.calls[0][0] as string).toContain('sessionToken=tok-abc');
+  });
+
+  it('url-encodes a token containing url-unsafe characters', async () => {
+    mockOk([historyItem]);
+    await fetchPlayerBidHistory('pl1', 'a+b/c=d');
+    expect(mockFetch.mock.calls[0][0] as string).toContain('sessionToken=a%2Bb%2Fc%3Dd');
+  });
+
   it('returns the bid history array', async () => {
     mockOk([historyItem]);
-    const result = await fetchPlayerBidHistory('pl1');
+    const result = await fetchPlayerBidHistory('pl1', 'tok');
     expect(result).toHaveLength(1);
     expect(result[0].status).toBe('Winning');
   });
 
   it('returns an empty array when the player has no bids', async () => {
     mockOk([]);
-    const result = await fetchPlayerBidHistory('pl1');
+    const result = await fetchPlayerBidHistory('pl1', 'tok');
     expect(result).toHaveLength(0);
   });
 });

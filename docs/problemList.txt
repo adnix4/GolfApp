@@ -36,8 +36,9 @@ P4 — FEATURES / POLISH
      U6   evaluate buy-it-now — what triggers it, what it bills, and whether it
           belongs on a proxy lot at all. Decision needed, not a coded fix.
      U7   follow-ups from the 2026-08-02/03 work (sponsors, ticker, TV branding,
-          bid confirmation). (a) is a security item — pull it forward if the
-          pilot ships before this tier.
+          bid confirmation). (a) was the security item and is FIXED 2026-08-15 —
+          it was pulled forward out of this tier, as the note said to. (b)-(m)
+          remain, and are decisions or polish rather than defects.
 
 P5 — BLOCKED OR DEFERRED (no action available yet)
      D19  dev-loop fixes landed; three follow-ups, one gated on D6
@@ -814,7 +815,7 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         author of those changes, so nobody has to re-derive them. None of these
         block the work that shipped; each is a decision or a follow-up.
 
-        (a) SECURITY — GET /api/v1/players/{id}/bids IS UNAUTHENTICATED AND NOW
+        [x] (a) SECURITY — GET /api/v1/players/{id}/bids IS UNAUTHENTICATED AND NOW
             POLLED CONTINUOUSLY. BidController.cs:76-87 is [AllowAnonymous] with
             no session-token check: anyone holding a player's GUID can read that
             golfer's bid history, INCLUDING their private Silent maxima. That
@@ -827,6 +828,19 @@ Captured while filling API test-coverage holes. Mark [x] when done.
             checkout cart — Phase11 / the 2026-06-22 security review). Fix is
             small: PlayerSessionAuth.Matches, exactly as PlaceBidAsync does, plus
             the token on the client call.
+            FIXED 2026-08-15. Done exactly as described above. GetPlayerBidsAsync
+            now loads the player and runs PlayerSessionAuth.Matches before reading
+            any bids, throwing NotFoundException("Player", id) on a mismatch — the
+            same answer a bad id gets, so the endpoint cannot be used to probe for
+            real players. The token rides the query string as [FromQuery], the
+            shape GetPlayerCart already uses on the checkout controller. Client
+            side, fetchPlayerBidHistory takes the token and auction.tsx passes
+            session.sessionToken with the same guard loadCart already had.
+            Covered by apps/api-tests/AuctionBidHistoryTests.cs (4 tests, verified
+            to fail 3/4 with the guard removed) plus three mobile api tests.
+            NOT closed by this: (i) still stands — personalizing
+            AuctionItemResponse with the caller's max would remove the second
+            request altogether, and with it this endpoint's whole exposure.
 
         (b) A SPONSOR PLACEMENT TOGGLE WOULD BE WIPED BY THE ADMIN FORM.
             IsLandingPageSponsor is now opt-OUT (absent key = show), because the
