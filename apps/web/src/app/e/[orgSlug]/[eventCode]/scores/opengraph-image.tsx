@@ -1,7 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { fetchPublicEvent, fetchPublicLeaderboard } from '@/lib/api';
 
-export const runtime = 'edge';
 export const alt     = 'Live Leaderboard';
 export const size    = { width: 1200, height: 630 };
 export const contentType = 'image/png';
