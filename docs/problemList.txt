@@ -19,7 +19,9 @@ P1 — PILOT PATH (external lead times first; D1 gates D3 and D10)
      [x] D2  already complete — verified 2026-08-01, nothing to write
      D3   staging environment
      D4   dress rehearsal — the pilot succeeds or fails here
-     D5   mobile distribution (EAS / TestFlight)
+     D5   mobile distribution (EAS / TestFlight) — now carries two verifications
+          nothing else can do: SDK 57 on real hardware, and the outbid push
+          end-to-end. D4 needs a build from here, so in practice D5 gates it.
      D6   pilot ops — backups, error monitoring, day-of runbook
 
 P2 — CORRECTNESS THE ORGANIZER WILL HIT ON THE DAY  (tier clear)
@@ -154,6 +156,55 @@ their standing decisions are in the section above.
         web, not that the app runs on a handset. Whatever else D5 delivers, the
         first EAS build is the outstanding verification for an upgrade already
         sitting on main.
+
+        WHAT "PUSH CREDENTIALS VERIFIED END-TO-END" ACTUALLY HAS TO CHECK (traced
+        2026-08-15, prompted by noticing no notifications in web mode — that part
+        is expected, see the web note below). The chain is fully built: join.tsx
+        → registerForPushNotifications → getExpoPushTokenAsync → POST
+        /players/{id}/push-token, and server-side AuctionService.cs:358 fires
+        SendOutbidNotificationAsync (:1115) → PushNotificationService →
+        https://exp.host/--/api/v2/push/send. Nothing is missing in the code. Two
+        things are unverified, and they compound:
+        (a) NO EAS projectId ANYWHERE YET. pushNotifications.ts:43 calls
+            getExpoPushTokenAsync() with no argument. SDK 57 resolves the id from
+            options.projectId, Constants.easConfig?.projectId, or
+            Constants.expoConfig?.extra?.eas?.projectId, else it throws
+            ERR_NOTIFICATIONS_NO_EXPERIENCE_ID (getExpoPushTokenAsync.js:49-53).
+            apps/mobile/app.json has no `extra` block at all. This most likely
+            fixes itself the moment EAS is set up — `eas init` writes
+            extra.eas.projectId and EAS Build injects easConfig — so treat it as
+            UNVERIFIED rather than broken. CONFIRM `eas init` actually added it.
+        (b) EVERY FAILURE IS SWALLOWED. join.tsx:105 is
+            `registerForPushNotifications(data.player.id).catch(() => {})`. If (a)
+            throws on a real device, the golfer joins normally, bids normally, and
+            simply never receives an outbid alert — no log, no user-visible sign.
+            The swallow is defensible for a declined permission prompt, but it
+            hides infrastructure failure identically. Discovery would be mid-
+            auction at a live event, which is the worst possible place.
+        SO THE VERIFICATION IS THREE STEPS, and only the third proves anything:
+        confirm extra.eas.projectId exists; join on a real device and check a row
+        actually lands via POST /players/{id}/push-token; then have a SECOND
+        golfer outbid the first and confirm the push arrives with the app
+        BACKGROUNDED. Worth doing before D4's dress rehearsal, since the outbid
+        push is what drives re-bidding and a silent auction that never nudges
+        anybody is the failure this feature exists to prevent.
+        Optional hardening while in there: log the registration failure instead of
+        swallowing it, and/or pass projectId explicitly so a missing id is a loud
+        startup error rather than a silent runtime throw.
+
+        WEB MODE GETS NO PUSH, BY DESIGN — NOT A BUG. Running apps/mobile in a
+        browser shows no notifications and that is expected: app.json has no
+        notification.vapidPublicKey or notification.serviceWorkerPath (both
+        REQUIRED by getDevicePushTokenAsync.web.js), there is no service worker in
+        the project, expo-notifications ships no .web.js for
+        NotificationsHandlerModule / NotificationPermissionsModule / Scheduler /
+        EmitterModule, and the server posts to Expo's push API which targets
+        APNs/FCM tokens, not Web Push subscriptions. Web DOES still get in-app
+        messages via notify() (src/lib/notify.ts, the D12 fix) and live SignalR
+        updates through useLiveAuction / useLiveLeaderboard — but only while the
+        tab is open on that screen. Confirmed 2026-08-15 that bidding is intended
+        to be app-only once deployed, so this needs no fix; it is recorded so
+        nobody re-investigates "notifications are broken on web".
 
 [ ] D6. PILOT OPS
         - Nightly pg_dump backups; error monitoring (e.g. Sentry in all three
