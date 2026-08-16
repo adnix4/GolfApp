@@ -46,10 +46,46 @@ P5 — BLOCKED OR DEFERRED (no action available yet)
      D10  card-on-file at check-in — blocked on D1 Stripe activation
      T4   thin-service test coverage — low ROI, deliberate defer
 
+## Standing rules (extracted 2026-08-15)
+Completed entries below were compressed to one line each. These are the durable
+decisions that came out of them — the parts that govern code not yet written.
+Breaking one of these re-opens a bug that was already paid for. Each names the
+entry it came from; the full reasoning is in git history for that entry.
+
+- ENTRY-FEE STATE LIVES ON THE GOLFER (D13). Never reintroduce a team-level
+  paid boolean as a source of truth. teams.entry_fee_paid is still written for
+  continuity and read nowhere.
+- USE notify(), NOT Alert (D12). react-native-web ships Alert as a literal
+  no-op, so every Alert.alert on the web build goes nowhere. Anything that
+  reports to a golfer goes through src/lib/notify.ts.
+- PROXY BIDDING IS SILENT ITEMS ONLY (U4). Do not widen it. A Live lot is
+  called aloud by an auctioneer and Fund-a-Need pledges stack rather than
+  compete. The proxy step is the item's bid_increment_cents, not a flat $1.
+- STARTING HOLES ARE ASSIGNED ON StartType == Shotgun ONLY (U5), never by
+  Format == Scramble. A scramble on tee times starts everyone at hole 1;
+  stamping holes there makes the scorecard lie. Settled — do not widen.
+- CHECK-IN IS ALLOWED IN Active OR Scoring (D9), so late arrivals stay
+  eligible to bid under the D8 waiver. Completed and Cancelled stay closed.
+- A CARDLESS WINNER CANNOT BE CHARGED (D8). The charge fails, the winner is
+  marked ChargeStatus.Failed, and the item still closes. The organizer settles
+  by hand. Confirm they will chase payment before enabling this for a real event.
+- CLIENT AND SERVER BID RULES MOVE TOGETHER (D12, U4, U7m).
+  packages/shared-types/src/auctionRules.ts mirrors AuctionBidRules; the
+  lockstep comment at its head names the server file to change with it.
+- A ROTATED REFRESH TOKEN IS REPLAYABLE FOR 30s (D17), knowingly traded to stop
+  concurrent-refresh logouts. Reuse outside the window logs "Possible token
+  theft" — wire that into D6's monitoring.
+- /health DOES NOT PROBE DB OR REDIS (D2). It answers "the process is up", not
+  "the API can serve". If D6 wants dependency health, that is a new task.
+- TESTING THE PRODUCTION STARTUP GUARDS: `dotnet run` applies
+  Properties/launchSettings.json, which pins ASPNETCORE_ENVIRONMENT=Development
+  and silently masks them (D2). Use --no-launch-profile.
+
 ## Deployment path — real-world pilot (2026-07-09)
 Goal: deploy Golf Fundraiser Pro for a real-world test event. Ordered phases;
 mark [x] as completed. D1 items have external lead times — start them first,
-they run in parallel with everything else.
+they run in parallel with everything else. Completed entries are one-liners;
+their standing decisions are in the section above.
 
 [ ] D1. DECISIONS & ACCOUNTS (user actions; longest lead times)
         - Hosting choice. Spec default: API on Railway (any container host
@@ -59,10 +95,13 @@ they run in parallel with everything else.
         - Domain + DNS (.env.example assumes golffundraiser.pro with api. and
           app. subdomains).
         - Apple Developer Program enrollment ($99/yr; TestFlight review adds
-          days). SDK 56 constraint: shipped iOS builds require iOS 16.4+
+          days). SDK 57 constraint: shipped iOS builds require iOS 16.4+
           (Xcode 26.4 — EAS cloud runners handle it, Windows dev unaffected,
           but older devices are dropped). Confirm EAS image + minimum-OS
           commitment before releasing a build.
+          The SDK 56 → 57 upgrade (2026-08-15) did NOT move this floor —
+          ExpoModulesCore.podspec still declares :ios => '16.4' — so the
+          device-support commitment is unchanged from what was scoped here.
         - Stripe live account activation (business verification lead time) —
           or run the pilot in test mode and use the cash mark-paid-at-check-in
           path for real fees.
@@ -70,61 +109,7 @@ they run in parallel with everything else.
           CRITICAL PATH: join email-verification codes must actually arrive
           once the dev bypass code is off (see A3 history in git).
 
-[x] D2. CODE HARDENING — ALREADY COMPLETE, verified 2026-08-01.
-        Picked this up to implement and found every bullet already shipped,
-        piecemeal, across earlier work. Nothing was written; this entry was
-        stale. Evidence per bullet, so nobody re-investigates:
-        - Startup guard: Program.cs:76. Refuses to boot on ANY non-Development
-          environment when JoinVerification:TestBypassCode is set. Note it is
-          STRICTER than this entry asked for ("refuse in Production") — Staging
-          is blocked too. Confirmed live: ASPNETCORE_ENVIRONMENT=Production with
-          the code set throws InvalidOperationException and never listens.
-          (Watch out when testing this: `dotnet run` applies
-          Properties/launchSettings.json, which pins ASPNETCORE_ENVIRONMENT to
-          Development and silently masks the guard. Use --no-launch-profile.)
-        - ForwardedHeaders: Program.cs:166, opt-in via TRUST_FORWARDED_HEADERS,
-          clearing the loopback-only KnownNetworks/KnownProxies defaults because
-          a PaaS proxy address isn't knowable ahead of time. The opt-in flag is
-          itself the trust decision, which is the right call — trusting these
-          headers while exposed directly to the internet would let callers spoof
-          their IP past the per-IP rate limits.
-        - DataProtection: ServiceCollectionExtensions.cs:59, persists to
-          DATA_PROTECTION_KEYS_PATH when set; unset keeps the framework default
-          for local dev.
-        - Production CORS: ServiceCollectionExtensions.cs:55 (AddGfpCors).
-          GfpProduction policy reads CORS_ALLOWED_ORIGINS (comma-separated) and
-          FAILS CLOSED to the canonical domains rather than to "any origin".
-        - /health: Program.cs:283 — GET /api/health, anonymous, returns status
-          and UTC timestamp. Static only; it does NOT probe the DB or Redis, so
-          it answers "the process is up", not "the API can serve". Fine for an
-          uptime ping; if D6 wants dependency health, that is a new task.
-        - Migration story: Program.cs:112. Auto-migrate in Development, opt-in
-          elsewhere via GFP_MIGRATE_ON_STARTUP, and outside Development a failed
-          migration rethrows so a botched schema never serves traffic.
-        - DEPLOYMENT.md: docs/DEPLOYMENT.md exists (112 lines) with topology,
-          per-app sections for api/web/admin/mobile, a pre-pilot checklist, and
-          all four env vars above documented.
-        BONUS FOUND WHILE VERIFYING: ServiceCollectionExtensions.cs:254 already
-        fail-fasts on a missing JWT_SECRET with an actionable message. Confirmed
-        live — a Production start without it throws rather than booting on a
-        weak or absent signing key.
-
-    D2-ORIGINAL. CODE HARDENING (no infra needed; can be done now)
-        - Startup guard: refuse to boot in Production when
-          JoinVerification:TestBypassCode is set (converts the "999999 must
-          never reach production" note into a can't).
-        - ForwardedHeaders configuration so the rate limiter and the
-          IP-keyed security policies (auth/join/donate) see real client IPs
-          behind the reverse proxy — the code comments already flag this.
-        - DataProtection key persistence to a mounted volume/store so keys
-          survive container restarts (currently Windows DPAPI locally).
-        - Production CORS origins from configuration.
-        - /health endpoint for host health checks (verify one exists).
-        - Migration story: auto-migrate is Development-only by design, so
-          deploys need an explicit `dotnet ef database update` step or an
-          opt-in migrate-on-startup flag for production.
-        - DEPLOYMENT.md: complete env-var checklist (extend .env.example's
-          STAGING/PROD annotations) + deploy runbook per app.
+[x] D2. CODE HARDENING — every bullet was already shipped; verified per-bullet 2026-08-01, nothing written.
 
 [ ] D3. STAGING ENVIRONMENT (after D1 hosting/domain decided)
         - Provision managed Postgres WITH PostGIS (plain postgres breaks GPS
@@ -134,6 +119,16 @@ they run in parallel with everything else.
         - Deploy API + web + admin static export; set NEXT_PUBLIC_* /
           EXPO_PUBLIC_* build-time URLs; register the Stripe webhook endpoint
           (fail-closed outside Development is already in); TLS everywhere.
+        THE API IMAGE PIPELINE NOW WORKS (2026-08-15). deploy-api.yml had failed
+        at workflow VALIDATION on all 40 runs since 2026-05-23 — `secrets` is not
+        available to a step-level `if`, which rejects the whole file before any
+        job starts, so zero jobs ever ran and the API had never once been built
+        by CI. Fixed in PR #41; it now builds and pushes
+        ghcr.io/adnix4/golfapp/api on every apps/api change. RAILWAY_TOKEN and
+        RAILWAY_SERVICE_ID are still unset, so it skips the deploy call and
+        reports success — setting them (a D1 decision) is the last step, and the
+        image is deployable by hand meanwhile. Note only EXPO_TOKEN is
+        configured today; TURBO_TOKEN/TURBO_TEAM are optional cache credentials.
 
 [ ] D4. DRESS REHEARSAL on staging (the pilot succeeds or fails here)
         - /seed-demo-event full lifecycle against staging.
@@ -151,6 +146,14 @@ they run in parallel with everything else.
           real event — golfers need an installable build.
         - Push notification credentials (EAS project) verified end-to-end.
         - Wire up the store links once listings exist — see D7.
+        NOW ALSO THE ONLY WAY TO VALIDATE SDK 57 (raised 2026-08-15). Both Expo
+        apps moved SDK 56 → 57 (react-native 0.85.3 → 0.86.2) and merged on
+        type-check, vitest and the admin WEB export alone. There is no eas.json
+        and eas-build.yml has never run, so NOTHING has executed RN 0.86 native
+        code — no CI job can. A green build proves it compiles and bundles for
+        web, not that the app runs on a handset. Whatever else D5 delivers, the
+        first EAS build is the outstanding verification for an upgrade already
+        sitting on main.
 
 [ ] D6. PILOT OPS
         - Nightly pg_dump backups; error monitoring (e.g. Sentry in all three
@@ -185,116 +188,9 @@ they run in parallel with everything else.
           platform ships first (e.g. Android live, iOS still in review): the
           chooser shows just the live store, which is intended.
 
-[x] D8. LET CHECKED-IN GOLFERS BID WITHOUT A SAVED CARD (added 2026-07-31,
-        done 2026-07-31)
-        DONE — but the job was bigger than first scoped. Three defects, not
-        one, stood between a checked-in golfer and a cardless bid:
-        (a) Admin's Check In button was DEAD CODE. The API projects
-            CheckInStatus with .ToString() ("Pending"/"CheckedIn"/"Complete")
-            but both screens compared against lowercase, so the button never
-            rendered, the pill was always grey, and every team counted as
-            checked in. Fixed via apps/admin/src/lib/checkIn.ts (single source
-            of truth for the wire format) + packages/ui TeamCard, which had the
-            same bug. shared-types' CheckInStatus union now matches the wire.
-        (b) NOTHING checked in a GOLFER. Admin only called the team endpoint,
-            and TeamService.CheckInTeamAsync set only team.CheckInStatus — it
-            never touched Player.CheckInStatus and emitted no SignalR. It now
-            cascades to every golfer on the roster, sets the team to Complete,
-            and broadcasts. PlayerService.CheckInAsync is now idempotent (it
-            threw), matching what its own endpoint doc already claimed.
-        (c) The mobile client was STRICTER THAN THE SERVER: auction.tsx disabled
-            the Bid/Pledge button on !hasPaymentMethod alone, ignoring check-in,
-            and the banner claimed "bids require a saved card" — false for a
-            checked-in golfer. Both now carry the check-in condition, and the
-            banner reads "You're checked in — no card needed to bid."
-        UI (as specified by the user): a "Check In Team" button that appears
-        ONLY when every golfer on the roster has a card, replaced otherwise by
-        "N of M golfers have no card — check in individually"; a per-golfer
-        Check In button on every roster row; and a confirm popup that states
-        card status either way — the cardless variant warns that a winner must
-        be collected from manually. Copy is single-sourced in checkIn.ts.
-        PLUMBING: PlayerResponse gained HasPaymentMethod (and the two divergent
-        MapToPlayerResponse copies were merged into one — PlayerService's had
-        already drifted, silently dropping the entry-fee columns).
-        PlayerCacheDto gained IsCheckedIn. GET /pub/events/{code}/status now
-        returns the caller's own {isCheckedIn, hasPaymentMethod} when the
-        X-GFP-Player-Id / X-GFP-Session-Token headers are presented (fail-closed
-        to null) — mobile's session poll already ran every tick, so this costs
-        zero extra requests and is what unlocks the button after check-in.
-        The rule itself is now shared: packages/shared-types/src/auctionRules.ts
-        mirrors AuctionBidRules.NeedsPaymentMethod, tested against the same
-        three cases as apps/api-tests/AuctionBidRulesTests.cs.
-        COLLECTION CONSEQUENCE (the standing decision behind this item): a
-        cardless winner cannot be charged. ChargeWinnerAsync throws, the winner
-        is marked ChargeStatus.Failed and logged, and the item close still
-        completes — nothing breaks. The organizer settles via the failed-charge
-        flow (waive / retry / collect at the table), the same cash fallback D1
-        already assumes for entry fees. Confirm the organizer is willing to
-        chase payment before enabling this for a real event.
-        VERIFIED: 450 API tests, 119 admin, 115 mobile, 91 shared-types, 4 apps
-        typecheck clean. Driven live against localhost — team cascade, per-golfer
-        promotion to Complete, idempotency, the status-poll flip, the join
-        payload, and both bid outcomes (cardless+CheckedIn -> 200,
-        cardless+Pending -> 400 NO_PAYMENT_METHOD). Admin UI clicked through in
-        a browser: both popup variants and the team cascade confirmed against
-        the DB. NOT visually exercised: the mobile auction screen itself
-        (apps/mobile has no RN component-test harness and vitest only picks up
-        src/**/*.ts) — its inputs and rule are unit-tested instead.
-        D4 note: the dress-rehearsal sub-item "bid from a phone with no saved
-        card after check-in" is now pre-verified at the API level; only the
-        on-device walk and the failed-charge resolution remain for D4.
+[x] D8. CHECKED-IN GOLFERS BID WITHOUT A SAVED CARD (2026-07-31) — three defects: dead Check In button (case mismatch), team check-in never cascaded to golfers, mobile stricter than server.
 
-[x] D9. OPEN-SCORING GATE + THE AUCTION OUTLIVES THE ROUND (2026-07-31)
-        Started as "don't enable Open Scoring until all teams are checked in".
-        That gate is done — Overview greys the button, shows "N of M teams still
-        need check-in", and offers "Open Scoring anyway" behind a confirm naming
-        the outstanding teams, so a no-show foursome can't strand the round. The
-        gate is an admin affordance only; ValidateStatusTransition is unchanged.
-        Counted in TEAMS off counts.teamsCheckedIn (CheckedIn||Complete), which
-        was already on the page — no new request on the normal path.
-        THE BIGGER FIND: the event status machine assumed a golf-only day ending
-        at Completed, but a fundraiser runs on into a banquet. The auction API,
-        the close job and the admin auction UI have ZERO EventStatus coupling —
-        the conflation was entirely in the clients. Fixed without a new status
-        or a migration:
-          - check-in now allowed in Active OR Scoring (EventStatusRules
-            .CheckInAllowed) so late arrivals can still be checked in — which
-            also keeps them eligible to bid under the D8 waiver. Completed and
-            Cancelled stay closed.
-          - /join no longer refuses Completed; the event picker lists a Completed
-            event only while it still has an Open/Extended auction item, so the
-            public directory doesn't accumulate finished events.
-          - the mobile shell no longer hides every tab at Completed (it showed an
-            "Event Ended" wall with no way past, trapping golfers mid-auction).
-            Scoring closes; auction and leaderboard stay reachable.
-          - new POST /events/{id}/auction/sessions/end + "End Auction" button —
-            the organizer's "auction is over" signal. Previously IsActive only
-            flipped when the NEXT session started, so a finished auction stayed
-            "in progress" on every attendee screen. This is the second
-            completion state, without touching the event status machine.
-        GUESTS (non-golfers who only want to bid): new RegistrationType.Attendee
-        — a team-less Player, not a new entity, because bids.player_id /
-        auction_winners.player_id / stripe_customers.player_id are all
-        non-nullable FKs to players. No migration (registration_type is a string
-        column, team_id already nullable). Being team-less keeps them off the
-        leaderboard, out of pairings, out of team capacity and out of the
-        check-in counts that gate Open Scoring. Admin: "Guest — not playing"
-        toggle on the Walk-Up form plus a Guests section on Registration (they
-        appear on no roster, so without it they could never be checked in).
-        They may be added after the round; golfers may not. Mobile: a guest goes
-        straight in (the old free-agent path threw the session token away at
-        join.tsx) with the scorecard and team tabs hidden.
-        ALSO FIXED: auction.tsx dropped Extended items from the golfer's list, so
-        an item that extended on a last-30-second bid vanished at its hottest
-        moment; and registration.tsx rendered Check In buttons after the event
-        left Active (a D8 regression) which 400d.
-        VERIFIED: 459 API / 130 admin / 115 mobile / 91 shared-types tests, four
-        apps typecheck. Driven live: gate blocked -> override dialog names the 5
-        outstanding teams -> cancel leaves it Active -> all checked in -> button
-        enables. Late check-in during Scoring 200s (400d before). After
-        Completed: golfer join 200s, guest joins straight in, cardless checked-in
-        guest bids 200, guest add 201 / golfer add 400, end-session 204 then 200.
-        NOT visually exercised: the mobile screens (no RN component-test harness).
+[x] D9. OPEN-SCORING GATE + THE AUCTION OUTLIVES THE ROUND (2026-07-31) — check-in gate on Open Scoring, End Auction endpoint, and RegistrationType.Attendee for non-golfer guests.
 
 [ ] D10. COLLECT PAYMENT INFO AT CHECK-IN — BLOCKED ON D1 (STRIPE ACTIVATION)
         Asked 2026-07-31; deferred deliberately, not for lack of time.
@@ -318,226 +214,24 @@ they run in parallel with everything else.
         Until then the fallbacks hold: cash entry fees via markFeePaid, and
         check-in waiving the auction card requirement (D8) with re-charge/waive.
 
-[x] D11. DESK STAFF CANNOT MARK A CASH FEE PAID (found 2026-07-31)
-        fee-paid is [Authorize(Policy="OrgAdmin")] (TeamController.cs:199) while
-        check-in is EventStaff (PlayerController.cs:91). An EventStaff user
-        working the registration desk can check golfers in but cannot record a
-        cash/check entry fee — they'd have to fetch an org admin mid-queue.
-        Small and Stripe-independent. Confirm who actually staffs the desk before
-        changing the policy, since it also controls the roster-wide fee override.
-        RESOLVED 2026-08-01 — user chose the per-golfer route, not a policy flip.
-        Investigating turned up something the entry above missed: fee-paid is the
-        ONLY fee endpoint and it is TEAM-level, so "let staff record cash" and
-        "let staff override a whole foursome" were the same permission. Moving it
-        to EventStaff would have handed every desk volunteer the bulk override —
-        the same tool that papered over an unpaid roster in D13.
-        So: NEW POST /events/{id}/players/{playerId}/fee-paid at EventStaff,
-        recording one golfer at the configured per-golfer fee. The team-level
-        endpoint is UNCHANGED and stays OrgAdmin. This also matches D13's rule
-        that entry-fee state lives on the golfer, so nothing new is a source of
-        truth. Admin registration gains a per-golfer "Take Fee" button beside
-        Check In, hidden on free events under the same D16 rule as the team row.
-        Idempotent (a golfer who already paid keeps their recorded amount, which
-        may differ if they paid online), reversible (paid:false clears a
-        mis-tap), and it refuses on a free event rather than writing a 0 that
-        every reader treats as unpaid.
-        VERIFIED: 500 API tests (6 new), admin typecheck + 138 tests. Driven
-        live — one golfer 7500 while their team-mate stayed 0, clearing returned
-        it to 0, and a free event 400s with an actionable message.
+[x] D11. DESK STAFF COULD NOT RECORD A CASH FEE (2026-08-01) — new per-golfer POST /events/{id}/players/{playerId}/fee-paid at EventStaff; the team-level bulk endpoint stays OrgAdmin deliberately.
 
-[x] D12. NO ITEM COULD BE BID ON, AND THE FAILURE WAS INVISIBLE (found 2026-07-31,
-        fixed same day). Reported as "a checked-in golfer taps Bid and nothing
-        happens". Check-in (D8) was fine; two unrelated defects compounded:
-        - The bid modal quoted currentHighBidCents + bidIncrementCents as the
-          minimum, while the server uses Max(startingBidCents, high + increment)
-          (AuctionBidRules.MinimumRequired). On any item with no bids yet — all 8
-          in St. Mark Classic — it advertised $5.00 for a $50.00 item, so a bid at
-          the quoted figure came back 400 BID_TOO_LOW. Same client/server drift
-          that caused D8; MinimumRequired now mirrors into shared-types
-          (minimumBidCents) beside needsPaymentMethod, tested case-for-case
-          against AuctionBidRulesTests.
-        - react-native-web ships Alert as a literal no-op (`class Alert { static
-          alert() {} }`), so on the web build EVERY Alert.alert in the app went
-          nowhere — hence "no warning". Replaced by src/lib/notify.ts (real
-          dialog on native, window.alert/confirm on web) across auction,
-          payment-setup and edit-profile; the bid modal additionally shows its
-          error inline under the amount field. Server codes are now translated
-          for humans — golfers were being shown the string "BID_TOO_LOW:5000".
-        Anything new that reports to the golfer must use notify(), not Alert.
+[x] D12. NO ITEM COULD BE BID ON, INVISIBLY (2026-07-31) — bid modal quoted the wrong minimum, and Alert is a no-op on react-native-web so no error ever showed.
 
-[x] D13. REGISTRATION AND FUNDRAISING DISAGREED ON WHO PAID (found 2026-07-31,
-        fixed same day). St. Mark Classic: Fundraising said "14 of 19 golfers
-        paid", Registration showed every team "✓ Fees Paid". Both read the same
-        rows; the team-level view OR-ed in the legacy teams.entry_fee_paid flag:
-          EntryFeePaid = team.EntryFeePaid || all-players-paid
-        which is sticky — once true the roster reads as paid no matter what the
-        golfers paid. Phase14's own migration note already said the flag is
-        "retained for now but no longer read". Two ways it went wrong:
-          - Phase14 added players.entry_fee_paid_cents at default 0 and
-            backfilled nothing, so every team marked paid before 2026-07-06
-            carries a true flag over a wholly unpaid roster (kim's slashers).
-          - A golfer assigned to an already-paid team pays nothing and is not
-            marked, but the flag kept the team reading as paid (Sleepers 3/4).
-            Correct behaviour is that the team stops being fully paid and the
-            organizer gets Mark All Paid back — that is what dropping the flag
-            gives, so no separate cascade is wanted.
-        Fixed in TeamService.MapToTeamResponse AND EventService.GetFundraisingAsync
-        (teamsPaid had the identical OR). The flag is still written for
-        continuity but is now read nowhere. Registration also shows the "0/N
-        paid" pill it used to hide at zero.
-        Entry-fee state lives on the golfer. Do not reintroduce a team-level
-        boolean as a source of truth.
+[x] D13. REGISTRATION AND FUNDRAISING DISAGREED ON WHO PAID (2026-07-31) — dropped the sticky legacy teams.entry_fee_paid flag from both read paths.
 
-[x] D14. FUND-A-NEED ITEMS ALWAYS REPORT "RAISED: $0.00" (found 2026-07-31,
-        fixed 2026-08-01: AuctionService.GetDonationTotalsAsync sums each
-        donation item's bids in ONE query up front — MapItem runs per item, so
-        a lookup inside the map would be the N+1 warned about below. Mirrors
-        GetAuctionRevenueAsync's shape, including its in-memory grouping, which
-        also avoids the EF InMemory GroupBy limit the test suite has hit. Wired
-        into both list paths and the two single-item paths, so editing an item
-        can't report $0 against a list that shows the real total.)
-        AuctionService.MapItem (:768) sets TotalRaisedCents = i.CurrentHighBidCents,
-        but PlaceBidAsync only writes CurrentHighBidCents for competitive items
-        ("if (!isDonation)", :268) — pledges stack rather than outbid, so the
-        column stays 0 on a donation item forever. Every Fund-a-Need item in the
-        mobile auction list therefore shows "Raised: $0.00 / $goal" no matter how
-        much has been pledged, which is exactly the number that motivates the
-        next pledge. GoalCents is served but the progress against it is a lie.
-        Fix: sum the item's bids for donation types. The same reasoning is
-        already written out in EventService.GetAuctionRevenueAsync (D-auction
-        total), which sums bids for precisely this reason — so the query shape
-        is settled, it just needs to reach the DTO. Watch the N+1: MapItem is
-        called per item from GetPublicItemsAsync, so the sums want one grouped
-        query up front, not a lookup inside the map.
-        Small, self-contained, and golfer-visible. Good candidate before pilot.
+[x] D14. FUND-A-NEED ALWAYS SHOWED $0 RAISED (2026-08-01) — donation items never write current_high_bid_cents; totals now summed in one grouped query up front (MapItem is per-item, so watch the N+1).
 
-[x] D15. (fixed 2026-08-01 exactly as prescribed below: session.tsx now runs
-        TWO effects — score sync still gated on a team, status/check-in/theme
-        polling for every session, with no team in its deps.)
-    D15. A GOLFER WITHOUT A TEAM NEVER LEARNS THEY WERE CHECKED IN (found
-        2026-07-31). session.tsx:74 gates the whole foreground poll on
-        `!session.team` — it returns early for any golfer with no team. That poll
-        is the only thing that refreshes isCheckedIn (and the event theme and
-        sponsor list) after /join. So a guest or an unassigned free agent who is
-        checked in at the desk keeps a stale session: the auction bid button
-        stays locked behind "add a card", and the D8 waiver they are entitled to
-        never reaches the device. Rejoining is the only workaround.
-        Real today: St. Mark Classic (walk) has two such golfers (Hank Sponsor,
-        Gina Guest). The gate exists because the body below it syncs scores and
-        dereferences session.team!, so the fix is to split the effect — run the
-        status/check-in/theme poll for every session, and keep the score-sync
-        half gated on a team.
+[x] D15. A GOLFER WITHOUT A TEAM NEVER LEARNED THEY WERE CHECKED IN (2026-08-01) — session.tsx now runs two effects, so status/check-in/theme polling is no longer gated on having a team.
 
-[x] D16. "MARK ALL PAID" DOES NOTHING ON A FREE EVENT (found 2026-07-31)
-        MarkTeamPlayersPaid reads `ReadEntryFeeFromConfig(...) ?? 0` and writes
-        that to every golfer, so with no entryFeeCents configured it records 0 —
-        which every reader treats as unpaid. The team stays "0/N paid" and the
-        button never resolves. Latent before D13 (the legacy team flag made the
-        team read as paid regardless); D13 removed that mask, so this is now
-        visible. Note the admin registration screen never consults the event's
-        entryFeeCents at all, so it shows fee UI on events that have no fee.
-        Fix is a product decision, not just code: either hide the fee row when
-        entryFeeCents is null/0 (nothing to collect), or treat a free event as
-        paid by definition. Prefer the former — a free event has no fee state
-        worth showing.
-        CORRECTION (2026-08-01): this entry previously said EventDetail carries
-        entryFeeCents at admin api.ts:314 — it does not; :314 is
-        EmailBuilderData. EventDetail exposes the raw `config` record, so the
-        fee is read as evt.config.entryFeeCents. The screen already fetches the
-        event, so no extra request either way.
-        FIXED 2026-08-01 (client half): registration.tsx now hides the Golfers
-        Paid chip, the paid pill and the Mark All Paid button when the fee is
-        null/0. MarkTeamPlayersPaid is deliberately unchanged — with nothing to
-        collect, recording 0 is accurate; the defect was offering the action.
+[x] D16. FEE UI SHOWED ON FREE EVENTS (2026-08-01) — registration.tsx hides the paid chip/pill/button when entryFeeCents is null or 0; the server is unchanged, the defect was offering the action.
 
-[x] D17. CONCURRENT TOKEN REFRESH CAN LOG THE ORGANIZER OUT MID-EVENT (found
-        2026-08-01 while monitoring a running API; OBSERVED, not theorised).
-        Access tokens live 15 minutes (TokenService.cs:51). When one expires
-        every in-flight request 401s at once and each calls tryRefresh()
-        independently — packages/shared-types/src/apiClient.ts:125 has no
-        single-flight guard. The admin dashboard fires /events/{id}, /teams,
-        /players and /leaderboard together, so several refreshes race holding
-        the SAME refresh token. The server rotates: AuthService.cs:285 revokes
-        the old token BEFORE issuing the new one, and validate-then-revoke is
-        not atomic.
-        Cycle 1: three concurrent refreshes, all 200. Cycle 2: 2x200 + 1x400
-        "The refresh token is invalid or has expired. Please log in again."
-        The session survived ONLY because the 400 returned first (26.4ms) and
-        the two 200s landed behind it, rewriting the tokens it had just
-        cleared. Had the 400 returned last, apiClient.ts:174 would have wiped
-        good tokens and bounced the organizer to the login screen while
-        holding a valid 30-day refresh token. A ~26ms ordering window decides
-        it, every 15 minutes of active use. The failure is invisible when it
-        resolves benignly, which is why it went unnoticed.
-        Successful races also strand live refresh tokens (three issued, one
-        stored, two valid for 30 days) — exactly what the rotation comment at
-        AuthService.cs:281-284 exists to prevent.
-        FIX — two parts, deliberately separable:
-        - CLIENT: module-level in-flight promise in tryRefresh() so concurrent
-          401s await one refresh. Closes the observed failure within a single
-          JS context. adminApi.test.ts:104 already covers the refresh path; add
-          a test asserting three parallel 401s produce exactly one POST
-          /auth/refresh.
-        - SERVER (design decision — do NOT fold into the client fix): two
-          browser tabs, or admin and mobile at once, are separate contexts and
-          still race. Closing that needs a short grace window accepting a
-          just-revoked token, or per-session token families. It changes the
-          rotation security model, so decide it on its own.
-        Touches the client shared by admin, mobile AND web — review separately
-        from any query or UI work.
-        SERVER HALF DONE 2026-08-01 — grace window, not token families.
-        New refresh_tokens."RotatedAt", set ONLY when a successful refresh
-        replaces a token. A rotated token stays valid for
-        TokenService.RefreshReplayGrace (30s), so a second context arriving
-        moments later gets a fresh pair instead of a 400. Logout and
-        RevokeAllUserTokens leave RotatedAt null and so get no grace at all —
-        that separation is the entire reason for the extra column, and is
-        covered by its own tests. Not backfilled: existing revoked rows have an
-        unknown reason and null (= no grace) is the safe reading.
-        WHAT THIS DELIBERATELY GIVES UP: a rotated token is now replayable for
-        up to 30s instead of being dead on arrival. That is a real, if small,
-        reduction in replay protection, taken knowingly — the window is far
-        shorter than the 15-minute access token it mints, so a stolen refresh
-        token is no more useful than it already was. Reuse OUTSIDE the window
-        now logs a loud "Possible token theft" warning naming the user, which
-        is strictly better than the bland 400 it produced before; wire that
-        into D6's error monitoring.
-        AuthServiceTests.Refresh_rotates_tokens_and_revokes_the_old_one
-        asserted the OLD contract (immediate replay throws) and was rewritten,
-        not deleted — the rename records that the contract changed on purpose.
-        VERIFIED: 483 API tests (7 new/changed). Driven live: three concurrent
-        refreshes on one token now return 200/200/200 where the same shape
-        previously produced 2x200 + 1x400; refresh after logout still 400s;
-        a rotated token aged 5 minutes still 400s and logs the theft warning.
+[x] D17. CONCURRENT TOKEN REFRESH COULD LOG THE ORGANIZER OUT MID-EVENT (2026-08-01, observed live) — client single-flight guard plus a 30s server replay grace on rotated tokens.
 
-[x] D18. (FIXED 2026-08-01: .AsSplitQuery() + .AsNoTracking() on both.)
-    D18. TWO CARTESIAN-EXPLOSION QUERIES (found 2026-08-01 from EF warning
-        20504 raised by the running API). Both load two sibling collection
-        navigations in ONE query, so rows are a product rather than a sum and
-        the whole events row — theme_json and config included — repeats on
-        every row.
-        - EventService.cs:499 GetFundraisingAsync:
-              .Include(e => e.Teams).ThenInclude(t => t.Players)
-              .Include(e => e.Donations)
-          teams x players x donations. The worse of the two: it multiplies by
-          DONATION COUNT, which climbs all through the event, and it backs the
-          organizer's fundraising dashboard — the screen most likely to be open
-          and polling while donations land. 12 teams x 4 players x 30 donations
-          is already ~1,440 rows.
-        - EventService.cs:951 GetPublicChallengesAsync: HoleChallenges->Sponsor
-          plus HoleChallenges->Results->Team. Multiplies by results-per-
-          challenge.
-        Both are read-only paths that ALSO lack .AsNoTracking(), which ten
-        other queries in the same file use — these two are the outliers.
-        FIX: .AsSplitQuery() + .AsNoTracking() on both. There is currently no
-        AsSplitQuery anywhere in the API and no global
-        UseQuerySplittingBehavior, so these two set the precedent — decide
-        whether a global default is wanted rather than letting it spread ad hoc.
-        VERIFY: re-hit both endpoints, confirm warning 20504 is gone and the
-        SQL splits into separate statements.
+[x] D18. TWO CARTESIAN-EXPLOSION QUERIES (2026-08-01) — .AsSplitQuery() + .AsNoTracking() on GetFundraisingAsync and GetPublicChallengesAsync. OPEN QUESTION: these two are the only AsSplitQuery in the API — decide whether a global UseQuerySplittingBehavior default is wanted rather than letting it spread ad hoc.
 
 [ ] D19. DEV-LOOP NOISE AND DEPENDENCY HYGIENE (2026-08-01)
-        FIXED THIS SESSION (uncommitted as of writing):
+        FIXED AND COMMITTED 2026-08-01 (re-verified still in place 2026-08-15):
         - Metro watched the entire monorepo root (watchFolders = workspaceRoot)
           while the API appended to api-run.log sitting in that root, so every
           log write invalidated the graph and the browser full-reloaded roughly
@@ -571,10 +265,16 @@ they run in parallel with everything else.
         - apps/admin/package.json does not declare react-native-image-colors;
           it resolves only because npm hoists mobile's copy to the root. If
           mobile ever drops it, admin breaks with a confusing resolution error.
-          Declare it.
-        - Expo 56 wants typescript ~6.0.3; root, apps/web, apps/mobile and
+          Declare it. (STILL OPEN — re-checked 2026-08-15: mobile ^2.6.0, admin
+          undeclared. The SDK 57 upgrade removed expo-modules-core as a direct
+          mobile dep on exactly this hoisting reasoning, so the pattern is live.)
+        - Expo 57 wants typescript ~6.0.3; root, apps/web, apps/mobile and
           apps/admin all pin ^5.4.5 (5.9.3 installed). A major bump across four
           workspaces — its own change with a full typecheck, not a drive-by.
+          (STILL OPEN after the SDK 57 upgrade, and deliberately so: it is the
+          one remaining expo-doctor failure, 20/21. Left visible rather than
+          silenced via expo.install.exclude. Note npm's `latest` for typescript
+          is 7.0.2 — Expo wants 6.0.3, so these are different targets.)
 
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done.
@@ -589,185 +289,14 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         (create/update/status machine, leaderboard, public event/challenges/
         fundraising) still untested; defer.
 
-  [x] U1. (DONE 2026-08-01) Scoring issues from the admin scoring page.
-        THE KEY CONTEXT (from the user): the admin transcribes PAPER cards after
-        golf is finished — not scoring live on the course. That decided the
-        design. Strokes auto-save per golfer, so a hole holds a partial gross
-        score for as long as it takes to type the foursome; deriving "complete"
-        from "has a score" would lock the hole after the FIRST golfer entered.
-        Completion therefore had to be its own persisted state.
-        (a) STROKES NOW SUM INTO THE TEAM SCORE. handlePlayerShotChange read
-            `existingGross ?? playerTotal`, so once a hole had any score the
-            existing gross won forever: +/- updated the golfer's own row and
-            left the team total stale. Extracted to admin src/lib/scoring.ts
-            (resolveGrossScore) with tests, matching checkIn.ts/eventStatus.ts.
-        (b) HOLE COMPLETE / EDIT SCORE. New scores.completed_at column
-            (migration 20260801000000_U1_ScoreCompletedAt, backfilled from
-            submitted_at so finished rounds don't read as unfinished) plus
-            POST /events/{id}/teams/{teamId}/holes/{n}/complete {complete}.
-            Marking complete locks the card and the per-golfer +/- buttons;
-            "Edit Score" reopens WITHOUT touching the score.
-            THE GOLFER HALF NEEDED NO MOBILE CHANGE: the device only queues a
-            hole for sync once completed_at is set locally
-            (store.ts loadUnsyncedScores), so anything arriving via MobileSync
-            IS the golfer's completion signal — MobileService now stamps it.
-        VERIFIED: 476 API tests (4 new), 138 admin (8 new), 4 workspaces
-        typecheck, migration applied (368 rows backfilled). Driven live against
-        localhost: first golfer -> gross 4 not complete; second -> gross 9 still
-        not complete; complete -> timestamp set; reopen -> cleared, gross 9
-        intact; completing an empty hole 400s.
-        NOT exercised: the admin screen in a browser, and the mobile end of the
-        sync stamp (no RN component-test harness).
-        WHAT THE PER-GOLFER COUNT ACTUALLY MEANS (clarified by the user
-        2026-08-01, and it is the reason the sum is correct): in a scramble
-        every golfer hits from the same spot, but only the shot the TEAM USES is
-        recorded, against the golfer whose shot it was. So each counted shot is
-        exactly one team stroke, and the per-golfer counts sum to the team score
-        by construction — a 4 might read Ann 2, Bo 1, Cal 1. The column is
-        "shots of yours the team used", not "strokes you personally played".
-        An earlier draft of this entry claimed the opposite (that a scramble
-        plays one ball so the sum must be wrong). That was a misreading of the
-        model; the sum is right for scramble, which is the fundraiser default.
-        STILL WORTH CONFIRMING for the other formats in EventFormat, where the
-        same field may not carry the same meaning: Stroke and BestBall have each
-        golfer playing their own ball, so a per-golfer breakdown there would be
-        individual scores and the team gross is "the relevant individual score"
-        (Score.GrossScore's own comment), not a sum. Nobody has exercised admin
-        entry on those formats yet — check before running a non-scramble event.
+  [x] U1. STROKES NOW SUM INTO THE TEAM SCORE, PLUS HOLE COMPLETE / EDIT SCORE (2026-08-01) — new scores.completed_at; the admin transcribes paper cards, so completion had to be its own persisted state.
+        STILL OPEN: the per-golfer count means "shots of yours the team used", which sums to the team score in a SCRAMBLE by construction. Stroke and BestBall have each golfer playing their own ball, where the team gross is the relevant individual score, NOT a sum. Nobody has exercised admin entry on those formats — check before running a non-scramble event.
 
-        AS ORIGINALLY REPORTED: "When entering the strokes for the players the
-        individual strokes should add in to the team score. We also need to add
-        a hole complete button for each hole under the names. after the hole is
-        marked complete by either the admin or the golfer through the mobile app
-        the button should change to edit score."
+  [x] U2 + U3. ONE COMBINED SPONSOR/AUCTION TICKER (2026-08-01) — sponsors lead, on both the normal web scorecard and the ?tv=1 board, riding the existing leaderboard socket rather than a second one. NOT exercised: a real projector, and reduced-motion rendering (both belong in D4).
 
-  [x] U2. (DONE 2026-08-01) No sponsor banner scrolling across the web live scorecard.
-  [x] U3. (DONE 2026-08-01) Add an auction scrolling banner to the live results web page.
-        DONE TOGETHER AS ONE TICKER, at the user's choice 2026-08-01 ("both
-        modes, one ticker"): sponsors and open auction lots share a single
-        continuous marquee (EventTicker.tsx) on BOTH the normal web scorecard
-        and the ?tv=1 kiosk board. Sponsors lead — they paid for placement and
-        their entry is static, so a fixed position is worth more to them than
-        sitting next to the bidding.
-        WHAT WAS THERE BEFORE was a TV-ONLY SponsorTicker that faded between
-        sponsors one at a time. Two problems it had: the normal scorecard —
-        which is what nearly every golfer and guest actually opens — carried no
-        sponsor recognition at all, and at one name per 5s a sponsor twelfth in
-        the list was effectively never seen. The old component is deleted.
-        NO SECOND SOCKET. The scores page is the busiest public page there is,
-        so rather than mounting useLiveAuction alongside useLiveLeaderboard,
-        useLiveLeaderboard gained an `onAuctionChanged` callback that forwards
-        the auction hub events over its EXISTING connection — the same trick
-        `onSponsorsChanged` already used. AUCTION_HUB_EVENTS moved into
-        tournamentHubEvents.ts so both hooks read one list. Refetch is debounced
-        400ms (one bid can emit BidPlaced + AuctionExtended) and falls back to
-        the 15s HTTP poll while the socket is down.
-        Reduced motion is honoured two ways: a CSS media query stops the
-        animation before hydration, and matchMedia then drops the duplicated
-        copy (which exists only to make the loop seamless) so the strip becomes
-        a plain swipeable list instead of the content twice.
-        VERIFIED: driven live at localhost:3000 against a seeded event with 3
-        sponsors + 4 lots. Normal mode 1280px and TV mode 1920px both render a
-        clipped, animating track (gfp-ticker 36s) with the page itself NOT
-        scrolling horizontally; screenshots reviewed. A bid posted while the
-        page sat open moved the strip from "Current bid $400.00" to
-        "$405.00" with no reload — proving the shared-socket signal path.
-        Closed lots are absent (GetPublicItemsAsync only returns Open/Extended).
-        NOT exercised: an actual projector, and reduced-motion rendering.
+  [x] U4. PROXY (MAX) BIDDING ON SILENT LOTS (2026-08-01) — bids.amount_cents now MEANS the golfer's private max; the public price is current_high_bid_cents, resolved by AuctionBidRules.ResolveProxy. No schema change. Closing, the SignalR broadcast and the outbid email all had to stop leaking or billing the max. Also shipped: an admin warning on an oversized bid increment, which under proxy is both the entry price and the step.
 
-  [x] U4. (DONE 2026-08-01) When a bid is placed it should be considered a Max bid and only raise the current bid to $1.00 above what the current bid or to the min bid. When someone else bids on the item the current bid should go to $1.00 above what the lowest max bid is set at. If there is a tie on the amount whoever entered their bid first is considered to hold the bid.
-        TWO DECISIONS THE USER MADE 2026-08-01, both of which change the numbers:
-        - THE STEP IS THE ITEM'S bid_increment_cents, NOT a flat $1.00, capped
-          at the winner's own max. So on a $5-increment lot a $70 max is beaten
-          at $75, not $71. The report said $1.00; the organizer already
-          configures an increment per item and two competing step sizes would
-          contradict each other.
-        - SILENT ITEMS ONLY. A Live lot is called out loud by an auctioneer, so
-          a hidden max would put the app and the room on different numbers, and
-          Fund-a-Need pledges stack rather than compete. Both keep the literal
-          "you bid what you typed" behavior. Do not widen this.
-        NO SCHEMA CHANGE. bids.amount_cents simply MEANS the golfer's max on a
-        Silent item; auction_items.current_high_bid_cents holds the public
-        price. The pure rule is AuctionBidRules.ResolveProxy: collapse to one
-        standing max per golfer, sort (max desc, placed asc), price =
-        min(leaderMax, max(startingBid, runnerUpMax + increment)). The tie rule
-        falls out of that sort rather than needing a special case — the cap and
-        the step meet at the tied figure, so a tie sells AT the tied amount to
-        whoever bid it first.
-        THREE PLACES THE MAX WOULD HAVE LEAKED OR OVERCHARGED, all fixed:
-        - CloseItemInternalAsync awarded the top bid AT ITS OWN AMOUNT. Under
-          proxy that bills the winner their private ceiling — $200 on a lot the
-          board showed at $75. It now awards the ladder leader at the settled
-          price (and prefers the column, so a buy-now sale bills the posted
-          price).
-        - SendBidPlacedAsync broadcast the submitted amount to EVERY client in
-          the event group. Now sends the public price on proxy items.
-        - The outbid email quoted the same submitted amount. Same fix.
-        Also: GetPlayerBidsAsync can no longer decide Winning/Outbid from the
-        golfer's own row (their max normally sits above the price, and on a tie
-        both golfers sit exactly at it), so it resolves the ladder per open
-        Silent item — one query for the set, not per item.
-        BidResponse gained CurrentHighBidCents because a proxy bid can be
-        ACCEPTED AND LOSE in the same breath; mobile now says "Bid placed — you
-        were outbid" instead of a flat "Bid placed!", labels the input as a
-        maximum, and prefixes history rows with "max".
-        VERIFIED: 520 API tests (26 new), 108 shared-types, 115 mobile, 138
-        admin, 33 theme; 0 TS errors, lint clean. Driven live end to end: sole
-        $200 max opened at $50; a $70 max pushed it to $75 and was outbid on
-        the spot; the leader raising to $400 did NOT move the price; a tie at
-        $400 sold at $400 to the earlier bidder; the public payload exposed only
-        the price; a Live lot still posted the called amount; and on close the
-        winner was billed $75, not $200.
-        NOT exercised: the mobile screens in a simulator (no RN component-test
-        harness), and a real Stripe charge (local keys are placeholders, so the
-        winner row lands in failed-charges — which is where the billed amount
-        was read from).
-
-        ORGANIZER WARNING ON AN OVERSIZED INCREMENT (added 2026-08-01 at the
-        user's request). Making the increment the proxy step raised the cost of
-        setting it too high, so the admin item form now warns as the organizer
-        types (apps/admin/src/lib/auctionSetup.ts, bidIncrementWarning).
-        The increment does two jobs on a competitive lot and an oversized one
-        hurts in both: it is the ENTRY PRICE for every new bidder (the server
-        demands currentPrice + increment, so a $25 lot with a $50 increment asks
-        the second bidder for $75 before anyone has shown interest), and under
-        proxy it is the STEP spent on a golfer's behalf, so it burns through a
-        maximum in a couple of moves and the slow climb never happens. The
-        organizer sees a lot "nobody wanted" when nobody could get in cheaply.
-        Two tiers — a soft note past a quarter of the starting bid, a blunt one
-        at or above it — each quoting what the SECOND BIDDER would have to pay
-        and suggesting ~10% snapped to a typable figure. Amber, never blocking:
-        the API accepts any increment and this is a judgement call, not a rule.
-        Deliberately quiet on ordinary setups; a warning that fires on $5-on-$50
-        would teach organizers to ignore the box.
-        VERIFIED: 150 admin tests (12 new), including one that asserts the
-        suggested increment never itself trips the warning. NOT exercised: the
-        admin screen in a browser.
-
-  [x] U5. (DONE 2026-08-01) On scramble events the starting hole should be assigned to each team when the event goes active. The mobile app should start scoring for each team at their assigned hole.
-        THE MOBILE HALF WAS ALREADY BUILT — holeUtils.getHoleOrder() rotates the
-        hole order (startingHole=10, 18 holes -> 10..18,1..9) and scorecard.tsx,
-        preflight.tsx, team.tsx and round-end/sync.tsx all use it. Nothing was
-        assigning the holes, so every team arrived null and the scorecard
-        started all of them on hole 1 — the opposite of a shotgun.
-        Now EventService assigns on the → Active transition, via the pure
-        ShotgunAssignmentRules.AssignStartingHoles (tested separately). Fills by
-        lowest occupancy, tie-broken by lowest hole, so a fresh event lays out
-        1,2,3…, a partly-assigned one fills the empty holes, and >18 teams
-        double up evenly (A/B positions) instead of failing. Teams ordered by
-        name for a reproducible layout the organizer can read off the roster.
-        A hole already set on the admin shotgun screen is NEVER overwritten,
-        and re-entering Active on a fully-assigned event is a no-op — a mid-
-        event status change must not reshuffle the field.
-        TRIGGER CONFIRMED by the user 2026-08-01: StartType == Shotgun, NOT
-        Format == Scramble as the report was originally worded. Starting holes
-        are only meaningful for a shotgun; a scramble run on TEE TIMES sends
-        every team off hole 1 in turn, and stamping holes there would make the
-        scorecard lie about where they start. This is settled — do not widen it
-        to other start types.
-        VERIFIED: 494 API tests (11 new). Driven live — four teams read null
-        before the transition and 1/2/3/4 after; a manually-set hole survived;
-        a TeeTimes event assigned nothing.
+  [x] U5. SHOTGUN STARTING HOLES ASSIGNED ON THE → ACTIVE TRANSITION (2026-08-01) — the mobile half already existed (holeUtils.getHoleOrder); nothing was assigning holes, so every team started at 1. Fills by lowest occupancy, never overwrites a hole set by hand, and re-entering Active is a no-op.
 
   [ ] U6. (OPEN, added 2026-08-03) EVALUATE BUY-IT-NOW. Not a reported bug —
         raised while adding the mobile bid-confirmation dialog (2026-08-03),
@@ -897,7 +426,12 @@ Captured while filling API test-coverage holes. Mark [x] when done.
             the proxy ladder server-side. Fine at pilot scale. The real fix, if
             it bites, is to personalize AuctionItemResponse with the caller's
             max and status so the item list carries it and the second request
-            disappears — that also removes (a).
+            disappears.
+            NOTE (2026-08-15): this used to read "that also removes (a)". (a) is
+            now fixed on its own, so this is a PERFORMANCE item only — the
+            exposure is closed either way. The request still costs what it costs,
+            and it now carries a session token, so the argument for folding it
+            into the item list is unchanged.
 
         (j) STATUS TRAILS THE PRICE BY ONE REQUEST. The card can show a new
             current bid with the old tone for a moment after someone else bids.
