@@ -2,7 +2,9 @@
 
 **Golf Scramble Made Easy** — A complete tournament management platform for non-profit fundraising events.
 
-Built in six phases. This is the monorepo housing all applications and shared packages.
+Built in six feature phases, all delivered; work since has continued past them
+(schema migrations run to `Phase14`). This is the monorepo housing all
+applications and shared packages.
 
 ---
 
@@ -14,7 +16,7 @@ golf-fundraiser-pro/              ← Turborepo monorepo root
     api/       → ASP.NET Core .NET 8  — REST API (port 5000)
     admin/     → Expo Router web      — Organizer dashboard (port 8081)
     mobile/    → Expo SDK 57          — iOS/Android scoring app
-    web/       → Next.js 15           — Public leaderboard + landing page (port 3000)
+    web/       → Next.js 16           — Public leaderboard + landing page (port 3000)
   packages/
     ui/          → Shared React Native components (mobile + admin)
     shared-types/→ TypeScript DTOs + Zod schemas (API contracts)
@@ -24,7 +26,9 @@ golf-fundraiser-pro/              ← Turborepo monorepo root
     nginx.conf          → Local reverse proxy (port 8080)
     init-scripts/       → DB initialization SQL
   .github/
-    workflows/          → CI, deploy-api, deploy-web, deploy-admin, eas-build
+    workflows/          → ci, deploy-api, deploy-admin, eas-build
+                          (web deploys via Vercel's own GitHub integration —
+                           there is no deploy-web workflow)
 ```
 
 ---
@@ -37,7 +41,7 @@ golf-fundraiser-pro/              ← Turborepo monorepo root
 | Database | PostgreSQL 16 + PostGIS 3.4 | PostGIS required for GPS features |
 | Cache | Redis 7 | Leaderboard cache + SignalR backplane |
 | Admin Dashboard | Expo Router web | Shares UI components with mobile |
-| Public Web | Next.js 15 App Router | SSR, Vercel, JSON-LD structured data |
+| Public Web | Next.js 16 App Router | SSR, Vercel, JSON-LD structured data |
 | Mobile App | React Native + Expo SDK 57 | New Architecture, EAS Build |
 | Real-Time | ASP.NET SignalR | Phase 3 |
 | Payments | Stripe | Phase 4 |
@@ -51,7 +55,8 @@ golf-fundraiser-pro/              ← Turborepo monorepo root
 - **Node.js 20+** and **npm 10+**
 - **.NET 8 SDK** — [download](https://dotnet.microsoft.com/download/dotnet/8)
 - **Docker Desktop** — for PostgreSQL, Redis, pgAdmin
-- **Expo CLI** — `npm install -g eas-cli` (for mobile builds)
+- **EAS CLI** — `npm install -g eas-cli` (for mobile builds; the Expo CLI itself
+  ships with the `expo` dependency and is run via `npx expo`)
 
 ---
 
@@ -100,17 +105,23 @@ docker compose ps
 - Password: `admin`
 - The `golf_fundraiser` database connection is pre-configured.
 
-### 4. Run database migrations
+### 4. Database migrations
+
+In Development the API applies pending EF Core migrations **automatically at
+startup**, so step 5 below is usually all you need. Run them by hand only if you
+want the schema in place before the API boots:
 
 ```bash
 cd apps/api
-
-# Apply all EF Core migrations (creates the full Phase 1 schema)
 dotnet ef database update
 
 # Verify PostGIS is enabled in pgAdmin or psql:
 #   SELECT PostGIS_Version();
 ```
+
+Outside Development this is off by default — migrations belong in the deploy
+step, so a bad schema never silently reaches a running service. Single-container
+hosts can opt in with `GFP_MIGRATE_ON_STARTUP=true`.
 
 ### 5. Start all development servers
 
@@ -159,12 +170,14 @@ npm run dev
 All commands run from the repo root:
 
 ```bash
-npm run build       # Build all workspaces (packages before apps)
-npm run dev         # Start all JS dev servers in parallel
-npm run lint        # ESLint across all TypeScript workspaces
-npm run type-check  # tsc --noEmit across all TypeScript workspaces
-npm run test        # Run tests in all workspaces
-npm run clean       # Delete all build artifacts + node_modules
+npm run build          # Build all workspaces (packages before apps)
+npm run dev            # Start all JS dev servers in parallel
+npm run lint           # ESLint across all TypeScript workspaces
+npm run type-check     # tsc --noEmit across all TypeScript workspaces
+npm run test           # Run tests in all workspaces
+npm run check-updates  # Outdated deps + watchlist version-drift check (72h install cooldown)
+npm run audit:prod     # Production dependency audit gate — the same one CI runs
+npm run clean          # Delete all build artifacts + node_modules
 ```
 
 ---
@@ -219,28 +232,49 @@ cd ../apps/api && dotnet ef database update
 
 | Workflow | Trigger | Action |
 |---|---|---|
-| `ci.yml` | Every PR + push to main | Lint, type-check, .NET build |
-| `deploy-api.yml` | Merge to main (apps/api changed) | Docker build → Railway |
-| `deploy-web.yml` | Merge to main (apps/web changed) | Vercel production deploy |
+| `ci.yml` | Every PR + push to main | Lint, type-check, .NET build + tests, production dependency audit |
+| `deploy-api.yml` | Merge to main (apps/api changed) | Docker build → ghcr.io, then Railway redeploy |
 | `deploy-admin.yml` | Merge to main (apps/admin changed) | EAS Hosting deploy |
 | `eas-build.yml` | Manual or version tag | EAS Build iOS + Android |
 
-Required GitHub Secrets:
-- `RAILWAY_TOKEN`, `RAILWAY_SERVICE_ID`
-- `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID_WEB`
-- `EXPO_TOKEN`
-- `TURBO_TOKEN`, `TURBO_TEAM` (optional — enables remote cache)
+`apps/web` is **not** deployed by a workflow — Vercel's GitHub integration builds
+it directly, which is why Vercel checks appear on PRs without a corresponding
+file in `.github/workflows/`.
+
+GitHub Secrets:
+- `EXPO_TOKEN` — configured.
+- `RAILWAY_TOKEN`, `RAILWAY_SERVICE_ID` — **not yet configured.** Without them
+  `deploy-api.yml` still builds and pushes the image to ghcr.io, then skips the
+  Railway call and reports success. The image can be deployed by hand.
+- `TURBO_TOKEN`, `TURBO_TEAM` — optional, enables Turborepo remote cache.
+
+The dependency audit gate is `npm run audit:prod`, not bare `npm audit`. Accepted
+high/critical advisories live in `.audit-allowlist.json`, each with a reason and a
+`reviewBy` date; the build fails on anything unlisted, on an expired entry, and on
+an entry that no longer matches.
 
 ---
 
 ## Phase Roadmap
 
-| Phase | Feature | Status |
-|---|---|---|
-| Foundation | Monorepo, packages, infra | ✅ Complete |
-| Phase 1 | Admin tournament management, registration, leaderboard, emails | 🚧 In Progress |
-| Phase 2 | Mobile scoring app, offline SQLite, QR scorecard transfer | ⏳ Planned |
-| Phase 3 | SignalR real-time updates, push notifications, email ad builder | ⏳ Planned |
-| Phase 4 | Stripe payments, silent/live auction | ⏳ Planned |
-| Phase 5 | League play, handicap engine, season standings | ⏳ Planned |
-| Phase 6 | GPS scoring, Mapbox course maps, closest-to-pin measurement | ⏳ Planned |
+All six feature phases have shipped. Each row names code you can go read.
+
+| Phase | Feature | Status | Lives in |
+|---|---|---|---|
+| Foundation | Monorepo, packages, infra | ✅ Shipped | `packages/`, `infra/` |
+| Phase 1 | Admin tournament management, registration, leaderboard, emails | ✅ Shipped | `apps/api/Features/Events`, `apps/admin` |
+| Phase 2 | Mobile scoring app, offline SQLite, QR scorecard transfer | ✅ Shipped | `apps/mobile/src/lib/db.ts`, `backgroundSync.ts` |
+| Phase 3 | SignalR real-time updates, push notifications, email ad builder | ✅ Shipped | `apps/api/Hubs/TournamentHub.cs`, `Features/Notifications` |
+| Phase 4 | Stripe payments, silent/live auction | ✅ Shipped | `apps/api/Features/Auction`, `Features/Payments` |
+| Phase 5 | League play, handicap engine, season standings, skins | ✅ Shipped | `apps/api/Features/League` (`HandicapEngine`, `PairingEngine`, `SkinsCalculator`) |
+| Phase 6 | Per-event branding, GPS cup location | ✅ Shipped | `packages/theme`, PostGIS columns |
+
+Work has continued past the numbered phases — per-player session tokens
+(`Phase11` migration), per-golfer entry fees (`Phase14`), auction checkout,
+blob storage, and scoreboard branding.
+
+**Feature-complete is not pilot-ready.** The remaining path to a real event —
+accounts and domain, a staging environment, a dress rehearsal, mobile
+distribution via TestFlight/EAS, and day-of ops — is tracked in
+`docs/problemList.txt`, which carries its own P0–P5 priority index. Read that
+before planning work; it is the authoritative to-do list, not this table.
