@@ -2,5 +2,5 @@
   "buildCommand": "turbo run build --filter=@gfp/web",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "installCommand": "npm install"
+  "installCommand": "npm ci"
 }
