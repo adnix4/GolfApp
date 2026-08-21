@@ -306,6 +306,18 @@ their standing decisions are in the section above.
         - node-vibrant "invalid exports subpath" WARN is an upstream packaging
           bug (node-vibrant@4.0.4 <- react-native-image-colors <- packages/ui
           AdaptiveLogoFrame). Metro falls back correctly. Not ours to fix.
+        - "apps/admin must declare react-native-image-colors, it only resolves
+          via mobile's hoisted copy" was WRONG and is now closed (2026-08-18).
+          packages/ui — the only package that imports it (AdaptiveLogoFrame.tsx
+          :33) — declares it itself as ">=2.6.0", added in 71e2602 alongside the
+          component. VERIFIED: `npm ls react-native-image-colors --workspaces`
+          reports two independent declarers, @gfp/mobile and @gfp/ui, so npm
+          installs it for ui regardless of what mobile does. admin imports only
+          AdaptiveLogoFrame from @gfp/ui and never names the package, so adding
+          it to apps/admin/package.json would declare a dependency admin does
+          not import. Do not "fix" this. Mobile's own copy is separately
+          justified: it is a native module and needs autolinking at the app
+          package; admin is web-only and does not.
         STILL OPEN, all small:
         - PRODUCTION consequence of the SendGrid path above: a revoked or
           over-quota key returns the golfer a 200 with no email ever arriving,
@@ -313,12 +325,6 @@ their standing decisions are in the section above.
           Error level — confirm D6's error monitoring actually alerts on
           EmailService failures before the pilot. This is the first step of the
           golfer funnel and D1 already calls the email path CRITICAL.
-        - apps/admin/package.json does not declare react-native-image-colors;
-          it resolves only because npm hoists mobile's copy to the root. If
-          mobile ever drops it, admin breaks with a confusing resolution error.
-          Declare it. (STILL OPEN — re-checked 2026-08-15: mobile ^2.6.0, admin
-          undeclared. The SDK 57 upgrade removed expo-modules-core as a direct
-          mobile dep on exactly this hoisting reasoning, so the pattern is live.)
         - Expo 57 wants typescript ~6.0.3; root, apps/web, apps/mobile and
           apps/admin all pin ^5.4.5 (5.9.3 installed). A major bump across four
           workspaces — its own change with a full typecheck, not a drive-by.
