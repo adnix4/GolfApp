@@ -194,7 +194,7 @@ export function useLiveLeaderboard<TStanding>(
     });
     hub.onclose(() => setConnected(false));
 
-    hub.start()
+    const started = hub.start()
       .then(() => {
         setConnected(true);
         return hub.invoke('JoinEvent', eventCode).catch(() => {});
@@ -202,7 +202,13 @@ export function useLiveLeaderboard<TStanding>(
       .catch(() => setConnected(false));
 
     return () => {
-      hub.stop().catch(() => {});
+      // Wait for start() to settle before tearing down. React StrictMode (dev)
+      // mounts -> unmounts -> remounts, and stopping a connection that is still
+      // negotiating makes SignalR log "The connection was stopped during
+      // negotiation" at error level — indistinguishable in the console from a
+      // real negotiation failure. `started` never rejects (both paths are
+      // handled above), so this always runs.
+      started.then(() => hub.stop().catch(() => {}));
     };
   }, [baseUrl, eventCode, disabled]);
 

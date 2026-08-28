@@ -160,7 +160,7 @@ export function useLiveAuction<TData>(
     });
     hub.onclose(() => setConnected(false));
 
-    hub.start()
+    const started = hub.start()
       .then(() => {
         setConnected(true);
         return hub.invoke('JoinEvent', eventCode).catch(() => {});
@@ -169,7 +169,9 @@ export function useLiveAuction<TData>(
 
     return () => {
       if (debounceId) clearTimeout(debounceId);
-      hub.stop().catch(() => {});
+      // See useLiveLeaderboard: stopping mid-negotiation logs a spurious
+      // console error under StrictMode's double-mount.
+      started.then(() => hub.stop().catch(() => {}));
     };
   }, [baseUrl, eventCode, disabled, refetchDebounceMs, applyFetch]);
 
