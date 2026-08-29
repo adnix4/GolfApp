@@ -12,50 +12,71 @@
 
 import { useEffect, useRef } from 'react';
 import {
-  ActivityIndicator, Animated, Linking, Modal, Pressable,
+  Animated, Linking, Modal, Pressable,
   StyleSheet, Text, View,
 } from 'react-native';
 import { AdaptiveLogoFrame, useTheme } from '@gfp/ui';
 import type { ThemeContextValue } from '@gfp/ui';
-import type { ChallengeCacheDto, SponsorCacheDto } from '@/lib/api';
+import type { ChallengeCacheDto, HoleCacheDto, SponsorCacheDto } from '@/lib/api';
+import { formatToPar, toParColor } from '@/lib/toPar';
 
 // ── HOLE INFO CHIP ────────────────────────────────────────────────────────────
 
-export function HoleInfoChip({ label, value }: { label: string; value: string }) {
+export function HoleInfoChip({ label, value, toPar }: {
+  label: string;
+  value: string;
+  /**
+   * Strokes relative to par, rendered as a subscript beside the value the same
+   * way ScoreChip does. Used by the Round total; omitted by Par/HCP/yardages,
+   * which aren't scores.
+   */
+  toPar?: number | null;
+}) {
   const theme = useTheme();
+  const showToPar = toPar !== undefined;
+
   return (
     <View style={[infoChipStyles.chip, { backgroundColor: theme.colors.surface }]}>
       <Text style={[infoChipStyles.label, { color: theme.mutedText }]}>{label}</Text>
-      <Text style={[infoChipStyles.value, { color: theme.colors.primary }]}>{value}</Text>
+      <View style={infoChipStyles.valueRow}>
+        <Text style={[infoChipStyles.value, { color: theme.colors.primary }]}>{value}</Text>
+        {showToPar && (
+          <Text style={[infoChipStyles.rel, { color: toParColor(toPar ?? null, theme.mutedText) }]}>
+            {formatToPar(toPar ?? null)}
+          </Text>
+        )}
+      </View>
     </View>
   );
 }
 
 const infoChipStyles = StyleSheet.create({
-  chip:  { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, alignItems: 'center' },
-  label: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  value: { fontSize: 16, fontWeight: '700', marginTop: 2 },
+  chip:     { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, alignItems: 'center' },
+  label:    { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  valueRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 2 },
+  value:    { fontSize: 16, fontWeight: '700', lineHeight: 20 },
+  rel:      { fontSize: 11, fontWeight: '700', marginLeft: 3, lineHeight: 15 },
 });
 
 // ── SCORE CHIP ────────────────────────────────────────────────────────────────
 
 export function ScoreChip({ grossScore, par }: { grossScore: number | null; par: number }) {
   const theme = useTheme();
-  const rel   = grossScore !== null ? grossScore - par : null;
-  const relLabel =
-    rel === null ? '—' : rel === 0 ? 'E' : rel > 0 ? `+${rel}` : `${rel}`;
-  const relColor =
-    rel === null ? theme.mutedText :
-    rel < 0      ? '#27ae60' :
-    rel > 0      ? '#e74c3c' : theme.mutedText;
+  const rel      = grossScore !== null ? grossScore - par : null;
+  const relLabel = formatToPar(rel);
+  const relColor = toParColor(rel, theme.mutedText);
 
   return (
     <View style={[scoreChipStyles.chip, { backgroundColor: theme.colors.primary + '12', borderColor: theme.colors.primary + '40' }]}>
       <Text style={[scoreChipStyles.label, { color: theme.mutedText }]}>Score</Text>
-      <Text style={[scoreChipStyles.value, { color: theme.colors.primary }]}>
-        {grossScore !== null ? grossScore : '—'}
-      </Text>
-      <Text style={[scoreChipStyles.rel, { color: relColor }]}>{relLabel}</Text>
+      {/* To-par rides beside the number on its baseline, the way a scoreboard
+          reads it — and one line shorter than stacking it underneath. */}
+      <View style={scoreChipStyles.valueRow}>
+        <Text style={[scoreChipStyles.value, { color: theme.colors.primary }]}>
+          {grossScore !== null ? grossScore : '—'}
+        </Text>
+        <Text style={[scoreChipStyles.rel, { color: relColor }]}>{relLabel}</Text>
+      </View>
     </View>
   );
 }
@@ -63,61 +84,9 @@ export function ScoreChip({ grossScore, par }: { grossScore: number | null; par:
 const scoreChipStyles = StyleSheet.create({
   chip:  { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, alignItems: 'center', borderWidth: 1 },
   label: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  value: { fontSize: 22, fontWeight: '800', marginTop: 2, lineHeight: 26 },
-  rel:   { fontSize: 13, fontWeight: '700', marginTop: 1 },
-});
-
-// ── SYNC STATUS BAR ───────────────────────────────────────────────────────────
-
-/**
- * Takes `theme` as a prop instead of calling useTheme() — the main scorecard
- * screen already reads theme once and passing it through here keeps the
- * component compatible with the existing call site.
- */
-export function SyncStatusBar({
-  status, pendingCount, onSync, theme,
-}: {
-  status:       'idle' | 'syncing' | 'error' | 'synced';
-  pendingCount: number;
-  onSync:       () => void;
-  theme:        ThemeContextValue;
-}) {
-  if (pendingCount === 0) return null;
-
-  const label =
-    status === 'syncing' ? 'Syncing…' :
-    status === 'synced'  ? `${pendingCount} hole(s) synced` :
-    status === 'error'   ? 'Sync failed — tap to retry' :
-                           `${pendingCount} hole(s) saved locally`;
-
-  const barColor =
-    status === 'error'  ? '#fdf2f2' :
-    status === 'synced' ? '#f0faf4' : '#fffbf0';
-
-  const textColor =
-    status === 'error'  ? '#c0392b' :
-    status === 'synced' ? '#27ae60' : '#7d6608';
-
-  return (
-    <Pressable
-      onPress={onSync}
-      disabled={status === 'syncing'}
-      style={[syncStyles.bar, { backgroundColor: barColor }]}
-      accessibilityLabel={label}
-      accessibilityRole="button"
-    >
-      {status === 'syncing'
-        ? <ActivityIndicator size="small" color={theme.colors.primary} style={syncStyles.spinner} />
-        : null}
-      <Text style={[syncStyles.text, { color: textColor }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-const syncStyles = StyleSheet.create({
-  bar:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 12, marginTop: 12 },
-  spinner: { marginRight: 8 },
-  text:    { fontSize: 13, fontWeight: '600' },
+  valueRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 2 },
+  value:    { fontSize: 22, fontWeight: '800', lineHeight: 26 },
+  rel:      { fontSize: 13, fontWeight: '700', marginLeft: 3, lineHeight: 18 },
 });
 
 // ── HOLE-IN-ONE CELEBRATION MODAL ────────────────────────────────────────────
@@ -266,6 +235,92 @@ const chalModalStyles = StyleSheet.create({
   sponsorText:  { fontSize: 13, textAlign: 'center' },
   closeBtn:     { margin: 20, marginTop: 8, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
   closeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+});
+
+// ── HOLE INFO MODAL ───────────────────────────────────────────────────────────
+
+/**
+ * Par, handicap and every tee yardage for one hole.
+ *
+ * Shown when the chips row can't fit them inline — a course carrying
+ * white/blue/red yardages plus the round totals is eight chips, which wraps to a
+ * second row and overruns the scorecard's vertical budget (see lib/chipsFit.ts).
+ * Collapsing them behind a "Hole N" button keeps the row to one line without
+ * dropping any information.
+ */
+export function HoleInfoModal({ hole, onDismiss }: {
+  hole:      HoleCacheDto | null;
+  onDismiss: () => void;
+}) {
+  const theme = useTheme();
+  if (!hole) return null;
+
+  const rows: { label: string; value: string }[] = [
+    { label: 'Par', value: String(hole.par) },
+    { label: 'Handicap', value: String(hole.handicapIndex) },
+  ];
+  if (hole.yardageWhite != null) rows.push({ label: 'White tees', value: `${hole.yardageWhite} yds` });
+  if (hole.yardageBlue  != null) rows.push({ label: 'Blue tees',  value: `${hole.yardageBlue} yds` });
+  if (hole.yardageRed   != null) rows.push({ label: 'Red tees',   value: `${hole.yardageRed} yds` });
+
+  return (
+    <Modal transparent visible animationType="slide" onRequestClose={onDismiss}>
+      <View style={holeInfoStyles.backdrop}>
+        {/* Dismiss layer as a sibling, not a parent — same reason as the
+            challenge modal: nesting the close button inside another Pressable
+            is an invalid <button>-in-<button> on web. */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onDismiss}
+          accessibilityLabel="Close hole detail"
+          accessibilityRole="button"
+        />
+        <View style={[holeInfoStyles.card, { backgroundColor: theme.colors.surface }]}>
+          <View style={[holeInfoStyles.header, { backgroundColor: theme.colors.primary }]}>
+            <Text style={[holeInfoStyles.headerText, { color: theme.buttonLabel }]}>
+              Hole {hole.holeNumber}
+            </Text>
+          </View>
+
+          <View style={holeInfoStyles.body}>
+            {rows.map((r, i) => (
+              <View
+                key={r.label}
+                style={[
+                  holeInfoStyles.row,
+                  i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.accent + '33' },
+                ]}
+              >
+                <Text style={[holeInfoStyles.rowLabel, { color: theme.mutedText }]}>{r.label}</Text>
+                <Text style={[holeInfoStyles.rowValue, { color: theme.colors.primary }]}>{r.value}</Text>
+              </View>
+            ))}
+          </View>
+
+          <Pressable
+            style={[holeInfoStyles.closeBtn, { backgroundColor: theme.colors.primary }]}
+            onPress={onDismiss}
+            accessibilityRole="button"
+          >
+            <Text style={[holeInfoStyles.closeBtnText, { color: theme.buttonLabel }]}>Close</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const holeInfoStyles = StyleSheet.create({
+  backdrop:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  card:         { borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
+  header:       { paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center' },
+  headerText:   { fontSize: 17, fontWeight: '800' },
+  body:         { paddingHorizontal: 20, paddingVertical: 6 },
+  row:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
+  rowLabel:     { fontSize: 14, fontWeight: '600' },
+  rowValue:     { fontSize: 16, fontWeight: '800' },
+  closeBtn:     { margin: 20, marginTop: 8, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  closeBtnText: { fontSize: 16, fontWeight: '700' },
 });
 
 // ── SPONSOR MODAL ────────────────────────────────────────────────────────────
@@ -441,8 +496,25 @@ const sponModalStyles = StyleSheet.create({
 
 // ── SHOT COUNTER COLUMN ───────────────────────────────────────────────────────
 
+/**
+ * Sizes come from useScorecardLayout so the column can tighten on short screens.
+ * Defaults reproduce the original fixed layout, so callers that don't measure
+ * anything are unaffected. `button` is never below 44 — see scorecardLayout.ts.
+ */
+export interface ShotColumnSize {
+  button:    number;
+  gap:       number;
+  labelFont: number;
+  valueFont: number;
+}
+
+const DEFAULT_SHOT_SIZE: ShotColumnSize = {
+  button: 44, gap: 6, labelFont: 11, valueFont: 28,
+};
+
 export function ShotColumn({
-  label, value, onDecrement, onIncrement, disabled, theme,
+  label, value, onDecrement, onIncrement, disabled, theme, size = DEFAULT_SHOT_SIZE,
+  showLabel = true,
 }: {
   label:       string;
   value:       number;
@@ -450,25 +522,43 @@ export function ShotColumn({
   onIncrement: () => void;
   disabled:    boolean;
   theme:       ThemeContextValue;
+  size?:       ShotColumnSize;
+  /**
+   * When false the caller renders one shared header row of labels above all the
+   * golfers instead of repeating them per player — the same information for
+   * ~16px per golfer less, which is what lets a foursome stay expanded.
+   */
+  showLabel?:  boolean;
 }) {
+  const btnStyle = {
+    width: size.button, height: size.button, borderRadius: size.button / 2,
+  };
+  const btnTextStyle = { fontSize: Math.round(size.button * 0.55), lineHeight: Math.round(size.button * 0.64) };
+
   return (
-    <View style={shotColStyles.col}>
-      <Text style={[shotColStyles.label, { color: theme.mutedText }]}>{label}</Text>
+    <View style={[shotColStyles.col, { gap: size.gap }]}>
+      {showLabel && (
+        <Text style={[shotColStyles.label, { color: theme.mutedText, fontSize: size.labelFont }]}>{label}</Text>
+      )}
       <Pressable
         onPress={onIncrement}
         disabled={disabled}
         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         style={({ pressed }) => [
           shotColStyles.btn,
+          btnStyle,
           { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary },
           disabled && shotColStyles.btnDisabled,
         ]}
         accessibilityLabel={`Increase ${label}`}
         accessibilityRole="button"
       >
-        <Text style={shotColStyles.btnText}>+</Text>
+        <Text style={[shotColStyles.btnText, btnTextStyle]}>+</Text>
       </Pressable>
-      <Text style={[shotColStyles.value, { color: theme.colors.primary }]}>
+      <Text style={[
+        shotColStyles.value,
+        { color: theme.colors.primary, fontSize: size.valueFont, lineHeight: Math.round(size.valueFont * 1.15) },
+      ]}>
         {value > 0 ? value : '—'}
       </Text>
       <Pressable
@@ -477,26 +567,26 @@ export function ShotColumn({
         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         style={({ pressed }) => [
           shotColStyles.btn,
+          btnStyle,
           { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary },
           (disabled || value <= 0) && shotColStyles.btnDisabled,
         ]}
         accessibilityLabel={`Decrease ${label}`}
         accessibilityRole="button"
       >
-        <Text style={shotColStyles.btnText}>−</Text>
+        <Text style={[shotColStyles.btnText, btnTextStyle]}>−</Text>
       </Pressable>
     </View>
   );
 }
 
 const shotColStyles = StyleSheet.create({
-  col:        { alignItems: 'center', flex: 1, gap: 6 },
-  label:      { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  btn: {
-    width: 44, height: 44, borderRadius: 22,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  // Dimensions that adapt live in ShotColumnSize; what stays here is the part
+  // that never varies with density.
+  col:        { alignItems: 'center', flex: 1 },
+  label:      { fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  btn:        { alignItems: 'center', justifyContent: 'center' },
   btnDisabled: { opacity: 0.3 },
-  btnText:    { fontSize: 24, fontWeight: '300', color: '#fff', lineHeight: 28 },
-  value:      { fontSize: 28, fontWeight: '800', lineHeight: 32, minWidth: 36, textAlign: 'center' },
+  btnText:    { fontWeight: '300', color: '#fff' },
+  value:      { fontWeight: '800', minWidth: 36, textAlign: 'center' },
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator,
   ScrollView, Image, Platform, SafeAreaView,
@@ -8,9 +8,12 @@ import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
 import { fetchPublicChallenges, type ChallengeCacheDto, type HoleCacheDto, type PlayerShotBreakdown, type SponsorCacheDto } from '@/lib/api';
 import {
-  HoleInfoChip, ScoreChip, SyncStatusBar,
-  HoleInOneModal, ChallengeDetailModal, SponsorModal, ShotColumn,
+  HoleInfoChip, ScoreChip,
+  HoleInOneModal, ChallengeDetailModal, SponsorModal, HoleInfoModal, ShotColumn,
 } from '@/components/scorecardComponents';
+import { useScorecardLayout } from '@/lib/scorecardLayout';
+import { resolveChipsLayout, type ChipSpec } from '@/lib/chipsFit';
+import { formatToPar } from '@/lib/toPar';
 
 // ── SUMMARY TABLE (pre-scoring and post-round shared layout) ──────────────────
 
@@ -32,8 +35,8 @@ export default function ScorecardScreen() {
   const router                 = useRouter();
   const {
     session, loading,
-    pendingScores, completedHoles, syncStatus,
-    upsertScore, completeHole, syncScores, refreshFromServer,
+    pendingScores, completedHoles, syncedHoles,
+    upsertScore, completeHole, refreshFromServer,
   } = useSession();
 
   const [holeIndex,         setHoleIndex]         = useState(0);
@@ -43,6 +46,13 @@ export default function ScorecardScreen() {
   const [selectedChallenge, setSelectedChallenge] = useState<ChallengeCacheDto | null>(null);
   const [selectedSponsor,   setSelectedSponsor]   = useState<SponsorCacheDto | null>(null);
   const [headerTip,         setHeaderTip]         = useState<string | null>(null);
+  /** Height the scroll area actually got. 0 until onLayout fires. */
+  const [scrollHeight,      setScrollHeight]      = useState(0);
+  /** Golfer whose controls are expanded when the layout has to collapse them. */
+  const [expandedPlayer,    setExpandedPlayer]    = useState<string | null>(null);
+  /** Width the chips row actually got. 0 until onLayout fires. */
+  const [chipsWidth,        setChipsWidth]        = useState(0);
+  const [showHoleInfo,      setShowHoleInfo]      = useState(false);
   const tipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const holeOrder = useMemo(
@@ -90,7 +100,6 @@ export default function ScorecardScreen() {
     useCallback(() => { refreshFromServer(); }, [refreshFromServer]),
   );
 
-  const handleSync = useCallback(() => { syncScores(); }, [syncScores]);
 
   const showHeaderTip = useCallback((desc: string) => {
     if (tipTimerRef.current) clearTimeout(tipTimerRef.current);
@@ -256,6 +265,28 @@ export default function ScorecardScreen() {
   const currentHoleSponsor   = holeSponsorMap.get(currentHoleNumber) ?? null;
   const isCurrentHoleDone    = completedHoles.has(currentHoleNumber);
 
+  // Green only once the whole round is up to date, not just this hole: a hole
+  // that failed to reach the server would otherwise hide behind a green check on
+  // a later one. No tap target — the foreground poll retries every 30s/60s and
+  // every "Hole Complete" flushes the whole backlog, so there is nothing for the
+  // golfer to do but see the state.
+  const roundFullySynced = [...completedHoles].every(h => syncedHoles.has(h));
+
+  // Sizes come from the height the scroll area actually measured, not from a
+  // guess at header/safe-area chrome — that varies by device and by whether the
+  // hole carries a sponsor or challenge badge.
+  const teamPlayers = session.team.players;
+  const layout = useScorecardLayout(scrollHeight, teamPlayers.length);
+  // Whose controls are open when the layout collapses the others. Nobody has
+  // picked one yet → the first golfer, which is who the scorer starts with.
+  const activePlayerId = expandedPlayer ?? teamPlayers[0]?.id;
+  const shotSize = {
+    button:    layout.shotButton,
+    gap:       layout.shotGap,
+    labelFont: layout.shotLabelFont,
+    valueFont: layout.shotValueFont,
+  };
+
   // Team gross = sum of every player's (drive + approach + putt)
   const playerBreakdown = currentScore?.playerShots ?? {};
   const grossScore      = Object.values(playerBreakdown).reduce(
@@ -321,6 +352,49 @@ export default function ScorecardScreen() {
     .filter(s => completedHoles.has(s.holeNumber))
     .reduce((sum, s) => sum + s.grossScore, 0);
 
+  // Par for the holes actually completed, so the round's to-par compares like
+  // with like. Unknown holes fall back to 4, matching the server's
+  // LeaderboardCalculator default.
+  const parThrough = [...completedHoles]
+    .reduce((sum, h) => sum + (holeByNumber.get(h)?.par ?? 4), 0);
+  const roundToPar = completedCount > 0 ? grossTotal - parThrough : null;
+
+  // Round-level chips only once the round is under way — "Through 0 · Round 0"
+  // before the first hole is noise.
+  const roundChips: ChipSpec[] = completedCount > 0
+    ? [
+        { label: 'Round',   value: String(grossTotal), suffix: formatToPar(roundToPar) },
+        { label: 'Through', value: String(completedCount) },
+      ]
+    : [];
+
+  const relLabel = formatToPar(displayScore !== null ? displayScore - par : null);
+
+  const yardageChips: ChipSpec[] = hole
+    ? ([
+        hole.yardageWhite != null ? { label: 'White', value: `${hole.yardageWhite}y` } : null,
+        hole.yardageBlue  != null ? { label: 'Blue',  value: `${hole.yardageBlue}y` }  : null,
+        hole.yardageRed   != null ? { label: 'Red',   value: `${hole.yardageRed}y` }   : null,
+      ].filter(Boolean) as ChipSpec[])
+    : [];
+
+  const scoreChipSpec: ChipSpec = {
+    label: 'Score',
+    value: displayScore !== null ? String(displayScore) : '—',
+    variant: 'score',
+    suffix: relLabel,
+  };
+
+  // Width is measured; the arrangement is computed. Reacting to the row's
+  // measured HEIGHT would oscillate — collapsing changes the content, which then
+  // fits, which expands, which wraps again. The container width doesn't move.
+  const chipsRow = resolveChipsLayout(chipsWidth, {
+    score:    scoreChipSpec,
+    hcp:      hole ? { label: 'HCP', value: String(hole.handicapIndex) } : null,
+    yardages: yardageChips,
+    totals:   roundChips,
+  });
+
   return (
     <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
       {/* ── HEADER ── */}
@@ -328,29 +402,57 @@ export default function ScorecardScreen() {
         <Text style={[styles.headerTeam, { color: theme.colors.highlight }]} numberOfLines={1}>
           {session.team.name}
         </Text>
-        <Text style={[styles.headerEvent, { color: theme.colors.highlight }]} numberOfLines={1}>
-          {session.event.name}
-        </Text>
-        {completedCount > 0 && (
-          <Text style={[styles.headerTotal, { color: theme.colors.highlight }]}>
-            {completedCount} hole(s) complete · Total {grossTotal}
+        {/* Hole counter and sync state ride the event line rather than owning a
+            row in the nav bar — same information, ~30px more scroll area. */}
+        <View style={styles.headerMetaRow}>
+          <Text style={[styles.headerEvent, { color: theme.colors.highlight }]} numberOfLines={1}>
+            {session.event.name}
           </Text>
-        )}
+          {/* The hole the golfer is standing on, NOT their position in the
+              round. getHoleOrder wraps for shotgun starts, so a team starting
+              on 12 plays 12..18,1..11 — "Hole 1/18" there was flatly wrong, and
+              contradicted the Hole N button and detail modal, which have always
+              shown the real number. Progress is the Through chip's job. */}
+          <Text style={[styles.headerHole, { color: theme.colors.highlight }]}>
+            Hole {currentHoleNumber}
+            <Text style={styles.headerPar}>  Par {par}</Text>
+          </Text>
+          {isCurrentHoleDone && (
+            <View style={[styles.completedBadge, roundFullySynced ? styles.badgeSynced : styles.badgePending]}>
+              <Text style={[styles.completedBadgeText, !roundFullySynced && styles.badgePendingText]}>
+                {roundFullySynced ? '✓' : 'Pending sync'}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.scrollFlex}
+        contentContainerStyle={[styles.scroll, { padding: layout.scrollPadding }]}
+        keyboardShouldPersistTaps="handled"
+        onLayout={e => setScrollHeight(e.nativeEvent.layout.height)}
+      >
 
         {/* ── HOLE SPONSOR ── */}
         {currentHoleSponsor && (
           <Pressable
             style={({ pressed }) => [
               styles.sponsorBadge,
-              { borderColor: theme.colors.primary, opacity: pressed ? 0.75 : 1 },
+              {
+                borderColor: theme.colors.primary,
+                // Light surface with primary content, never a primary fill: the
+                // theming contract guarantees surface is light and primary
+                // clears 4.5:1 on it, and sponsor logos assume a light ground.
+                backgroundColor: pressed ? theme.colors.primary + '12' : '#f9f9f9',
+                opacity: pressed ? 0.9 : 1,
+              },
             ]}
             onPress={() => setSelectedSponsor(currentHoleSponsor)}
             accessibilityRole="button"
             accessibilityLabel={`View ${currentHoleSponsor.name} sponsor info`}
           >
+            <View style={styles.sponsorContent}>
             {hole?.sponsorLogoUrl ? (
               <AdaptiveLogoFrame
                 uri={hole.sponsorLogoUrl}
@@ -371,21 +473,59 @@ export default function ScorecardScreen() {
                 {currentHoleSponsor.tagline}
               </Text>
             ) : null}
-            <Text style={[styles.sponsorTapHint, { color: theme.colors.primary }]}>
-              Tap to learn more
-            </Text>
+            </View>
+            {/* Disclosure chevron carries the affordance now that the
+                "Tap to learn more" hint is gone. */}
+            <Text style={[styles.sponsorChevron, { color: theme.colors.primary }]}>›</Text>
           </Pressable>
         )}
 
-        {/* ── HOLE INFO CHIPS: PAR | SCORE | HCP | yardages ── */}
+        {/* ── HOLE INFO CHIPS ──
+            Fits:  Par | Score | HCP | yardages | Through | Round
+            Tight: [Hole N] | Score | Through | Round, with the hole detail
+                   behind the button. The row must never wrap — scorecardLayout
+                   budgets one line for it. */}
         {hole && (
-          <View style={styles.infoRow}>
-            <HoleInfoChip label="Par"  value={String(hole.par)} />
+          <View style={styles.infoRow} onLayout={e => setChipsWidth(e.nativeEvent.layout.width)}>
+            {chipsRow.showYardagesButton && (
+              <Pressable
+                onPress={() => setShowHoleInfo(true)}
+                style={({ pressed }) => [
+                  styles.holeInfoBtn,
+                  { borderColor: theme.colors.primary, backgroundColor: pressed ? theme.colors.primary + '18' : theme.colors.surface },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={`Yardages and handicap for hole ${currentHoleNumber}`}
+              >
+                <Text style={[styles.holeInfoBtnText, { color: theme.colors.primary }]}>
+                  Yardages
+                </Text>
+                <Text style={[styles.holeInfoBtnChevron, { color: theme.colors.primary }]}>›</Text>
+              </Pressable>
+            )}
+
             <ScoreChip grossScore={displayScore} par={par} />
-            <HoleInfoChip label="HCP"  value={String(hole.handicapIndex)} />
-            {hole.yardageWhite != null && <HoleInfoChip label="White" value={`${hole.yardageWhite}y`} />}
-            {hole.yardageBlue  != null && <HoleInfoChip label="Blue"  value={`${hole.yardageBlue}y`} />}
-            {hole.yardageRed   != null && <HoleInfoChip label="Red"   value={`${hole.yardageRed}y`} />}
+
+            {chipsRow.showHcp && (
+              <HoleInfoChip label="HCP" value={String(hole.handicapIndex)} />
+            )}
+
+            {!chipsRow.showYardagesButton && (
+              <>
+                {hole.yardageWhite != null && <HoleInfoChip label="White" value={`${hole.yardageWhite}y`} />}
+                {hole.yardageBlue  != null && <HoleInfoChip label="Blue"  value={`${hole.yardageBlue}y`} />}
+                {hole.yardageRed   != null && <HoleInfoChip label="Red"   value={`${hole.yardageRed}y`} />}
+              </>
+            )}
+
+            {roundChips.map(c => (
+              <HoleInfoChip
+                key={c.label}
+                label={c.label}
+                value={c.value}
+                {...(c.label === 'Round' ? { toPar: roundToPar } : {})}
+              />
+            ))}
           </View>
         )}
 
@@ -430,18 +570,49 @@ export default function ScorecardScreen() {
         )}
 
         {/* ── PER-PLAYER SHOT ENTRY ── */}
-        <View style={[styles.playerCard, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.playerCardTitle, { color: theme.colors.primary }]}>
-            Player Shots
-          </Text>
+        <View style={[
+          styles.playerCard,
+          {
+            backgroundColor: theme.colors.surface,
+            paddingTop:      layout.cardPaddingTop,
+            paddingBottom:   layout.cardPaddingBottom,
+          },
+        ]}>
+          {layout.showCardTitle && (
+            <Text style={[styles.playerCardTitle, { color: theme.colors.primary }]}>
+              Player Shots
+            </Text>
+          )}
 
-          {session.team.players.length === 0 && (
+          {/* One shared header instead of repeating Drive/Approach/Putt under
+              every golfer. Spacer matches the name block so the labels line up
+              with the columns they title. */}
+          {teamPlayers.length > 0 && (
+            <View style={styles.colHeaderRow}>
+              <View style={styles.playerNameBlock} />
+              <View style={styles.playerCols}>
+                {['Drive', 'Approach', 'Putt'].map((l, i) => (
+                  <React.Fragment key={l}>
+                    {i > 0 && <View style={styles.colHeaderSpacer} />}
+                    <Text
+                      style={[styles.colHeaderText, { color: theme.mutedText, fontSize: layout.shotLabelFont }]}
+                      numberOfLines={1}
+                    >
+                      {l}
+                    </Text>
+                  </React.Fragment>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {teamPlayers.length === 0 && (
             <Text style={[styles.noPlayersText, { color: theme.mutedText }]}>
               No players on this team.
             </Text>
           )}
 
-          {session.team.players.map((player, idx) => {
+          {teamPlayers.map((player, idx) => {
             const shots       = playerBreakdown[player.id] ?? { drive: 0, approach: 0, putt: 0 };
             const initials    = `${player.firstName[0]}${player.lastName[0]}`;
             const playerTotal = shots.drive + shots.approach + shots.putt;
@@ -449,26 +620,66 @@ export default function ScorecardScreen() {
             // Shot entry is disabled when the hole is marked complete
             const shotDisabled = !scoringEnabled || isCurrentHoleDone;
 
+            // A foursome's expanded controls exceed every phone viewport, so on
+            // short screens only the golfer being scored is expanded and the
+            // rest sit as one-line rows you tap to open.
+            const isExpanded = !layout.collapseInactivePlayers || activePlayerId === player.id;
+
+            if (!isExpanded) {
+              return (
+                <Pressable
+                  key={player.id}
+                  onPress={() => setExpandedPlayer(player.id)}
+                  style={[
+                    styles.collapsedRow,
+                    !isFirst && { borderTopColor: theme.colors.accent + '22', borderTopWidth: StyleSheet.hairlineWidth },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Enter shots for ${player.firstName} ${player.lastName}`}
+                >
+                  <Text style={[styles.collapsedName, { color: theme.colors.primary }]} numberOfLines={1}>
+                    {player.firstName} {player.lastName}
+                  </Text>
+                  <Text style={[styles.collapsedTotal, { color: playerTotal > 0 ? theme.colors.primary : theme.mutedText }]}>
+                    {playerTotal > 0 ? `${playerTotal}` : '—'}
+                  </Text>
+                </Pressable>
+              );
+            }
+
             return (
               <View
                 key={player.id}
                 style={[
                   styles.playerSection,
+                  { paddingTop: layout.sectionPaddingTop, paddingBottom: layout.sectionPaddingBottom },
                   !isFirst && { borderTopColor: theme.colors.accent + '22', borderTopWidth: StyleSheet.hairlineWidth },
                 ]}
               >
-                <View style={styles.playerNameRow}>
-                  <View style={[styles.playerAvatar, { backgroundColor: theme.colors.highlight }]}>
+                {/* Name sits BESIDE the controls rather than above them. A
+                    separate name row cost ~30px per golfer — 120px across a
+                    foursome — which is most of what used to force the collapse. */}
+                <View style={styles.playerNameBlock}>
+                  <View style={[
+                    styles.playerAvatar,
+                    {
+                      backgroundColor: theme.colors.highlight,
+                      width: layout.avatar, height: layout.avatar, borderRadius: layout.avatar / 2,
+                    },
+                  ]}>
                     <Text style={[styles.playerInitials, { color: theme.colors.primary }]}>
                       {initials}
                     </Text>
                   </View>
-                  <Text style={[styles.playerName, { color: theme.colors.primary }]} numberOfLines={1}>
-                    {player.firstName} {player.lastName}
+                  <Text
+                    style={[styles.playerName, { color: theme.colors.primary, fontSize: layout.nameFont }]}
+                    numberOfLines={1}
+                  >
+                    {player.firstName}
                   </Text>
                   {playerTotal > 0 && (
                     <Text style={[styles.playerTotal, { color: theme.mutedText }]}>
-                      {playerTotal} shots
+                      {playerTotal}
                     </Text>
                   )}
                 </View>
@@ -481,8 +692,10 @@ export default function ScorecardScreen() {
                     onIncrement={() => changePlayerShots(player.id, 'drive', 1)}
                     disabled={shotDisabled}
                     theme={theme}
+                    size={shotSize}
+                    showLabel={false}
                   />
-                  <View style={[styles.colDivider, { backgroundColor: theme.colors.accent + '22' }]} />
+                  <View style={[styles.colDivider, { backgroundColor: theme.colors.accent + '22', height: layout.shotButton * 1.8 }]} />
                   <ShotColumn
                     label="Approach"
                     value={shots.approach}
@@ -490,8 +703,10 @@ export default function ScorecardScreen() {
                     onIncrement={() => changePlayerShots(player.id, 'approach', 1)}
                     disabled={shotDisabled}
                     theme={theme}
+                    size={shotSize}
+                    showLabel={false}
                   />
-                  <View style={[styles.colDivider, { backgroundColor: theme.colors.accent + '22' }]} />
+                  <View style={[styles.colDivider, { backgroundColor: theme.colors.accent + '22', height: layout.shotButton * 1.8 }]} />
                   <ShotColumn
                     label="Putt"
                     value={shots.putt}
@@ -499,20 +714,14 @@ export default function ScorecardScreen() {
                     onIncrement={() => changePlayerShots(player.id, 'putt', 1)}
                     disabled={shotDisabled}
                     theme={theme}
+                    size={shotSize}
+                    showLabel={false}
                   />
                 </View>
               </View>
             );
           })}
         </View>
-
-        {/* ── SYNC STATUS ── */}
-        <SyncStatusBar
-          status={syncStatus}
-          pendingCount={completedHoles.size}
-          onSync={handleSync}
-          theme={theme}
-        />
       </ScrollView>
 
       {/* ── HOLE IN ONE CELEBRATION ── */}
@@ -528,20 +737,14 @@ export default function ScorecardScreen() {
         onDismiss={() => setSelectedSponsor(null)}
       />
 
+      {/* ── HOLE DETAIL (collapsed chips) ── */}
+      <HoleInfoModal
+        hole={showHoleInfo ? hole : null}
+        onDismiss={() => setShowHoleInfo(false)}
+      />
+
       {/* ── HOLE NAVIGATION ── */}
       <View style={[styles.navBar, { backgroundColor: theme.colors.surface, borderTopColor: '#e0e0e0' }]}>
-        {/* Counter row */}
-        <View style={styles.counterRow}>
-          <Text style={[styles.holeCounter, { color: theme.colors.primary }]}>
-            Hole {holeIndex + 1} of {holeOrder.length}
-          </Text>
-          {isCurrentHoleDone && (
-            <View style={styles.completedBadge}>
-              <Text style={styles.completedBadgeText}>✓ Complete</Text>
-            </View>
-          )}
-        </View>
-
         {/* Button row */}
         <View style={styles.btnRow}>
           <Pressable
@@ -609,7 +812,16 @@ export default function ScorecardScreen() {
 const styles = StyleSheet.create({
   page:   { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { padding: 16, paddingBottom: 32 },
+  scrollFlex: { flex: 1 },
+  scroll: { paddingBottom: 32 },
+
+  // Collapsed golfer on short screens: name + shot total, tap to expand.
+  collapsedRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 9, paddingHorizontal: 2,
+  },
+  collapsedName:  { flex: 1, fontSize: 14, fontWeight: '600' },
+  collapsedTotal: { fontSize: 15, fontWeight: '800', minWidth: 28, textAlign: 'right' },
 
   readOnlyNotice: {
     borderWidth: 1, borderRadius: 10,
@@ -630,21 +842,38 @@ const styles = StyleSheet.create({
     alignItems:    'center',
   },
   headerTeam:  { fontSize: 18, fontWeight: '800' },
-  headerEvent: { fontSize: 13, fontWeight: '500', marginTop: 2, opacity: 0.85 },
-  headerTotal: { fontSize: 12, fontWeight: '600', marginTop: 4, opacity: 0.75 },
+  headerEvent: { fontSize: 13, fontWeight: '500', opacity: 0.85, flexShrink: 1 },
+  headerMetaRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, marginTop: 2,
+  },
+  headerHole: { fontSize: 13, fontWeight: '700' },
+  headerPar:  { fontSize: 13, fontWeight: '500', opacity: 0.85 },
 
   sponsorBadge: {
     borderWidth: 2, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 10, paddingHorizontal: 16, marginBottom: 12,
-    gap: 4,
-    backgroundColor: '#f9f9f9',
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 10, paddingHorizontal: 12, marginBottom: 12,
+    gap: 8,
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
+  sponsorContent: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
   sponsorName:    { fontSize: 13, fontWeight: '700' },
   sponsorTagline: { fontSize: 11, fontWeight: '600', fontStyle: 'italic', textAlign: 'center' },
-  sponsorTapHint: { fontSize: 10, fontWeight: '500', opacity: 0.55 },
+  sponsorChevron: { fontSize: 26, fontWeight: '400', lineHeight: 28, marginTop: -2 },
+
+  // Stand-in for Par/HCP/yardages when they won't fit on one line.
+  holeInfoBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderWidth: 1.5, borderRadius: 12,
+    paddingHorizontal: 10, paddingVertical: 10,
+  },
+  // Sizes are mirrored by the BUTTON_* constants in lib/chipsFit — "Yardages"
+  // is far wider than the old "Hole 13", and the collapsed row has no further
+  // fallback if it overflows.
+  holeInfoBtnText:    { fontSize: 13, fontWeight: '800' },
+  holeInfoBtnChevron: { fontSize: 18, fontWeight: '400', lineHeight: 20 },
 
   infoRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8,
@@ -673,19 +902,29 @@ const styles = StyleSheet.create({
   noPlayersText:   { fontSize: 13, paddingBottom: 8 },
 
   playerSection: {
+    flexDirection: 'row', alignItems: 'center',
     paddingTop: 12,
     paddingBottom: 16,
   },
-  playerNameRow: {
-    flexDirection: 'row', alignItems: 'center',
-    marginBottom: 12,
+  playerNameBlock: {
+    width: 92, flexDirection: 'row', alignItems: 'center', gap: 6,
   },
-  playerAvatar:   { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  colHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', paddingBottom: 4,
+  },
+  colHeaderText: {
+    flex: 1, textAlign: 'center',
+    fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  colHeaderSpacer: { width: 1, marginHorizontal: 4 },
+  playerAvatar:   { alignItems: 'center', justifyContent: 'center' },
   playerInitials: { fontSize: 12, fontWeight: '800' },
   playerName:     { flex: 1, fontSize: 14, fontWeight: '600' },
+  // (playerTotal now shows just the number — the name block is narrow)
   playerTotal:    { fontSize: 13, fontWeight: '700' },
 
   playerCols: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -698,16 +937,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingBottom: Platform.OS === 'ios' ? 28 : 12,
   },
-  counterRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, marginBottom: 10,
-  },
-  holeCounter: { fontSize: 14, fontWeight: '600' },
+
   completedBadge: {
-    backgroundColor: '#27ae60', borderRadius: 10,
+    borderRadius: 10,
     paddingHorizontal: 8, paddingVertical: 2,
   },
-  completedBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  badgeSynced:  { backgroundColor: '#27ae60' },
+  // Amber reads as "in flight", not "broken" — an unsynced hole is normal on a
+  // course with patchy signal and resolves itself.
+  badgePending: { backgroundColor: '#f0a500' },
+  completedBadgeText:  { color: '#fff', fontSize: 11, fontWeight: '700' },
+  badgePendingText:    { color: '#4a3300' },
 
   btnRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6,
