@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useTheme } from '@gfp/ui';
 import { useLiveLeaderboard, type HoleInOneAlert as HoleInOneData } from '@gfp/shared-types';
+import { resolveLeaderboardState, type LeaderboardState } from '@/lib/leaderboardState';
 import { useSession } from '@/lib/session';
 import { fetchLeaderboard } from '@/lib/api';
 import type { PublicLeaderboardEntry } from '@/lib/api';
@@ -178,8 +179,16 @@ function StatusBar({
   return (
     <View style={[styles.statusBar, { backgroundColor: bg }]}>
       <Text style={[styles.statusText, { color: fg }]}>{label}</Text>
-      {!loading && !offline && (
-        <Pressable onPress={onRefresh} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+      {/* Shown in offline mode too — that is exactly when a manual fetch
+          matters, since nothing is polling. refresh() is deliberately not
+          gated on `disabled` for the same reason. */}
+      {!loading && (
+        <Pressable
+          onPress={onRefresh}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh standings"
+        >
           <Text style={[styles.refreshBtn, { color: theme.colors.primary }]}>↻</Text>
         </Pressable>
       )}
@@ -188,6 +197,31 @@ function StatusBar({
 }
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
+
+/**
+ * What each non-ready state tells the golfer. The offline copy is the one that
+ * matters: the event's offlineMode disables both transports, so nothing was
+ * ever fetched — saying "no scores" there is a guess, and it was wrong.
+ */
+const EMPTY_COPY: Record<Exclude<LeaderboardState, 'ready' | 'loading'>, {
+  icon: string; title: string; sub: string;
+}> = {
+  offline: {
+    icon:  '📴',
+    title: 'Live Standings Off',
+    sub:   'This event runs in offline mode to save battery. Tap ↻ above to fetch the standings once.',
+  },
+  error: {
+    icon:  '📡',
+    title: "Couldn't Reach Scoring",
+    sub:   'Standings will catch up when the connection returns. Tap ↻ above to try again.',
+  },
+  empty: {
+    icon:  '🏆',
+    title: 'No Scores Yet',
+    sub:   'Standings will appear once teams start scoring.',
+  },
+};
 
 export default function LeaderboardScreen() {
   const theme       = useTheme();
@@ -214,6 +248,10 @@ export default function LeaderboardScreen() {
     },
   });
 
+  // One empty view for three different situations was reporting a cause it had
+  // no evidence for — see lib/leaderboardState.ts.
+  const view = resolveLeaderboardState({ offlineMode, error, standings, loading });
+
   return (
     <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
 
@@ -228,16 +266,18 @@ export default function LeaderboardScreen() {
         loading={loading}
       />
 
-      {loading ? (
+      {view === 'loading' ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
-      ) : !standings || standings.length === 0 ? (
+      ) : view !== 'ready' ? (
         <View style={styles.center}>
-          <Text style={styles.emptyIcon}>🏆</Text>
-          <Text style={[styles.emptyTitle, { color: theme.colors.primary }]}>No Scores Yet</Text>
+          <Text style={styles.emptyIcon}>{EMPTY_COPY[view].icon}</Text>
+          <Text style={[styles.emptyTitle, { color: theme.colors.primary }]}>
+            {EMPTY_COPY[view].title}
+          </Text>
           <Text style={[styles.emptySub,   { color: theme.mutedText  }]}>
-            Standings will appear once teams start scoring.
+            {EMPTY_COPY[view].sub}
           </Text>
         </View>
       ) : (

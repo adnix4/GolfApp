@@ -16,6 +16,7 @@
  *   The initial HTTP fetch runs unconditionally so first paint isn't blocked
  *   on SignalR negotiation.
  * - `disabled` short-circuits both transports (used for offline-mode events).
+ *   An explicit refresh() still runs — see its comment.
  *
  * Consumers own the rendering. The hook only manages transport + state.
  *
@@ -129,8 +130,17 @@ export function useLiveLeaderboard<TStanding>(
   const auctionChangedRef = useRef(onAuctionChanged);
   useEffect(() => { auctionChangedRef.current = onAuctionChanged; }, [onAuctionChanged]);
 
+  /**
+   * One-shot fetch on an explicit user action (pull to refresh).
+   *
+   * Deliberately NOT gated on `disabled`. That flag exists to stop background
+   * work at a low-connectivity venue — a socket held open and a poll every
+   * 30s — not to veto a bounded request the golfer asked for. Vetoing it made
+   * an offline-mode event look broken: pulling did nothing, and the screen
+   * claimed there were no scores when there were 77.
+   */
   const refresh = useCallback(() => {
-    if (!eventCode || disabled) return;
+    if (!eventCode) return;
     fetchRef.current(eventCode)
       .then(fresh => {
         if (fresh) {
@@ -143,7 +153,7 @@ export function useLiveLeaderboard<TStanding>(
         }
       })
       .catch(() => setError(true));
-  }, [eventCode, disabled]);
+  }, [eventCode]);
 
   const dismissHioAlert = useCallback(() => setHioAlert(null), []);
 
