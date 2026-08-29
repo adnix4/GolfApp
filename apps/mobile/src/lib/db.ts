@@ -111,8 +111,21 @@ function selectScoreRows(sql: string, params: unknown[]): WebScoreRow[] {
   // the caller — only WHERE + ORDER BY need interpreting.
   const where = parseWhere(sql, params, 0);
   const rows = readScoreRows().filter(r => where.test(r));
-  if (/ORDER BY\s+hole_number/i.test(sql)) {
-    rows.sort((a, b) => Number(a.hole_number) - Number(b.hole_number));
+  const byHole = (a: WebScoreRow, b: WebScoreRow) =>
+    Number(a.hole_number) - Number(b.hole_number);
+
+  // completed_at is checked first: "ORDER BY completed_at, hole_number" must not
+  // fall through to the hole_number branch. Values are ISO-8601 strings, so a
+  // lexical compare is chronological; hole_number breaks ties between holes
+  // completed in the same millisecond.
+  if (/ORDER BY\s+completed_at/i.test(sql)) {
+    rows.sort((a, b) => {
+      const ac = String(a.completed_at ?? '');
+      const bc = String(b.completed_at ?? '');
+      return ac === bc ? byHole(a, b) : ac < bc ? -1 : 1;
+    });
+  } else if (/ORDER BY\s+hole_number/i.test(sql)) {
+    rows.sort(byHole);
   } else if (/ORDER BY/i.test(sql)) {
     throw new Error(`webDb: unsupported ORDER BY on web: ${sql}`);
   }

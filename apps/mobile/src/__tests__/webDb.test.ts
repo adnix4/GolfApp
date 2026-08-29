@@ -138,6 +138,47 @@ describe('webDb pending_scores shim', () => {
     expect(await store.getDeviceId()).toBe(id);  // stable across calls
   });
 
+  // The backlog is sent in completion order so the hole just finished goes last.
+  // On a shotgun start the round wraps (12, 13, ... 18, 1, 2), so hole order and
+  // play order are different sequences.
+  it('returns unsynced holes in completion order, not hole order', async () => {
+    const store = await import('../lib/store');
+    for (const hole of [12, 13, 1, 2]) {
+      await store.upsertPendingScore(EVENT, TEAM, score(hole, 4));
+      await store.markHoleComplete(EVENT, TEAM, hole);
+      // markHoleComplete stamps Date.now(); nudge the clock so the ISO strings differ.
+      await new Promise(r => setTimeout(r, 2));
+    }
+
+    const unsynced = await store.loadUnsyncedScores(EVENT, TEAM);
+    expect(unsynced.map(r => r.holeNumber)).toEqual([12, 13, 1, 2]);
+  });
+
+  it('puts the hole just completed last in the backlog', async () => {
+    const store = await import('../lib/store');
+    for (const hole of [5, 6]) {
+      await store.upsertPendingScore(EVENT, TEAM, score(hole, 4));
+      await store.markHoleComplete(EVENT, TEAM, hole);
+      await new Promise(r => setTimeout(r, 2));
+    }
+    // Hole 3 is entered and completed last even though it sorts first by number.
+    await store.upsertPendingScore(EVENT, TEAM, score(3, 4));
+    await store.markHoleComplete(EVENT, TEAM, 3);
+
+    const unsynced = await store.loadUnsyncedScores(EVENT, TEAM);
+    expect(unsynced[unsynced.length - 1].holeNumber).toBe(3);
+  });
+
+  it('reports which holes the server has confirmed', async () => {
+    const store = await import('../lib/store');
+    await store.upsertPendingScore(EVENT, TEAM, score(4, 5));
+    await store.markHoleComplete(EVENT, TEAM, 4);
+
+    expect(await store.loadSyncedHoleNumbers(EVENT, TEAM)).toEqual([]);
+    await store.markScoresSynced(EVENT, TEAM);
+    expect(await store.loadSyncedHoleNumbers(EVENT, TEAM)).toEqual([4]);
+  });
+
   it('unrecognized SQL throws instead of silently no-oping', async () => {
     const { getDb } = await import('../lib/db');
     const db = await getDb();
@@ -145,5 +186,10 @@ describe('webDb pending_scores shim', () => {
       .rejects.toThrow(/unsupported/i);
     await expect(db.getAllAsync('SELECT * FROM leaderboard_cache', []))
       .rejects.toThrow(/unsupported/i);
+    // Only hole_number and completed_at are interpreted; anything else must fail
+    // loudly rather than return an arbitrarily ordered list.
+    await expect(db.getAllAsync(
+      'SELECT hole_number FROM pending_scores WHERE event_id = ? ORDER BY gross_score', [EVENT]))
+      .rejects.toThrow(/unsupported ORDER BY/i);
   });
 });
