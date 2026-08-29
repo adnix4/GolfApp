@@ -54,6 +54,10 @@ public class LeaderboardIntegrationTests
         return team;
     }
 
+    /// <summary>
+    /// Seeds a finished hole. Standings only count holes with CompletedAt set
+    /// (U1) — see AddIncompleteScore for the half-entered case.
+    /// </summary>
     private static void AddScore(GolfFundraiserPro.Api.Data.ApplicationDbContext db,
         Guid eventId, Guid teamId, int holeNumber, int grossScore)
         => db.Scores.Add(new Score
@@ -65,6 +69,24 @@ public class LeaderboardIntegrationTests
             GrossScore  = (short)grossScore,
             DeviceId    = "dev-test",
             SubmittedAt = DateTime.UtcNow,
+            CompletedAt = DateTime.UtcNow,
+        });
+
+    /// <summary>
+    /// Seeds a hole the admin is still typing: strokes saved, never marked done.
+    /// </summary>
+    private static void AddIncompleteScore(GolfFundraiserPro.Api.Data.ApplicationDbContext db,
+        Guid eventId, Guid teamId, int holeNumber, int grossScore)
+        => db.Scores.Add(new Score
+        {
+            Id          = Guid.NewGuid(),
+            EventId     = eventId,
+            TeamId      = teamId,
+            HoleNumber  = (short)holeNumber,
+            GrossScore  = (short)grossScore,
+            DeviceId    = "dev-test",
+            SubmittedAt = DateTime.UtcNow,
+            CompletedAt = null,
         });
 
     // ── No scores ─────────────────────────────────────────────────────────────
@@ -82,6 +104,66 @@ public class LeaderboardIntegrationTests
         // Team present but no scores → rank 0
         Assert.Single(board);
         Assert.Equal(0, board[0].Rank);
+    }
+
+    // ── Incomplete holes are excluded (U1) ────────────────────────────────────
+
+    [Fact]
+    public async Task GetLeaderboardAsync_excludes_holes_not_marked_complete()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId) = await SeedEventAsync(db, holes: 3);
+        var team = AddTeam(db, eventId, "Eagles");
+
+        AddScore(db, eventId, team.Id, 1, 4);            // done
+        AddScore(db, eventId, team.Id, 2, 4);            // done
+        AddIncompleteScore(db, eventId, team.Id, 3, 9);  // still being typed
+        await db.SaveChangesAsync();
+
+        var board = await svc.GetLeaderboardAsync(orgId, eventId);
+
+        // Only the two finished holes count: 8 gross against 8 par.
+        Assert.Equal(8, board[0].GrossTotal);
+        Assert.Equal(0, board[0].ToPar);
+        Assert.Equal(2, board[0].HolesComplete);
+    }
+
+    [Fact]
+    public async Task GetLeaderboardAsync_ignores_partial_entry_that_looks_like_an_ace()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId) = await SeedEventAsync(db, holes: 3);
+        var team = AddTeam(db, eventId, "Eagles");
+
+        // The admin has tapped "+" once for the first golfer: gross 1, not done.
+        AddIncompleteScore(db, eventId, team.Id, 1, 1);
+        await db.SaveChangesAsync();
+
+        var board = await svc.GetLeaderboardAsync(orgId, eventId);
+
+        Assert.Equal(0, board[0].GrossTotal);
+        Assert.Equal(0, board[0].HolesComplete);
+    }
+
+    [Fact]
+    public async Task GetLeaderboardAsync_counts_the_hole_once_it_is_completed()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId) = await SeedEventAsync(db, holes: 3);
+        var team = AddTeam(db, eventId, "Eagles");
+        AddIncompleteScore(db, eventId, team.Id, 1, 5);
+        await db.SaveChangesAsync();
+
+        var before = await svc.GetLeaderboardAsync(orgId, eventId);
+        Assert.Equal(0, before[0].HolesComplete);
+
+        var score = db.Scores.Single(s => s.EventId == eventId && s.HoleNumber == 1);
+        score.CompletedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        var after = await svc.GetLeaderboardAsync(orgId, eventId);
+        Assert.Equal(1, after[0].HolesComplete);
+        Assert.Equal(5, after[0].GrossTotal);
     }
 
     // ── Basic toPar calculation ───────────────────────────────────────────────

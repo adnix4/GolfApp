@@ -33,10 +33,14 @@ public class ScoreServiceIntegrationTests
         return (svc, db, rt);
     }
 
-    /// <summary>Capturing IRealTimeService stub — counts ScoreUpdated broadcasts.</summary>
+    /// <summary>
+    /// Capturing IRealTimeService stub — counts ScoreUpdated broadcasts and the
+    /// plain leaderboard refreshes used when a hole is reopened.
+    /// </summary>
     private sealed class CountingRealTimeService : IRealTimeService
     {
-        public int PublishScoreCount { get; private set; }
+        public int PublishScoreCount       { get; private set; }
+        public int PublishLeaderboardCount { get; private set; }
 
         public Task PublishScoreAsync(
             string eventCode, Guid eventId, Guid teamId,
@@ -47,7 +51,12 @@ public class ScoreServiceIntegrationTests
             return Task.CompletedTask;
         }
 
-        public Task PublishLeaderboardAsync(string eventCode, Guid eventId, IEnumerable<(Guid TeamId, string TeamName, short HoleNumber, short GrossScore)> acceptedScores, CancellationToken ct = default) => Task.CompletedTask;
+        public Task PublishLeaderboardAsync(string eventCode, Guid eventId, IEnumerable<(Guid TeamId, string TeamName, short HoleNumber, short GrossScore)> acceptedScores, CancellationToken ct = default)
+        {
+            PublishLeaderboardCount++;
+            return Task.CompletedTask;
+        }
+
         public Task SendCheckInUpdatedAsync(string eventCode, Guid eventId, CancellationToken ct = default) => Task.CompletedTask;
         public Task SendBidPlacedAsync(string eventCode, Guid itemId, Guid playerId, int amountCents, bool isDonation, CancellationToken ct = default) => Task.CompletedTask;
         public Task SendAuctionExtendedAsync(string eventCode, Guid itemId, DateTime newClosesAt, CancellationToken ct = default) => Task.CompletedTask;
@@ -226,7 +235,13 @@ public class ScoreServiceIntegrationTests
 
         await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest { TeamId = teamId, HoleNumber = 1, GrossScore = 4, DeviceId = "dev-A" });
         await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest { TeamId = teamId, HoleNumber = 1, GrossScore = 6, DeviceId = "dev-B" }); // conflict
-        var scoreId = db.Scores.Single(s => s.EventId == eventId && s.TeamId == teamId && s.HoleNumber == 1).Id;
+        var score = db.Scores.Single(s => s.EventId == eventId && s.TeamId == teamId && s.HoleNumber == 1);
+        // Only finished holes reach the leaderboard (U1), so only finished holes
+        // are worth broadcasting. A real conflict comes from a phone, which marks
+        // the hole complete on sync.
+        score.CompletedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        var scoreId = score.Id;
         var before  = rt.PublishScoreCount;
 
         var result = await svc.ResolveConflictAsync(orgId, eventId, scoreId,
@@ -246,7 +261,10 @@ public class ScoreServiceIntegrationTests
 
         await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest { TeamId = teamId, HoleNumber = 1, GrossScore = 4, DeviceId = "dev-A" });
         await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest { TeamId = teamId, HoleNumber = 1, GrossScore = 6, DeviceId = "dev-B" }); // conflict
-        var scoreId = db.Scores.Single(s => s.EventId == eventId && s.TeamId == teamId && s.HoleNumber == 1).Id;
+        var score = db.Scores.Single(s => s.EventId == eventId && s.TeamId == teamId && s.HoleNumber == 1);
+        score.CompletedAt = DateTime.UtcNow; // see ResolveConflict test above
+        await db.SaveChangesAsync();
+        var scoreId = score.Id;
         var before  = rt.PublishScoreCount;
 
         var result = await svc.UpdateAsync(orgId, eventId, scoreId, new UpdateScoreRequest { GrossScore = 5 });
@@ -299,6 +317,106 @@ public class ScoreServiceIntegrationTests
         var reopened = await svc.SetHoleCompleteAsync(orgId, eventId, teamId, 3, complete: false);
         Assert.Null(reopened.CompletedAt);
         Assert.Equal((short)5, reopened.GrossScore);
+    }
+
+    // ── Broadcast timing (U1) ─────────────────────────────────────────────────
+
+    [Fact]
+    public async Task SubmitAsync_does_not_broadcast_while_the_hole_is_incomplete()
+    {
+        // Per-stroke admin entry: every "+" saves. None of them should move the
+        // public leaderboard.
+        var (svc, db, rt) = BuildCounting();
+        var (orgId, eventId, teamId) = await SeedAsync(db);
+
+        foreach (var gross in new short[] { 1, 2, 3, 4 })
+        {
+            await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest
+            {
+                TeamId = teamId, HoleNumber = 1, GrossScore = gross, DeviceId = "admin-dashboard",
+            });
+        }
+
+        Assert.Equal(0, rt.PublishScoreCount);
+    }
+
+    [Fact]
+    public async Task Partial_entry_of_one_stroke_raises_no_hole_in_one_alert()
+    {
+        // The reported bug: the first "+" for the first golfer makes the team
+        // gross 1, which the hub reads as an ace. HoleInOneAlert only ever fires
+        // from inside PublishScoreAsync, so not publishing is what suppresses it.
+        var (svc, db, rt) = BuildCounting();
+        var (orgId, eventId, teamId) = await SeedAsync(db);
+
+        await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest
+        {
+            TeamId = teamId, HoleNumber = 7, GrossScore = 1, DeviceId = "admin-dashboard",
+        });
+
+        Assert.Equal(0, rt.PublishScoreCount);
+    }
+
+    [Fact]
+    public async Task SetHoleCompleteAsync_broadcasts_the_hole_exactly_once()
+    {
+        var (svc, db, rt) = BuildCounting();
+        var (orgId, eventId, teamId) = await SeedAsync(db);
+
+        // A genuine ace, entered stroke by stroke like any other hole.
+        await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest
+        {
+            TeamId = teamId, HoleNumber = 7, GrossScore = 1, DeviceId = "admin-dashboard",
+        });
+        Assert.Equal(0, rt.PublishScoreCount);
+
+        await svc.SetHoleCompleteAsync(orgId, eventId, teamId, 7, complete: true);
+
+        // One broadcast — and this is the call that carries the hole-in-one alert.
+        Assert.Equal(1, rt.PublishScoreCount);
+    }
+
+    [Fact]
+    public async Task SetHoleCompleteAsync_reopen_refreshes_the_leaderboard_without_an_alert()
+    {
+        var (svc, db, rt) = BuildCounting();
+        var (orgId, eventId, teamId) = await SeedAsync(db);
+
+        await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest
+        {
+            TeamId = teamId, HoleNumber = 7, GrossScore = 1, DeviceId = "admin-dashboard",
+        });
+        await svc.SetHoleCompleteAsync(orgId, eventId, teamId, 7, complete: true);
+        var scoreBroadcasts = rt.PublishScoreCount;
+
+        await svc.SetHoleCompleteAsync(orgId, eventId, teamId, 7, complete: false);
+
+        // Reopening drops the hole from standings, so the board is recomputed —
+        // but via the path that cannot raise a hole-in-one alert.
+        Assert.Equal(scoreBroadcasts, rt.PublishScoreCount);
+        Assert.Equal(1, rt.PublishLeaderboardCount);
+    }
+
+    [Fact]
+    public async Task Editing_an_already_complete_hole_broadcasts_immediately()
+    {
+        var (svc, db, rt) = BuildCounting();
+        var (orgId, eventId, teamId) = await SeedAsync(db);
+
+        await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest
+        {
+            TeamId = teamId, HoleNumber = 2, GrossScore = 4, DeviceId = "admin-dashboard",
+        });
+        await svc.SetHoleCompleteAsync(orgId, eventId, teamId, 2, complete: true);
+        var before = rt.PublishScoreCount;
+
+        // A correction on a finished hole is live data — it publishes at once.
+        await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest
+        {
+            TeamId = teamId, HoleNumber = 2, GrossScore = 5, DeviceId = "admin-dashboard",
+        });
+
+        Assert.Equal(before + 1, rt.PublishScoreCount);
     }
 
     [Fact]

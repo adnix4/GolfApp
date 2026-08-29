@@ -114,8 +114,15 @@ public class ScoreService
 
         await _db.SaveChangesAsync(ct);
 
-        // Phase 3: push real-time update to all connected leaderboard clients
-        if (!string.IsNullOrEmpty(evt.EventCode) && !score.IsConflicted)
+        // Phase 3: push real-time update to all connected leaderboard clients.
+        //
+        // Only once the hole is finished (U1). Per-stroke admin entry saves on
+        // every +/-, so publishing here would march the public leaderboard up
+        // one stroke at a time — and fire a hole-in-one alert (plus a push) the
+        // moment the first stroke made the team gross 1. Editing an
+        // already-complete hole still publishes immediately, which is right.
+        // SetHoleCompleteAsync is what broadcasts a hole the first time.
+        if (!string.IsNullOrEmpty(evt.EventCode) && !score.IsConflicted && score.CompletedAt is not null)
         {
             await _realTime.PublishScoreAsync(
                 evt.EventCode, eventId,
@@ -236,10 +243,10 @@ public class ScoreService
             throw new ValidationException(
                 $"Hole number must be between 1 and {evt.Holes} for this event.");
 
-        var teamExists = await _db.Teams
-            .AnyAsync(t => t.Id == teamId && t.EventId == eventId, ct);
+        var team = await _db.Teams
+            .FirstOrDefaultAsync(t => t.Id == teamId && t.EventId == eventId, ct);
 
-        if (!teamExists)
+        if (team is null)
             throw new NotFoundException("Team", teamId);
 
         var score = await _db.Scores
@@ -256,6 +263,29 @@ public class ScoreService
 
         score.CompletedAt = complete ? DateTime.UtcNow : null;
         await _db.SaveChangesAsync(ct);
+
+        // Completion is what moves the public leaderboard (U1) — the per-stroke
+        // saves that got the hole here deliberately stayed silent.
+        if (!string.IsNullOrEmpty(evt.EventCode) && !score.IsConflicted)
+        {
+            if (complete)
+            {
+                // The only path that can raise a hole-in-one alert, so a genuine
+                // ace fires exactly once: when the hole is declared finished.
+                await _realTime.PublishScoreAsync(
+                    evt.EventCode, eventId,
+                    score.TeamId, score.HoleNumber, score.GrossScore,
+                    team.Name, ct);
+            }
+            else
+            {
+                // Reopening drops the hole from standings, so the leaderboard
+                // still has to be recomputed. An empty accepted-scores list
+                // skips the hole-in-one loop and just requests the coalesced
+                // refresh — "recalculate without this hole".
+                await _realTime.PublishLeaderboardAsync(evt.EventCode, eventId, [], ct);
+            }
+        }
 
         var par = await _db.Events
             .Where(e => e.Id == eventId)
@@ -501,6 +531,10 @@ public class ScoreService
                     SyncedAt     = DateTime.UtcNow,
                     Source       = ScoreSource.QrTransfer,
                     IsConflicted = false,
+                    // A hole the golfer finished on their phone and handed over
+                    // by QR is complete by definition (U1) — same reasoning as
+                    // MobileService's sync path.
+                    CompletedAt  = DateTime.UtcNow,
                 });
                 imported++;
             }
@@ -527,11 +561,12 @@ public class ScoreService
     /// <summary>
     /// Broadcasts a ScoreUpdated for an admin correction/resolution so the live
     /// leaderboard and the team's mobile devices pick it up. Skips conflicted
-    /// scores (they're excluded from standings until resolved).
+    /// scores (they're excluded from standings until resolved) and holes that
+    /// aren't finished yet (they're excluded too — see SubmitAsync).
     /// </summary>
     private async Task PublishScoreChangeAsync(Score score, CancellationToken ct)
     {
-        if (score.IsConflicted) return;
+        if (score.IsConflicted || score.CompletedAt is null) return;
 
         var evt = await _db.Events
             .Where(e => e.Id == score.EventId)

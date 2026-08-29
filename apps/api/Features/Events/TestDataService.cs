@@ -153,6 +153,10 @@ public class TestDataService
                     Source     = ScoreSource.AdminEntry,
                     IsTest     = true,
                     SubmittedAt = DateTime.UtcNow,
+                    // Seeded holes are finished rounds, not holes mid-entry.
+                    // Standings only count completed holes (U1), so without
+                    // this a seeded event shows an empty leaderboard.
+                    CompletedAt = DateTime.UtcNow,
                 });
             }
         }
