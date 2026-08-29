@@ -6,7 +6,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { ScoreCard, useTheme } from '@gfp/ui';
 import { teamsApi, scoresApi, eventsApi, testDataApi, challengesApi, type Team, type Scorecard, type EventDetail, type LeaderboardEntry, type HoleChallenge } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
-import { resolveGrossScore } from '@/lib/scoring';
+import { resolveGrossScore, needsAceConfirmation } from '@/lib/scoring';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 
 export default function ScoringScreen() {
@@ -30,6 +30,8 @@ export default function ScoringScreen() {
   const [togglingTest, setTogglingTest] = useState(false);
   const [showToggleWarning, setShowToggleWarning] = useState(false);
   const [pendingToggle, setPendingToggle] = useState<boolean>(false);
+  /** Hole awaiting hole-in-one confirmation before it is marked complete. */
+  const [pendingAce, setPendingAce] = useState<number | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -137,8 +139,24 @@ export default function ScoringScreen() {
   // hole-by-hole and a hole sits half-entered for as long as it takes to type
   // the foursome. "Hole Complete" is the explicit done signal; "Edit Score"
   // reopens it. A hole synced from a golfer's phone arrives already complete.
-  async function handleToggleComplete(holeNumber: number, complete: boolean) {
+  // Completing a hole is what publishes it: the leaderboard moves and, at a
+  // gross of 1, a hole-in-one alert goes out to every scoreboard AND as a push
+  // notification. An ace is a once-a-tournament event and the alert can't be
+  // recalled, so the desk confirms before it fires. Miskeys are far more common
+  // than aces — that asymmetry is the whole reason for this prompt.
+  function handleToggleComplete(holeNumber: number, complete: boolean) {
     if (!selectedTeam) return;
+    const gross = scorecard?.holes.find(h => h.holeNumber === holeNumber)?.grossScore;
+    if (needsAceConfirmation(complete, gross)) {
+      setPendingAce(holeNumber);
+      return;
+    }
+    doToggleComplete(holeNumber, complete);
+  }
+
+  async function doToggleComplete(holeNumber: number, complete: boolean) {
+    if (!selectedTeam) return;
+    setPendingAce(null);
     setSaving(holeNumber);
     setError(null);
     try {
@@ -239,6 +257,21 @@ export default function ScoringScreen() {
         loading={togglingTest}
         onConfirm={() => doToggleTestMode(false)}
         onCancel={() => setShowToggleWarning(false)}
+      />
+
+      <TestDataWarningModal
+        visible={pendingAce !== null}
+        title="Confirm Hole-in-One"
+        description={
+          `Hole ${pendingAce} is recorded as 1 stroke for ${
+            teams.find(t => t.id === selectedTeam)?.name ?? 'this team'
+          }. Completing it announces a hole-in-one on every live scoreboard and sends a push notification to subscribers. This cannot be undone.\n\n` +
+          'If the hole is still half-entered, cancel and finish entering the rest of the team’s strokes first.'
+        }
+        confirmLabel="Yes, it's an ace"
+        loading={saving === pendingAce}
+        onConfirm={() => { if (pendingAce !== null) doToggleComplete(pendingAce, true); }}
+        onCancel={() => setPendingAce(null)}
       />
 
       {/* Pending sync counter */}

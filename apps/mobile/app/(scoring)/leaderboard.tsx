@@ -90,9 +90,9 @@ function HoleInOneOverlay({
 }) {
   const theme = useTheme();
 
-  // Auto-dismiss after 10 s on mobile (shorter than 60 s web banner)
+  // Auto-dismiss after 5 s on mobile (shorter than the 30 s web banner)
   useEffect(() => {
-    const id = setTimeout(onDismiss, 10_000);
+    const id = setTimeout(onDismiss, 5_000);
     return () => clearTimeout(id);
   }, [onDismiss]);
 
