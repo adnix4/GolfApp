@@ -103,6 +103,13 @@ export async function loadPendingScores(
 
 // Returns only scores not yet confirmed by the server (synced_at IS NULL).
 // Used by the background sync task to avoid re-sending already-accepted holes.
+//
+// Ordered by COMPLETION, not hole number: on a shotgun start the round wraps
+// (12, 13, ... 18, 1, 2 ...), so hole order is not the order the golfer played
+// them. Completion order also puts the hole just completed last, which is what
+// makes "Hole Complete" flush the backlog with the current hole at the end.
+// completed_at is an ISO-8601 string (see markHoleComplete), so a string sort
+// is chronological.
 export async function loadUnsyncedScores(
   eventId: string,
   teamId:  string,
@@ -118,7 +125,7 @@ export async function loadUnsyncedScores(
     `SELECT hole_number, gross_score, putts, player_shots, created_at
        FROM pending_scores
       WHERE event_id = ? AND team_id = ? AND completed_at IS NOT NULL AND synced_at IS NULL
-      ORDER BY hole_number`,
+      ORDER BY completed_at, hole_number`,
     [eventId, teamId],
   );
   return rows.map(r => ({
@@ -168,6 +175,23 @@ export async function loadCompletedHoleNumbers(
   const rows = await db.getAllAsync<{ hole_number: number }>(
     `SELECT hole_number FROM pending_scores
       WHERE event_id = ? AND team_id = ? AND completed_at IS NOT NULL
+      ORDER BY hole_number`,
+    [eventId, teamId],
+  );
+  return rows.map(r => r.hole_number);
+}
+
+// Returns hole numbers the server has confirmed. Drives the scorecard's
+// pending-vs-synced badge; the complement of these against
+// loadCompletedHoleNumbers is what is still owed.
+export async function loadSyncedHoleNumbers(
+  eventId: string,
+  teamId:  string,
+): Promise<number[]> {
+  const db   = await getDb();
+  const rows = await db.getAllAsync<{ hole_number: number }>(
+    `SELECT hole_number FROM pending_scores
+      WHERE event_id = ? AND team_id = ? AND completed_at IS NOT NULL AND synced_at IS NOT NULL
       ORDER BY hole_number`,
     [eventId, teamId],
   );

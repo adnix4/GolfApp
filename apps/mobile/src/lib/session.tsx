@@ -4,7 +4,7 @@ import React, {
 } from 'react';
 import type { JoinEventResponse, PendingScore, BatchSyncResponse, SponsorCacheDto } from './api';
 import { batchSync, fetchTeamScores, fetchEventStatus, fetchPublicSponsors } from './api';
-import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsyncedScores, upsertPendingScore, markScoresSynced, markHoleComplete, loadCompletedHoleNumbers, clearPendingScores, mergeServerScores, getDeviceId } from './store';
+import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsyncedScores, upsertPendingScore, markScoresSynced, markHoleComplete, loadCompletedHoleNumbers, loadSyncedHoleNumbers, clearPendingScores, mergeServerScores, getDeviceId } from './store';
 import { attemptSync } from './backgroundSync';
 import { useNetworkTier, POLL_INTERVAL_MS, type NetworkTier } from './useNetworkTier';
 
@@ -14,6 +14,8 @@ interface SessionContextValue {
   loading:            boolean;
   pendingScores:      PendingScore[];
   completedHoles:     Set<number>;
+  /** Holes the server has confirmed. Subset of completedHoles. */
+  syncedHoles:        Set<number>;
   syncStatus:         'idle' | 'syncing' | 'error' | 'synced';
   networkTier:        NetworkTier;
   setSession:         (data: JoinEventResponse) => Promise<void>;
@@ -35,6 +37,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loading,         setLoading]         = useState(true);
   const [pendingScores,   setPendingScores]   = useState<PendingScore[]>([]);
   const [completedHoles,  setCompletedHoles]  = useState<Set<number>>(new Set());
+  const [syncedHoles,     setSyncedHoles]     = useState<Set<number>>(new Set());
   const [syncStatus,      setSyncStatus]      = useState<'idle' | 'syncing' | 'error' | 'synced'>('idle');
   const networkTier = useNetworkTier();
 
@@ -51,12 +54,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (saved) {
           setSessionState(saved);
           if (saved.team) {
-            const [scores, completedNums] = await Promise.all([
+            const [scores, completedNums, syncedNums] = await Promise.all([
               loadPendingScores(saved.event.id, saved.team.id),
               loadCompletedHoleNumbers(saved.event.id, saved.team.id),
+              loadSyncedHoleNumbers(saved.event.id, saved.team.id),
             ]);
             setPendingScores(scores);
             setCompletedHoles(new Set(completedNums));
+            setSyncedHoles(new Set(syncedNums));
           }
         }
       } catch {
@@ -89,12 +94,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const merged = sc ? await mergeServerScores(session.event.id, session.team!.id, sc.holes) : false;
       if (cancelled) return;
       if (synced || merged) {
-        const [updated, completedNums] = await Promise.all([
+        const [updated, completedNums, syncedNums] = await Promise.all([
           loadPendingScores(session.event.id, session.team!.id),
           loadCompletedHoleNumbers(session.event.id, session.team!.id),
+          loadSyncedHoleNumbers(session.event.id, session.team!.id),
         ]);
         setPendingScores(updated);
         setCompletedHoles(new Set(completedNums));
+        setSyncedHoles(new Set(syncedNums));
         setSyncStatus('synced');
       }
     };
@@ -173,6 +180,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore DB errors on clear — we still reset in-memory state */ }
     setSessionState(null);
     setPendingScores([]);
+    setCompletedHoles(new Set());
+    setSyncedHoles(new Set());
     setSyncStatus('idle');
   }, [session]);
 
@@ -225,12 +234,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (completedHoles.has(score.holeNumber)) {
       setCompletedHoles(prev => { const n = new Set(prev); n.delete(score.holeNumber); return n; });
     }
+    // The same INSERT OR REPLACE clears synced_at, so the hole owes the server again.
+    if (syncedHoles.has(score.holeNumber)) {
+      setSyncedHoles(prev => { const n = new Set(prev); n.delete(score.holeNumber); return n; });
+    }
     try {
       await upsertPendingScore(session.event.id, session.team!.id, score);
     } catch {
       // Score stays in-memory; backgroundSync will retry DB write on next poll
     }
-  }, [session, pendingScores, completedHoles]);
+  }, [session, pendingScores, completedHoles, syncedHoles]);
 
   // Merge a polled status and/or theme into the session. Each arg is guarded on
   // change so an unchanged poll tick returns the same object and triggers no
@@ -265,6 +278,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const result = await batchSync(
         session.event.id, session.team.id, deviceId, unsynced, session.sessionToken);
       await markScoresSynced(session.event.id, session.team.id);
+      // Flip the badge green as soon as the server confirms, rather than waiting
+      // for the next poll.
+      setSyncedHoles(new Set(await loadSyncedHoleNumbers(session.event.id, session.team.id)));
       setSyncStatus('synced');
       return result;
     } catch {
@@ -283,12 +299,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!sc) return;
     const changed = await mergeServerScores(event.id, team.id, sc.holes);
     if (!changed) return;
-    const [updated, completedNums] = await Promise.all([
+    const [updated, completedNums, syncedNums] = await Promise.all([
       loadPendingScores(event.id, team.id),
       loadCompletedHoleNumbers(event.id, team.id),
+      loadSyncedHoleNumbers(event.id, team.id),
     ]);
     setPendingScores(updated);
     setCompletedHoles(new Set(completedNums));
+    setSyncedHoles(new Set(syncedNums));
   }, [session]);
 
   const completeHole = useCallback(async (holeNumber: number): Promise<void> => {
@@ -302,10 +320,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // slots actually changes. Without this, every render of SessionProvider
   // (the foreground poll fires every 10–30s) re-runs every useSession() caller.
   const value = useMemo<SessionContextValue>(() => ({
-    session, deviceId, loading, pendingScores, completedHoles, syncStatus, networkTier,
+    session, deviceId, loading, pendingScores, completedHoles, syncedHoles, syncStatus, networkTier,
     setSession, clearSession: clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors, updatePlayer,
   }), [
-    session, deviceId, loading, pendingScores, completedHoles, syncStatus, networkTier,
+    session, deviceId, loading, pendingScores, completedHoles, syncedHoles, syncStatus, networkTier,
     setSession, clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors, updatePlayer,
   ]);
 
