@@ -45,3 +45,21 @@ export function resolveGrossScore(
   if (playerTotal > 0) return playerTotal;
   return existingGross ?? null;
 }
+
+/**
+ * Whether marking this hole complete needs the hole-in-one confirmation.
+ *
+ * Completing a hole is what publishes it, and at a gross of 1 that announces an
+ * ace on every live scoreboard and sends a push notification — neither of which
+ * can be recalled. An ace is a once-a-tournament event while a half-entered
+ * hole sitting at 1 stroke is routine (it's the state after the first golfer's
+ * first tap), so the rare case is the one that gets a confirmation.
+ *
+ * Only gates completion: reopening a hole publishes nothing and never alerts.
+ */
+export function needsAceConfirmation(
+  complete: boolean,
+  grossScore: number | null | undefined,
+): boolean {
+  return complete && grossScore === 1;
+}

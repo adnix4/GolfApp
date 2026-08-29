@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sumPlayerShots, resolveGrossScore } from '../lib/scoring';
+import { sumPlayerShots, resolveGrossScore, needsAceConfirmation } from '../lib/scoring';
 
 describe('sumPlayerShots', () => {
   it('adds every golfer on the hole', () => {
@@ -38,5 +38,28 @@ describe('resolveGrossScore', () => {
   it('returns null when there is nothing to save', () => {
     expect(resolveGrossScore({}, null)).toBeNull();
     expect(resolveGrossScore(undefined, undefined)).toBeNull();
+  });
+});
+
+describe('needsAceConfirmation', () => {
+  it('asks before announcing an ace', () => {
+    expect(needsAceConfirmation(true, 1)).toBe(true);
+  });
+
+  it('stays out of the way on an ordinary hole', () => {
+    expect(needsAceConfirmation(true, 3)).toBe(false);
+    expect(needsAceConfirmation(true, 4)).toBe(false);
+  });
+
+  // Reopening publishes nothing and can never raise an alert, so a hole sitting
+  // at 1 stroke mid-entry must not prompt on "Edit Score".
+  it('never prompts when reopening a hole', () => {
+    expect(needsAceConfirmation(false, 1)).toBe(false);
+  });
+
+  it('does not prompt on a hole with no score', () => {
+    expect(needsAceConfirmation(true, null)).toBe(false);
+    expect(needsAceConfirmation(true, undefined)).toBe(false);
+    expect(needsAceConfirmation(true, 0)).toBe(false);
   });
 });

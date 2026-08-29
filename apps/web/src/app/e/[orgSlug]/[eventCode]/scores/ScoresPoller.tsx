@@ -115,11 +115,11 @@ export default function ScoresPoller({
       ? { ...initialLeaderboard, standings: liveStandings }
       : null;
 
-  // Auto-dismiss the HIO banner after 60s. Mobile dismisses after 10s in its
+  // Auto-dismiss the HIO banner after 30s. Mobile dismisses after 5s in its
   // own overlay; this lets each surface tune the dwell time.
   useEffect(() => {
     if (!hioAlert) return;
-    const id = setTimeout(dismissHioAlert, 60_000);
+    const id = setTimeout(dismissHioAlert, 30_000);
     return () => clearTimeout(id);
   }, [hioAlert, dismissHioAlert]);
 

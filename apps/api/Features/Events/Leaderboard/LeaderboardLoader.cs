@@ -53,7 +53,8 @@ public static class LeaderboardLoader
     /// <summary>
     /// Loads scoring inputs and computes ranked standings. Three queries
     /// total — no joins. Honours the IsConflicted filter so conflicted
-    /// scores don't pollute live standings.
+    /// scores don't pollute live standings, and the CompletedAt filter so
+    /// half-entered ones don't either.
     /// </summary>
     public static async Task<List<LeaderboardCalculator.StandingEntry>> LoadStandingsAsync(
         ApplicationDbContext db, EventMeta meta, CancellationToken ct)
@@ -64,9 +65,18 @@ public static class LeaderboardLoader
             .Select(t => new { t.Id, t.Name, t.StartingHole, t.TeeTime })
             .ToListAsync(ct);
 
+        // CompletedAt is the "hole finished" signal (U1). The admin desk
+        // transcribes a paper card stroke by stroke and each keystroke
+        // auto-saves, so a hole carries a partial gross score for as long as it
+        // takes to type the foursome. A half-entered hole is not a scored hole:
+        // counting it would march the team's total up one stroke at a time in
+        // front of every golfer watching the scoreboard. Mobile sets CompletedAt
+        // on sync (it only syncs holes the golfer marked done), and the
+        // U1_ScoreCompletedAt migration backfilled every pre-existing row, so
+        // nothing that used to appear here disappears.
         var scoreAnon = await db.Scores
             .AsNoTracking()
-            .Where(s => s.EventId == meta.Id && !s.IsConflicted)
+            .Where(s => s.EventId == meta.Id && !s.IsConflicted && s.CompletedAt != null)
             .Select(s => new { s.TeamId, s.HoleNumber, s.GrossScore })
             .ToListAsync(ct);
 
