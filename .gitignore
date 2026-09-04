@@ -126,3 +126,7 @@ apps/api/wwwroot/uploads/
 # ── SEEDER LOCAL STATE ───────────────────────────────────────────────────────
 # Disposable per-run state written by seed skills (tokens, ids) — never source
 .claude/skills/*/.state.json
+
+# ── CLAUDE HARNESS ──────────────────────────────────────────────────────────
+# Session-internal lock files managed by the Claude Code harness
+.claude/scheduled_tasks.lock
