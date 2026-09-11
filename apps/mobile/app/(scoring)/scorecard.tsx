@@ -6,7 +6,7 @@ import {
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
-import { fetchPublicChallenges, type ChallengeCacheDto, type HoleCacheDto, type PlayerShotBreakdown, type SponsorCacheDto } from '@/lib/api';
+import { fetchPublicChallenges, type ChallengeCacheDto, type HoleCacheDto, type PlayerCacheDto, type PlayerShotBreakdown, type SponsorCacheDto } from '@/lib/api';
 import {
   HoleInfoChip, ScoreChip,
   HoleInOneModal, ChallengeDetailModal, SponsorModal, HoleInfoModal, ShotColumn,
@@ -27,6 +27,9 @@ const summaryCol = StyleSheet.create({
   spon: { flex: 3,   textAlign: 'center' },   // "Spon" — absorbs remaining space
   chal: { flex: 1.5, alignItems: 'center' },  // "Chal" — 🏆 or —
 });
+
+/** Stable empty roster, so the layout hook keeps one identity before the session loads. */
+const NO_PLAYERS: PlayerCacheDto[] = [];
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
 
@@ -109,6 +112,19 @@ export default function ScorecardScreen() {
 
   // clean up timer on unmount
   useEffect(() => () => { if (tipTimerRef.current) clearTimeout(tipTimerRef.current); }, []);
+
+  // Sizes come from the height the scroll area actually measured, not from a
+  // guess at header/safe-area chrome — that varies by device and by whether the
+  // hole carries a sponsor or challenge badge.
+  //
+  // Resolved HERE, above the early returns below, because a hook has to run on
+  // every render: the loading and pre-scoring branches return before the
+  // scoring view, so calling this beside the code that uses it made the hook
+  // count jump the moment the session arrived ("Rendered more hooks than during
+  // the previous render"). An unmeasured height resolves to the roomy tier, so
+  // running it on a render that bails out early costs nothing.
+  const teamPlayers = session?.team?.players ?? NO_PLAYERS;
+  const layout      = useScorecardLayout(scrollHeight, teamPlayers.length);
 
   if (loading || !session?.team) {
     return (
@@ -272,11 +288,6 @@ export default function ScorecardScreen() {
   // golfer to do but see the state.
   const roundFullySynced = [...completedHoles].every(h => syncedHoles.has(h));
 
-  // Sizes come from the height the scroll area actually measured, not from a
-  // guess at header/safe-area chrome — that varies by device and by whether the
-  // hole carries a sponsor or challenge badge.
-  const teamPlayers = session.team.players;
-  const layout = useScorecardLayout(scrollHeight, teamPlayers.length);
   // Whose controls are open when the layout collapses the others. Nobody has
   // picked one yet → the first golfer, which is who the scorer starts with.
   const activePlayerId = expandedPlayer ?? teamPlayers[0]?.id;
