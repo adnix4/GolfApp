@@ -1,5 +1,8 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  // The root eslint config lives outside every workspace, so without this a
+  // rule change alone would not invalidate any workspace's cached lint result.
+  "globalDependencies": ["eslint.config.mjs"],
   "globalEnv": [
     "NODE_ENV",
     "NEXT_PUBLIC_API_URL",
