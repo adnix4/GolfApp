@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
+import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 
 export default [
@@ -45,6 +46,7 @@ export default [
     },
     plugins: {
       '@typescript-eslint': tsPlugin,
+      'react-hooks':        reactHooks,
     },
     rules: {
       'no-undef':       'off',
@@ -54,6 +56,19 @@ export default [
         varsIgnorePattern: '^_',
       }],
       'no-console': 'off',
+
+      // React's hook order is positional: every render has to reach the same
+      // hooks in the same order. A hook below an early return breaks that, and
+      // neither tsc nor the test suite can see it — this rule is what catches
+      // it. See #56, where a hook under the scorecard's loading guard crashed
+      // the scorer with "Rendered more hooks than during the previous render".
+      'react-hooks/rules-of-hooks': 'error',
+
+      // Advisory for now: no hook in this repo has ever been checked for a
+      // stale closure, and several effects narrow their deps deliberately.
+      // Warnings surface in CI without failing it — promote to 'error' only
+      // after the existing reports have been triaged.
+      'react-hooks/exhaustive-deps': 'warn',
     },
   },
 ];
