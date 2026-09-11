@@ -34,7 +34,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-task-manager": "~57.0.10",
     "react": "19.2.3",
-    "react-native": "0.86.2",
+    "react-native": "0.86.3",
     "react-native-image-colors": "^2.6.0",
     "react-native-qrcode-svg": "~6.3.21",
     "react-native-safe-area-context": "~5.7.0",
