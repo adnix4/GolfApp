@@ -25,7 +25,11 @@ function OrgThemeWrapper({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user || user.role === 'SuperAdmin') { setOrgTheme(null); return; }
     orgApi.getMe().then(org => setOrgTheme(parseTheme(org.themeJson))).catch(() => {});
-  }, [user?.orgId]);
+  // The whole user, not just orgId: the effect also branches on role, so a
+  // same-org role change has to re-run it or the previous role's theme sticks.
+  // Cheap to depend on the object — setUser only fires on a real auth
+  // transition (mount restore, login, logout, register), never per render.
+  }, [user]);
 
   return <ThemeProvider theme={orgTheme}>{children}</ThemeProvider>;
 }

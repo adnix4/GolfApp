@@ -71,4 +71,26 @@ export default [
       'react-hooks/exhaustive-deps': 'warn',
     },
   },
+  {
+    // Everything EXCEPT packages/shared-types, which owns the direct import.
+    files: [
+      'apps/**/*.{ts,tsx}',
+      'packages/ui/**/*.{ts,tsx}',
+      'packages/theme/**/*.{ts,tsx}',
+    ],
+    rules: {
+      // zod 4 is hoisted to the workspace root as a transitive dependency of
+      // eslint-plugin-react-hooks, while every shared schema is built with the
+      // zod 3 nested under packages/shared-types. A direct import here resolves
+      // to the root copy, and the moment one of those schemas is merged or
+      // extended with a locally-built one, two incompatible majors of the same
+      // validator meet — at runtime and in the types.
+      'no-restricted-imports': ['error', {
+        paths: [{
+          name: 'zod',
+          message: "Import { z } from '@gfp/shared-types' instead — it re-exports the same zod the shared schemas are built with.",
+        }],
+      }],
+    },
+  },
 ];
