@@ -473,6 +473,15 @@ export interface PublicEventDTO {
 // Pattern: z.object({...}).strict() — "strict" rejects unknown keys, catching
 // accidental extra fields that could indicate a schema mismatch.
 
+// Re-exported so the apps never import 'zod' directly. A direct import there
+// resolves to the zod 4 hoisted at the workspace root (a transitive dependency
+// of eslint-plugin-react-hooks), while every schema below is built with the
+// zod 3 nested under this package — and combining the two majors breaks at
+// runtime and in types. Importing `z` from here hands back the same zod these
+// schemas were built with, so .merge()/.extend()/z.infer all line up.
+// eslint.config.mjs enforces this with no-restricted-imports.
+export { z } from 'zod';
+
 export const GFPThemeSchema = z.object({
   primary:   z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Must be a hex color'),
   action:    z.string().regex(/^#[0-9a-fA-F]{6}$/),
