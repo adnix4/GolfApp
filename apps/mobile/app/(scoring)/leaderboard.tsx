@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useTheme } from '@gfp/ui';
 import { useLiveLeaderboard, type HoleInOneAlert as HoleInOneData } from '@gfp/shared-types';
-import { resolveLeaderboardState, type LeaderboardState } from '@/lib/leaderboardState';
+import { formatRelativeAge, resolveLeaderboardState, type LeaderboardState } from '@/lib/leaderboardState';
 import { useSession } from '@/lib/session';
 import { fetchLeaderboard } from '@/lib/api';
 import type { PublicLeaderboardEntry } from '@/lib/api';
@@ -148,20 +148,18 @@ function StatusBar({
   loading:     boolean;
 }) {
   const theme = useTheme();
-  const [nowTick, setNowTick] = useState(() => new Date());
+  const [nowTick, setNowTick] = useState(() => Date.now());
 
+  // Re-seeded on every refresh, not just on the 10s tick: a poll landing
+  // between two ticks would otherwise be measured against a stale snapshot.
   useEffect(() => {
+    setNowTick(Date.now());
     if (offline) return;
-    const t = setInterval(() => setNowTick(new Date()), 10_000);
+    const t = setInterval(() => setNowTick(Date.now()), 10_000);
     return () => clearInterval(t);
-  }, [offline]);
+  }, [offline, lastUpdated]);
 
-  const agoText = lastUpdated
-    ? (() => {
-        const diffS = Math.floor((nowTick.getTime() - lastUpdated.getTime()) / 1000);
-        return diffS < 60 ? `${diffS}s ago` : `${Math.floor(diffS / 60)}m ago`;
-      })()
-    : '';
+  const agoText = lastUpdated ? formatRelativeAge(nowTick, lastUpdated.getTime()) : '';
 
   const label = offline
     ? 'Live updates paused (offline mode)'

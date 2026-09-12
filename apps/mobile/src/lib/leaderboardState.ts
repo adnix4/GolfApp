@@ -60,3 +60,18 @@ export function resolveLeaderboardState(
 
   return 'empty';
 }
+
+/**
+ * "12s ago" / "3m ago" for the status ticker.
+ *
+ * Clamped at zero because the screen compares a clock snapshot that only
+ * advances every 10s against a `lastUpdated` that moves the instant a poll
+ * lands. Any refresh arriving between two ticks is therefore *ahead* of the
+ * snapshot, and the raw difference goes negative — the ticker read
+ * "Updated -1s ago" right after the first load. A refresh that has only just
+ * landed is zero seconds old, never a negative number of them.
+ */
+export function formatRelativeAge(nowMs: number, lastUpdatedMs: number): string {
+  const seconds = Math.max(0, Math.floor((nowMs - lastUpdatedMs) / 1000));
+  return seconds < 60 ? `${seconds}s ago` : `${Math.floor(seconds / 60)}m ago`;
+}
