@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveLeaderboardState, type LeaderboardStateInput } from '../lib/leaderboardState';
+import { formatRelativeAge, resolveLeaderboardState, type LeaderboardStateInput } from '../lib/leaderboardState';
 
 const base: LeaderboardStateInput = {
   offlineMode: false,
@@ -60,5 +60,29 @@ describe('resolveLeaderboardState', () => {
   it('treats an empty array and null the same when nothing is offline or failing', () => {
     expect(resolveLeaderboardState({ ...base, standings: [] }))
       .toBe(resolveLeaderboardState({ ...base, standings: null }));
+  });
+});
+
+describe('formatRelativeAge', () => {
+  const t = 1_700_000_000_000;
+
+  // The bug this exists to prevent: the status ticker read "Updated -1s ago"
+  // on first load, because the 10s clock snapshot was taken before the poll
+  // that set `lastUpdated` landed.
+  it('never reports a negative age', () => {
+    expect(formatRelativeAge(t, t + 1_000)).toBe('0s ago');
+    expect(formatRelativeAge(t, t + 9_999)).toBe('0s ago');
+  });
+
+  it('counts seconds under a minute', () => {
+    expect(formatRelativeAge(t, t)).toBe('0s ago');
+    expect(formatRelativeAge(t + 1_000, t)).toBe('1s ago');
+    expect(formatRelativeAge(t + 59_999, t)).toBe('59s ago');
+  });
+
+  it('switches to whole minutes at sixty seconds', () => {
+    expect(formatRelativeAge(t + 60_000, t)).toBe('1m ago');
+    expect(formatRelativeAge(t + 119_000, t)).toBe('1m ago');
+    expect(formatRelativeAge(t + 185_000, t)).toBe('3m ago');
   });
 });
