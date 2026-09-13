@@ -62,6 +62,7 @@ function PaymentSetupContent() {
 
   useEffect(() => {
     initSetup();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- initSetup reads only player.id (the dep) and the session token, stable per player
   }, [player?.id]);
 
   async function handleSave() {

@@ -16,7 +16,7 @@
 import React from 'react';
 import {
   ActivityIndicator, Pressable, type PressableProps,
-  StyleSheet, Text, View, type StyleProp, type ViewStyle,
+  StyleSheet, Text, type StyleProp, type ViewStyle,
 } from 'react-native';
 import { useTheme } from './ThemeProvider';
 

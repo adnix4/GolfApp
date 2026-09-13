@@ -9,7 +9,7 @@ import {
   START_OPTIONS, START_LABELS,
   HOLES_OPTIONS, centsToMoneyValue,
 } from '@gfp/shared-types';
-import { eventsApi, testDataApi, teamsApi, auctionApi, type Course, type EventDetail, type UpdateEventPayload } from '@/lib/api';
+import { eventsApi, testDataApi, teamsApi, auctionApi, type Course, type EventDetail } from '@/lib/api';
 import { isAuctionStatusFinal } from '@/lib/auctionEnd';
 import { useResponsive } from '@/lib/responsive';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';

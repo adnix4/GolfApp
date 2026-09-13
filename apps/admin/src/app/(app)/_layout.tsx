@@ -81,7 +81,6 @@ export default function AppLayout() {
                 <Pressable
                   key={item.href}
                   style={[styles.topNavItem, isActive && styles.topNavItemActive]}
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   onPress={() => router.push(item.href as any)}
                   accessibilityRole="link"
                   accessibilityLabel={item.label}
@@ -136,7 +135,6 @@ export default function AppLayout() {
                   styles.navItem,
                   isActive && { backgroundColor: 'rgba(255,255,255,0.15)' },
                 ]}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   onPress={() => router.push(item.href as any)}
                 accessibilityRole="link"
                 accessibilityLabel={item.label}

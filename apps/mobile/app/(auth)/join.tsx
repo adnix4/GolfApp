@@ -54,6 +54,7 @@ export default function JoinScreen() {
 
   useEffect(() => {
     if (!loading && session) router.replace('/scorecard');
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- expo-router's router is a module singleton, so its identity never changes
   }, [loading, session]);
 
   useEffect(() => {
@@ -70,6 +71,7 @@ export default function JoinScreen() {
         }
       }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on mount: preEventId is a launch param, already present when this runs
   }, []);
 
   function selectEvent(evt: ActiveEventSummary) {

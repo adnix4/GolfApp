@@ -71,6 +71,7 @@ export default function SmartJoin({
       router.replace(eventPageUrl); // registration lives on the event page
     }
     return () => document.removeEventListener('visibilitychange', onHide);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only by design (above): router is Next's stable instance and eventPageUrl is fixed for the page
   }, []); // mount-only by design: detect once, hand off once
 
   const storeUrl = device === 'ios' ? IOS_STORE_URL : device === 'android' ? ANDROID_STORE_URL : '';

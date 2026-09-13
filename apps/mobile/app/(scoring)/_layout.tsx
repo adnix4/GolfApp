@@ -6,7 +6,6 @@ import { ErrorFallback, useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { fetchEventStatus } from '@/lib/api';
 
-type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 const POLL_MS = 5000;
 
@@ -40,6 +39,7 @@ export default function ScoringLayout() {
   useEffect(() => {
     if (session?.event.status) setLiveStatus(session.event.status);
     if (session) setLiveTheme(session.event.themeJson ?? null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- seeds from the session; a new event id is the only time it must re-seed
   }, [session?.event.id]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -65,6 +65,10 @@ export default function ScoringLayout() {
         (liveStatus !== session.event.status || liveTheme !== session.event.themeJson)) {
       updateEventStatus(liveStatus, liveTheme);
     }
+  // Safe to omit session: updateEventStatus is useCallback(..., []), and the only
+  // other writer of event.status is setSession on a fresh join — which changes
+  // event.id and so re-seeds liveStatus above, re-running this with a live closure.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- see the note above — a stale session here has nothing left to push
   }, [liveStatus, liveTheme]);
 
   // Poll for status change regardless of dismissed state — so opening scoring
@@ -86,6 +90,7 @@ export default function ScoringLayout() {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the closure reads only session.event.eventCode (the dep); the guard is a null check
   }, [session?.event.eventCode, scoringOpen]);
 
   async function handleManualCheck() {
@@ -242,7 +247,7 @@ export default function ScoringLayout() {
           },
           tabBarLabelStyle:    { fontSize: 11, fontWeight: '600' },
           tabBarIconStyle:     { marginBottom: -2 },
-          tabBarIcon: ({ color, focused }) => {
+          tabBarIcon: ({ color }) => {
             // Overridden per-screen below; this fallback should never render.
             return <Ionicons name="ellipse-outline" size={22} color={color} />;
           },
