@@ -1,3 +1,4 @@
+import { resolveMedia } from '@/lib/api';
 import { s } from './eventPageStyles';
 
 /**
@@ -18,7 +19,7 @@ export default function EventHeader({
   return (
     <header style={s.header}>
       <div style={s.headerInner}>
-        {logoUrl && <img src={logoUrl} alt={orgName} style={s.orgLogo} />}
+        {logoUrl && <img src={resolveMedia(logoUrl)} alt={orgName} style={s.orgLogo} />}
         <div>
           <p style={s.orgName}>{orgName}</p>
           <h1 style={s.eventName}>{eventName}</h1>

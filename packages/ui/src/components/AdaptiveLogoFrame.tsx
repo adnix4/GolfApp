@@ -31,6 +31,7 @@
 import React, { useState, useEffect } from 'react';
 import { Image, View, StyleSheet } from 'react-native';
 import ImageColors from 'react-native-image-colors';
+import { resolveMediaUrl } from '@gfp/shared-types';
 import { getContrastRatio } from '@gfp/theme';
 
 export interface AdaptiveLogoFrameProps {
@@ -55,7 +56,14 @@ export interface AdaptiveLogoFrameProps {
   padding?: number;
   /** Accessibility label forwarded to the Image */
   accessibilityLabel?: string;
+  /**
+   * API origin used to resolve a root-relative "/uploads/…" logo. Defaults to
+   * EXPO_PUBLIC_API_URL, which both RN apps already set.
+   */
+  baseUrl?: string;
 }
+
+const DEFAULT_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 /**
  * Resolves which background colour best contrasts with the logo.
@@ -106,8 +114,14 @@ export function AdaptiveLogoFrame({
   borderRadius = 8,
   padding = 6,
   accessibilityLabel,
+  baseUrl = DEFAULT_BASE_URL,
 }: AdaptiveLogoFrameProps) {
-  const bg = useAdaptiveLogoBg(uri, primaryColor);
+  // Resolved once, here, rather than at a dozen call sites — and BEFORE the
+  // colour sample, since react-native-image-colors needs a fetchable URL too.
+  // A "/uploads/…" logo would otherwise resolve against whichever origin the
+  // app is served from and 404, leaving an empty frame.
+  const resolved = resolveMediaUrl(uri, baseUrl);
+  const bg = useAdaptiveLogoBg(resolved, primaryColor);
 
   return (
     <View
@@ -123,7 +137,7 @@ export function AdaptiveLogoFrame({
       ]}
     >
       <Image
-        source={{ uri }}
+        source={{ uri: resolved }}
         style={{ width, height }}
         resizeMode="contain"
         accessibilityLabel={accessibilityLabel}

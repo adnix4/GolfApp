@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  ApiError, parseApiError, createApiClient, type TokenStorage,
+  ApiError, parseApiError, createApiClient, resolveMediaUrl, type TokenStorage,
 } from '../apiClient';
 
 function mockResponse(body: unknown, status = 200, jsonRejects = false): Response {
@@ -128,5 +128,39 @@ describe('createApiClient', () => {
     const client = createApiClient({ baseUrl });
     expect(client.resolveUrl('/api/v1/x')).toBe('https://api.test/api/v1/x');
     expect(client.resolveUrl('https://cdn.test/img.png')).toBe('https://cdn.test/img.png');
+  });
+});
+
+describe('resolveMediaUrl', () => {
+  const BASE = 'http://localhost:5000';
+
+  // The bug this exists to prevent: normalising logos to our own storage turned
+  // every logo URL root-relative, and the admin, web and mobile render sites all
+  // passed them straight to <img>/<Image>. They then resolved against whichever
+  // origin the app was served from — not the API — and 404'd into a blank frame.
+  it('prefixes a root-relative upload path with the API base', () => {
+    expect(resolveMediaUrl('/uploads/sponsor-logos/abc.png', BASE))
+      .toBe('http://localhost:5000/uploads/sponsor-logos/abc.png');
+  });
+
+  it('leaves an absolute URL alone', () => {
+    const external = 'https://res.cloudinary.com/x/image/upload/abc';
+    expect(resolveMediaUrl(external, BASE)).toBe(external);
+  });
+
+  it('leaves a data URI alone', () => {
+    expect(resolveMediaUrl('data:image/png;base64,AAAA', BASE))
+      .toBe('data:image/png;base64,AAAA');
+  });
+
+  it('does not double the slash when the base has a trailing one', () => {
+    expect(resolveMediaUrl('/uploads/a.png', 'http://localhost:5000/'))
+      .toBe('http://localhost:5000/uploads/a.png');
+  });
+
+  it('returns an empty string for null, undefined or blank', () => {
+    expect(resolveMediaUrl(null, BASE)).toBe('');
+    expect(resolveMediaUrl(undefined, BASE)).toBe('');
+    expect(resolveMediaUrl('', BASE)).toBe('');
   });
 });

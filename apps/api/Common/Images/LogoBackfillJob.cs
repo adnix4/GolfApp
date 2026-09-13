@@ -108,13 +108,20 @@ public sealed class LogoBackfillJob
             return rehosted;
         }
 
+        // Events whose sponsor logos moved. Rewriting the column is not enough:
+        // the scorer caches the sponsor list in SQLite and only refetches when
+        // SponsorsVersion changes, so without a bump every device that already
+        // joined keeps requesting the old URL forever — and the conversion never
+        // reaches the golfers it was for.
+        var touchedEvents = new HashSet<Guid>();
+
         var sponsors = await _db.Sponsors
             .Where(s => s.LogoUrl != null && s.LogoUrl != "")
             .ToListAsync(ct);
         foreach (var s in sponsors)
         {
             var url = await Convert(s.LogoUrl, "sponsor-logos", $"{s.Id}-{DateTime.UtcNow.Ticks}");
-            if (url is not null) s.LogoUrl = url;
+            if (url is not null) { s.LogoUrl = url; touchedEvents.Add(s.EventId); }
         }
 
         var events = await _db.Events
@@ -135,7 +142,15 @@ public sealed class LogoBackfillJob
             if (url is not null) o.LogoUrl = url;
         }
 
+        foreach (var evt in await _db.Events.Where(e => touchedEvents.Contains(e.Id)).ToListAsync(ct))
+            evt.SponsorsVersion++;
+
         await _db.SaveChangesAsync(ct);
+
+        if (touchedEvents.Count > 0)
+            _logger.LogInformation(
+                "Bumped SponsorsVersion for {Count} event(s) so cached clients refetch",
+                touchedEvents.Count);
 
         var result = new Result(examined, converted, skipped, failed);
         _logger.LogInformation(

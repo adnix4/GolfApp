@@ -106,6 +106,26 @@ export interface CreateApiClientOptions {
  * - non-2xx, non-401: thrown as an ApiError (session stays valid)
  * - 401 or refresh failure: tokens cleared and an "expired" ApiError thrown
  */
+/**
+ * Turns a stored media URL into something a client can actually fetch.
+ *
+ * IFileStorage returns root-relative "/uploads/…" for local storage and an
+ * absolute URL for blob storage, and both get written verbatim onto entities.
+ * A relative one therefore resolves against whichever origin the app happens to
+ * be served from — the admin dev server, the Next site — rather than the API,
+ * which is a 404 and a blank frame. That went unnoticed for as long as every
+ * logo happened to be an absolute third-party URL; normalising logos to our own
+ * storage made it visible everywhere at once.
+ *
+ * Absolute URLs and data URIs pass through untouched.
+ */
+export function resolveMediaUrl(urlOrPath: string | null | undefined, baseUrl: string): string {
+  if (!urlOrPath) return '';
+  const trimmed = urlOrPath.trim();
+  if (!trimmed.startsWith('/')) return trimmed;      // absolute, or a data: URI
+  return `${baseUrl.replace(/\/$/, '')}${trimmed}`;
+}
+
 export function createApiClient(opts: CreateApiClientOptions): ApiClient {
   const { baseUrl, storage, refreshPath = '/api/v1/auth/refresh' } = opts;
 

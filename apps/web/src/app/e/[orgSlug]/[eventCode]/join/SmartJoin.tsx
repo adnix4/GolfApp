@@ -1,5 +1,6 @@
 'use client';
 
+import { resolveMedia } from '@/lib/api';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -79,7 +80,7 @@ export default function SmartJoin({
   return (
     <main style={s.page}>
       <div style={s.card}>
-        {logoUrl && <img src={logoUrl} alt={orgName} style={s.logo} />}
+        {logoUrl && <img src={resolveMedia(logoUrl)} alt={orgName} style={s.logo} />}
         <p style={s.eyebrow}>{orgName}</p>
         <h1 style={s.title}>{eventName}</h1>
 

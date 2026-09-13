@@ -1,3 +1,4 @@
+import { resolveMedia } from '@/lib/api';
 import { formatCents } from '@gfp/shared-types';
 import { w } from './eventPageStyles';
 import { DonateWidget } from './EventActions';
@@ -129,7 +130,7 @@ function SponsorBannerWidget({ sponsors }: { sponsors: PublicSponsorInfo[] }) {
       {sponsors.map((sp, i) => (
         <div key={i} style={w.sponsorRow}>
           {sp.logoUrl && (
-            <img src={sp.logoUrl} alt={sp.name} style={w.sponsorLogo} />
+            <img src={resolveMedia(sp.logoUrl)} alt={sp.name} style={w.sponsorLogo} />
           )}
           <div style={w.sponsorInfo}>
             <p style={w.sponsorName}>{sp.name}</p>

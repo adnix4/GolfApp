@@ -1,7 +1,17 @@
+import { resolveMediaUrl } from '@gfp/shared-types';
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 /** Organizer/admin app base URL for Sign-up / Log-in CTAs (separate app; a link, not SSO). */
 export const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'http://localhost:8081';
+
+/**
+ * Stored logo/photo URLs are root-relative ("/uploads/…") when the API uses
+ * local storage, so rendering one raw resolves it against THIS site's origin
+ * and 404s. Always run a stored media URL through here before putting it in an
+ * <img src>. Absolute URLs pass through untouched.
+ */
+export const resolveMedia = (urlOrPath: string | null | undefined): string =>
+  resolveMediaUrl(urlOrPath, BASE);
 
 /**
  * With local file storage the API stores logo URLs as API-relative paths
