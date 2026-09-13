@@ -1,3 +1,4 @@
+using GolfFundraiserPro.Api.Common.Images;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Common.Middleware;
@@ -20,19 +21,23 @@ public class SponsorService
     {
         PropertyNameCaseInsensitive = true,
     };
-    private static readonly string[] AllowedImageTypes =
-        ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
     private const long MaxLogoBytes = 2 * 1024 * 1024;
 
     public SponsorService(
         ApplicationDbContext db, IFileStorage storage,
-        ILogger<SponsorService> logger, IRealTimeService realTime)
+        ILogger<SponsorService> logger, IRealTimeService realTime,
+        RemoteLogoFetcher? remoteLogos = null)
     {
-        _db       = db;
-        _storage  = storage;
-        _logger   = logger;
-        _realTime = realTime;
+        _db          = db;
+        _storage     = storage;
+        _logger      = logger;
+        _realTime    = realTime;
+        _remoteLogos = remoteLogos;
     }
+
+    /// Optional so existing test constructions keep compiling; DI always supplies
+    /// it, and when absent a pasted URL is simply stored as typed.
+    private readonly RemoteLogoFetcher? _remoteLogos;
 
     /// <summary>
     /// Bumps the event's SponsorsVersion and broadcasts SponsorsChanged so
@@ -70,6 +75,13 @@ public class SponsorService
             PlacementsJson      = JsonSerializer.Serialize(request.Placements),
         };
 
+        // A pasted URL is the one ingestion path that never touched our storage,
+        // so it could still hand the scorer an SVG or ICO it cannot draw. Pull it
+        // in and convert; on any failure the typed URL stands.
+        var rehosted = _remoteLogos is null ? null : await _remoteLogos.TryRehostAsync(
+            sponsor.LogoUrl, "sponsor-logos", $"{sponsor.Id}-{DateTime.UtcNow.Ticks}", ct);
+        if (rehosted is not null) sponsor.LogoUrl = rehosted;
+
         _db.Sponsors.Add(sponsor);
         await _db.SaveChangesAsync(ct);
         await BumpSponsorsVersionAsync(eventId, ct);
@@ -102,7 +114,14 @@ public class SponsorService
         var sponsor = await GetSponsorAsync(orgId, eventId, sponsorId, ct);
 
         if (request.Name       is not null) sponsor.Name       = request.Name;
-        if (request.LogoUrl    is not null) sponsor.LogoUrl    = request.LogoUrl;
+        if (request.LogoUrl    is not null)
+        {
+            sponsor.LogoUrl = request.LogoUrl;
+            // Same re-host as on create — see the note there.
+            var rehostedLogo = _remoteLogos is null ? null : await _remoteLogos.TryRehostAsync(
+                sponsor.LogoUrl, "sponsor-logos", $"{sponsor.Id}-{DateTime.UtcNow.Ticks}", ct);
+            if (rehostedLogo is not null) sponsor.LogoUrl = rehostedLogo;
+        }
         if (request.WebsiteUrl is not null) sponsor.WebsiteUrl = request.WebsiteUrl;
         if (request.Tagline    is not null) sponsor.Tagline    = request.Tagline;
         if (request.Tier.HasValue)          sponsor.Tier       = request.Tier.Value;
@@ -131,17 +150,21 @@ public class SponsorService
             throw new ValidationException("Uploaded file is empty.");
         if (file.Length > MaxLogoBytes)
             throw new ValidationException("Logo must be 2 MB or smaller.");
-        if (!AllowedImageTypes.Contains(file.ContentType.ToLowerInvariant()))
-            throw new ValidationException("Logo must be PNG, JPEG, SVG, or WebP.");
+        if (!ImageNormalizer.IsSupported(file.ContentType))
+            throw new ValidationException("Logo must be PNG, JPEG, WebP, GIF, SVG, or ICO. PNG is recommended.");
 
         var sponsor = await GetSponsorAsync(orgId, eventId, sponsorId, ct);
 
-        var ext      = Path.GetExtension(file.FileName).ToLowerInvariant();
+        // Every stored logo is normalised to PNG: React Native's Image cannot
+        // decode SVG or ICO, so those render as an empty frame on the scorer
+        // while looking fine on web and admin. See Common/Images/ImageNormalizer.
+        await using var source = file.OpenReadStream();
+        await using var png    = await ImageNormalizer.ToPngAsync(source, file.ContentType, ct);
         // Versioned filename → unique URL per upload → immutable-cacheable.
         // The replaced file is deleted after the new one is saved and referenced.
-        var filename = $"{sponsorId}-{DateTime.UtcNow.Ticks}{ext}";
-        await using var stream = file.OpenReadStream();
-        var url = await _storage.SaveAsync("sponsor-logos", filename, stream, file.ContentType, ct: ct);
+        var filename = $"{sponsorId}-{DateTime.UtcNow.Ticks}{ImageNormalizer.PngExtension}";
+        var url = await _storage.SaveAsync(
+            "sponsor-logos", filename, png, ImageNormalizer.PngContentType, ct: ct);
 
         var previousUrl = sponsor.LogoUrl;
         sponsor.LogoUrl = url;

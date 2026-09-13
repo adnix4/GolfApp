@@ -214,7 +214,7 @@ export default function EventSettingsScreen() {
     if (Platform.OS !== 'web' || !id) return;
     const input = document.createElement('input');
     input.type   = 'file';
-    input.accept = 'image/png,image/jpeg,image/svg+xml,image/webp';
+    input.accept = 'image/png,image/jpeg,image/webp';
     input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return;
@@ -336,7 +336,7 @@ export default function EventSettingsScreen() {
               </Pressable>
             )
           )}
-          <Text style={[styles.hint, { color: theme.mutedText }]}>PNG, JPEG, SVG or WebP · max 2 MB</Text>
+          <Text style={[styles.hint, { color: theme.mutedText }]}>PNG recommended — transparent background, at least 512px wide. SVG and ICO are converted automatically. Max 2 MB.</Text>
 
           <Text style={[styles.label, { color: theme.colors.primary, marginTop: 10 }]}>Or paste a URL</Text>
           <TextInput

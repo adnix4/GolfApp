@@ -29,6 +29,7 @@
 //   negligible until the system has ~100k events.
 // ─────────────────────────────────────────────────────────────────────────────
 
+using GolfFundraiserPro.Api.Common.Images;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -60,14 +61,20 @@ public class EventService
         ILogger<EventService> logger,
         TestDataService testData,
         LeaderboardCache? leaderboardCache = null,
-        Payments.PaymentsService? payments = null)
+        Payments.PaymentsService? payments = null,
+        RemoteLogoFetcher? remoteLogos = null)
     {
         _db               = db;
         _logger           = logger;
         _testData         = testData;
         _leaderboardCache = leaderboardCache;
         _payments         = payments;
+        _remoteLogos      = remoteLogos;
     }
+
+    /// Optional so the existing test constructions keep compiling; when absent a
+    /// pasted branding URL is simply stored as typed.
+    private readonly RemoteLogoFetcher? _remoteLogos;
 
     // ── CREATE ────────────────────────────────────────────────────────────────
 
@@ -692,7 +699,19 @@ public class EventService
             ?? throw new NotFoundException("Event", eventId);
 
         if (request.LogoUrl is not null)
+        {
             evt.LogoUrl = string.IsNullOrWhiteSpace(request.LogoUrl) ? null : request.LogoUrl.Trim();
+
+            // A pasted URL is the one ingestion path that never touched our
+            // storage, so it could still hand the scorer an SVG or ICO it cannot
+            // draw. Pull it in and convert; on any failure the typed URL stands.
+            if (_remoteLogos is not null)
+            {
+                var rehosted = await _remoteLogos.TryRehostAsync(
+                    evt.LogoUrl, "event-logos", $"{eventId}-{DateTime.UtcNow.Ticks}", ct);
+                if (rehosted is not null) evt.LogoUrl = rehosted;
+            }
+        }
 
         if (request.ThemeJson is not null)
         {
@@ -720,7 +739,6 @@ public class EventService
     }
 
     private static readonly long    MaxLogoBytes       = 2 * 1024 * 1024;
-    private static readonly string[] AllowedImageTypes = ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
 
     /// <summary>
     /// Saves an uploaded logo for an event via IFileStorage.
@@ -734,19 +752,23 @@ public class EventService
             throw new ValidationException("Uploaded file is empty.");
         if (file.Length > MaxLogoBytes)
             throw new ValidationException("Logo must be 2 MB or smaller.");
-        if (!AllowedImageTypes.Contains(file.ContentType.ToLowerInvariant()))
-            throw new ValidationException("Logo must be PNG, JPEG, SVG, or WebP.");
+        if (!ImageNormalizer.IsSupported(file.ContentType))
+            throw new ValidationException("Logo must be PNG, JPEG, WebP, GIF, SVG, or ICO. PNG is recommended.");
 
         var evt = await _db.Events
             .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct)
             ?? throw new NotFoundException("Event", eventId);
 
-        var ext      = Path.GetExtension(file.FileName).ToLowerInvariant();
+        // Every stored logo is normalised to PNG: React Native's Image cannot
+        // decode SVG or ICO, so those render as an empty frame on the scorer
+        // while looking fine on web and admin. See Common/Images/ImageNormalizer.
+        await using var source = file.OpenReadStream();
+        await using var png    = await ImageNormalizer.ToPngAsync(source, file.ContentType, ct);
         // Versioned filename → unique URL per upload → immutable-cacheable.
         // The replaced file is deleted after the new one is saved and referenced.
-        var filename = $"{eventId}-{DateTime.UtcNow.Ticks}{ext}";
-        await using var stream = file.OpenReadStream();
-        var url = await storage.SaveAsync("event-logos", filename, stream, file.ContentType, ct: ct);
+        var filename = $"{eventId}-{DateTime.UtcNow.Ticks}{ImageNormalizer.PngExtension}";
+        var url = await storage.SaveAsync(
+            "event-logos", filename, png, ImageNormalizer.PngContentType, ct: ct);
 
         var previousUrl = evt.LogoUrl;
         evt.LogoUrl = url;

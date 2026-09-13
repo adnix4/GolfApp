@@ -391,7 +391,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
               {/* Hidden file input — web only */}
               <input
                 type="file"
-                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                accept="image/png,image/jpeg,image/webp"
                 style={{ display: 'none' }}
                 ref={fileInputRef as any}
                 onChange={handleFileChange as any}
@@ -416,6 +416,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
                 label="Uploading logo"
               />
             )}
+            <Text style={styles.formatHint}>PNG recommended — transparent background, at least 512px wide. SVG and ICO are converted automatically.</Text>
             <Text style={styles.orText}>— or paste a URL —</Text>
             <TextInput
               style={[styles.input, { borderColor: theme.colors.accent }]}
@@ -425,6 +426,14 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
               placeholderTextColor="#999"
               editable={!loading}
             />
+            {/* Informational, never blocking: the server converts on save. Only
+                catches URLs that end in the extension — the logo that prompted
+                all this was an SVG served with no extension at all. */}
+            {/\.(svg|ico)(\?|#|$)/i.test(logoUrl.trim()) && (
+              <Text style={styles.formatWarn}>
+                This looks like an SVG/ICO. It will be converted to PNG when you save.
+              </Text>
+            )}
 
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Website URL</Text>
             <TextInput
@@ -576,4 +585,6 @@ const styles = StyleSheet.create({
   uploadBtnText: { fontSize: 13, fontWeight: '700' },
   fileNameText: { flex: 1, fontSize: 12, color: '#555' },
   orText: { textAlign: 'center', color: '#aaa', fontSize: 12, marginVertical: 6 },
+  formatHint: { color: '#777', fontSize: 12, lineHeight: 16, marginTop: 6 },
+  formatWarn: { color: '#a67100', fontSize: 12, lineHeight: 16, marginTop: 4 },
 });

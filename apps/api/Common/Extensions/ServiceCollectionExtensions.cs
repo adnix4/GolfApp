@@ -218,6 +218,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Features.Teams.TeamService>();
         services.AddScoped<Features.Players.PlayerService>();
         services.AddScoped<Features.Scores.ScoreService>();
+        services.AddScoped<Common.Images.RemoteLogoFetcher>();
+        services.AddScoped<Common.Images.LogoBackfillJob>();
         services.AddScoped<Features.Sponsors.SponsorService>();
         services.AddScoped<Features.QR.QrService>();
         services.AddScoped<Features.Emails.EmailService>();
