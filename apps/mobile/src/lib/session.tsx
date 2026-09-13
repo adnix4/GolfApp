@@ -109,6 +109,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const id = setInterval(poll, POLL_INTERVAL_MS[networkTier]);
     return () => { cancelled = true; clearInterval(id); };
   // deps are intentionally limited: poll/POLL_INTERVAL_MS are stable and excluding them avoids restarting the interval on every render
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the closure reads only event.id and team.id, both already deps
   }, [session?.event.id, session?.team?.id, networkTier]);
 
   // Status / check-in / branding poll — runs for EVERY session, team or not.
@@ -152,6 +153,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const id = setInterval(poll, POLL_INTERVAL_MS[networkTier]);
     return () => { cancelled = true; clearInterval(id); };
   // No team in the deps — this half must keep polling for team-less golfers.
+  // Safe to omit session and the three mutators: the mutators are
+  // useCallback(..., []) and write through setSessionState(prev => ...), so they
+  // never read stale state. The closure's own reads — eventCode, player.id — are
+  // fixed for an event id, and sessionToken is minted once per player server-side
+  // (MobileService.EnsureSessionTokenAsync). If tokens ever start rotating, this
+  // poll would keep using a dead one and fail silently in the catch below.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- see the note above — every value this closure reads is fixed for the event id
   }, [session?.event.id, networkTier]);
 
   const setSession = useCallback(async (data: JoinEventResponse) => {

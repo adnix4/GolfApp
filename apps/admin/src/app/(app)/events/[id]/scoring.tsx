@@ -29,6 +29,10 @@ export default function ScoringScreen() {
   const [error,        setError]        = useState<string | null>(null);
   const [togglingTest, setTogglingTest] = useState(false);
   const [showToggleWarning, setShowToggleWarning] = useState(false);
+  // Write-only today: handleTestModeToggle sets it but nothing reads it back.
+  // Left in place rather than deleted — the name suggests the confirm modal was
+  // meant to read the pending value instead of assuming false.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- see above
   const [pendingToggle, setPendingToggle] = useState<boolean>(false);
   /** Hole awaiting hole-in-one confirmation before it is marked complete. */
   const [pendingAce, setPendingAce] = useState<number | null>(null);

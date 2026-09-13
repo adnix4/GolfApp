@@ -128,7 +128,7 @@ export default function RegisterScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Pressable // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        <Pressable
           onPress={() => router.push('/(public)/' as any)} style={styles.backBtn}>
           <Text style={[styles.backText, { color: theme.colors.primary }]}>← Back</Text>
         </Pressable>

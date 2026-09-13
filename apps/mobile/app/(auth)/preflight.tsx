@@ -135,12 +135,14 @@ export default function PreflightScreen() {
   useEffect(() => {
     runBatteryCheck();
     runConnectivityCheck();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- both checks are useCallback(..., []) and this is a deliberate one-shot on mount
   }, []);
 
   // ── Navigation guard ───────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!loading && !session) router.replace('/join');
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- expo-router's router is a module singleton, so its identity never changes
   }, [loading, session]);
 
   if (loading || !session) {

@@ -109,6 +109,7 @@ export function HoleInOneModal({ visible, holeName, onDismiss }: {
       scale.setValue(0.3);
       opacity.setValue(0);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- opacity and scale are useRef(new Animated.Value()).current — stable for the component's life
   }, [visible]);
 
   return (

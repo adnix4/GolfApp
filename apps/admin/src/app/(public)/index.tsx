@@ -58,7 +58,6 @@ export default function LandingPage() {
         <View style={[styles.heroCtas, isMobile && styles.heroCtasMobile]}>
           <Pressable
             style={[styles.ctaPrimary, { backgroundColor: theme.colors.surface }]}
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onPress={() => router.push('/(public)/register' as any)}
           >
             <Text style={[styles.ctaPrimaryText, { color: theme.colors.primary }]}>
@@ -127,7 +126,6 @@ export default function LandingPage() {
         </Text>
         <Pressable
           style={[styles.ctaPrimary, { backgroundColor: theme.colors.surface, alignSelf: 'center' }]}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onPress={() => router.push('/(public)/register' as any)}
         >
           <Text style={[styles.ctaPrimaryText, { color: theme.colors.primary }]}>

@@ -150,6 +150,7 @@ export default function SyncScreen() {
 
   useEffect(() => {
     if (!loading && !session) router.replace('/join');
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- expo-router's router is a module singleton, so its identity never changes
   }, [loading, session]);
 
   const showHeaderTip = useCallback((desc: string) => {
@@ -164,6 +165,7 @@ export default function SyncScreen() {
   useEffect(() => {
     if (!session) return;
     fetchPublicChallenges(session.event.eventCode).then(setChallenges).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the closure reads only session.event.eventCode, which is already the dep
   }, [session?.event.eventCode]);
 
   const holeOrder = useMemo(

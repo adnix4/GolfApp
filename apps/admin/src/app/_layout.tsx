@@ -49,9 +49,9 @@ function AuthGate() {
     if (!user && inApp) {
       router.replace('/(auth)/login');
     } else if (user && (inAuth || inPublic)) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       router.replace((user.role === 'SuperAdmin' ? '/(app)/admin' : '/(app)/events') as any);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- expo-router's router is a module singleton, so its identity never changes
   }, [user, loading, segments]);
 
   if (loading) {

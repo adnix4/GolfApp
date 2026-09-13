@@ -40,10 +40,8 @@ const AGE_OPTIONS: { value: AgeGroup; label: string }[] = [
 export default function RegisterScreen() {
   const theme  = useTheme();
   const router = useRouter();
-  const { eventId, eventName, freeAgentEnabled: faeParam } =
+  const { eventId, eventName } =
     useLocalSearchParams<{ eventId: string; eventName: string; freeAgentEnabled?: string }>();
-
-  const freeAgentEnabled = faeParam === '1';
 
   const [step,       setStep]       = useState<Step>('form');
   const [submitting, setSubmitting] = useState(false);

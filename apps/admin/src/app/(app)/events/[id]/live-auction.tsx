@@ -306,7 +306,7 @@ export default function LiveAuctionScreen() {
 // ── Award Winner Input ────────────────────────────────────────────────────────
 
 function AwardWinnerInput({
-  item, onAward, disabled, theme,
+  onAward, disabled,
 }: {
   item:     AuctionItem;
   onAward:  (winnerId: string) => void;

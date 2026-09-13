@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator,
-  ScrollView, Image, Platform, SafeAreaView,
+  ScrollView, Platform, SafeAreaView,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
@@ -90,11 +90,13 @@ export default function ScorecardScreen() {
 
   useEffect(() => {
     if (!loading && !session) router.replace('/join');
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- expo-router's router is a module singleton, so its identity never changes
   }, [loading, session]);
 
   useEffect(() => {
     if (!session) return;
     fetchPublicChallenges(session.event.eventCode).then(setChallenges);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the closure reads only session.event.eventCode, which is already the dep
   }, [session?.event.eventCode]);
 
   // Pull admin corrections / resolved conflicts whenever the scorecard is
