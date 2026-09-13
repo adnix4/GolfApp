@@ -13,6 +13,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using GolfFundraiserPro.Api.Common.Images;
 using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Common.Storage;
 using GolfFundraiserPro.Api.Data;
@@ -23,12 +24,6 @@ public sealed class BrandExtractionService
 {
     private const int MaxHtmlBytes = 2 * 1024 * 1024;
     private const int MaxLogoBytes = 2 * 1024 * 1024;
-
-    private static readonly string[] AllowedLogoTypes =
-    {
-        "image/png", "image/jpeg", "image/svg+xml", "image/webp",
-        "image/gif", "image/x-icon", "image/vnd.microsoft.icon",
-    };
 
     private readonly ApplicationDbContext _db;
     private readonly IHttpClientFactory _httpFactory;
@@ -220,40 +215,34 @@ public sealed class BrandExtractionService
                 if (!resp.IsSuccessStatusCode) continue;
 
                 var contentType = resp.Content.Headers.ContentType?.MediaType?.ToLowerInvariant();
-                if (contentType is null || !AllowedLogoTypes.Contains(contentType)) continue;
-                var ext = ExtFor(contentType);
-                if (ext is null) continue;
+                if (!ImageNormalizer.IsSupported(contentType)) continue;
 
                 var bytes = await ReadCappedBytesAsync(resp, MaxLogoBytes, ct);
                 if (bytes.Length == 0) continue;
+
+                // Scraped favicons are routinely .ico, which React Native cannot
+                // decode — that is how a ".ico" event logo reached production and
+                // drew an empty frame on the scorer. Normalise before storing so
+                // the suggestion is usable on every client.
+                using var ms  = new MemoryStream(bytes);
+                using var png = await ImageNormalizer.ToPngAsync(ms, contentType, ct);
 
                 // Distinct "-fetched" name so we never clobber an existing saved
                 // logo before the organizer actually saves the suggestion. The
                 // name is STABLE (self-overwriting), so it must not be cached
                 // as immutable — hence immutableCache: false.
-                using var ms = new MemoryStream(bytes);
                 return await _storage.SaveAsync(
-                    "event-logos", $"{eventId}-fetched{ext}", ms, contentType,
-                    immutableCache: false, ct: ct);
+                    "event-logos", $"{eventId}-fetched{ImageNormalizer.PngExtension}", png,
+                    ImageNormalizer.PngContentType, immutableCache: false, ct: ct);
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException
+                                          or ValidationException)
             {
                 _logger.LogInformation(ex, "Logo candidate fetch failed: {Url}", candidate);
             }
         }
         return null;
     }
-
-    private static string? ExtFor(string contentType) => contentType switch
-    {
-        "image/png" => ".png",
-        "image/jpeg" => ".jpg",
-        "image/svg+xml" => ".svg",
-        "image/webp" => ".webp",
-        "image/gif" => ".gif",
-        "image/x-icon" or "image/vnd.microsoft.icon" => ".ico",
-        _ => null,
-    };
 
     // ── Size-capped readers ─────────────────────────────────────────────────────
 

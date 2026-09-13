@@ -1,3 +1,4 @@
+using GolfFundraiserPro.Api.Common.Images;
 using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Common;
 using GolfFundraiserPro.Api.Common.Middleware;
@@ -12,7 +13,6 @@ public class OrgService
     private readonly IFileStorage         _storage;
     private readonly ILogger<OrgService>  _logger;
 
-    private static readonly string[] AllowedImageTypes = ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
     private const long MaxLogoBytes = 2 * 1024 * 1024; // 2 MB
 
     public OrgService(ApplicationDbContext db, IFileStorage storage, ILogger<OrgService> logger)
@@ -81,19 +81,23 @@ public class OrgService
             throw new ValidationException("Uploaded file is empty.");
         if (file.Length > MaxLogoBytes)
             throw new ValidationException("Logo must be 2 MB or smaller.");
-        if (!AllowedImageTypes.Contains(file.ContentType.ToLowerInvariant()))
-            throw new ValidationException("Logo must be PNG, JPEG, SVG, or WebP.");
+        if (!ImageNormalizer.IsSupported(file.ContentType))
+            throw new ValidationException("Logo must be PNG, JPEG, WebP, GIF, SVG, or ICO. PNG is recommended.");
 
         var org = await _db.Organizations.FirstOrDefaultAsync(o => o.Id == orgId, ct)
             ?? throw new NotFoundException("Organization", orgId);
 
-        var ext      = Path.GetExtension(file.FileName).ToLowerInvariant();
+        // Every stored logo is normalised to PNG: React Native's Image cannot
+        // decode SVG or ICO, so those render as an empty frame on the scorer
+        // while looking fine on web and admin. See Common/Images/ImageNormalizer.
+        await using var source = file.OpenReadStream();
+        await using var png    = await ImageNormalizer.ToPngAsync(source, file.ContentType, ct);
         // Versioned filename: each upload gets a unique URL so it can be served
         // with immutable cache headers. The replaced file is deleted below, so
         // replacements don't accumulate.
-        var filename = $"{orgId}-{DateTime.UtcNow.Ticks}{ext}";
-        await using var stream = file.OpenReadStream();
-        var url = await _storage.SaveAsync("logos", filename, stream, file.ContentType, ct: ct);
+        var filename = $"{orgId}-{DateTime.UtcNow.Ticks}{ImageNormalizer.PngExtension}";
+        var url = await _storage.SaveAsync(
+            "logos", filename, png, ImageNormalizer.PngContentType, ct: ct);
 
         var previousUrl = org.LogoUrl;
         org.LogoUrl = url;

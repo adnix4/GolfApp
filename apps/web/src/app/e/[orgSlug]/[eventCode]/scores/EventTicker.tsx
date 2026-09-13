@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 // glance. Matches the event page's fundraising totals.
 import { formatCents, isDonationItem } from '@gfp/shared-types';
 import type { PublicAuctionItem, PublicEventData } from '@/lib/api';
+import { resolveMedia } from '@/lib/api';
 import { nm, tv } from './scoresPollerStyles';
 
 /**
@@ -144,7 +145,7 @@ export default function EventTicker({
             {/* Plain <img>, as everywhere else sponsor art appears: the URL comes
                 from whatever host the organizer uploaded to, and next/image would
                 need each one allowlisted. alt="" because the name follows it. */}
-            {cell.logoUrl && <img src={cell.logoUrl} alt="" style={st.tickerLogo} />}
+            {cell.logoUrl && <img src={resolveMedia(cell.logoUrl)} alt="" style={st.tickerLogo} />}
             <span style={st.tickerName}>{cell.name}</span>
             {cell.tagline && <span style={st.tickerTagline}>{cell.tagline}</span>}
           </span>

@@ -294,6 +294,22 @@ app.MapGet("/api/health", () => new
 .WithTags("System")
 .AllowAnonymous();
 
+// ── ONE-OFF: normalise pre-existing logos ─────────────────────────────────────
+// `dotnet run -- --normalize-logos` converts every stored logo that is not
+// already one of our PNGs and exits. Idempotent, so re-running is harmless.
+// Needed because normalisation at ingestion only covers new saves, and rows
+// written earlier still hold SVG/ICO the scorer cannot draw.
+if (args.Contains("--normalize-logos"))
+{
+    using var backfillScope = app.Services.CreateScope();
+    var job    = backfillScope.ServiceProvider.GetRequiredService<GolfFundraiserPro.Api.Common.Images.LogoBackfillJob>();
+    var result = await job.RunAsync();
+    app.Logger.LogInformation(
+        "Logo backfill: {Converted} converted, {Skipped} already PNG, {Failed} left as-is",
+        result.Converted, result.Skipped, result.Failed);
+    return;
+}
+
 // ── START ─────────────────────────────────────────────────────────────────────
 app.Logger.LogInformation(
     "Golf Fundraiser Pro API starting on {Urls}",

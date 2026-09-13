@@ -4,7 +4,7 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "dev": "expo start",
+    "dev": "expo start --port 8200",
     "build:ios": "expo build:ios",
     "build:android": "expo build:android",
     "lint": "eslint src app --ext .ts,.tsx",

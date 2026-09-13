@@ -1,3 +1,4 @@
+using GolfFundraiserPro.Api.Common.Images;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Common.Middleware;
@@ -22,8 +23,6 @@ public class AuctionService
     private readonly IFileStorage _storage;
     private readonly ILogger<AuctionService> _logger;
 
-    private static readonly string[] AllowedImageTypes =
-        ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
     private const long MaxPhotoBytes = 5 * 1024 * 1024;
 
     public AuctionService(
@@ -175,16 +174,20 @@ public class AuctionService
             throw new ValidationException("Uploaded file is empty.");
         if (file.Length > MaxPhotoBytes)
             throw new ValidationException("Photo must be 5 MB or smaller.");
-        if (!AllowedImageTypes.Contains(file.ContentType.ToLowerInvariant()))
-            throw new ValidationException("Photo must be PNG, JPEG, SVG, or WebP.");
+        if (!ImageNormalizer.IsSupported(file.ContentType))
+            throw new ValidationException("Photo must be PNG, JPEG, WebP, GIF, SVG, or ICO. PNG is recommended.");
 
         await VerifyEventOwnershipAsync(orgId, eventId, ct);
         var item = await GetItemOrThrowAsync(itemId, eventId, ct);
 
-        var ext      = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var filename = $"{itemId}-{Guid.NewGuid()}{ext}";
-        await using var stream = file.OpenReadStream();
-        var url      = await _storage.SaveAsync("auction-photos", filename, stream, file.ContentType, ct: ct);
+        // Every stored logo is normalised to PNG: React Native's Image cannot
+        // decode SVG or ICO, so those render as an empty frame on the scorer
+        // while looking fine on web and admin. See Common/Images/ImageNormalizer.
+        await using var source = file.OpenReadStream();
+        await using var png    = await ImageNormalizer.ToPngAsync(source, file.ContentType, ct);
+        var filename = $"{itemId}-{Guid.NewGuid()}{ImageNormalizer.PngExtension}";
+        var url      = await _storage.SaveAsync(
+            "auction-photos", filename, png, ImageNormalizer.PngContentType, ct: ct);
 
         var existing = JsonSerializer.Deserialize<List<string>>(
                            string.IsNullOrEmpty(item.PhotoUrlsJson) ? "[]" : item.PhotoUrlsJson)

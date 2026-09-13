@@ -561,9 +561,13 @@ export default function AuctionScreen() {
 
           {/* Photos */}
           <Text style={styles.label}>Photos</Text>
+          <Text style={styles.formatHint}>
+            PNG or JPEG recommended. Uploads are converted to PNG so they render
+            on the scorer as well as the web.
+          </Text>
           <input
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            accept="image/png,image/jpeg,image/webp"
             style={{ display: 'none' }}
             ref={photoInputRef as any}
             onChange={handlePhotoFileChange as any}
@@ -688,6 +692,7 @@ const styles = StyleSheet.create({
   modalTitle:   { fontSize: 20, fontWeight: '800', marginBottom: 16 },
   modalBtnRow:  { flexDirection: 'row', marginTop: 28 },
   photoGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  formatHint: { color: '#777', fontSize: 12, lineHeight: 16, marginBottom: 6 },
   photoThumbWrap: { width: 72, height: 72, borderRadius: 8, overflow: 'hidden', position: 'relative' },
   photoThumb:    { width: 72, height: 72 },
   photoPending:  { backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', padding: 4 },
