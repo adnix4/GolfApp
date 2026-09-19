@@ -27,11 +27,15 @@
     "turbo": "^2.3.3",
     "typescript": "^5.4.5",
     "typescript-eslint": "^8.59.1",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "@types/react": "~19.2.10",
+    "@types/react-dom": "~19.2.7"
   },
   "overrides": {
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "@types/react": "~19.2.10",
+    "@types/react-dom": "~19.2.7",
     "react-native": "0.86.3",
     "react-native-screens": "4.26.2",
     "postcss": "^8.5.23",
