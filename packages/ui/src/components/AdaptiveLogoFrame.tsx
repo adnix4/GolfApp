@@ -80,7 +80,7 @@ function useAdaptiveLogoBg(uri: string, primaryColor: string): string {
         if (cancelled) return;
 
         // Extract the most representative single colour per platform
-        let sample: string | null = null;
+        let sample: string | null;
         if (result.platform === 'ios') {
           sample = result.background ?? result.primary ?? null;
         } else if (result.platform === 'android') {
