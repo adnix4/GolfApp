@@ -11,7 +11,7 @@
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
     "jsx": "react-native",
-    "baseUrl": ".",
+    "types": ["node"],
     "paths": {
       "react-native": [
         "../../node_modules/react-native",
