@@ -7,7 +7,7 @@
     "dev": "expo start --port 8200",
     "build:ios": "expo build:ios",
     "build:android": "expo build:android",
-    "lint": "eslint src app --ext .ts,.tsx",
+    "lint": "eslint src app",
     "type-check": "tsc --noEmit",
     "test": "vitest run"
   },

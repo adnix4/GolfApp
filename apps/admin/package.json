@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "expo start --web",
     "build": "expo export --platform web",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "test": "vitest run"
   },
