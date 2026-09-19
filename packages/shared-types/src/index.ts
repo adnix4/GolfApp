@@ -473,13 +473,12 @@ export interface PublicEventDTO {
 // Pattern: z.object({...}).strict() — "strict" rejects unknown keys, catching
 // accidental extra fields that could indicate a schema mismatch.
 
-// Re-exported so the apps never import 'zod' directly. A direct import there
-// resolves to the zod 4 hoisted at the workspace root (a transitive dependency
-// of eslint-plugin-react-hooks), while every schema below is built with the
-// zod 3 nested under this package — and combining the two majors breaks at
-// runtime and in types. Importing `z` from here hands back the same zod these
-// schemas were built with, so .merge()/.extend()/z.infer all line up.
-// eslint.config.mjs enforces this with no-restricted-imports.
+// Re-exported so the apps never import 'zod' directly. Everything shared is
+// built here, and routing every other workspace through this one module keeps
+// the whole monorepo on a single zod instance. That matters even though the
+// versions now agree: npm can nest a second copy at any time, and two zod
+// instances break `instanceof ZodError`, `.extend()` and `.merge()` even at
+// the same major. The matching lint rule lives in eslint.config.mjs.
 export { z } from 'zod';
 
 export const GFPThemeSchema = z.object({
@@ -491,8 +490,8 @@ export const GFPThemeSchema = z.object({
 }).strict();
 
 export const EventSchema = z.object({
-  id:        z.string().uuid(),
-  orgId:     z.string().uuid(),
+  id:        z.uuid(),
+  orgId:     z.uuid(),
   name:      z.string().min(1),
   eventCode: z.string().length(8),
   format:    z.enum(['scramble', 'stroke', 'stableford', 'best_ball', 'match']),
@@ -500,13 +499,13 @@ export const EventSchema = z.object({
   holes:     z.union([z.literal(9), z.literal(18)]),
   status:    z.enum(['draft', 'registration', 'active', 'scoring', 'completed', 'cancelled']),
   startAt:   z.string().nullable(),
-  config:    z.record(z.unknown()),  // flexible JSONB — validated per-field elsewhere
+  config:    z.record(z.string(), z.unknown()),  // flexible JSONB — validated per-field elsewhere
   course:    z.unknown().nullable(), // CourseSchema defined separately
 });
 
 export const LeaderboardEntrySchema = z.object({
   rank:          z.number().int().positive(),
-  teamId:        z.string().uuid(),
+  teamId:        z.uuid(),
   teamName:      z.string(),
   toPar:         z.number().int(),
   grossTotal:    z.number().int().nonnegative(),

@@ -79,12 +79,20 @@ export default [
       'packages/theme/**/*.{ts,tsx}',
     ],
     rules: {
-      // zod 4 is hoisted to the workspace root as a transitive dependency of
-      // eslint-plugin-react-hooks, while every shared schema is built with the
-      // zod 3 nested under packages/shared-types. A direct import here resolves
-      // to the root copy, and the moment one of those schemas is merged or
-      // extended with a locally-built one, two incompatible majors of the same
-      // validator meet — at runtime and in the types.
+      // Shared schemas are built in packages/shared-types; everywhere else goes
+      // through its re-export rather than importing zod directly.
+      //
+      // This used to guard a live 3-vs-4 split (the root hoisted zod 4 as a
+      // transitive dependency of eslint-plugin-react-hooks, while the shared
+      // schemas were built on a zod 3 nested under packages/shared-types).
+      // That divergence is gone — shared-types is on zod 4 and resolves to the
+      // same hoisted copy — but the rule still earns its place. npm can nest a
+      // second copy again at any time (a new dependency with a narrower range,
+      // and .npmrc sets legacy-peer-deps=true so nothing warns), and two zod
+      // instances break `instanceof ZodError`, `.extend()` and `.merge()` just
+      // as badly at the SAME major as across two — only now silently, because
+      // the versions look compatible. Routing every import through one module
+      // makes the question moot regardless of what the tree does.
       'no-restricted-imports': ['error', {
         paths: [{
           name: 'zod',
