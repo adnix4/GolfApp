@@ -23,6 +23,15 @@ public class LeaderboardBroadcaster
 {
     private static readonly TimeSpan CoalesceWindow = TimeSpan.FromMilliseconds(1500);
 
+    /// <summary>
+    /// How long an event's coalescing entry survives with no broadcasts before
+    /// it is dropped. The dictionary is keyed by event code and used to live for
+    /// the whole process lifetime, so every event ever broadcast stayed resident
+    /// — small per entry, but strictly growing. An event that has not scored for
+    /// this long is over; if it somehow is not, the entry simply gets recreated.
+    /// </summary>
+    private static readonly TimeSpan IdleEviction = TimeSpan.FromHours(12);
+
     private readonly IHubContext<TournamentHub>   _hub;
     private readonly IServiceScopeFactory         _scopes;
     private readonly ILogger<LeaderboardBroadcaster> _log;
@@ -56,6 +65,8 @@ public class LeaderboardBroadcaster
     {
         if (string.IsNullOrEmpty(eventCode)) return;
 
+        EvictIdle();
+
         var st = _state.GetOrAdd(eventCode, _ => new EventBroadcastState());
 
         bool fireNow;
@@ -87,6 +98,35 @@ public class LeaderboardBroadcaster
         else
         {
             _ = ScheduleFlushAsync(eventCode, st, delay);
+        }
+    }
+
+    /// <summary>
+    /// Drops entries for events that have gone quiet. Runs on the request path
+    /// rather than a timer: it is a dictionary walk over live events only, and a
+    /// process with no broadcasts has nothing to evict anyway.
+    ///
+    /// An entry is only removed while nothing is scheduled against it, so an
+    /// in-flight coalesced flush can never lose its state mid-window.
+    /// </summary>
+    private void EvictIdle()
+    {
+        var cutoff = DateTime.UtcNow - IdleEviction;
+
+        foreach (var (code, st) in _state)
+        {
+            bool stale;
+            lock (st)
+            {
+                // LastSentUtc == default means the entry was just created and has
+                // not broadcast yet. Treating that as "very old" would let a
+                // concurrent caller evict a state object another thread is about
+                // to broadcast through, splitting one coalesced refresh into two.
+                stale = !st.Scheduled
+                     && st.LastSentUtc != default
+                     && st.LastSentUtc < cutoff;
+            }
+            if (stale) _state.TryRemove(code, out _);
         }
     }
 

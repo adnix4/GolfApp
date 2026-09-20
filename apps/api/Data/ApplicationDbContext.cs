@@ -424,6 +424,15 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             item.HasIndex(i => i.EventId)
                 .HasDatabaseName("IX_auction_items_event_id");
 
+            // Serves the auction-close job's every-10-seconds expiry sweep.
+            // Partial, because only Open/Extended lots can ever expire and
+            // closed ones dominate the table over time. Status is stored as text
+            // (see HasConversion above), hence the string literals — keep this
+            // filter in step with ProcessExpiredItemsAsync.
+            item.HasIndex(i => i.ClosesAt)
+                .HasDatabaseName("IX_auction_items_closes_at")
+                .HasFilter("status IN ('Open','Extended')");
+
             item.HasOne(i => i.Event)
                 .WithMany()
                 .HasForeignKey(i => i.EventId)

@@ -95,6 +95,26 @@ public class AuthService
         if (slugTaken)
             throw new ConflictException($"Organization slug '{request.OrgSlug}' is already taken.");
 
+        // The connection retries on transient faults (EnableRetryOnFailure), and
+        // EF refuses a user-initiated transaction outside the execution
+        // strategy — so the org+user+role write runs as one retryable unit.
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(() => RegisterTransactionalAsync(request, ct));
+    }
+
+    /// <summary>
+    /// The transactional half of registration. Re-runnable: a transient fault
+    /// makes the execution strategy call this again, so it must not rely on
+    /// state left by an earlier attempt.
+    /// </summary>
+    private async Task<AuthResponse> RegisterTransactionalAsync(
+        RegisterRequest request, CancellationToken ct)
+    {
+        // A retry re-runs the adds below, and the change tracker does not roll
+        // back with the transaction — without this, attempt two would still be
+        // holding attempt one's Organization and try to insert it again.
+        _db.ChangeTracker.Clear();
+
         await using var transaction = await _db.Database.BeginTransactionAsync(ct);
 
         try

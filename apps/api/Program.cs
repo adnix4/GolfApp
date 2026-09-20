@@ -25,11 +25,16 @@
 //   5. Routing — sets up endpoint routing (controllers, minimal APIs).
 //
 //   6. Authentication — validates JWT Bearer tokens and sets HttpContext.User.
-//      Must be BEFORE Authorization (can't authorize without authenticating first).
+//      Must be BEFORE Authorization (can't authorize without authenticating first)
+//      AND before the rate limiter, which partitions on the caller's identity.
 //
-//   7. Authorization — enforces [Authorize] attributes on controllers.
+//   7. Rate limiting — resolves endpoint [EnableRateLimiting] policies, so it
+//      must follow routing; keys on HttpContext.User, so it must follow
+//      authentication. See the expanded note at the call site.
 //
-//   8. Controllers — maps controller actions to routes.
+//   8. Authorization — enforces [Authorize] attributes on controllers.
+//
+//   9. Controllers — maps controller actions to routes.
 //
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -238,12 +243,25 @@ app.UseStaticFiles(new StaticFileOptions
 // 6. Routing — must come before auth middleware
 app.UseRouting();
 
-// 6b. Rate limiting — after routing so endpoint-specific [EnableRateLimiting]
-// policies resolve; a global per-client limiter backstops every endpoint.
-app.UseRateLimiter();
-
-// 6. Authentication — validates JWT Bearer tokens, sets HttpContext.User
+// 6b. Authentication — validates JWT Bearer tokens, sets HttpContext.User
 app.UseAuthentication();
+
+// 6c. Rate limiting — after routing so endpoint-specific [EnableRateLimiting]
+// policies resolve, and deliberately AFTER authentication so the global
+// limiter can partition on the caller's validated identity.
+//
+// WHY AFTER AUTH: at a venue the organizer's laptop sits behind the SAME NAT as
+// every golfer's phone, so it cannot be given its own IP. Keying on the subject
+// of a validated JWT gives staff their own bucket instead — one that can't be
+// forged (unlike the X-GFP-Device header) and that follows them across
+// networks. Without this ordering HttpContext.User is empty here and every
+// authenticated caller silently falls back to the shared venue-IP bucket,
+// which spectator browsers can exhaust on their own.
+//
+// The cost: an unauthenticated flood now pays JWT signature verification before
+// being limited. That is bounded by the per-IP ceiling in the limiter chain,
+// which is evaluated on the very same request.
+app.UseRateLimiter();
 
 // 7. Authorization — enforces [Authorize] attributes
 app.UseAuthorization();
@@ -267,11 +285,20 @@ if (app.Environment.IsDevelopment())
 // crashed at startup outside Development.
 using (var jobScope = app.Services.CreateScope())
 {
-    jobScope.ServiceProvider.GetRequiredService<IRecurringJobManager>()
-        .AddOrUpdate<GolfFundraiserPro.Api.Features.Auction.AuctionCloseJob>(
-            "auction-close",
-            job => job.RunAsync(),
-            "*/10 * * * * *"); // every 10 seconds (Hangfire Cron seconds expression)
+    var recurring = jobScope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+
+    recurring.AddOrUpdate<GolfFundraiserPro.Api.Features.Auction.AuctionCloseJob>(
+        "auction-close",
+        job => job.RunAsync(),
+        "*/10 * * * * *"); // every 10 seconds (Hangfire Cron seconds expression)
+
+    // Day-before "set up your scorecard" nudge. Hourly is ample for a day-wide
+    // window, and every golfer who acts on it is one who does not join from the
+    // first tee — see EventReminderJob for why that matters.
+    recurring.AddOrUpdate<GolfFundraiserPro.Api.Features.Events.EventReminderJob>(
+        "event-join-reminder",
+        job => job.RunAsync(),
+        "0 * * * *"); // top of every hour
 }
 
 // 9b. Map controllers to routes

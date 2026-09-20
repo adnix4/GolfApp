@@ -24,6 +24,18 @@ public class EmailService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Whether outbound email can actually be delivered.
+    ///
+    /// Bulk senders should check this before looping a roster: without it, a
+    /// 144-player event fires 144 outbound TLS handshakes that every one of them
+    /// fails, which costs far more than the email would have. Transactional
+    /// one-offs (a verification code) can skip the check — there the attempt is
+    /// worth making and the failure is worth logging.
+    /// </summary>
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(_config["SENDGRID_API_KEY"]);
+
     // ── TEMPLATE CRUD ──────────────────────────────────────────────────────────
 
     public async Task<EmailTemplateResponse> UpsertTemplateAsync(

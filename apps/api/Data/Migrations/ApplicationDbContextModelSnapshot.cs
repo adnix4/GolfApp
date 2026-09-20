@@ -192,6 +192,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ClosesAt")
+                        .HasDatabaseName("IX_auction_items_closes_at")
+                        .HasFilter("status IN ('Open','Extended')");
+
                     b.HasIndex("EventId")
                         .HasDatabaseName("IX_auction_items_event_id");
 
@@ -647,6 +651,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                     b.Property<Guid>("OrgId")
                         .HasColumnType("uuid")
                         .HasColumnName("org_id");
+
+                    b.Property<DateTime?>("ReminderSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reminder_sent_at");
 
                     b.Property<DateTime?>("StartAt")
                         .HasColumnType("timestamp with time zone")

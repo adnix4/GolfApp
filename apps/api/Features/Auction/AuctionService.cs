@@ -202,8 +202,109 @@ public class AuctionService
 
     // ── BIDDING ────────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Everything the committed transaction produces that the post-commit
+    /// side effects (SignalR, outbid push) still need.
+    /// </summary>
+    private sealed record BidOutcome(
+        AuctionItem Item,
+        Bid Bid,
+        bool UsesProxy,
+        bool IsDonation,
+        Guid? LeaderId,
+        DateTime? NewClosesAt,
+        bool ClosedByBuyNow,
+        Guid? PreviousHighBidderId);
+
     public async Task<BidResponse> PlaceBidAsync(Guid itemId, PlaceBidRequest req, CancellationToken ct)
     {
+        // The connection retries on transient faults (EnableRetryOnFailure), and
+        // EF refuses a user-initiated transaction unless it runs inside the
+        // execution strategy — so the whole BeginTransaction…Commit block is the
+        // unit that gets retried.
+        //
+        // ONLY that block. The SignalR broadcasts and the outbid notification
+        // below sit outside deliberately: they are not idempotent, and a
+        // transient fault on the post-commit event lookup would otherwise
+        // re-run the delegate and place the bid a second time.
+        var strategy = _db.Database.CreateExecutionStrategy();
+        var outcome  = await strategy.ExecuteAsync(() => PlaceBidTransactionalAsync(itemId, req, ct));
+
+        var item                 = outcome.Item;
+        var bid                  = outcome.Bid;
+        var usesProxy            = outcome.UsesProxy;
+        var isDonation           = outcome.IsDonation;
+        var leaderId             = outcome.LeaderId;
+        var newClosesAt          = outcome.NewClosesAt;
+        var closedByBuyNow       = outcome.ClosedByBuyNow;
+        var previousHighBidderId = outcome.PreviousHighBidderId;
+
+        // Fire SignalR events after commit
+        var evt = await _db.Events.FirstOrDefaultAsync(e => e.Id == item.EventId, ct);
+        if (evt is not null)
+        {
+            if (newClosesAt.HasValue)
+                await _realTime.SendAuctionExtendedAsync(evt.EventCode, itemId, newClosesAt.Value, ct);
+
+            // Broadcast the PUBLIC price, never the submitted amount: under proxy
+            // bidding that amount is the bidder's private ceiling, and the hub
+            // fans this payload out to every client joined to the event.
+            await _realTime.SendBidPlacedAsync(evt.EventCode, itemId, req.PlayerId,
+                usesProxy ? item.CurrentHighBidCents : req.AmountCents, isDonation, ct);
+
+            if (isDonation)
+            {
+                var total = await _db.Bids
+                    .Where(b => b.AuctionItemId == itemId)
+                    .SumAsync(b => b.AmountCents, ct);
+                await _realTime.SendAuctionTotalUpdatedAsync(evt.EventCode, itemId, total, ct);
+            }
+
+            if (closedByBuyNow)
+                await _realTime.SendItemClosedAsync(
+                    evt.EventCode, itemId, req.PlayerId, item.CurrentHighBidCents, ct);
+        }
+
+        // Send outbid notification to the previous high bidder (fire-and-forget).
+        // Quotes the public price for the same reason the hub payload does.
+        if (previousHighBidderId.HasValue)
+            _ = Task.Run(() => SendOutbidNotificationAsync(
+                previousHighBidderId.Value, item.Title, item.CurrentHighBidCents, CancellationToken.None));
+
+        if (closedByBuyNow)
+            await CloseItemInternalAsync(item, ct);
+
+        return new BidResponse
+        {
+            Id                  = bid.Id,
+            AuctionItemId       = itemId,
+            PlayerId            = req.PlayerId,
+            AmountCents         = req.AmountCents,
+            PlacedAt            = bid.PlacedAt,
+            IsWinning           = usesProxy
+                ? leaderId == req.PlayerId
+                : !isDonation && item.CurrentHighBidCents == req.AmountCents,
+            CurrentHighBidCents = item.CurrentHighBidCents,
+            NewClosesAt         = newClosesAt,
+        };
+    }
+
+    /// <summary>
+    /// The transactional half of placing a bid. Re-runnable: the execution
+    /// strategy may invoke this more than once when the connection hits a
+    /// transient fault, so it must not depend on anything left behind by a
+    /// previous attempt.
+    /// </summary>
+    private async Task<BidOutcome> PlaceBidTransactionalAsync(
+        Guid itemId, PlaceBidRequest req, CancellationToken ct)
+    {
+        // A retry re-runs this whole method, including _db.Bids.Add below. The
+        // change tracker is NOT rolled back with the transaction, so without
+        // this the second attempt would still be holding the first attempt's Bid
+        // entity and SaveChanges would insert both. Everything this method uses
+        // is loaded inside it, so clearing is safe.
+        _db.ChangeTracker.Clear();
+
         // All validation and write inside a serializable transaction with row-level lock.
         await using var tx = await _db.Database.BeginTransactionAsync(
             System.Data.IsolationLevel.RepeatableRead, ct);
@@ -332,54 +433,9 @@ public class AuctionService
         await _db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
-        // Fire SignalR events after commit
-        var evt = await _db.Events.FirstOrDefaultAsync(e => e.Id == item.EventId, ct);
-        if (evt is not null)
-        {
-            if (newClosesAt.HasValue)
-                await _realTime.SendAuctionExtendedAsync(evt.EventCode, itemId, newClosesAt.Value, ct);
-
-            // Broadcast the PUBLIC price, never the submitted amount: under proxy
-            // bidding that amount is the bidder's private ceiling, and the hub
-            // fans this payload out to every client joined to the event.
-            await _realTime.SendBidPlacedAsync(evt.EventCode, itemId, req.PlayerId,
-                usesProxy ? item.CurrentHighBidCents : req.AmountCents, isDonation, ct);
-
-            if (isDonation)
-            {
-                var total = await _db.Bids
-                    .Where(b => b.AuctionItemId == itemId)
-                    .SumAsync(b => b.AmountCents, ct);
-                await _realTime.SendAuctionTotalUpdatedAsync(evt.EventCode, itemId, total, ct);
-            }
-
-            if (closedByBuyNow)
-                await _realTime.SendItemClosedAsync(
-                    evt.EventCode, itemId, req.PlayerId, item.CurrentHighBidCents, ct);
-        }
-
-        // Send outbid notification to the previous high bidder (fire-and-forget).
-        // Quotes the public price for the same reason the hub payload does.
-        if (previousHighBidderId.HasValue)
-            _ = Task.Run(() => SendOutbidNotificationAsync(
-                previousHighBidderId.Value, item.Title, item.CurrentHighBidCents, CancellationToken.None));
-
-        if (closedByBuyNow)
-            await CloseItemInternalAsync(item, ct);
-
-        return new BidResponse
-        {
-            Id                  = bid.Id,
-            AuctionItemId       = itemId,
-            PlayerId            = req.PlayerId,
-            AmountCents         = req.AmountCents,
-            PlacedAt            = bid.PlacedAt,
-            IsWinning           = usesProxy
-                ? leaderId == req.PlayerId
-                : !isDonation && item.CurrentHighBidCents == req.AmountCents,
-            CurrentHighBidCents = item.CurrentHighBidCents,
-            NewClosesAt         = newClosesAt,
-        };
+        return new BidOutcome(
+            item, bid, usesProxy, isDonation, leaderId,
+            newClosesAt, closedByBuyNow, previousHighBidderId);
     }
 
     public async Task<BidResponse> PledgeAsync(Guid itemId, PledgeRequest req, CancellationToken ct)

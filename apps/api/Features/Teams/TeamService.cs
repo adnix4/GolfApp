@@ -47,6 +47,12 @@ public class TeamService
     private readonly IRealTimeService _realTime;
     private readonly ILogger<TeamService> _logger;
 
+    /// <summary>
+    /// Sends the "set up your scorecard" welcome. Optional so the existing test
+    /// constructions keep compiling; absent simply means no welcome email.
+    /// </summary>
+    private readonly Emails.EmailService? _email;
+
     /// <summary>Invite tokens expire after 48 hours.</summary>
     private static readonly TimeSpan InviteTokenLifetime = TimeSpan.FromHours(48);
 
@@ -55,13 +61,15 @@ public class TeamService
         IConfiguration config,
         PaymentsService payments,
         IRealTimeService realTime,
-        ILogger<TeamService> logger)
+        ILogger<TeamService> logger,
+        Emails.EmailService? email = null)
     {
         _db       = db;
         _config   = config;
         _payments = payments;
         _realTime = realTime;
         _logger   = logger;
+        _email    = email;
     }
 
     // ── MODE 1: REGISTER FULL TEAM ────────────────────────────────────────────
@@ -139,6 +147,11 @@ public class TeamService
         _logger.LogInformation(
             "Registered team '{Name}' ({PlayerCount} players) for event {EventId}",
             team.Name, players.Count, eventId);
+
+        // Ask them to set the app up now rather than at the registration desk.
+        // Fire-and-forget: a mail outage must never fail a registration, and the
+        // day-before reminder sweep catches anyone this misses.
+        _ = Task.Run(() => SendJoinWelcomeAsync(evt, players, CancellationToken.None));
 
         var inviteUrl = BuildInviteUrl(evt, team);
         var teamResp  = await GetTeamByIdInternalAsync(team.Id, ct);
@@ -916,6 +929,50 @@ public class TeamService
         var secret = _config["JWT_SECRET"]
             ?? throw new InvalidOperationException("JWT_SECRET not configured");
         return InviteTokenHelper.Validate(token, secret);
+    }
+
+    /// <summary>
+    /// Emails each newly registered golfer a link that sets their scorecard up
+    /// before event day. Every golfer who acts on it is one who does not join
+    /// from the first tee — see JoinNudgeEmail for why that matters.
+    ///
+    /// Never throws: called fire-and-forget off the registration path.
+    /// </summary>
+    private async Task SendJoinWelcomeAsync(
+        Event evt, List<Player> players, CancellationToken ct)
+    {
+        if (_email is null || !_email.IsConfigured) return;
+
+        // Draft events are the test/preview mode, seeded with fake addresses.
+        if (evt.Status is EventStatus.Draft) return;
+
+        var webBaseUrl = _config["WEB_BASE_URL"] is { Length: > 0 } configured
+            ? configured
+            : "http://localhost:3000";
+
+        var orgSlug = evt.Organization?.Slug ?? evt.OrgId.ToString();
+        var joinUrl = Emails.JoinNudgeEmail.BuildJoinUrl(webBaseUrl, orgSlug, evt.EventCode);
+
+        foreach (var player in players)
+        {
+            if (string.IsNullOrWhiteSpace(player.Email)) continue;
+            try
+            {
+                await _email.SendTransactionalAsync(
+                    player.Email,
+                    player.FirstName,
+                    $"You're registered for {evt.Name}",
+                    Emails.JoinNudgeEmail.BuildWelcomeHtml(
+                        player.FirstName, evt.Name, evt.EventCode, joinUrl, evt.StartAt),
+                    ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex, "Join welcome email failed for '{Email}' on event '{Code}'",
+                    player.Email, evt.EventCode);
+            }
+        }
     }
 
     private static string BuildInviteUrl(Event evt, Team team)
