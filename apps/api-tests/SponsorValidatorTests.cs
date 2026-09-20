@@ -33,11 +33,35 @@ public class SponsorValidatorTests
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateSponsorRequest.LogoUrl));
     }
 
-    [Fact]
-    public void Absolute_logo_url_is_accepted()
+    // Absolute http(s) URLs are external logos we re-host; the root-relative
+    // /uploads/… form is what upload and re-hosting store.
+    [Theory]
+    [InlineData("https://example.com/logo.png")]
+    [InlineData("http://example.com/logo.png")]
+    [InlineData("/uploads/sponsor-logos/acme.png")]
+    public void Http_and_root_relative_logo_urls_are_accepted(string url)
     {
-        var result = new CreateSponsorRequestValidator()
-            .Validate(Request("https://example.com/logo.png"));
+        var result = new CreateSponsorRequestValidator().Validate(Request(url));
         Assert.True(result.IsValid, string.Join("; ", result.Errors));
+    }
+
+    [Theory]
+    [InlineData("uploads/sponsor-logos/acme.png")]   // relative, but not root-relative
+    [InlineData("//evil.example/logo.png")]          // protocol-relative: another host
+    [InlineData("/\\evil.example/logo.png")]         // browsers treat as protocol-relative
+    [InlineData("file:///etc/passwd")]
+    public void Other_logo_urls_are_rejected(string url)
+    {
+        var result = new CreateSponsorRequestValidator().Validate(Request(url));
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateSponsorRequest.LogoUrl));
+    }
+
+    [Fact]
+    public void Name_is_still_required()
+    {
+        var result = new CreateSponsorRequestValidator().Validate(Request(null) with { Name = "" });
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateSponsorRequest.Name));
     }
 }
