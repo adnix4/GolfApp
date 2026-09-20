@@ -64,7 +64,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           # Node 20 LTS — required by Metro bundler (spec Foundation §8)
-          node-version: '20'
+          node-version: '24'
           # Cache npm dependencies keyed to package-lock.json hash.
           # On cache hit, `npm ci` restores from cache instead of downloading.
           cache: 'npm'
@@ -154,7 +154,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: npm audit (production deps, high+ fails unless allowlisted)
         run: npm run audit:prod
@@ -187,7 +187,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Assert SDK-managed and runtime-tracked pins
         run: npm run check-updates -- --assert-pins
