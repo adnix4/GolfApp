@@ -21,6 +21,6 @@
     "@microsoft/signalr": "^8.0.0",
     "@types/react": "~19.2.10",
     "react": "*",
-    "typescript": "*"
+    "typescript": "^6.0.3"
   }
 }
