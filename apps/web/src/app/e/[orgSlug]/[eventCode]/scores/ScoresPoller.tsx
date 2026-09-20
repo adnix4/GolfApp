@@ -5,7 +5,9 @@ import { useLiveLeaderboard } from '@gfp/shared-types';
 import type {
   PublicAuctionItem, PublicEventData, PublicLeaderboard, PublicLeaderboardEntry,
 } from '@/lib/api';
-import { fetchPublicAuctionItems, fetchPublicEventFresh } from '@/lib/api';
+import {
+  deviceHeaders, fetchPublicAuctionItems, fetchPublicEventFresh, fetchPublicEventStatus,
+} from '@/lib/api';
 import {
   buildThemeCss, buildTvThemeCss, cssKeyframes, hio, nm, tv,
 } from './scoresPollerStyles';
@@ -14,11 +16,23 @@ import EventTicker from './EventTicker';
 import UpdatedAgo from './UpdatedAgo';
 
 const FALLBACK_POLL_MS = 15_000; // spec: 15-second SSE/HTTP fallback when WebSocket unavailable
-const BASE             = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
+
+/**
+ * The auction ticker's own fallback cadence. Slower than the standings poll
+ * because it has no version counter to check cheaply — every tick is a full
+ * refetch — and because a lot's price moving a minute late costs a spectator
+ * nothing, while the standings are what they are actually watching.
+ */
+const AUCTION_FALLBACK_POLL_MS = 60_000;
+
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 async function fetchStandings(eventCode: string): Promise<PublicLeaderboardEntry[] | null> {
   try {
-    const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/leaderboard`, { cache: 'no-store' });
+    const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/leaderboard`, {
+      cache: 'no-store',
+      headers: deviceHeaders(),
+    });
     if (!res.ok) return null;
     const data: PublicLeaderboard = await res.json();
     return data.standings;
@@ -56,6 +70,17 @@ export default function ScoresPoller({
     setSponsors(fresh.sponsors);
   }, [eventCode]);
 
+  /**
+   * Poll-fallback sponsor check. Reads the single-row status projection and only
+   * pays for the full event payload when the version has actually moved — which,
+   * over a tournament, is approximately never.
+   */
+  const checkSponsorsVersion = useCallback(async () => {
+    const status = await fetchPublicEventStatus(eventCode);
+    if (!status || status.sponsorsVersion === sponsorsVersionRef.current) return;
+    await refreshSponsors();
+  }, [eventCode, refreshSponsors]);
+
   // Open auction lots for the ticker. Unlike sponsors there's no version
   // counter to compare against, so every signal costs a refetch — hence the
   // debounce: one bid emits BidPlaced and can emit AuctionExtended with it.
@@ -63,7 +88,9 @@ export default function ScoresPoller({
   const auctionDebounceRef              = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshAuction = useCallback(async () => {
-    setAuctionItems(await fetchPublicAuctionItems(event.id));
+    // fresh: a signal already told us the lot moved, so a cached body would
+    // defeat the point. The server render uses the cached path instead.
+    setAuctionItems(await fetchPublicAuctionItems(event.id, { fresh: true }));
   }, [event.id]);
 
   const scheduleAuctionRefresh = useCallback(() => {
@@ -96,14 +123,33 @@ export default function ScoresPoller({
     onAuctionChanged: scheduleAuctionRefresh,
   });
 
-  // Poll fallback: while the hub is disconnected, check for a sponsor or
-  // auction change on the same cadence as the standings fallback. No-op while
-  // connected — the SponsorsChanged / auction signals cover that case.
+  // Poll fallback: while the hub is disconnected, check for a sponsor change on
+  // the same cadence as the standings fallback. No-op while connected — the
+  // SponsorsChanged signal covers that case.
+  //
+  // This tick used to refetch the FULL landing payload plus the whole auction
+  // list every 15 s, which together with the standings poll meant three
+  // expensive requests per spectator per tick. At a venue every browser shares
+  // one NAT bucket, so a few dozen scoreboards could exhaust it between them —
+  // and they only ever did so when the hub was down, i.e. exactly when the
+  // fallback was the one thing keeping the board alive.
+  //
+  // Now it reads the single-row status projection and only pulls the full event
+  // when sponsorsVersion has actually moved.
   useEffect(() => {
     if (connected) return;
-    const id = setInterval(() => { refreshSponsors(); refreshAuction(); }, FALLBACK_POLL_MS);
+    const id = setInterval(checkSponsorsVersion, FALLBACK_POLL_MS);
     return () => clearInterval(id);
-  }, [connected, refreshSponsors, refreshAuction]);
+  }, [connected, checkSponsorsVersion]);
+
+  // The auction ticker is decorative and has no version counter, so every check
+  // costs a full refetch. While the hub is down it therefore runs on its own,
+  // slower cadence rather than riding the 15 s standings tick.
+  useEffect(() => {
+    if (connected) return;
+    const id = setInterval(refreshAuction, AUCTION_FALLBACK_POLL_MS);
+    return () => clearInterval(id);
+  }, [connected, refreshAuction]);
 
   const tableRef = useRef<HTMLDivElement>(null);
 

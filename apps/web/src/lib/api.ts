@@ -4,6 +4,52 @@ const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 /** Organizer/admin app base URL for Sign-up / Log-in CTAs (separate app; a link, not SSO). */
 export const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'http://localhost:8081';
 
+// ── DEVICE IDENTITY (rate-limit fairness) ─────────────────────────────────────
+
+const DEVICE_KEY = 'gfp:deviceId';
+let cachedDeviceId: string | null = null;
+
+/**
+ * A stable per-browser install id, mirroring what the mobile scorer sends.
+ *
+ * WHY: the API's fairness bucket keys on X-GFP-Device and falls back to the
+ * client IP when it is absent. At a venue every spectator browser, TV board and
+ * phone shares one NAT address, so without this header they all contend for a
+ * single 600/min bucket — which a few dozen browsers exhaust on their own the
+ * moment SignalR drops and everyone falls back to HTTP polling.
+ *
+ * Returns null during SSR. Server-rendered calls originate from the web
+ * server's own address, so a per-browser id would be meaningless there (and
+ * touching localStorage would throw). Storage can also be unavailable in a
+ * private window or with site data blocked, hence the try/catch: the id then
+ * lives for the page session only, which still beats sharing the IP bucket.
+ */
+function getDeviceId(): string | null {
+  if (typeof window === 'undefined') return null;
+  if (cachedDeviceId) return cachedDeviceId;
+
+  try {
+    const stored = window.localStorage.getItem(DEVICE_KEY);
+    if (stored) return (cachedDeviceId = stored);
+  } catch { /* storage blocked — fall through to a session-only id */ }
+
+  const id = `web-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  try { window.localStorage.setItem(DEVICE_KEY, id); } catch { /* ignore */ }
+  return (cachedDeviceId = id);
+}
+
+/**
+ * Device header for client-side calls; empty object during SSR.
+ *
+ * Exported so components that fetch directly (the scoreboard's standings poll,
+ * the highest-volume caller on the site) ride the same bucket as everything
+ * else this browser sends.
+ */
+export function deviceHeaders(): Record<string, string> {
+  const id = getDeviceId();
+  return id ? { 'X-GFP-Device': id } : {};
+}
+
 /**
  * Stored logo/photo URLs are root-relative ("/uploads/…") when the API uses
  * local storage, so rendering one raw resolves it against THIS site's origin
@@ -154,9 +200,44 @@ export async function fetchPublicEvent(eventCode: string): Promise<PublicEventDa
  */
 export async function fetchPublicEventFresh(eventCode: string): Promise<PublicEventData | null> {
   try {
-    const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}`, { cache: 'no-store' });
+    const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}`, {
+      cache: 'no-store',
+      headers: deviceHeaders(),
+    });
     if (!res.ok) return null;
     return normalizePublicEvent(await res.json());
+  } catch {
+    return null;
+  }
+}
+
+/** Status/theme/sponsor-version only — what the poll micro-endpoint returns. */
+export interface PublicEventStatus {
+  status:            string;
+  resolvedThemeJson: string | null;
+  sponsorsVersion:   number;
+}
+
+/**
+ * The cheap poll read: a single-row projection the API exposes precisely for
+ * loops like the scoreboard's fallback.
+ *
+ * The scoreboard used to check for new sponsors by refetching the whole landing
+ * payload — event, org, course, team count, donation sum and every sponsor row —
+ * just to compare one integer. This is one indexed row instead, so while the hub
+ * is down each spectator costs a standings fetch plus a rounding error, rather
+ * than three expensive reads every fifteen seconds.
+ *
+ * Returns null on any failure; callers treat that as "nothing changed".
+ */
+export async function fetchPublicEventStatus(eventCode: string): Promise<PublicEventStatus | null> {
+  try {
+    const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/status`, {
+      cache: 'no-store',
+      headers: deviceHeaders(),
+    });
+    if (!res.ok) return null;
+    return await res.json();
   } catch {
     return null;
   }
@@ -184,11 +265,25 @@ export interface PublicAuctionItem {
  * Returns [] rather than throwing on any failure: the ticker is decorative, and
  * an event with the auction feature switched off answers 404 here. A scoreboard
  * must never fail to render because a marketing strip couldn't load.
+ *
+ * CACHING IS SPLIT BY CALLER, deliberately:
+ *   • server (scores page render) — revalidate, matching the leaderboard. This
+ *     was `no-store`, which meant one uncached API call per page view from the
+ *     web server's single IP, and forced the whole route to render dynamically.
+ *     The ticker is decorative; it does not need per-request freshness.
+ *   • client (ScoresPoller) — `no-store`, because those refetches are triggered
+ *     by a BidPlaced/AuctionExtended signal that has already told us the data
+ *     moved. Serving a cached body there would defeat the signal.
  */
-export async function fetchPublicAuctionItems(eventId: string): Promise<PublicAuctionItem[]> {
+export async function fetchPublicAuctionItems(
+  eventId: string,
+  opts: { fresh?: boolean } = {},
+): Promise<PublicAuctionItem[]> {
   try {
     const res = await fetch(`${BASE}/api/v1/events/${eventId}/auction/items/public`, {
-      cache: 'no-store',
+      ...(opts.fresh
+        ? { cache: 'no-store' as const, headers: deviceHeaders() }
+        : { next: { revalidate: 30 } }),
     });
     if (!res.ok) return [];
     const items: PublicAuctionItem[] = await res.json();
@@ -248,7 +343,7 @@ export interface RegistrationResult {
 async function postJson(url: string, body: unknown): Promise<{ ok: boolean; status: number; data: any }> {
   const res = await fetch(url, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...deviceHeaders() },
     body:    JSON.stringify(body),
     cache:   'no-store',
   });
