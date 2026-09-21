@@ -294,7 +294,11 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
 
   async function handleSubmit() {
     if (!name.trim()) { setError('Sponsor name is required.'); return; }
-    if (!pendingFile && logoUrl.trim() && !/^https?:\/\/.+/.test(logoUrl.trim())) {
+    // An uploaded logo comes back root-relative (/uploads/...), and editing
+    // such a sponsor re-submits that value — so only a pasted URL has to be
+    // absolute.
+    if (!pendingFile && logoUrl.trim() &&
+        !/^https?:\/\/.+/.test(logoUrl.trim()) && !logoUrl.trim().startsWith('/')) {
       setError('Logo URL must start with http:// or https://');
       return;
     }
