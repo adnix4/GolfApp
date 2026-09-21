@@ -47,8 +47,13 @@ public class MobileController : ControllerBase
     /// pre-populate its SQLite database so scoring can proceed fully offline.
     ///
     /// NOT authenticated — golfers do not have user accounts.
-    /// Rate-limited per client IP (the "join" policy) to slow brute-force email
-    /// enumeration. See AddGfpRateLimiting in ServiceCollectionExtensions.
+    ///
+    /// TWO LAYERS OF PROTECTION, deliberately split:
+    ///   • the "join" rate-limit policy is sized for a shotgun start — hundreds
+    ///     of legitimate arrivals a minute from a single venue NAT;
+    ///   • enumeration is held back by JoinAttemptLimiter, which budgets FAILED
+    ///     attempts per IP. A golfer on the roster never spends from it.
+    /// See AddGfpRateLimiting in ServiceCollectionExtensions.
     /// </summary>
     [HttpPost("api/v1/events/{eventCode}/join")]
     [EnableRateLimiting("join")]
@@ -60,7 +65,10 @@ public class MobileController : ControllerBase
         [FromBody]  JoinEventRequest request,
         CancellationToken ct)
     {
-        var response = await _mobileService.JoinAsync(eventCode, request, ct);
+        // Same address derivation the rate limiter uses, so the failure budget
+        // and the request limit agree on who the caller is behind a proxy.
+        var response = await _mobileService.JoinAsync(
+            eventCode, request, ct, Common.RateLimitKeys.IpKey(HttpContext));
         return Ok(response);
     }
 

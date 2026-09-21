@@ -98,7 +98,12 @@ public static class ServiceCollectionExtensions
                 "DATABASE_URL environment variable is not set. " +
                 "Copy .env.example to .env.local and fill in the value."));
 
-        services.AddDbContext<ApplicationDbContext>(options =>
+        // Pooled: the context is created and discarded on every request, and
+        // pooling reuses the instance (and its internal service graph) instead of
+        // rebuilding it each time. Safe here because ApplicationDbContext has the
+        // single DbContextOptions constructor pooling requires and carries no
+        // request-scoped state of its own.
+        services.AddDbContextPool<ApplicationDbContext>(options =>
         {
             options.UseNpgsql(
                 connectionString,
@@ -114,6 +119,27 @@ public static class ServiceCollectionExtensions
                     // in this assembly (not in Npgsql's assembly).
                     // Required when the DbContext is in a different assembly from migrations.
                     npgsql.MigrationsAssembly("GolfFundraiserPro.Api");
+
+                    // Transient-fault retry. On managed Postgres a failover or a
+                    // brief network blip otherwise surfaces to the caller as a
+                    // 500 — on tournament day, that lands on score syncs.
+                    //
+                    // IMPORTANT: this makes EF reject user-initiated transactions
+                    // unless they run inside the execution strategy. Every
+                    // BeginTransactionAsync call site must therefore be wrapped
+                    // in Database.CreateExecutionStrategy().ExecuteAsync(...) —
+                    // see AuctionService.PlaceBidAsync and AuthService.RegisterAsync.
+                    // The InMemory provider used by the unit tests has no retrying
+                    // strategy, so a missed call site only reproduces against real
+                    // Postgres (the e2e harness covers both paths).
+                    npgsql.EnableRetryOnFailure(
+                        maxRetryCount: 3,
+                        maxRetryDelay: TimeSpan.FromSeconds(5),
+                        errorCodesToAdd: null);
+
+                    // Bound a pathological query rather than inheriting the 30s
+                    // default on every command.
+                    npgsql.CommandTimeout(30);
                 }
             );
 
@@ -227,10 +253,15 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Features.RealTime.IRealTimeService, Features.RealTime.RealTimeService>();
         services.AddScoped<Features.RealTime.RealTimeService>();
 
+        // Failed-join budget. Singleton because the in-memory fallback (no Redis)
+        // must be shared across requests to count anything at all.
+        services.AddSingleton<JoinAttemptLimiter>();
+
         // Leaderboard infra — singletons own per-event coalescing state and the
         // Redis read-through cache. See Features/Events/Leaderboard/.
         services.AddSingleton<Features.Events.Leaderboard.LeaderboardCache>();
         services.AddSingleton<Features.Events.Leaderboard.LeaderboardBroadcaster>();
+        services.AddScoped<Features.Events.EventReminderJob>();
         services.AddScoped<Features.Notifications.PushNotificationService>();
         services.AddScoped<Features.EmailBuilder.EmailBuilderService>();
 
@@ -477,21 +508,24 @@ public static class ServiceCollectionExtensions
     // so a single per-IP bucket would throttle a busy tournament (especially
     // when SignalR falls back to HTTP polling). The global limiter is therefore
     // a CHAIN: a high per-IP ceiling (bounds any single source, including an
-    // attacker rotating device headers) plus a per-device fairness bucket keyed
-    // by the mobile scorer's X-GFP-Device header. The security policies below
-    // (auth/join/donate) stay strictly IP-keyed — their key must never be
-    // client-controllable or the brute-force limits could be bypassed.
+    // attacker rotating device headers) plus a fairness bucket keyed by
+    // authenticated identity, then the X-GFP-Device install id, then IP
+    // (RateLimitKeys.FairnessKey). The security policies below (auth/donate/
+    // brandExtract) stay strictly IP-keyed — their key must never be
+    // client-controllable or the brute-force limits could be bypassed. "join"
+    // is also IP-keyed but sized for a venue; its enumeration defence is
+    // JoinAttemptLimiter, which counts failures rather than requests.
     private static IServiceCollection AddGfpRateLimiting(this IServiceCollection services)
     {
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            // Global anti-flood backstop: per-IP ceiling AND per-device bucket.
+            // Global anti-flood backstop: per-IP ceiling AND per-identity/device bucket.
             options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
                 PartitionedRateLimiter.Create<HttpContext, string>(http =>
                     RateLimitPartition.GetSlidingWindowLimiter(
-                        IpKey(http),
+                        RateLimitKeys.IpKey(http),
                         _ => new SlidingWindowRateLimiterOptions
                         {
                             // Sized for a full venue NAT: ~150 devices × ~15 req/min
@@ -503,7 +537,13 @@ public static class ServiceCollectionExtensions
                         })),
                 PartitionedRateLimiter.Create<HttpContext, string>(http =>
                     RateLimitPartition.GetSlidingWindowLimiter(
-                        DeviceOrIpKey(http),
+                        // Identity → device → IP. The identity branch is why an
+                        // organizer's dashboard keeps working while spectator
+                        // browsers saturate the shared venue-IP bucket: staff
+                        // traffic is keyed on a signature-verified token, so it
+                        // never competes with the anonymous pool behind the same
+                        // NAT. Requires UseRateLimiter AFTER UseAuthentication.
+                        RateLimitKeys.FairnessKey(http),
                         _ => new SlidingWindowRateLimiterOptions
                         {
                             PermitLimit       = 600,
@@ -515,7 +555,7 @@ public static class ServiceCollectionExtensions
             // Credentials: login / register / refresh — slow brute force.
             options.AddPolicy("auth", http =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    IpKey(http),
+                    RateLimitKeys.IpKey(http),
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 20,
@@ -523,21 +563,41 @@ public static class ServiceCollectionExtensions
                         QueueLimit  = 0,
                     }));
 
-            // Event join — slows email enumeration without blocking venue arrivals.
+            // Event join — sized for a shotgun start, not for enumeration defence.
+            //
+            // This limit used to be 60/min fixed-window, which a venue cannot
+            // live with: every phone is behind one NAT, and the A3 verification
+            // flow makes a first join TWO calls, so 60/min really meant 30
+            // golfers/min for the whole field. A 144-player shotgun start
+            // measured ~5 minutes of rolling 429s at the first tee, and nothing
+            // client-side retries a 429 on join — the golfer just sees a failure.
+            //
+            // Enumeration is now handled where it can actually be judged:
+            // JoinAttemptLimiter counts *failed* joins (unknown email, wrong
+            // code) per IP and cuts them off after a handful per hour. Limiting
+            // outcomes rather than volume is strictly tighter against a prober
+            // while leaving legitimate arrivals uncapped. The key stays IP-based
+            // — never client-controllable — exactly as the July 2026 review
+            // required.
+            //
+            // Sliding window (6 segments) rather than fixed: a fixed window puts
+            // a cliff at the boundary, so an arrival burst that straddles it gets
+            // rejected outright instead of smoothed.
             options.AddPolicy("join", http =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    IpKey(http),
-                    _ => new FixedWindowRateLimiterOptions
+                RateLimitPartition.GetSlidingWindowLimiter(
+                    RateLimitKeys.IpKey(http),
+                    _ => new SlidingWindowRateLimiterOptions
                     {
-                        PermitLimit = 60,
-                        Window      = TimeSpan.FromMinutes(1),
-                        QueueLimit  = 0,
+                        PermitLimit       = 600,
+                        Window            = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6,
+                        QueueLimit        = 0,
                     }));
 
             // Public donation submit — curbs fake-donation flooding.
             options.AddPolicy("donate", http =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    IpKey(http),
+                    RateLimitKeys.IpKey(http),
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 30,
@@ -549,7 +609,7 @@ public static class ServiceCollectionExtensions
             // probing, cost) on the org-admin branding endpoint.
             options.AddPolicy("brandExtract", http =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    IpKey(http),
+                    RateLimitKeys.IpKey(http),
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 10,
@@ -561,33 +621,8 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    // Partition key for rate limiting: the client's IP. Behind a PaaS load
-    // balancer the socket IP is the proxy, so prefer the platform-set
-    // X-Forwarded-For (leftmost hop = original client). For strict anti-spoofing
-    // behind a proxy, configure ForwardedHeaders with known proxies/networks.
-    // Per-IP partition key. Used for the security policies (auth/join/donate/
-    // brandExtract) — where the key must NOT be client-controllable — and as
-    // the outer ceiling of the chained global limiter.
-    private static string IpKey(HttpContext http)
-    {
-        var forwarded = http.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(forwarded))
-            return forwarded.Split(',')[0].Trim();
-        return http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-    }
-
-    // Fairness key for the global limiter: the mobile scorer sends a stable
-    // install id in X-GFP-Device, so 100+ devices behind one venue NAT IP get
-    // one bucket EACH instead of sharing the IP bucket. The header is client-
-    // controllable, which is only safe because the chained per-IP ceiling
-    // still bounds total traffic from any single source.
-    private static string DeviceOrIpKey(HttpContext http)
-    {
-        var device = http.Request.Headers["X-GFP-Device"].ToString();
-        if (!string.IsNullOrWhiteSpace(device))
-            return "dev:" + (device.Length <= 64 ? device : device[..64]);
-        return "ip:" + IpKey(http);
-    }
+    // Partition keys live in Common/RateLimitKeys.cs — extracted so the rules
+    // (and the trust ordering behind them) are unit-testable.
 
     // ── SWAGGER ───────────────────────────────────────────────────────────────
     private static IServiceCollection AddGfpSwagger(

@@ -10,17 +10,21 @@ public class CreateSponsorRequestValidator : AbstractValidator<CreateSponsorRequ
             .NotEmpty()
             .MaximumLength(200);
 
+        // A logo is optional at create time: the admin's upload path saves the
+        // sponsor first and POSTs the file to .../logo straight after, so the
+        // request that creates it legitimately carries no URL. Only a pasted
+        // URL is checked.
         RuleFor(x => x.LogoUrl)
-            .NotEmpty()
             .MaximumLength(500)
             .Must(u => Uri.TryCreate(u, UriKind.Absolute, out _))
-            .WithMessage("LogoUrl must be a valid absolute URL.");
+            .WithMessage("LogoUrl must be a valid absolute URL.")
+            .When(x => !string.IsNullOrWhiteSpace(x.LogoUrl));
 
         RuleFor(x => x.WebsiteUrl)
             .MaximumLength(500)
             .Must(u => Uri.TryCreate(u, UriKind.Absolute, out _))
             .WithMessage("WebsiteUrl must be a valid absolute URL.")
-            .When(x => x.WebsiteUrl is not null);
+            .When(x => !string.IsNullOrWhiteSpace(x.WebsiteUrl));
 
         RuleFor(x => x.Tagline)
             .MaximumLength(200)

@@ -42,6 +42,12 @@ public class MobileService
     private readonly IConfiguration _config;
     private readonly ILogger<MobileService> _logger;
 
+    /// <summary>
+    /// Failed-join budget (enumeration defence). Optional so the existing test
+    /// constructions keep compiling; when absent, join simply isn't budget-checked.
+    /// </summary>
+    private readonly Common.JoinAttemptLimiter? _joinLimiter;
+
     /// <summary>Wrong-code tries before the pending code is invalidated.</summary>
     private const int MaxVerificationAttempts = 5;
 
@@ -58,13 +64,15 @@ public class MobileService
         IRealTimeService realTime,
         EmailService email,
         IConfiguration config,
-        ILogger<MobileService> logger)
+        ILogger<MobileService> logger,
+        Common.JoinAttemptLimiter? joinLimiter = null)
     {
-        _db       = db;
-        _realTime = realTime;
-        _email    = email;
-        _config   = config;
-        _logger   = logger;
+        _db          = db;
+        _realTime    = realTime;
+        _email       = email;
+        _config      = config;
+        _logger      = logger;
+        _joinLimiter = joinLimiter;
     }
 
     // ── ACTIVE EVENTS LIST ────────────────────────────────────────────────────
@@ -148,23 +156,54 @@ public class MobileService
     /// Looks up the player by email within the event, verifies they have a team,
     /// and returns the full event_cache payload for offline SQLite storage.
     /// </summary>
+    /// <param name="clientIp">
+    /// Caller address, used only for the failed-join budget. Null skips the
+    /// budget entirely (tests, and any non-HTTP caller).
+    /// </param>
     public async Task<JoinEventResponse> JoinAsync(
         string eventCode,
         JoinEventRequest request,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? clientIp = null)
     {
-        // Load the event with everything the mobile app needs
+        // Enumeration defence. The endpoint's own rate limit is sized for a
+        // shotgun start (hundreds of arrivals a minute from one venue NAT), so
+        // the thing that actually stops a prober is this: a budget of FAILED
+        // attempts. A golfer on the roster typing their own email never spends
+        // from it; someone guessing addresses spends on every single try.
+        if (_joinLimiter is not null && clientIp is not null
+            && await _joinLimiter.IsBlockedAsync(clientIp))
+        {
+            _logger.LogWarning(
+                "Join blocked for {Ip}: failed-attempt budget exhausted on event '{Code}'",
+                clientIp, eventCode);
+            throw new ValidationException(
+                "Too many failed attempts from this network. Please try again later.");
+        }
+
+        // Load the event and its two single-valued references ONLY.
+        //
+        // This used to Include Sponsors, Teams→Players and Course→Holes as well.
+        // EF has no split-query configured here, so that was one cartesian join
+        // whose row count was holes × sponsors × players — about 13,000 rows for
+        // a 144-player event, to serve one golfer their own scorecard. It made
+        // join the most expensive read in the API by an order of magnitude
+        // (39 ms p50 against 2–3 ms for the projected public reads).
+        //
+        // Organization and Course are references, not collections, so they
+        // multiply nothing and stay. Everything else is fetched below, scoped to
+        // what this particular golfer actually needs.
         var evt = await _db.Events
             .Include(e => e.Organization)
             .Include(e => e.Course)
-                .ThenInclude(c => c!.Holes.OrderBy(h => h.HoleNumber))
-            .Include(e => e.Sponsors)
-            .Include(e => e.Teams)
-                .ThenInclude(t => t.Players)
             .FirstOrDefaultAsync(e => e.EventCode == eventCode.ToUpperInvariant(), ct);
 
         if (evt is null)
+        {
+            // A wrong event code is a guess too — same budget.
+            await RecordJoinFailureAsync(clientIp);
             throw new NotFoundException($"No event found with code '{eventCode}'.");
+        }
 
         // Draft events are joinable by event code only (test/preview mode).
         // They never appear in the public active-events list, so the code acts as the gate.
@@ -177,10 +216,18 @@ public class MobileService
         // late guest out of bidding entirely. The mobile shell decides what is
         // reachable afterwards: the scorecard closes, the auction stays open.
 
-        // Find the player by email within this event — check team-assigned players first
-        var player = evt.Teams
-            .SelectMany(t => t.Players)
-            .FirstOrDefault(p => p.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase));
+        // Find the player by email within this event — one indexed lookup rather
+        // than materialising every player in the event and scanning in memory.
+        // Matching stays case-insensitive because PlayerService writes the email
+        // as typed (unlike TeamService, which lowercases); the EventId prefix of
+        // IX_players_event_id_email_unique still bounds the scan to this event.
+        var emailLower = request.Email.ToLowerInvariant();
+        var player = await _db.Players
+            .FirstOrDefaultAsync(
+                p => p.EventId == evt.Id
+                  && p.TeamId  != null
+                  && p.Email.ToLower() == emailLower,
+                ct);
 
         // If not found in any team, check the free agent pool (TeamId = null)
         if (player is null)
@@ -188,7 +235,7 @@ public class MobileService
             var freeAgent = await _db.Players
                 .FirstOrDefaultAsync(
                     p => p.EventId == evt.Id
-                      && p.Email   == request.Email.ToLowerInvariant()
+                      && p.Email.ToLower() == emailLower
                       && p.TeamId  == null,
                     ct);
 
@@ -206,7 +253,7 @@ public class MobileService
 
                 // A3: prove email ownership before minting the free agent's token.
                 // Verified devices skip this, so "Check Again" polling stays silent.
-                var freeAgentChallenge = await EnsureEmailVerifiedAsync(evt, freeAgent, request, ct);
+                var freeAgentChallenge = await EnsureEmailVerifiedAsync(evt, freeAgent, request, ct, clientIp);
                 if (freeAgentChallenge is not null)
                     return freeAgentChallenge;
 
@@ -269,11 +316,21 @@ public class MobileService
         }
 
         if (player is null)
+        {
+            // The enumeration oracle itself: this answer tells the caller the
+            // address is NOT on the roster. Charge the budget for it.
+            await RecordJoinFailureAsync(clientIp);
             throw new NotFoundException(
                 $"No registration found for '{request.Email}' in this event. " +
                 "Please contact your event organizer.");
+        }
 
-        var team = evt.Teams.FirstOrDefault(t => t.Id == player.TeamId);
+        // Only THIS golfer's team, with its own players — the other 35 teams in a
+        // shotgun field are not part of anyone's scorecard.
+        var team = await _db.Teams
+            .Include(t => t.Players)
+            .FirstOrDefaultAsync(t => t.Id == player.TeamId && t.EventId == evt.Id, ct);
+
         if (team is null)
             throw new ValidationException(
                 "You are registered but have not yet been assigned to a team. " +
@@ -282,7 +339,7 @@ public class MobileService
         // A3: prove email ownership before minting the session token — the event
         // code is semi-public and the email alone must not be enough to act as
         // this player.
-        var challenge = await EnsureEmailVerifiedAsync(evt, player, request, ct);
+        var challenge = await EnsureEmailVerifiedAsync(evt, player, request, ct, clientIp);
         if (challenge is not null)
             return challenge;
 
@@ -292,8 +349,16 @@ public class MobileService
 
         var sessionToken = await EnsureSessionTokenAsync(player, ct);
 
-        // Build sponsor data — map hole numbers from JSONB placements
-        var sponsors = evt.Sponsors
+        // Build sponsor data — map hole numbers from JSONB placements.
+        // Fetched here as its own narrow read rather than Include()d above, so it
+        // adds rows instead of multiplying them.
+        var sponsorRows = await _db.Sponsors
+            .AsNoTracking()
+            .Where(s => s.EventId == evt.Id)
+            .Select(s => new { s.Id, s.Name, s.LogoUrl, s.WebsiteUrl, s.Tagline, s.Tier, s.PlacementsJson })
+            .ToListAsync(ct);
+
+        var sponsors = sponsorRows
             .Select(s => new SponsorCacheDto
             {
                 Id          = s.Id,
@@ -305,6 +370,15 @@ public class MobileService
                 HoleNumbers = ExtractHoleNumbers(s.PlacementsJson),
             })
             .ToList();
+
+        // Course holes, likewise — ordered here rather than in an Include filter.
+        var courseHoles = evt.CourseId is null
+            ? []
+            : await _db.CourseHoles
+                .AsNoTracking()
+                .Where(h => h.CourseId == evt.CourseId.Value)
+                .OrderBy(h => h.HoleNumber)
+                .ToListAsync(ct);
 
         // Build a hole-number → sponsor lookup for annotating course holes
         var holeSponsorMap = sponsors
@@ -371,7 +445,7 @@ public class MobileService
                 Name  = evt.Course.Name,
                 City  = evt.Course.City,
                 State = evt.Course.State,
-                Holes = evt.Course.Holes.Select(h =>
+                Holes = courseHoles.Select(h =>
                 {
                     holeSponsorMap.TryGetValue(h.HoleNumber, out var sponsor);
                     return new HoleCacheDto
@@ -628,7 +702,8 @@ public class MobileService
     /// expired, or attempt-limited code.
     /// </summary>
     private async Task<JoinEventResponse?> EnsureEmailVerifiedAsync(
-        Event evt, Player player, JoinEventRequest request, CancellationToken ct)
+        Event evt, Player player, JoinEventRequest request, CancellationToken ct,
+        string? clientIp = null)
     {
         // Draft events are the test/preview mode — joinable by code only, seeded
         // with fake emails, never public. Verification would make them unusable.
@@ -679,6 +754,9 @@ public class MobileService
             {
                 player.VerificationAttempts++;
                 await _db.SaveChangesAsync(ct);
+                // Guessing a 6-digit code is the other way to probe this
+                // endpoint, so it draws on the same budget as a bad email.
+                await RecordJoinFailureAsync(clientIp);
                 throw new ValidationException(
                     "That code doesn't match. Check the email we sent and try again.");
             }
@@ -719,6 +797,18 @@ public class MobileService
             player.Email, evt.EventCode);
 
         return new JoinEventResponse { VerificationRequired = true };
+    }
+
+    /// <summary>
+    /// Charges one failure against the caller's join budget. No-op without a
+    /// limiter or an address (tests, non-HTTP callers). Never throws: an
+    /// enumeration counter must not be able to break a legitimate join.
+    /// </summary>
+    private async Task RecordJoinFailureAsync(string? clientIp)
+    {
+        if (_joinLimiter is null || clientIp is null) return;
+        try { await _joinLimiter.RecordFailureAsync(clientIp); }
+        catch (Exception ex) { _logger.LogWarning(ex, "Failed to record join failure for {Ip}", clientIp); }
     }
 
     private async Task MarkEmailVerifiedAsync(Player player, string deviceId, CancellationToken ct)

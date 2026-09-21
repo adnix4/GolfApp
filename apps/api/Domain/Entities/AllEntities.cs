@@ -149,6 +149,14 @@ public class Event
     public DateTime? StartAt { get; set; }
 
     /// <summary>
+    /// When the day-before "set up your scorecard" nudge went out, or null if it
+    /// hasn't. Stamped by EventReminderJob, which is the idempotency marker that
+    /// stops an hourly sweep mailing the same roster over and over.
+    /// </summary>
+    [Column("reminder_sent_at")]
+    public DateTime? ReminderSentAt { get; set; }
+
+    /// <summary>
     /// Flexible JSONB settings bag: allow_walk_ups, max_teams, tee_intervals,
     /// free_agent_enabled, etc.
     /// Stored as JSON string, deserialized in the Events feature service.
