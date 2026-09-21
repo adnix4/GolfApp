@@ -107,7 +107,9 @@ function startService(name, cmd, args, cwd, env = {}) {
   fs.mkdirSync(LOG_DIR, { recursive: true });
   const logPath = path.join(LOG_DIR, `${name}.log`);
   const out = fs.openSync(logPath, 'w');
-  const child = spawn(cmd, args, {
+  // One command string, not (cmd, args): Node 24 flags args + shell:true as
+  // DEP0190. The args here are fixed literals, so nothing needs escaping.
+  const child = spawn([cmd, ...args].join(' '), {
     cwd, env: { ...process.env, ...env }, stdio: ['ignore', out, out], shell: true, detached: false,
   });
   started.push({ name, child, logPath });
