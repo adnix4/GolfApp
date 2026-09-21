@@ -109,8 +109,14 @@ function startService(name, cmd, args, cwd, env = {}) {
   const out = fs.openSync(logPath, 'w');
   // One command string, not (cmd, args): Node 24 flags args + shell:true as
   // DEP0190. The args here are fixed literals, so nothing needs escaping.
+  // On POSIX, detached makes the shell a process-group leader so stopAll can
+  // kill the whole tree (sh → npm → next, sh → dotnet → WebAPI) by group id;
+  // without it kill(-pid) hits no group and the servers outlive the run. On
+  // Windows detached would open a console window, and taskkill /T walks the
+  // tree anyway.
   const child = spawn([cmd, ...args].join(' '), {
-    cwd, env: { ...process.env, ...env }, stdio: ['ignore', out, out], shell: true, detached: false,
+    cwd, env: { ...process.env, ...env }, stdio: ['ignore', out, out], shell: true,
+    detached: process.platform !== 'win32',
   });
   started.push({ name, child, logPath });
   return logPath;
@@ -125,9 +131,21 @@ function stopAll() {
       if (process.platform === 'win32') run(`taskkill /PID ${child.pid} /T /F`, { stdio: 'ignore' });
       else process.kill(-child.pid, 'SIGKILL');
       console.log(`  ${c.dim('stopped ' + name)}`);
-    } catch { /* already gone */ }
+    } catch (e) {
+      // Already gone is fine (ESRCH; taskkill exits 128). Anything else means
+      // a server may still hold its port — say so, don't swallow it.
+      if (e.code !== 'ESRCH' && e.status !== 128) {
+        console.log(`  ${c.dim(`could not stop ${name}: ${e.message.split('\n')[0]}`)}`);
+      }
+    }
   }
   started.length = 0;
+}
+
+// Detached services sit outside the terminal's process group, so Ctrl+C no
+// longer reaches them; stop them here or an interrupted run orphans them.
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.on(sig, () => { if (!KEEP) stopAll(); process.exit(130); });
 }
 
 // ── phases ────────────────────────────────────────────────────────────────────
