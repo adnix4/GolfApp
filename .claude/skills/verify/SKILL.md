@@ -53,3 +53,13 @@ Create a throwaway org per run (same pattern as the seed skill):
   surfaces and reading responses/log output
   (`tasks/*.output` for the background `dotnet run`).
 - Test data: throwaway orgs accumulate in the local DB; fine to leave.
+- `npm run e2e` runs against its OWN database (`golf_fundraiser_e2e`) and Redis
+  db 1, and drops/recreates only that. It no longer runs `docker compose down -v`,
+  so your dev data in `golf_fundraiser` survives a harness run. It did not always:
+  before 2026-09-23 every run dropped the shared volume.
+- Snapshot before anything destructive: `npm run db:backup` writes
+  `backups/golf_fundraiser_<stamp>.dump` (pg_dump -Fc, inside the container).
+  `npm run db:restore -- backups/<file> --yes` puts it back.
+- `.env.local` no longer overrides variables the parent shell already set — real
+  env wins, standard dotenv precedence. So `$env:DATABASE_URL` above now actually
+  takes effect; before 2026-09-23 the file silently replaced it.

@@ -332,6 +332,20 @@ their standing decisions are in the section above.
           not import. Do not "fix" this. Mobile's own copy is separately
           justified: it is a native module and needs autolinking at the app
           package; admin is web-only and does not.
+        THE E2E HARNESS USED TO DESTROY LOCAL DEV DATA (fixed 2026-09-23).
+        `npm run e2e` opened with `docker compose down -v`, dropping the shared
+        Postgres volume on every run. It deleted a real organizer account that
+        day, and nothing could be recovered — no dump existed and Postgres has
+        no undo for a removed volume. The harness now owns golf_fundraiser_e2e
+        and Redis db 1 and recreates only those; `golf_fundraiser` (db 0) is the
+        developer's and is never touched. Two things made that work: a per-run
+        DATABASE_URL, and the Program.cs env fix below. `npm run db:backup` /
+        `db:restore` are the second layer — take a snapshot before anything
+        destructive. Related: .env.local used to OVERWRITE variables the parent
+        process had already set, so the harness's DATABASE_URL was silently
+        discarded; real env now wins (standard dotenv precedence). Anything that
+        launches the API with its own env inherited that bug.
+
         STILL OPEN, all small:
         - PRODUCTION consequence of the SendGrid path above: a revoked or
           over-quota key returns the golfer a 200 with no email ever arriving,

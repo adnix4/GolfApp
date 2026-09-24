@@ -16,6 +16,8 @@
     "audit:prod": "node scripts/audit-prod.js",
     "e2e": "node scripts/e2e-clean.js",
     "e2e:fast": "node scripts/e2e-clean.js --fast",
+    "db:backup": "node scripts/db-backup.js",
+    "db:restore": "node scripts/db-backup.js restore",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
