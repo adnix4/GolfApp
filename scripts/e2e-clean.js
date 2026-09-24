@@ -30,6 +30,15 @@ const os   = require('node:os');
 const ROOT = path.resolve(__dirname, '..');
 const API  = 'http://localhost:5000/api/v1';
 const WEB  = 'http://localhost:3000';
+
+// The harness runs against its OWN database and its own Redis db index, so a
+// run can never destroy local dev data. Changing these names is a decision, not
+// a tidy-up: golf_fundraiser (db 0) is the developer's.
+const PG      = 'gfp-postgres';
+const REDIS   = 'gfp-redis';
+const E2E_DB  = 'golf_fundraiser_e2e';
+const E2E_PG_URL    = `postgres://gfp:gfp_local@localhost:5432/${E2E_DB}`;
+const E2E_REDIS_URL = 'localhost:6379,defaultDatabase=1';  // SE.Redis syntax, not a redis:// path
 const LOG_DIR = path.join(os.tmpdir(), 'gfp-e2e');
 
 const ARGS = process.argv.slice(2);
@@ -153,11 +162,19 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
 async function phaseClean() {
   phase('Clean slate');
   try {
-    // Fresh database: -v drops the volume, so migrations run from zero and no
-    // leftover test event can make a broken query look like it works.
-    run('docker compose -f infra/docker-compose.yml down -v', { stdio: 'ignore' });
+    // The harness owns golf_fundraiser_e2e and nothing else. Dropping and
+    // recreating THAT gives the same guarantee `down -v` used to — migrations
+    // run from zero, so no leftover test event can make a broken query look
+    // like it works — without touching the developer's own database. It used
+    // to drop the whole volume, which on 2026-09-23 deleted a real account.
     run('docker compose -f infra/docker-compose.yml up -d');
-    pass('docker infra recreated');
+    await waitFor('postgres', () => { run(`docker exec ${PG} pg_isready -U gfp`, { stdio: 'ignore' }); return true; }, 90_000);
+    run(`docker exec ${PG} psql -U gfp -d postgres -v ON_ERROR_STOP=1 ` +
+        `-c "DROP DATABASE IF EXISTS ${E2E_DB} WITH (FORCE)" ` +
+        `-c "CREATE DATABASE ${E2E_DB} OWNER gfp"`, { stdio: 'ignore' });
+    // Redis db 1 is the harness's; FLUSHDB there never touches dev's db 0.
+    run(`docker exec ${REDIS} redis-cli -n 1 FLUSHDB`, { stdio: 'ignore' });
+    pass('docker infra up, e2e database recreated');
   } catch (e) { fail('docker infra', e.stdout || e.message); }
 
   if (FAST) { console.log(`  ${c.dim('skipping reinstall (--fast)')}`); return; }
@@ -216,7 +233,8 @@ function summarise(name, out) {
 async function phaseBoot() {
   phase('Boot services');
   startService('api', 'dotnet', ['run', '--no-build', '--project', 'apps/api/WebAPI.csproj'], ROOT, {
-    DATABASE_URL: 'postgres://gfp:gfp_local@localhost:5432/golf_fundraiser',
+    DATABASE_URL: E2E_PG_URL,
+    REDIS_URL:    E2E_REDIS_URL,
     ASPNETCORE_ENVIRONMENT: 'Development',
   });
   await waitFor('API', async () => (await http(`${API}/pub/events/ZZZZZZZZ`)).status === 404, 240_000);

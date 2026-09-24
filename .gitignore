@@ -130,3 +130,7 @@ apps/api/wwwroot/uploads/
 # ── CLAUDE CODE RUNTIME ──────────────────────────────────────────────────────
 # Scheduler lock file written by the Claude Code harness — ephemeral, machine-local
 .claude/scheduled_tasks.lock
+
+# Local database snapshots (npm run db:backup). Contain real emails and
+# password hashes — never commit these.
+backups/

@@ -67,8 +67,14 @@ if (string.Equals(aspnetEnv, "Development", StringComparison.OrdinalIgnoreCase))
         {
             if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#')) continue;
             var parts = line.Split('=', 2);
-            if (parts.Length == 2)
-                Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim());
+            if (parts.Length != 2) continue;
+            var key = parts[0].Trim();
+            // A real environment variable WINS over the file — standard dotenv
+            // precedence. This used to overwrite, so a caller that launched the
+            // API with its own DATABASE_URL (the e2e harness does, to reach its
+            // own database) silently got .env.local's value instead.
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key))) continue;
+            Environment.SetEnvironmentVariable(key, parts[1].Trim());
         }
     }
 }
