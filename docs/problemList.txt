@@ -12,7 +12,10 @@ P0 — BREAKS A LIVE EVENT, SMALL FIX, DO FIRST
      [x] D14  pledges now summed 2026-08-01
      [x] D16  fee UI hidden on free events 2026-08-01
      [x] U1   strokes sum + Hole Complete / Edit Score 2026-08-01
-     This tier is now clear.
+     U8   non-scramble admin score entry is unverified — carved out of U1
+          2026-09-23, where a [x] entry hid it. Scores can be silently wrong
+          on Stroke and BestBall. Entry below.
+     Otherwise this tier is clear.
 
 P1 — PILOT PATH (external lead times first; D1 gates D3 and D10)
      D1   accounts / domain / Apple / Stripe / email — start now, rest waits
@@ -131,6 +134,17 @@ their standing decisions are in the section above.
         reports success — setting them (a D1 decision) is the last step, and the
         image is deployable by hand meanwhile. Note only EXPO_TOKEN is
         configured today; TURBO_TOKEN/TURBO_TEAM are optional cache credentials.
+        BLOCKER ADDED 2026-09-23 — NOTHING RUNS MIGRATIONS ON DEPLOY. PR #75
+        landed two migrations (apps/api/Data/Migrations/20260920000000_Perf1_
+        AuctionItemsClosesAtIndex and ..._Perf2_EventReminderSentAt) and
+        deploy-api.yml still has no migration step of any kind. The only path
+        that applies them is the startup guard at Program.cs:126, which runs
+        only when GFP_MIGRATE_ON_STARTUP=true. Deploy main without that set and
+        the schema has no events.reminder_sent_at, while EF selects every mapped
+        column for a tracked Event — so every endpoint that loads an Event
+        fails, /join included. Decide before first deploy: set the startup flag,
+        or add a migration step to the workflow. This is a standing rule now,
+        not a one-off: any future migration inherits it.
 
 [ ] D4. DRESS REHEARSAL on staging (the pilot succeeds or fails here)
         - /seed-demo-event full lifecycle against staging.
@@ -325,13 +339,14 @@ their standing decisions are in the section above.
           Error level — confirm D6's error monitoring actually alerts on
           EmailService failures before the pilot. This is the first step of the
           golfer funnel and D1 already calls the email path CRITICAL.
-        - Expo 57 wants typescript ~6.0.3; root, apps/web, apps/mobile and
-          apps/admin all pin ^5.4.5 (5.9.3 installed). A major bump across four
-          workspaces — its own change with a full typecheck, not a drive-by.
-          (STILL OPEN after the SDK 57 upgrade, and deliberately so: it is the
-          one remaining expo-doctor failure, 20/21. Left visible rather than
-          silenced via expo.install.exclude. Note npm's `latest` for typescript
-          is 7.0.2 — Expo wants 6.0.3, so these are different targets.)
+        - [x] TYPESCRIPT PIN — CLOSED 2026-09-23. Was: Expo 57 wants
+          typescript ~6.0.3 while all four workspaces pinned ^5.4.5. Done in
+          d138de0 (2026-09-19) as part of the major-version sweep that also took
+          Node 24, eslint 10, vitest 5, zod 4 and zustand 5. Every package.json
+          now pins ^6.0.3 and 6.0.3 is installed; type-check is green in CI and
+          in the clean-build e2e. NOT re-checked: whether expo-doctor is now
+          21/21 — that was the stated reason to leave the pin visible, so
+          confirm it before assuming this closed the last check.
 
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done.
@@ -347,7 +362,7 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         fundraising) still untested; defer.
 
   [x] U1. STROKES NOW SUM INTO THE TEAM SCORE, PLUS HOLE COMPLETE / EDIT SCORE (2026-08-01) — new scores.completed_at; the admin transcribes paper cards, so completion had to be its own persisted state.
-        STILL OPEN: the per-golfer count means "shots of yours the team used", which sums to the team score in a SCRAMBLE by construction. Stroke and BestBall have each golfer playing their own ball, where the team gross is the relevant individual score, NOT a sum. Nobody has exercised admin entry on those formats — check before running a non-scramble event.
+        STILL OPEN → CARVED OUT AS U8 (2026-09-23), because a `[x]` entry hid it: the per-golfer count means "shots of yours the team used", which sums to the team score in a SCRAMBLE by construction. Stroke and BestBall have each golfer playing their own ball, where the team gross is the relevant individual score, NOT a sum. Nobody has exercised admin entry on those formats — check before running a non-scramble event. U8 is in P0; the detail lives there now.
 
   [x] U2 + U3. ONE COMBINED SPONSOR/AUCTION TICKER (2026-08-01) — sponsors lead, on both the normal web scorecard and the ?tv=1 board, riding the existing leaderboard socket rather than a second one. NOT exercised: a real projector, and reduced-motion rendering (both belong in D4).
 
@@ -458,10 +473,15 @@ Captured while filling API test-coverage holes. Mark [x] when done.
             appearances. Tune SECONDS_PER_CELL, or split sponsors and lots into
             two tracks, if an organizer complains.
 
-        (f) LOT THUMBNAILS ARE THE FULL-SIZE UPLOAD, SCALED BY CSS. The ticker
-            shows the organizer's original photo at 64x44 (TV) — no server-side
-            thumbnail. A board left running all night re-downloads them on every
-            reload. Worth a resize at upload if photos get large.
+        (f) LOT THUMBNAILS ARE SCALED BY CSS. The ticker shows the organizer's
+            photo at 64x44 (TV) — no server-side thumbnail. A board left running
+            all night re-downloads them on every reload.
+            PARTLY OVERTAKEN 2026-09-23: "full-size upload" no longer holds.
+            AuctionService now runs lot images through Common/Images/
+            ImageNormalizer, which caps the long edge at MaxDimension = 2048 and
+            rasterises SVG at 1024. So the worst case is bounded, but a 2048px
+            photo is still ~30x the pixels the ticker shows. The thumbnail half
+            of this stands.
 
         (g) TV CONTRAST IS PROVEN FOR THE PALETTE, NOT FOR THE SEMANTIC COLORS.
             The board tint backs off until near-white body text clears 7:1, and
@@ -514,3 +534,24 @@ Captured while filling API test-coverage holes. Mark [x] when done.
             The branch tests pin the copy, but they are client-side only — the
             lockstep comment at the head of auctionRules.ts names the server
             file to change with it.
+
+  [ ] U8. (OPEN, carved out of U1 2026-09-23) NON-SCRAMBLE ADMIN SCORE ENTRY IS
+        UNVERIFIED. Not new — this was U1's STILL OPEN note, and sitting under a
+        [x] entry it read as finished for seven weeks. Promoted to P0 because it
+        reports wrong scores on the day with nothing to notice: no error, no
+        empty screen, just numbers that are quietly the wrong sum.
+        THE CLAIM. Per-golfer strokes sum into the team score. That is right for
+        a SCRAMBLE by construction — the count means "shots of yours the team
+        used". Stroke and BestBall have each golfer playing their own ball,
+        where the team gross is the relevant individual score, NOT a sum.
+        NARROWER THAN THE U1 NOTE SUGGESTS (checked 2026-09-23). The server
+        leaderboard is already format-aware: Features/Events/Leaderboard/
+        LeaderboardCalculator.cs and LeaderboardLoader.cs both branch on format.
+        So the suspect layer is the ADMIN ENTRY path, not the leaderboard.
+        Establish which layer actually sums before writing any fix — the note
+        was written from the entry screen's behaviour, not from a trace.
+        HOW TO EXERCISE IT. Create a Stroke event and a BestBall event, enter
+        per-golfer strokes in admin, and compare the team total against the
+        leaderboard. Do not assume an existing demo event covers it —
+        .claude/skills/seed-demo-event never names a format, so whichever one
+        the seeding run happened to pick is what got exercised.
