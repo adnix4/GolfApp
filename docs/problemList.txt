@@ -12,9 +12,11 @@ P0 — BREAKS A LIVE EVENT, SMALL FIX, DO FIRST
      [x] D14  pledges now summed 2026-08-01
      [x] D16  fee UI hidden on free events 2026-08-01
      [x] U1   strokes sum + Hole Complete / Edit Score 2026-08-01
-     U8   non-scramble admin score entry is unverified — carved out of U1
-          2026-09-23, where a [x] entry hid it. Scores can be silently wrong
-          on Stroke and BestBall. Entry below.
+     U8   non-scramble score entry is wrong — carved out of U1 2026-09-23,
+          where a [x] entry hid it. Scores are silently wrong on Stroke and
+          BestBall, in BOTH clients. Traced and confirmed 2026-09-23; three
+          options written up in the entry, and it now waits on one decision:
+          is a Stroke event a team aggregate or individual golfers?
      Otherwise this tier is clear.
 
 P1 — PILOT PATH (external lead times first; D1 gates D3 and D10)
@@ -569,3 +571,39 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         leaderboard. Do not assume an existing demo event covers it —
         .claude/skills/seed-demo-event never names a format, so whichever one
         the seeding run happened to pick is what got exercised.
+
+        TRACED 2026-09-23 — CONFIRMED, AND WIDER THAN "ADMIN ONLY".
+        - apps/admin/src/lib/scoring.ts:40 resolveGrossScore sums the per-golfer
+          shots with NO format check; the screen calls it on every +/- tap
+          (events/[id]/scoring.tsx:115).
+        - apps/mobile/app/(scoring)/scorecard.tsx:330 does the same, summing
+          drive+approach+putt across all golfers. BOTH clients hard-code
+          scramble semantics — fixing admin alone leaves the phones wrong.
+        - The intended rule is already written down: Score.GrossScore
+          (Domain/Entities/AllEntities.cs:591) says "in scramble this is the
+          team's collective score; in stroke/best_ball, the relevant individual
+          score". The entity documents behaviour no client implements.
+        - The wrong number is produced AT ENTRY and persisted, so every reader
+          downstream inherits it. The leaderboard is innocent.
+        THE CONSTRAINT THAT SHAPES THE FIX. scores is keyed per TEAM per hole;
+        per-golfer numbers live only in the player_shots JSONB blob. The schema
+        cannot represent four individual scorecards today, so "just score it
+        properly" is a migration, not a patch.
+        RECOMMENDATION (decision needed — it changes the numbers an organizer
+        reads off the board, so it is not mine to settle):
+        (1) PREFERRED — keep the team row, make the math format-aware in the one
+            shared helper plus the mobile equivalent. BestBall takes the LOWEST
+            golfer's strokes on the hole; Stroke sums them as an aggregate team
+            total. No migration, and it delivers what AllEntities.cs:591 already
+            promises. Caveat: a Stroke event still shows TEAM standings, not
+            individual ones.
+        (2) STOPGAP if (1)'s Stroke reading is wrong for how these events are
+            actually run — disable the per-golfer +/- on non-scramble formats
+            and require the hole's gross to be typed directly. Cannot compute a
+            wrong number; adds no individual scoring either.
+        (3) FULL — per-player score rows and individual leaderboards. Migration,
+            both clients, new leaderboard paths. Phase-sized.
+        THE QUESTION THAT PICKS BETWEEN THEM: is a Stroke event here a TEAM
+        aggregate, or individual golfers who merely register as a team? If
+        individual, (1) is wrong for Stroke and (2) is the honest stopgap until
+        (3). BestBall is unambiguous either way — lowest ball counts.
