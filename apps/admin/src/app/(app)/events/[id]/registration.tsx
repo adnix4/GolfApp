@@ -4,8 +4,9 @@ import {
   StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useEventDetail } from '@/lib/eventContext';
 import { useTheme } from '@gfp/ui';
-import { teamsApi, playersApi, eventsApi, type Team, type Player } from '@/lib/api';
+import { teamsApi, playersApi, type Team, type Player } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
 import { confirmAction } from '@/lib/confirmAction';
 import {
@@ -25,11 +26,14 @@ export default function RegistrationScreen() {
 
   const [teams,   setTeams]   = useState<Team[]>([]);
   const [guests,  setGuests]  = useState<Player[]>([]);
-  const [eventStatus, setEventStatus] = useState<string | null>(null);
+  const { event } = useEventDetail();
+  const eventStatus = event.status;
   // A free event has no fee state worth showing (D16) — without this the screen
   // offers "Mark All Paid", which records a 0 that every reader treats as
   // unpaid, so the button never resolves.
-  const [entryFeeCents, setEntryFeeCents] = useState<number | null>(null);
+  // Fee lives in the raw event config — EventDetail has no typed field.
+  const fee = event.config?.entryFeeCents;
+  const entryFeeCents = typeof fee === 'number' ? fee : null;
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
   const [filter,  setFilter]  = useState<Filter>('all');
@@ -46,18 +50,13 @@ export default function RegistrationScreen() {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [teamList, players, evt] = await Promise.all([
+      const [teamList, players] = await Promise.all([
         teamsApi.list(id),
         playersApi.list(id),
-        eventsApi.get(id),
       ]);
       setTeams(teamList);
       // Guests are the team-less attendees — they never appear on a roster.
       setGuests(players.filter(p => p.registrationType === 'Attendee'));
-      setEventStatus(evt.status);
-      // Fee lives in the raw event config — EventDetail has no typed field.
-      const fee = evt.config?.entryFeeCents;
-      setEntryFeeCents(typeof fee === 'number' ? fee : null);
     }
     catch (e: any) { setError(e.message ?? 'Failed to load teams.'); }
     finally { setLoading(false); }

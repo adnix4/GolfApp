@@ -166,8 +166,10 @@ export default function OrgSettingsScreen() {
     try {
       await orgApi.updateMe({
         name:             name.trim(),
-        logoUrl:          logoUrl.trim() || null,
-        missionStatement: mission.trim() || null,
+        // The API reads null as "leave unchanged" and '' as "clear", so a
+        // blanked field must send '' to take effect.
+        logoUrl:          logoUrl.trim(),
+        missionStatement: mission.trim(),
         is501c3,
         themeJson:        JSON.stringify(colors),
       });

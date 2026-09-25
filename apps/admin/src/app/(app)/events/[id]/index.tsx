@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView, Modal, TextInput,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useEventDetail } from '@/lib/eventContext';
 import { useTheme, StatusPill, MoneyInput } from '@gfp/ui';
 import {
   FORMAT_OPTIONS, FORMAT_LABELS,
@@ -46,12 +46,12 @@ function entryFeeLabel(cents: number | null): string {
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function EventOverviewScreen() {
-  const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
   const { isMobile, pagePadding } = useResponsive();
 
-  const [event,    setEvent]    = useState<EventDetail | null>(null);
-  const [loading,  setLoading]  = useState(true);
+  // The layout loads the event; changes go back through setEvent/refresh so
+  // the layout's theme, tab label and test-mode bar update with them.
+  const { event, setEvent, refresh } = useEventDetail();
   const [error,    setError]    = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [showCourse, setShowCourse] = useState(false);
@@ -62,17 +62,7 @@ export default function EventOverviewScreen() {
   const [checkingTeams, setCheckingTeams] = useState(false);
   const [checkingScores, setCheckingScores] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true); setError(null);
-    try { setEvent(await eventsApi.get(id)); }
-    catch (e: any) { setError(e.message ?? 'Failed to load event.'); }
-    finally { setLoading(false); }
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
-
   async function handleStatusChange(newStatus: string) {
-    if (!event) return;
 
     // If moving to Registration and test data exists → warn first
     if (newStatus === 'Registration' && (event.testDataSummary?.totalCount ?? 0) > 0) {
@@ -104,7 +94,6 @@ export default function EventOverviewScreen() {
   }
 
   async function doStatusChange(newStatus: string) {
-    if (!event) return;
     setUpdating(true); setError(null);
     try { setEvent(await eventsApi.update(event.id, { status: newStatus })); }
     catch (e: any) { setError(e.message ?? 'Failed to update status.'); }
@@ -116,7 +105,7 @@ export default function EventOverviewScreen() {
   // on this screen (only event-wide counts), so fetch both lazily here — and
   // only when the organizer actually reaches for the button.
   async function handleMarkComplete() {
-    if (!event || checkingScores) return;
+    if (checkingScores) return;
     setCheckingScores(true); setError(null);
     let copy;
     try {
@@ -144,7 +133,7 @@ export default function EventOverviewScreen() {
   // screen (only counts), so fetch it lazily here — one request, and only when
   // the organizer actually reaches for the override.
   async function handleOpenScoringAnyway() {
-    if (!event || checkingTeams) return;
+    if (checkingTeams) return;
     setCheckingTeams(true); setError(null);
     try {
       const teams   = await teamsApi.list(event.id);
@@ -161,34 +150,20 @@ export default function EventOverviewScreen() {
   }
 
   async function handleSeedTestData() {
-    if (!event) return;
     setSeeding(true); setError(null);
     try {
       await testDataApi.seed(event.id);
-      setEvent(await eventsApi.get(event.id));
+      await refresh();
     } catch (e: any) { setError(e.message ?? 'Failed to seed test data.'); }
     finally { setSeeding(false); }
   }
 
   async function handleConfirmTestWarning() {
-    if (!event || !pendingStatus) return;
+    if (!pendingStatus) return;
     setShowTestWarning(false);
     await doStatusChange(pendingStatus);
     setPendingStatus(null);
   }
-
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
-
-  if (error && !event) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Pressable onPress={load}><Text style={{ color: theme.colors.action, marginTop: 8 }}>Retry</Text></Pressable>
-      </View>
-    );
-  }
-
-  if (!event) return null;
 
   const isDraft = event.status === 'Draft';
 

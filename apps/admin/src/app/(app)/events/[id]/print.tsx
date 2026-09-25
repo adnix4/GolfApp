@@ -3,6 +3,7 @@ import {
   View, Text, Pressable, StyleSheet, ActivityIndicator, Platform,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useEventDetail } from '@/lib/eventContext';
 import { useTheme } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT } from '@gfp/theme';
 import {
@@ -15,6 +16,7 @@ type PrintMode = 'scorecards' | 'leaderboard' | 'sponsors' | 'teetime';
 
 export default function PrintKitScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
+  const { event } = useEventDetail();
   const theme    = useTheme();
 
   const [loading,  setLoading]  = useState<PrintMode | null>(null);
@@ -33,42 +35,41 @@ export default function PrintKitScreen() {
   const printScorecards = useCallback(async () => {
     setLoading('scorecards'); setError(null);
     try {
-      const [event, teams] = await Promise.all([eventsApi.get(id), teamsApi.list(id)]);
+      const teams = await teamsApi.list(id);
       openWindow(buildScorecardHtml(event, teams));
     } catch (e: any) { setError(e.message ?? 'Failed to generate scorecards.'); }
     finally { setLoading(null); }
-  }, [id]);
+  }, [id, event]);
 
   const printLeaderboard = useCallback(async () => {
     setLoading('leaderboard'); setError(null);
     try {
-      const [event, entries, golfers] = await Promise.all([
-        eventsApi.get(id),
+      const [entries, golfers] = await Promise.all([
         eventsApi.getLeaderboard(id),
         eventsApi.getIndividualLeaderboard(id).catch(() => [] as IndividualLeaderboardEntry[]),
       ]);
       openWindow(buildLeaderboardHtml(event, entries, golfers));
     } catch (e: any) { setError(e.message ?? 'Failed to generate leaderboard.'); }
     finally { setLoading(null); }
-  }, [id]);
+  }, [id, event]);
 
   const printSponsors = useCallback(async () => {
     setLoading('sponsors'); setError(null);
     try {
-      const [event, sponsors] = await Promise.all([eventsApi.get(id), sponsorsApi.list(id)]);
+      const sponsors = await sponsorsApi.list(id);
       openWindow(buildSponsorHtml(event, sponsors));
     } catch (e: any) { setError(e.message ?? 'Failed to generate sponsor sheet.'); }
     finally { setLoading(null); }
-  }, [id]);
+  }, [id, event]);
 
   const printTeeTime = useCallback(async () => {
     setLoading('teetime'); setError(null);
     try {
-      const [event, teams] = await Promise.all([eventsApi.get(id), teamsApi.list(id)]);
+      const teams = await teamsApi.list(id);
       openWindow(buildTeeTimeHtml(event, teams));
     } catch (e: any) { setError(e.message ?? 'Failed to generate tee time schedule.'); }
     finally { setLoading(null); }
-  }, [id]);
+  }, [id, event]);
 
   const isWeb = Platform.OS === 'web';
 

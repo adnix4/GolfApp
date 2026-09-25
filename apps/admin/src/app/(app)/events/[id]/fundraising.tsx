@@ -3,9 +3,10 @@ import {
   View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useEventDetail } from '@/lib/eventContext';
 import { useTheme } from '@gfp/ui';
 import { formatCents } from '@gfp/shared-types';
-import { eventsApi, testDataApi, auctionApi, type FundraisingTotals, type EventDetail, type FailedCharge } from '@/lib/api';
+import { eventsApi, testDataApi, auctionApi, type FundraisingTotals, type FailedCharge } from '@/lib/api';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 
 const formatCurrency = formatCents;
@@ -15,7 +16,7 @@ export default function FundraisingScreen() {
   const theme    = useTheme();
 
   const [totals,        setTotals]        = useState<FundraisingTotals | null>(null);
-  const [event,         setEvent]         = useState<EventDetail | null>(null);
+  const { event, refresh } = useEventDetail();
   const [failedCharges, setFailedCharges] = useState<FailedCharge[]>([]);
   const [loading,       setLoading]       = useState(true);
   const [error,         setError]         = useState<string | null>(null);
@@ -29,13 +30,14 @@ export default function FundraisingScreen() {
     else setRefreshing(true);
     setError(null);
     try {
-      const [t, e, fc] = await Promise.all([
+      // The event comes from the layout; after a change (silent reload) re-pull
+      // it too, so the test-mode bar and counts update.
+      const [t, fc] = await Promise.all([
         eventsApi.getFundraising(id),
-        eventsApi.get(id),
         auctionApi.getFailedCharges(id).catch(() => [] as FailedCharge[]),
+        silent ? refresh() : null,
       ]);
       setTotals(t);
-      setEvent(e);
       setFailedCharges(fc);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load fundraising data.');
@@ -43,7 +45,7 @@ export default function FundraisingScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [id]);
+  }, [id, refresh]);
 
   async function recharge(winnerId: string) {
     setChargeWorking(winnerId);
