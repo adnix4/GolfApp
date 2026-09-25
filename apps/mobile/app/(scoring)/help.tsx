@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
+import { LeaveEventButton } from '@/components/LeaveEventButton';
 
 // ── Content ───────────────────────────────────────────────────────────────────
 
@@ -220,6 +221,8 @@ export default function HelpScreen() {
             ))}
           </View>
         </Section>
+
+        <LeaveEventButton />
       </View>
     </ScrollView>
   );

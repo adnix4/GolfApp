@@ -3,7 +3,8 @@ import React, {
   useEffect, useMemo, useState, type ReactNode,
 } from 'react';
 import type { JoinEventResponse, PendingScore, BatchSyncResponse, SponsorCacheDto } from './api';
-import { batchSync, fetchTeamScores, fetchEventStatus, fetchPublicSponsors } from './api';
+import { batchSync, fetchTeamScores, fetchEventStatus, fetchPublicSponsors, EventNotFoundError } from './api';
+import { router } from 'expo-router';
 import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsyncedScores, upsertPendingScore, markScoresSynced, markHoleComplete, loadCompletedHoleNumbers, loadSyncedHoleNumbers, clearPendingScores, mergeServerScores, getDeviceId } from './store';
 import { attemptSync } from './backgroundSync';
 import { useNetworkTier, POLL_INTERVAL_MS, type NetworkTier } from './useNetworkTier';
@@ -27,6 +28,9 @@ interface SessionContextValue {
   updateEventStatus:  (status?: string, themeJson?: string | null) => void;
   updateSponsors:     (sponsors: SponsorCacheDto[]) => Promise<void>;
   updatePlayer:       (patch: { isCheckedIn: boolean; hasPaymentMethod: boolean }) => Promise<void>;
+  /** Why the saved event was dropped (it no longer exists); shown once on Join. */
+  endedNotice:        string | null;
+  dismissEndedNotice: () => void;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -39,6 +43,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [completedHoles,  setCompletedHoles]  = useState<Set<number>>(new Set());
   const [syncedHoles,     setSyncedHoles]     = useState<Set<number>>(new Set());
   const [syncStatus,      setSyncStatus]      = useState<'idle' | 'syncing' | 'error' | 'synced'>('idle');
+  const [endedNotice,     setEndedNotice]     = useState<string | null>(null);
   const networkTier = useNetworkTier();
 
   // Last SponsorsVersion the foreground poll has seen. Seeded (no refetch) on
@@ -147,7 +152,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             await updateSponsors(fresh);
           }
         }
-      } catch { /* ignore — retry next tick */ }
+      } catch (e) {
+        // The server has no such event (e.g. an e2e run dropped its database):
+        // drop the saved session instead of reopening a ghost every launch.
+        // Anything else (offline, 5xx) is transient — retry next tick.
+        if (e instanceof EventNotFoundError && !cancelled) await forgetMissingEvent();
+      }
     };
     poll();
     const id = setInterval(poll, POLL_INTERVAL_MS[networkTier]);
@@ -164,6 +174,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const setSession = useCallback(async (data: JoinEventResponse) => {
     lastSponsorsVersion.current = null;   // new event → re-seed on next poll
+    setEndedNotice(null);
     try {
       await saveSession(data);
       const scores = data.team
@@ -179,6 +190,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setSyncStatus('idle');
     }
   }, []);
+
+  // The saved event no longer exists on the server. Forget the session but keep
+  // any unsynced scores: they're filed by event/team, so if the 404 came from a
+  // misconfigured server rather than a deleted event, rejoining brings them back.
+  const forgetMissingEvent = useCallback(async () => {
+    lastSponsorsVersion.current = null;
+    try { await clearSession(); } catch { /* still reset in-memory state */ }
+    setSessionState(null);
+    setPendingScores([]);
+    setCompletedHoles(new Set());
+    setSyncedHoles(new Set());
+    setSyncStatus('idle');
+    setEndedNotice('The event saved on this device is no longer available. Join an event to continue.');
+    router.replace('/join');
+  }, []);
+
+  const dismissEndedNotice = useCallback(() => setEndedNotice(null), []);
 
   const clear = useCallback(async () => {
     lastSponsorsVersion.current = null;
@@ -330,9 +358,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SessionContextValue>(() => ({
     session, deviceId, loading, pendingScores, completedHoles, syncedHoles, syncStatus, networkTier,
     setSession, clearSession: clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors, updatePlayer,
+    endedNotice, dismissEndedNotice,
   }), [
     session, deviceId, loading, pendingScores, completedHoles, syncedHoles, syncStatus, networkTier,
     setSession, clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors, updatePlayer,
+    endedNotice, dismissEndedNotice,
   ]);
 
   return (

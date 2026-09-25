@@ -6,6 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
+import { confirmLeaveEvent, unsyncedHoleCount } from '@/lib/confirmLeave';
 import {
   fetchPublicChallenges,
   type SyncConflictDto,
@@ -139,7 +140,7 @@ const conflictStyles = StyleSheet.create({
 export default function SyncScreen() {
   const theme  = useTheme();
   const router = useRouter();
-  const { session, loading, pendingScores, syncStatus, syncScores, clearSession } = useSession();
+  const { session, loading, pendingScores, syncStatus, syncScores, clearSession, completedHoles, syncedHoles } = useSession();
 
   const [syncing,           setSyncing]           = useState(false);
   const [conflicts,         setConflicts]         = useState<SyncConflictDto[]>([]);
@@ -226,9 +227,11 @@ export default function SyncScreen() {
     }
   }
 
-  async function handleLeave() {
-    await clearSession();
-    router.replace('/join');
+  function handleLeave() {
+    confirmLeaveEvent(async () => {
+      await clearSession();
+      router.replace('/join');
+    }, unsyncedHoleCount(completedHoles, syncedHoles));
   }
 
   return (

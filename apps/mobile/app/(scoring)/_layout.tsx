@@ -4,6 +4,7 @@ import { Tabs, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ErrorFallback, useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
+import { confirmLeaveEvent, unsyncedHoleCount } from '@/lib/confirmLeave';
 import { fetchEventStatus } from '@/lib/api';
 
 
@@ -26,7 +27,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 export default function ScoringLayout() {
   const theme  = useTheme();
   const router = useRouter();
-  const { session, networkTier, updateEventStatus, clearSession } = useSession();
+  const { session, networkTier, updateEventStatus, clearSession, completedHoles, syncedHoles } = useSession();
 
   const [liveStatus, setLiveStatus] = useState(session?.event.status ?? '');
   const [liveTheme,  setLiveTheme]  = useState<string | null>(session?.event.themeJson ?? null);
@@ -105,9 +106,13 @@ export default function ScoringLayout() {
     }
   }
 
-  async function handleLeave() {
-    await clearSession();
-    router.replace('/join');
+  // Every way out of the event asks first (a stray tap mid-round would drop
+  // the golfer's event and any unsynced scores).
+  function handleLeave() {
+    confirmLeaveEvent(async () => {
+      await clearSession();
+      router.replace('/join');
+    }, unsyncedHoleCount(completedHoles, syncedHoles));
   }
 
   // ── Waiting screen (shown until dismissed or scoring opens) ──────────────────
@@ -216,7 +221,7 @@ export default function ScoringLayout() {
         <View style={styles.testBanner}>
           <Text style={styles.bannerText}>Test Mode — scores will not appear on the live leaderboard</Text>
           <Pressable
-            onPress={async () => { await clearSession(); router.replace('/join'); }}
+            onPress={handleLeave}
             style={styles.testBannerLeave}
             accessibilityLabel="Leave test event"
             accessibilityRole="button"
