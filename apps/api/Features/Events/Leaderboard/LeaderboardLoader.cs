@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Data;
+using GolfFundraiserPro.Api.Domain.Enums;
+using GolfFundraiserPro.Api.Features.Scores;
 
 namespace GolfFundraiserPro.Api.Features.Events.Leaderboard;
 
@@ -17,8 +19,8 @@ public static class LeaderboardLoader
         Guid OrgId,
         string Name,
         string EventCode,
-        Domain.Enums.EventFormat Format,
-        Domain.Enums.EventStatus Status,
+        EventFormat Format,
+        EventStatus Status,
         short Holes,
         Guid? CourseId,
         string? LogoUrl,
@@ -52,11 +54,24 @@ public static class LeaderboardLoader
 
     /// <summary>
     /// Loads scoring inputs and computes ranked standings. Three queries
-    /// total — no joins. Honours the IsConflicted filter so conflicted
+    /// total (a fourth, players, for Stroke Play) — no joins. Honours the IsConflicted filter so conflicted
     /// scores don't pollute live standings, and the CompletedAt filter so
     /// half-entered ones don't either.
     /// </summary>
     public static async Task<List<LeaderboardCalculator.StandingEntry>> LoadStandingsAsync(
+        ApplicationDbContext db, EventMeta meta, CancellationToken ct)
+        => (await LoadAsync(db, meta, ct)).Standings;
+
+    /// <summary>
+    /// Team standings, plus the individual board when the format is Stroke
+    /// Play (U8 — Rule 3.3 scores golfers, not teams). Individuals is null for
+    /// every other format.
+    /// </summary>
+    public sealed record Leaderboard(
+        List<LeaderboardCalculator.StandingEntry>    Standings,
+        List<LeaderboardCalculator.IndividualEntry>? Individuals);
+
+    public static async Task<Leaderboard> LoadAsync(
         ApplicationDbContext db, EventMeta meta, CancellationToken ct)
     {
         var teamAnon = await db.Teams
@@ -77,7 +92,7 @@ public static class LeaderboardLoader
         var scoreAnon = await db.Scores
             .AsNoTracking()
             .Where(s => s.EventId == meta.Id && !s.IsConflicted && s.CompletedAt != null)
-            .Select(s => new { s.TeamId, s.HoleNumber, s.GrossScore })
+            .Select(s => new { s.TeamId, s.HoleNumber, s.GrossScore, s.PlayerShotsJson })
             .ToListAsync(ct);
 
         var pars = new List<LeaderboardCalculator.ParRow>();
@@ -96,10 +111,31 @@ public static class LeaderboardLoader
         var teams  = teamAnon
             .Select(t => new LeaderboardCalculator.TeamRow(t.Id, t.Name, t.StartingHole, t.TeeTime))
             .ToList();
+        // The per-golfer breakdown is what the non-scramble formats score (U8).
         var scores = scoreAnon
-            .Select(s => new LeaderboardCalculator.ScoreRow(s.TeamId, s.HoleNumber, s.GrossScore))
+            .Select(s => new LeaderboardCalculator.ScoreRow(
+                s.TeamId, s.HoleNumber, s.GrossScore,
+                FormatScoring.ParseShots(s.PlayerShotsJson)))
             .ToList();
 
-        return LeaderboardCalculator.Compute(teams, scores, pars, meta.Holes, meta.Format);
+        var standings = LeaderboardCalculator.Compute(teams, scores, pars, meta.Holes, meta.Format);
+        if (meta.Format != EventFormat.Stroke)
+            return new Leaderboard(standings, null);
+
+        var teamNames = teamAnon.ToDictionary(t => t.Id, t => t.Name);
+        var playerAnon = await db.Players
+            .AsNoTracking()
+            .Where(p => p.EventId == meta.Id && p.TeamId != null)
+            .Select(p => new { p.Id, p.FirstName, p.LastName, TeamId = p.TeamId!.Value })
+            .ToListAsync(ct);
+        var players = playerAnon
+            .Where(p => teamNames.ContainsKey(p.TeamId))
+            .Select(p => new LeaderboardCalculator.PlayerRow(
+                p.Id, $"{p.FirstName} {p.LastName}".Trim(), p.TeamId, teamNames[p.TeamId]))
+            .ToList();
+
+        return new Leaderboard(
+            standings,
+            LeaderboardCalculator.ComputeIndividuals(players, scores, pars, meta.Holes));
     }
 }

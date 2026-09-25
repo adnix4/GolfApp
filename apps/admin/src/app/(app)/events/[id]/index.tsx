@@ -586,6 +586,9 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
 
   const [name,      setName]      = useState(event.name);
   const [format,    setFormat]    = useState(event.format);
+  // Scores are counted under the format they were entered in (U8); the API
+  // rejects a switch once any exist, so don't offer one.
+  const formatLocked = event.counts.holesScored > 0;
   const [startType, setStartType] = useState(event.startType);
   const [holes,     setHoles]     = useState(event.holes);
   const [startDate, setStartDate] = useState(parsed.date);
@@ -664,11 +667,22 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Format</Text>
             <View style={styles.pillRow}>
               {FORMAT_OPTIONS.map(f => (
-                <Pressable key={f} style={[styles.pill, format === f && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]} onPress={() => setFormat(f)}>
+                <Pressable
+                  key={f}
+                  style={[styles.pill, format === f && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }, formatLocked && format !== f && { opacity: 0.4 }]}
+                  onPress={() => setFormat(f)}
+                  disabled={formatLocked}
+                  accessibilityState={{ disabled: formatLocked, selected: format === f }}
+                >
                   <Text style={[styles.pillText, format === f && { color: '#fff' }]}>{FORMAT_LABELS[f]}</Text>
                 </Pressable>
               ))}
             </View>
+            {formatLocked && (
+              <Text style={[styles.fieldHint, { color: theme.mutedText }]}>
+                Scores have been entered, and they were counted under this format — it can't be changed now.
+              </Text>
+            )}
 
             <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Start Type</Text>
             <View style={styles.pillRow}>

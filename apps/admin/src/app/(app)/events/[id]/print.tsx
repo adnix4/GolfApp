@@ -7,7 +7,7 @@ import { useTheme } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT } from '@gfp/theme';
 import {
   eventsApi, teamsApi, sponsorsApi,
-  type EventDetail, type Team, type LeaderboardEntry, type Sponsor,
+  type EventDetail, type Team, type LeaderboardEntry, type IndividualLeaderboardEntry, type Sponsor,
 } from '@/lib/api';
 
 type PrintMode = 'scorecards' | 'leaderboard' | 'sponsors' | 'teetime';
@@ -41,8 +41,12 @@ export default function PrintKitScreen() {
   const printLeaderboard = useCallback(async () => {
     setLoading('leaderboard'); setError(null);
     try {
-      const [event, entries] = await Promise.all([eventsApi.get(id), eventsApi.getLeaderboard(id)]);
-      openWindow(buildLeaderboardHtml(event, entries));
+      const [event, entries, golfers] = await Promise.all([
+        eventsApi.get(id),
+        eventsApi.getLeaderboard(id),
+        eventsApi.getIndividualLeaderboard(id).catch(() => [] as IndividualLeaderboardEntry[]),
+      ]);
+      openWindow(buildLeaderboardHtml(event, entries, golfers));
     } catch (e: any) { setError(e.message ?? 'Failed to generate leaderboard.'); }
     finally { setLoading(null); }
   }, [id]);
@@ -235,18 +239,62 @@ function buildScorecardHtml(event: EventDetail, teams: Team[]): string {
   </body></html>`;
 }
 
-function buildLeaderboardHtml(event: EventDetail, entries: LeaderboardEntry[]): string {
+/** Names are organizer/golfer-typed text going into document.write HTML. */
+function esc(text: string): string {
+  return text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+}
+
+function fmtToPar(toPar: number): string {
+  return toPar === 0 ? 'E' : toPar > 0 ? `+${toPar}` : `${toPar}`;
+}
+
+function toParColor(toPar: number): string {
+  return toPar < 0 ? '#27ae60' : toPar > 0 ? '#e74c3c' : '#111';
+}
+
+/** Stroke Play is scored per golfer (Rule 3.3, U8) — its board leads the printout. */
+function buildGolferTableHtml(golfers: IndividualLeaderboardEntry[]): string {
+  const rows = golfers.map(g => `<tr>
+      <td style="font-weight:700;text-align:center">${g.rank || '—'}</td>
+      <td style="font-weight:700">${esc(g.playerName)}</td>
+      <td>${esc(g.teamName)}</td>
+      <td style="text-align:right; font-weight:900; font-size:16px; color:${toParColor(g.toPar)}">${g.holesComplete === 0 ? '—' : fmtToPar(g.toPar)}</td>
+      <td style="text-align:right">${g.holesComplete === 0 || g.strokesBack === 0 ? '—' : g.strokesBack}</td>
+      <td style="text-align:right">${g.holesComplete === 0 ? '—' : g.grossTotal}</td>
+      <td style="text-align:right">${g.holesComplete === 0 ? '—' : g.isComplete ? 'F' : g.holesComplete}</td>
+    </tr>`).join('');
+  return `<h2 style="margin-top:16px">Golfers</h2>
+      <table>
+        <thead><tr>
+          <th style="width:48px;text-align:center">#</th>
+          <th>Golfer</th>
+          <th>Team</th>
+          <th style="text-align:right">To Par</th>
+          <th style="text-align:right">Back</th>
+          <th style="text-align:right">Gross</th>
+          <th style="text-align:right">Thru</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <h2 style="margin-top:24px">Teams</h2>`;
+}
+
+function buildLeaderboardHtml(
+  event: EventDetail, entries: LeaderboardEntry[], golfers: IndividualLeaderboardEntry[],
+): string {
   const { primary, action } = parseEventColors(event);
+  const isStableford = event.format === 'Stableford';
   const rows = entries.map((e, _i) => {
-    const toPar = e.toPar === 0 ? 'E' : e.toPar > 0 ? `+${e.toPar}` : `${e.toPar}`;
-    const color = e.toPar < 0 ? '#27ae60' : e.toPar > 0 ? '#e74c3c' : '#111';
+    // Stableford ranks on points (per golfer, summed — U8), not to-par.
+    const score = isStableford ? `${e.stablefordPoints}` : fmtToPar(e.toPar);
+    const color = isStableford ? '#111' : toParColor(e.toPar);
     const back  = e.holesComplete === 0 || e.strokesBack === 0 ? '—' : `${e.strokesBack}`;
     const best  = e.bestHole == null ? '—' : `${e.bestHole}`;
     const bestScore = e.bestHoleScore == null ? '—' : `${e.bestHoleScore}`;
     return `<tr>
       <td style="font-weight:700;text-align:center">${e.rank}</td>
-      <td style="font-weight:700">${e.teamName}</td>
-      <td style="text-align:right; font-weight:900; font-size:16px; color:${color}">${toPar}</td>
+      <td style="font-weight:700">${esc(e.teamName)}</td>
+      <td style="text-align:right; font-weight:900; font-size:16px; color:${color}">${score}</td>
       <td style="text-align:right">${back}</td>
       <td style="text-align:right">${best}</td>
       <td style="text-align:right">${bestScore}</td>
@@ -270,11 +318,12 @@ function buildLeaderboardHtml(event: EventDetail, entries: LeaderboardEntry[]): 
       <h1>${event.name}</h1>
       <h2>${fmt(event.format)}${dateStr ? ' &nbsp;·&nbsp; ' + dateStr : ''}</h2>
       <p style="font-size:12px; color:#888; margin-top:4px">Printed ${new Date().toLocaleString()}</p>
+      ${event.format === 'Stroke' && golfers.length > 0 ? buildGolferTableHtml(golfers) : ''}
       <table>
         <thead><tr>
           <th style="width:48px;text-align:center">#</th>
           <th>Team</th>
-          <th style="text-align:right">To Par</th>
+          <th style="text-align:right">${isStableford ? 'Points' : 'To Par'}</th>
           <th style="text-align:right">Back</th>
           <th style="text-align:right">Best Hole</th>
           <th style="text-align:right">Best Score</th>

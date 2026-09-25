@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLiveLeaderboard } from '@gfp/shared-types';
 import type {
-  PublicAuctionItem, PublicEventData, PublicLeaderboard, PublicLeaderboardEntry,
+  PublicAuctionItem, PublicEventData, PublicIndividualEntry, PublicLeaderboard, PublicLeaderboardEntry,
 } from '@/lib/api';
 import {
   deviceHeaders, fetchPublicAuctionItems, fetchPublicEventFresh, fetchPublicEventStatus,
@@ -11,7 +11,7 @@ import {
 import {
   buildThemeCss, buildTvThemeCss, cssKeyframes, hio, nm, tv,
 } from './scoresPollerStyles';
-import { ScoresRow } from './ScoresRow';
+import { ScoresRow, GolferScoresRow } from './ScoresRow';
 import EventTicker from './EventTicker';
 import UpdatedAgo from './UpdatedAgo';
 
@@ -27,7 +27,9 @@ const AUCTION_FALLBACK_POLL_MS = 60_000;
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
-async function fetchStandings(eventCode: string): Promise<PublicLeaderboardEntry[] | null> {
+async function fetchStandings(eventCode: string): Promise<{
+  standings: PublicLeaderboardEntry[]; individuals: PublicIndividualEntry[] | null;
+} | null> {
   try {
     const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/leaderboard`, {
       cache: 'no-store',
@@ -35,7 +37,7 @@ async function fetchStandings(eventCode: string): Promise<PublicLeaderboardEntry
     });
     if (!res.ok) return null;
     const data: PublicLeaderboard = await res.json();
-    return data.standings;
+    return { standings: data.standings, individuals: data.individuals ?? null };
   } catch {
     return null;
   }
@@ -104,12 +106,13 @@ export default function ScoresPoller({
 
   const {
     standings: liveStandings,
+    individuals: liveIndividuals,
     connected,
     error: fetchError,
     lastUpdated,
     hioAlert,
     dismissHioAlert,
-  } = useLiveLeaderboard<PublicLeaderboardEntry>({
+  } = useLiveLeaderboard<PublicLeaderboardEntry, PublicIndividualEntry>({
     baseUrl:          BASE,
     eventCode,
     initialStandings: initialLeaderboard?.standings ?? null,
@@ -158,7 +161,11 @@ export default function ScoresPoller({
   const leaderboard: PublicLeaderboard | null = liveStandings === null
     ? initialLeaderboard
     : initialLeaderboard
-      ? { ...initialLeaderboard, standings: liveStandings }
+      ? {
+          ...initialLeaderboard,
+          standings:   liveStandings,
+          individuals: liveIndividuals ?? initialLeaderboard.individuals,
+        }
       : null;
 
   // Auto-dismiss the HIO banner after 30s. Mobile dismisses after 5s in its
@@ -201,6 +208,11 @@ export default function ScoresPoller({
   const isLive      = ['active', 'scoring'].includes(event.status);
   const isCompleted = event.status === 'completed';
   const standings   = leaderboard?.standings ?? [];
+  // Stroke Play is individual (Rule 3.3, U8): the golfers ARE the board.
+  // Stableford ranks on points, scored per golfer and summed.
+  const format      = leaderboard?.format ?? event.format;
+  const golfers     = format === 'Stroke' ? leaderboard?.individuals ?? null : null;
+  const stableford  = format === 'Stableford';
   const eventUrl    = `/e/${event.orgSlug}/${eventCode}`;
 
   const st = tvMode ? tv : nm;
@@ -275,6 +287,27 @@ export default function ScoresPoller({
               <p style={st.emptyIcon}>🏆</p>
               <p style={st.emptyText}>No scores submitted yet.</p>
             </div>
+          ) : golfers ? (
+            <div ref={tableRef} style={st.tableWrap}>
+              <table style={st.table}>
+                <thead>
+                  <tr>
+                    <th style={{ ...st.th, width: 48, textAlign: 'center' }}>#</th>
+                    <th style={{ ...st.th, textAlign: 'left' }}>Golfer</th>
+                    <th style={{ ...st.th, textAlign: 'left' }}>Team</th>
+                    <th style={{ ...st.th, width: 90, textAlign: 'right' }}>To Par</th>
+                    <th style={{ ...st.th, width: 70, textAlign: 'right' }}>Back</th>
+                    <th style={{ ...st.th, width: 80, textAlign: 'right' }}>Gross</th>
+                    <th style={{ ...st.th, width: 70, textAlign: 'right' }}>Thru</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {golfers.map((entry, i) => (
+                    <GolferScoresRow key={entry.playerId} entry={entry} index={i} tvMode={tvMode} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <div ref={tableRef} style={st.tableWrap}>
               <table style={st.table}>
@@ -282,7 +315,7 @@ export default function ScoresPoller({
                   <tr>
                     <th style={{ ...st.th, width: 48, textAlign: 'center' }}>#</th>
                     <th style={{ ...st.th, textAlign: 'left' }}>Team</th>
-                    <th style={{ ...st.th, width: 90, textAlign: 'right' }}>To Par</th>
+                    <th style={{ ...st.th, width: 90, textAlign: 'right' }}>{stableford ? 'Points' : 'To Par'}</th>
                     <th style={{ ...st.th, width: 70, textAlign: 'right' }}>Back</th>
                     <th style={{ ...st.th, width: 70, textAlign: 'right' }}>Best Hole</th>
                     <th style={{ ...st.th, width: 70, textAlign: 'right' }}>Best Score</th>
@@ -292,7 +325,7 @@ export default function ScoresPoller({
                 </thead>
                 <tbody>
                   {standings.map((entry, i) => (
-                    <ScoresRow key={entry.teamId} entry={entry} index={i} tvMode={tvMode} />
+                    <ScoresRow key={entry.teamId} entry={entry} index={i} tvMode={tvMode} stableford={stableford} />
                   ))}
                 </tbody>
               </table>

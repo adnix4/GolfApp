@@ -8,7 +8,7 @@ import { useLiveLeaderboard, type HoleInOneAlert as HoleInOneData } from '@gfp/s
 import { formatRelativeAge, resolveLeaderboardState, type LeaderboardState } from '@/lib/leaderboardState';
 import { useSession } from '@/lib/session';
 import { fetchLeaderboard } from '@/lib/api';
-import type { PublicLeaderboardEntry } from '@/lib/api';
+import type { PublicLeaderboardEntry, PublicIndividualEntry } from '@/lib/api';
 
 // Spec §3 Phase 3: SignalR is primary; 15 s HTTP fallback only when the hub
 // connection is down. Spec §2.4: offline-mode events disable live leaderboard
@@ -21,13 +21,19 @@ const BASE             = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:50
 // Pulls theme from context so identity is stable across parent re-renders.
 // Memo cuts re-renders to only rows whose entry actually changed.
 
-const StandingRow = memo(function StandingRow({ entry }: { entry: PublicLeaderboardEntry }) {
+const StandingRow = memo(function StandingRow({
+  entry, stableford,
+}: { entry: PublicLeaderboardEntry; stableford: boolean }) {
   const theme = useTheme();
+  // Stableford ranks on points (per golfer, summed — U8), so that's the
+  // headline number; everything else ranks on to-par.
   const toParLabel =
+    stableford        ? `${entry.stablefordPoints}` :
     entry.toPar === 0 ? 'E' :
     entry.toPar > 0   ? `+${entry.toPar}` :
                         `${entry.toPar}`;
   const toParColor =
+    stableford      ? theme.colors.primary :
     entry.toPar < 0 ? '#27ae60' :
     entry.toPar > 0 ? '#e74c3c' :
                       theme.colors.primary;
@@ -49,6 +55,37 @@ const StandingRow = memo(function StandingRow({ entry }: { entry: PublicLeaderbo
   );
 });
 
+// Stroke Play is individual (Rule 3.3, U8) — one row per golfer.
+const GolferRow = memo(function GolferRow({ entry }: { entry: PublicIndividualEntry }) {
+  const theme = useTheme();
+  const scored = entry.holesComplete > 0;
+  const toParLabel =
+    !scored           ? '—' :
+    entry.toPar === 0 ? 'E' :
+    entry.toPar > 0   ? `+${entry.toPar}` :
+                        `${entry.toPar}`;
+  const toParColor =
+    entry.toPar < 0 ? '#27ae60' :
+    entry.toPar > 0 ? '#e74c3c' :
+                      theme.colors.primary;
+  const back = !scored || entry.strokesBack === 0 ? '—' : `${entry.strokesBack}`;
+  const thru = !scored ? '—' : entry.isComplete ? 'F' : `${entry.holesComplete}`;
+
+  return (
+    <View style={[rowStyles.row, { borderBottomColor: '#f0f0f0' }]}>
+      <Text style={[rowStyles.rank, { color: theme.mutedText }]}>{entry.rank || '—'}</Text>
+      <View style={rowStyles.team}>
+        <Text style={[rowStyles.golfer, { color: theme.colors.primary }]} numberOfLines={1}>{entry.playerName}</Text>
+        <Text style={[rowStyles.golferTeam, { color: theme.mutedText }]} numberOfLines={1}>{entry.teamName}</Text>
+      </View>
+      <Text style={[rowStyles.toPar, { color: toParColor }]} numberOfLines={1}>{toParLabel}</Text>
+      <Text style={[rowStyles.back,  { color: theme.colors.primary }]}>{back}</Text>
+      <Text style={[rowStyles.num,   { color: theme.colors.primary }]}>{scored ? entry.grossTotal : '—'}</Text>
+      <Text style={[rowStyles.thru,  { color: theme.mutedText }]}>{thru}</Text>
+    </View>
+  );
+});
+
 const rowStyles = StyleSheet.create({
   row:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   rank:  { width: 32,  fontSize: 13, fontWeight: '700', textAlign: 'center' },
@@ -57,20 +94,28 @@ const rowStyles = StyleSheet.create({
   back:  { width: 40,  fontSize: 13, textAlign: 'right', marginLeft: 8 },
   num:   { width: 44,  fontSize: 13, textAlign: 'right', marginLeft: 8 },
   thru:  { width: 36,  fontSize: 13, textAlign: 'right', marginLeft: 8 },
+  golfer:     { fontSize: 14, fontWeight: '600' },
+  golferTeam: { fontSize: 12 },
 });
 
 // ── HEADER ROW ────────────────────────────────────────────────────────────────
 
-function TableHeader() {
+function TableHeader({ stableford = false, golfers = false }: { stableford?: boolean; golfers?: boolean }) {
   const theme = useTheme();
   return (
     <View style={[rowStyles.row, { backgroundColor: theme.colors.highlight }]}>
       <Text style={[rowStyles.rank,  headerStyles.th, { color: theme.colors.primary }]}>#</Text>
-      <Text style={[rowStyles.team,  headerStyles.th, { color: theme.colors.primary }]}>Team</Text>
-      <Text style={[rowStyles.toPar, headerStyles.th, { color: theme.colors.primary }]}>To Par</Text>
+      <Text style={[rowStyles.team,  headerStyles.th, { color: theme.colors.primary }]}>{golfers ? 'Golfer' : 'Team'}</Text>
+      <Text style={[rowStyles.toPar, headerStyles.th, { color: theme.colors.primary }]}>{stableford ? 'Pts' : 'To Par'}</Text>
       <Text style={[rowStyles.back,  headerStyles.th, { color: theme.colors.primary }]}>Back</Text>
-      <Text style={[rowStyles.num,   headerStyles.th, { color: theme.colors.primary }]}>Best</Text>
-      <Text style={[rowStyles.num,   headerStyles.th, { color: theme.colors.primary }]}>Score</Text>
+      {golfers ? (
+        <Text style={[rowStyles.num, headerStyles.th, { color: theme.colors.primary }]}>Gross</Text>
+      ) : (
+        <>
+          <Text style={[rowStyles.num, headerStyles.th, { color: theme.colors.primary }]}>Best</Text>
+          <Text style={[rowStyles.num, headerStyles.th, { color: theme.colors.primary }]}>Score</Text>
+        </>
+      )}
       <Text style={[rowStyles.thru,  headerStyles.th, { color: theme.colors.primary }]}>Thru</Text>
     </View>
   );
@@ -225,11 +270,15 @@ export default function LeaderboardScreen() {
   const theme       = useTheme();
   const { session } = useSession();
   const offlineMode = session?.event.offlineMode ?? false;
+  const format      = session?.event.format ?? 'Scramble';
+  const isStroke    = format === 'Stroke';
+  // Stroke Play is scored per golfer (Rule 3.3, U8), so that board leads.
+  const [boardView, setBoardView] = useState<'golfers' | 'teams'>('golfers');
 
   const {
-    standings, loading, connected, error, lastUpdated,
+    standings, individuals, loading, connected, error, lastUpdated,
     hioAlert, dismissHioAlert, refresh,
-  } = useLiveLeaderboard<PublicLeaderboardEntry>({
+  } = useLiveLeaderboard<PublicLeaderboardEntry, PublicIndividualEntry>({
     baseUrl:        BASE,
     eventCode:      session?.event.eventCode,
     disabled:       offlineMode,
@@ -239,7 +288,7 @@ export default function LeaderboardScreen() {
       // hook flags an error state without surfacing the exception.
       try {
         const result = await fetchLeaderboard(code);
-        return result.standings;
+        return { standings: result.standings, individuals: result.individuals ?? null };
       } catch {
         return null;
       }
@@ -278,17 +327,59 @@ export default function LeaderboardScreen() {
             {EMPTY_COPY[view].sub}
           </Text>
         </View>
+      ) : isStroke && boardView === 'golfers' && individuals ? (
+        <>
+          <BoardToggle value={boardView} onChange={setBoardView} />
+          <FlatList
+            data={individuals}
+            keyExtractor={item => item.playerId}
+            ListHeaderComponent={<TableHeader golfers />}
+            renderItem={({ item }) => <GolferRow entry={item} />}
+            contentContainerStyle={styles.list}
+            stickyHeaderIndices={[0]}
+          />
+        </>
       ) : (
-        <FlatList
-          data={standings}
-          keyExtractor={item => item.teamId}
-          ListHeaderComponent={<TableHeader />}
-          renderItem={({ item }) => <StandingRow entry={item} />}
-          contentContainerStyle={styles.list}
-          stickyHeaderIndices={[0]}
-        />
+        <>
+          {isStroke && individuals && <BoardToggle value={boardView} onChange={setBoardView} />}
+          <FlatList
+            data={standings}
+            keyExtractor={item => item.teamId}
+            ListHeaderComponent={<TableHeader stableford={format === 'Stableford'} />}
+            renderItem={({ item }) => <StandingRow entry={item} stableford={format === 'Stableford'} />}
+            contentContainerStyle={styles.list}
+            stickyHeaderIndices={[0]}
+          />
+        </>
       )}
     </SafeAreaView>
+  );
+}
+
+function BoardToggle({
+  value, onChange,
+}: { value: 'golfers' | 'teams'; onChange: (v: 'golfers' | 'teams') => void }) {
+  const theme = useTheme();
+  return (
+    <View style={styles.toggleRow} accessibilityRole="tablist">
+      {(['golfers', 'teams'] as const).map(v => (
+        <Pressable
+          key={v}
+          onPress={() => onChange(v)}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: value === v }}
+          style={[
+            styles.toggleTab,
+            { borderColor: theme.colors.primary },
+            value === v && { backgroundColor: theme.colors.primary },
+          ]}
+        >
+          <Text style={[styles.toggleText, { color: value === v ? theme.buttonLabel : theme.colors.primary }]}>
+            {v === 'golfers' ? 'Golfers' : 'Teams'}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
   );
 }
 
@@ -309,4 +400,8 @@ const styles = StyleSheet.create({
   emptyIcon:  { fontSize: 48 },
   emptyTitle: { fontSize: 20, fontWeight: '800' },
   emptySub:   { fontSize: 14, marginTop: 4, textAlign: 'center', paddingHorizontal: 32 },
+
+  toggleRow:  { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
+  toggleTab:  { borderWidth: 1.5, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6 },
+  toggleText: { fontSize: 13, fontWeight: '700' },
 });

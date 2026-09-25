@@ -1,3 +1,4 @@
+using GolfFundraiserPro.Api.Features.Scores;
 using System.ComponentModel.DataAnnotations;
 
 namespace GolfFundraiserPro.Api.Features.Mobile;
@@ -67,17 +68,26 @@ public record PendingScoreInput
     [Required, Range(1, 18)]
     public short HoleNumber { get; init; }
 
-    [Required, Range(1, 20)]
+    [Required, Range(1, FormatScoring.MaxTeamHoleGross)]
     public short GrossScore { get; init; }
 
-    [Range(0, 10)]
+    [Range(0, FormatScoring.MaxTeamHolePutts)]
     public short? Putts { get; init; }
 
     /// <summary>
-    /// Per-player shot breakdown: { "player-uuid": drivesUsed }.
+    /// Per-player shot breakdown: { "player-uuid": strokes }.
     /// Stored in scores.player_shots JSONB. Null if not tracked.
     /// </summary>
     public string? PlayerShotsJson { get; init; }
+
+    /// <summary>
+    /// The same breakdown as an object — what the mobile app actually sends
+    /// (apps/mobile/src/lib/api.ts syncScores: <c>playerShots: { id: n }</c>).
+    /// Until U8 nothing bound it, so every phone's breakdown was dropped on the
+    /// floor; the server needs it to score non-scramble formats. Used when
+    /// <see cref="PlayerShotsJson"/> is absent.
+    /// </summary>
+    public Dictionary<string, int>? PlayerShots { get; init; }
 
     /// <summary>Unix ms timestamp when the score was first written to SQLite on-device.</summary>
     public long? ClientTimestampMs { get; init; }

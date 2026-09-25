@@ -439,4 +439,92 @@ public class ScoreServiceIntegrationTests
         await Assert.ThrowsAsync<GolfFundraiserPro.Api.Common.Middleware.ValidationException>(
             () => svc.SetHoleCompleteAsync(orgId, eventId, teamId, 19, complete: true));
     }
+
+    // ── U8: the event's format decides the stored team score ──────────────────
+
+    private static async Task SetFormatAsync(
+        GolfFundraiserPro.Api.Data.ApplicationDbContext db, Guid eventId, EventFormat format)
+    {
+        (await db.Events.FindAsync(eventId))!.Format = format;
+        await db.SaveChangesAsync();
+    }
+
+    private static string Shots(params (Guid Player, int Strokes)[] shots)
+        => System.Text.Json.JsonSerializer.Serialize(shots.ToDictionary(s => s.Player.ToString(), s => s.Strokes));
+
+    [Fact]
+    public async Task SubmitAsync_stores_the_lowest_ball_on_a_best_ball_event()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId, teamId) = await SeedAsync(db);
+        await SetFormatAsync(db, eventId, EventFormat.BestBall);
+
+        // The client sends its own (scramble-style) sum; the server recomputes.
+        var result = await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest
+        {
+            TeamId = teamId, HoleNumber = 1, GrossScore = 20, DeviceId = "dev-A",
+            PlayerShotsJson = Shots((Guid.NewGuid(), 4), (Guid.NewGuid(), 5), (Guid.NewGuid(), 5), (Guid.NewGuid(), 6)),
+        });
+
+        Assert.Equal(4, result.GrossScore);
+    }
+
+    [Fact]
+    public async Task SubmitAsync_still_sums_the_shots_used_on_a_scramble()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId, teamId) = await SeedAsync(db);
+
+        var result = await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest
+        {
+            TeamId = teamId, HoleNumber = 1, GrossScore = 1, DeviceId = "dev-A",
+            PlayerShotsJson = Shots((Guid.NewGuid(), 2), (Guid.NewGuid(), 1), (Guid.NewGuid(), 1)),
+        });
+
+        Assert.Equal(4, result.GrossScore);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_recomputes_from_a_corrected_breakdown()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId, teamId) = await SeedAsync(db);
+        await SetFormatAsync(db, eventId, EventFormat.BestBall);
+        var ann = Guid.NewGuid();
+        var bo  = Guid.NewGuid();
+
+        await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest
+        {
+            TeamId = teamId, HoleNumber = 1, GrossScore = 5, DeviceId = "dev-A",
+            PlayerShotsJson = Shots((ann, 5), (bo, 6)),
+        });
+        var scoreId = db.Scores.Single(s => s.TeamId == teamId && s.HoleNumber == 1).Id;
+
+        var updated = await svc.UpdateAsync(orgId, eventId, scoreId, new UpdateScoreRequest
+        {
+            PlayerShotsJson = Shots((ann, 5), (bo, 3)),
+        });
+
+        Assert.Equal(3, updated.GrossScore);
+    }
+
+    [Fact]
+    public async Task Scorecard_scores_stableford_per_golfer_and_pars_the_aggregate()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId, teamId) = await SeedAsync(db);
+        await SetFormatAsync(db, eventId, EventFormat.Stableford);
+
+        await svc.SubmitAsync(orgId, eventId, new SubmitScoreRequest
+        {
+            TeamId = teamId, HoleNumber = 1, GrossScore = 9, DeviceId = "dev-A",
+            PlayerShotsJson = Shots((Guid.NewGuid(), 4), (Guid.NewGuid(), 5)),   // par 4 default
+        });
+
+        var card = await svc.GetScorecardAsync(orgId, eventId, teamId);
+
+        Assert.Equal(3, card.StablefordPoints);   // 2 + 1
+        Assert.Equal(1, card.ToPar);              // 9 against 8, not against 4
+        Assert.Equal("Stableford", card.Format);
+    }
 }

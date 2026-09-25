@@ -705,4 +705,57 @@ public class EventServiceTests
         Assert.All(c.Db.Teams.Where(t => t.EventId == c.EventId),
                    t => Assert.Null(t.StartingHole));
     }
+
+    // ── U8: the format is locked once scores exist ──────────────────────────────
+
+    private static void AddScoreRow(Ctx c)
+    {
+        c.Db.Scores.Add(new Score
+        {
+            Id = Guid.NewGuid(), EventId = c.EventId,
+            TeamId = c.Db.Teams.Single(t => t.EventId == c.EventId).Id,
+            HoleNumber = 1, GrossScore = 4, DeviceId = "d", SubmittedAt = DateTime.UtcNow,
+        });
+        c.Db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task Format_can_change_before_any_score_is_entered()
+    {
+        var c = Build(EventStatus.Registration);
+
+        await c.Svc.UpdateAsync(c.OrgId, c.EventId,
+            new UpdateEventRequest { Format = EventFormat.BestBall });
+
+        Assert.Equal(EventFormat.BestBall, c.Db.Events.Single(e => e.Id == c.EventId).Format);
+    }
+
+    [Fact]
+    public async Task Format_change_is_rejected_once_scores_exist()
+    {
+        // Stored rows were computed under the old format rules; switching
+        // underneath them would mix a Scramble sum with a Best Ball minimum.
+        var c = Build(EventStatus.Active);
+        SeedCourseAndTeams(c, "Alpha");
+        AddScoreRow(c);
+
+        await Assert.ThrowsAsync<ValidationException>(() => c.Svc.UpdateAsync(c.OrgId, c.EventId,
+            new UpdateEventRequest { Format = EventFormat.Stableford }));
+        Assert.Equal(EventFormat.Scramble, c.Db.Events.Single(e => e.Id == c.EventId).Format);
+    }
+
+    [Fact]
+    public async Task Resending_the_same_format_with_scores_is_not_a_change()
+    {
+        // The admin edit form always sends the format; saving the name must
+        // not trip the lock.
+        var c = Build(EventStatus.Active);
+        SeedCourseAndTeams(c, "Alpha");
+        AddScoreRow(c);
+
+        await c.Svc.UpdateAsync(c.OrgId, c.EventId,
+            new UpdateEventRequest { Name = "Renamed Gala", Format = EventFormat.Scramble });
+
+        Assert.Equal("Renamed Gala", c.Db.Events.Single(e => e.Id == c.EventId).Name);
+    }
 }

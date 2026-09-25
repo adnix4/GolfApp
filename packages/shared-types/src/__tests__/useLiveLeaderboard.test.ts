@@ -40,10 +40,24 @@ describe('useLiveLeaderboard exports', () => {
     expect(opts.baseUrl).toBe('https://api.test');
   });
 
+  // U8: Stroke Play also carries a per-golfer board in the same response.
+  it('fetchStandings may return standings plus individuals', () => {
+    const opts: UseLiveLeaderboardOptions<{ teamId: string }, { playerId: string }> = {
+      baseUrl: 'https://api.test',
+      eventCode: 'CODE',
+      fetchStandings: async () => ({
+        standings:   [{ teamId: 't1' }],
+        individuals: [{ playerId: 'p1' }],
+      }),
+    };
+    expect(typeof opts.fetchStandings).toBe('function');
+  });
+
   it('UseLiveLeaderboardResult declares every consumer-visible field', () => {
     // Compile-time check: shape must include all return fields.
     const _: UseLiveLeaderboardResult<unknown> = {
       standings: null,
+      individuals: null,
       loading: true,
       connected: false,
       error: false,

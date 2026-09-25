@@ -205,7 +205,16 @@ public class EventService
 
         // ── APPLY SCALAR FIELDS ───────────────────────────────────────────
         if (request.Name     is not null) evt.Name      = request.Name;
-        if (request.Format   is not null) evt.Format    = request.Format.Value;
+        if (request.Format is not null && request.Format.Value != evt.Format)
+        {
+            // Stored team rows were computed under the old format's rules (U8,
+            // FormatScoring) — a Best Ball row holds the lowest golfer, a
+            // Scramble row a sum. Switching underneath them mixes the two.
+            if (await _db.Scores.AnyAsync(s => s.EventId == eventId, ct))
+                throw new ValidationException(
+                    "The scoring format can't be changed once scores have been entered.");
+            evt.Format = request.Format.Value;
+        }
         if (request.StartType is not null) evt.StartType = request.StartType.Value;
         if (request.Holes    is not null) evt.Holes     = request.Holes.Value;
         if (request.StartAt  is not null) evt.StartAt   = request.StartAt;
@@ -508,8 +517,10 @@ public class EventService
     ///
     /// Stroke / Scramble / BestBall:  sort by ToPar ASC (lowest = best).
     /// Stableford:  sort by StablefordPoints DESC (highest = best).
-    ///   Points per hole = max(0, par − gross + 2)
+    ///   Points per golfer per hole = max(0, par − strokes + 2), summed for the team (U8)
     ///   Double bogey or worse = 0 · Bogey = 1 · Par = 2 · Birdie = 3 · Eagle = 4 · Albatross = 5
+    /// How each format turns golfers' strokes into a team row: FormatScoring.
+    /// Stroke Play's per-golfer board is GetIndividualLeaderboardAsync.
     /// </summary>
     public async Task<List<LeaderboardEntryResponse>> GetLeaderboardAsync(
         Guid orgId,
@@ -538,6 +549,23 @@ public class EventService
             BestHole         = s.BestHole,
             BestHoleScore    = s.BestHoleScore,
         }).ToList();
+    }
+
+    /// <summary>
+    /// Per-golfer standings for a Stroke Play event (U8). Empty for every other
+    /// format: they are team formats and have no individual board.
+    /// </summary>
+    public async Task<List<IndividualLeaderboardEntry>> GetIndividualLeaderboardAsync(
+        Guid orgId,
+        Guid eventId,
+        CancellationToken ct = default)
+    {
+        var meta = await LeaderboardLoader.LoadEventAsync(_db, eventId, ct);
+        if (meta is null || meta.OrgId != orgId)
+            throw new NotFoundException("Event", eventId);
+
+        var board = await LeaderboardLoader.LoadAsync(_db, meta, ct);
+        return board.Individuals?.Select(IndividualLeaderboardEntry.From).ToList() ?? [];
     }
 
     // ── FUNDRAISING ───────────────────────────────────────────────────────────
@@ -971,7 +999,8 @@ public class EventService
         if (meta is null || meta.Status is EventStatus.Draft or EventStatus.Cancelled)
             throw new NotFoundException($"No event found with code '{eventCode}'.");
 
-        var standings = await LeaderboardLoader.LoadStandingsAsync(_db, meta, ct);
+        var board     = await LeaderboardLoader.LoadAsync(_db, meta, ct);
+        var standings = board.Standings;
 
         // Org branding fallback for resolved fields — single projected query, no joins.
         var org = await _db.Organizations
@@ -1000,6 +1029,7 @@ public class EventService
                 BestHole         = s.BestHole,
                 BestHoleScore    = s.BestHoleScore,
             }).ToList(),
+            Individuals       = board.Individuals?.Select(IndividualLeaderboardEntry.From).ToList(),
             ResolvedLogoUrl   = meta.LogoUrl   ?? org?.LogoUrl,
             ResolvedThemeJson = meta.ThemeJson ?? org?.ThemeJson,
             OrgName           = org?.Name,

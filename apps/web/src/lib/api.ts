@@ -121,6 +121,8 @@ export interface PublicLeaderboardEntry {
   teamName:      string;
   toPar:         number;
   grossTotal:    number;
+  /** Team Stableford points — per golfer, summed (U8). 0 for other formats. */
+  stablefordPoints: number;
   holesComplete: number;
   isComplete:    boolean;
   strokesBack:   number;
@@ -128,11 +130,28 @@ export interface PublicLeaderboardEntry {
   bestHoleScore: number | null;
 }
 
+/** One golfer's line on a Stroke Play leaderboard (U8 — Rule 3.3 scores golfers). */
+export interface PublicIndividualEntry {
+  rank:          number;
+  playerId:      string;
+  playerName:    string;
+  teamId:        string;
+  teamName:      string;
+  toPar:         number;
+  grossTotal:    number;
+  holesComplete: number;
+  isComplete:    boolean;
+  strokesBack:   number;
+}
+
 export interface PublicLeaderboard {
   eventId:           string;
   eventName:         string;
+  format:            string;
   status:            string;
   standings:         PublicLeaderboardEntry[];
+  /** Stroke Play only; null for team formats. */
+  individuals?:      PublicIndividualEntry[] | null;
   resolvedLogoUrl:   string | null;
   resolvedThemeJson: string | null;
   orgName:           string | null;

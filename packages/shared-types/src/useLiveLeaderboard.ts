@@ -10,7 +10,8 @@
  *
  * Behavior:
  * - On mount, opens a hub at `${baseUrl}/hubs/tournament` and JoinEvent(eventCode).
- * - Listens for 'LeaderboardRefreshed' { standings } and 'HoleInOneAlert'.
+ * - Listens for 'LeaderboardRefreshed' { standings, individuals } and 'HoleInOneAlert'.
+ *   `individuals` is the per-golfer board, sent only for Stroke Play (U8).
  * - Tracks connection state via onreconnecting/onreconnected/onclose.
  * - Runs an HTTP poll fallback (default 15s) whenever the hub is disconnected.
  *   The initial HTTP fetch runs unconditionally so first paint isn't blocked
@@ -37,7 +38,15 @@ export interface HoleInOneAlert {
   holeNumber: number;
 }
 
-export interface UseLiveLeaderboardOptions<TStanding> {
+/**
+ * What a fetcher may return: the team standings alone, or the standings plus
+ * the per-golfer board (Stroke Play, U8) from the same response.
+ */
+export type LeaderboardFetchResult<TStanding, TIndividual> =
+  | TStanding[]
+  | { standings: TStanding[]; individuals?: TIndividual[] | null };
+
+export interface UseLiveLeaderboardOptions<TStanding, TIndividual = never> {
   /** Base URL of the API, no trailing slash. */
   baseUrl: string;
   /** Event code to join. When undefined, the hook stays idle. */
@@ -52,7 +61,7 @@ export interface UseLiveLeaderboardOptions<TStanding> {
    * Fetch fresh standings over HTTP. Return null when the call fails so the
    * hook can flag an error state without forcing the caller to throw.
    */
-  fetchStandings: (eventCode: string) => Promise<TStanding[] | null>;
+  fetchStandings: (eventCode: string) => Promise<LeaderboardFetchResult<TStanding, TIndividual> | null>;
   /**
    * Called when the hub emits 'SponsorsChanged' with the event's new
    * SponsorsVersion. Lets a consumer refetch the sponsor list only when it
@@ -75,9 +84,14 @@ export interface UseLiveLeaderboardOptions<TStanding> {
   onAuctionChanged?: () => void;
 }
 
-export interface UseLiveLeaderboardResult<TStanding> {
+export interface UseLiveLeaderboardResult<TStanding, TIndividual = never> {
   /** Latest standings, or null before first successful load. */
   standings: TStanding[] | null;
+  /**
+   * Latest per-golfer standings — Stroke Play only (U8). Null for team formats
+   * and before the first load.
+   */
+  individuals: TIndividual[] | null;
   /** True until the first standings update lands (HTTP or SignalR). */
   loading: boolean;
   /** True while a SignalR connection is established. */
@@ -96,9 +110,9 @@ export interface UseLiveLeaderboardResult<TStanding> {
 
 const DEFAULT_POLL_MS = 15_000;
 
-export function useLiveLeaderboard<TStanding>(
-  opts: UseLiveLeaderboardOptions<TStanding>,
-): UseLiveLeaderboardResult<TStanding> {
+export function useLiveLeaderboard<TStanding, TIndividual = never>(
+  opts: UseLiveLeaderboardOptions<TStanding, TIndividual>,
+): UseLiveLeaderboardResult<TStanding, TIndividual> {
   const {
     baseUrl, eventCode, disabled = false,
     initialStandings = null,
@@ -109,6 +123,7 @@ export function useLiveLeaderboard<TStanding>(
   } = opts;
 
   const [standings, setStandings]     = useState<TStanding[] | null>(initialStandings);
+  const [individuals, setIndividuals] = useState<TIndividual[] | null>(null);
   const [loading, setLoading]         = useState(initialStandings === null);
   const [connected, setConnected]     = useState(false);
   const [error, setError]             = useState(false);
@@ -139,12 +154,23 @@ export function useLiveLeaderboard<TStanding>(
    * an offline-mode event look broken: pulling did nothing, and the screen
    * claimed there were no scores when there were 77.
    */
+  // Both fetch paths land here: a bare array is the team standings, an
+  // object also carries the per-golfer board.
+  const applyFetched = useCallback((fresh: LeaderboardFetchResult<TStanding, TIndividual>) => {
+    if (Array.isArray(fresh)) {
+      setStandings(fresh);
+    } else {
+      setStandings(fresh.standings);
+      setIndividuals(fresh.individuals ?? null);
+    }
+  }, []);
+
   const refresh = useCallback(() => {
     if (!eventCode) return;
     fetchRef.current(eventCode)
       .then(fresh => {
         if (fresh) {
-          setStandings(fresh);
+          applyFetched(fresh);
           setLastUpdated(new Date());
           setError(false);
           setLoading(false);
@@ -153,7 +179,7 @@ export function useLiveLeaderboard<TStanding>(
         }
       })
       .catch(() => setError(true));
-  }, [eventCode]);
+  }, [eventCode, applyFetched]);
 
   const dismissHioAlert = useCallback(() => setHioAlert(null), []);
 
@@ -167,9 +193,10 @@ export function useLiveLeaderboard<TStanding>(
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
-    hub.on('LeaderboardRefreshed', (payload: { standings?: TStanding[] }) => {
+    hub.on('LeaderboardRefreshed', (payload: { standings?: TStanding[]; individuals?: TIndividual[] | null }) => {
       if (!payload?.standings) return;
       setStandings(payload.standings);
+      setIndividuals(payload.individuals ?? null);
       setLastUpdated(new Date());
       setError(false);
       setLoading(false);
@@ -239,7 +266,7 @@ export function useLiveLeaderboard<TStanding>(
         const fresh = await fetchRef.current(eventCode!);
         if (cancelled) return;
         if (fresh) {
-          setStandings(fresh);
+          applyFetched(fresh);
           setLastUpdated(new Date());
           setError(false);
           setLoading(false);
@@ -261,10 +288,11 @@ export function useLiveLeaderboard<TStanding>(
       cancelled = true;
       clearInterval(id);
     };
-  }, [eventCode, disabled, connected, pollIntervalMs]);
+  }, [eventCode, disabled, connected, pollIntervalMs, applyFetched]);
 
   return {
     standings,
+    individuals,
     loading,
     connected,
     error,

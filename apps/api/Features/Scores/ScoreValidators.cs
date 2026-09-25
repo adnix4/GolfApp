@@ -14,13 +14,13 @@ public class SubmitScoreRequestValidator : AbstractValidator<SubmitScoreRequest>
             .WithMessage("Hole number must be between 1 and 18.");
 
         RuleFor(x => x.GrossScore)
-            .InclusiveBetween((short)1, (short)20)
-            .WithMessage("Gross score must be between 1 and 20.");
+            .InclusiveBetween((short)1, FormatScoring.MaxTeamHoleGross)
+            .WithMessage($"Gross score must be between 1 and {FormatScoring.MaxTeamHoleGross}.");
 
         RuleFor(x => x.Putts)
-            .InclusiveBetween((short)0, (short)10)
+            .InclusiveBetween((short)0, FormatScoring.MaxTeamHolePutts)
             .When(x => x.Putts.HasValue)
-            .WithMessage("Putts must be between 0 and 10.");
+            .WithMessage($"Putts must be between 0 and {FormatScoring.MaxTeamHolePutts}.");
 
         RuleFor(x => x.DeviceId)
             .MaximumLength(100);
@@ -32,8 +32,8 @@ public class ResolveConflictRequestValidator : AbstractValidator<ResolveConflict
     public ResolveConflictRequestValidator()
     {
         RuleFor(x => x.AcceptedScore)
-            .InclusiveBetween((short)1, (short)20)
-            .WithMessage("Accepted score must be between 1 and 20.");
+            .InclusiveBetween((short)1, FormatScoring.MaxTeamHoleGross)
+            .WithMessage($"Accepted score must be between 1 and {FormatScoring.MaxTeamHoleGross}.");
 
         RuleFor(x => x.ResolutionNote)
             .MaximumLength(500)

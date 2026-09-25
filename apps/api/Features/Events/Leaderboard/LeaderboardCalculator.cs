@@ -1,4 +1,5 @@
 using GolfFundraiserPro.Api.Domain.Enums;
+using GolfFundraiserPro.Api.Features.Scores;
 
 namespace GolfFundraiserPro.Api.Features.Events.Leaderboard;
 
@@ -14,7 +15,11 @@ namespace GolfFundraiserPro.Api.Features.Events.Leaderboard;
 public static class LeaderboardCalculator
 {
     public readonly record struct TeamRow(Guid Id, string Name, short? StartingHole, DateTime? TeeTime);
-    public readonly record struct ScoreRow(Guid TeamId, short HoleNumber, short GrossScore);
+    /// <param name="Shots">Per-golfer strokes from scores.player_shots (U8). Null/empty when the hole was typed as one gross.</param>
+    public readonly record struct ScoreRow(
+        Guid TeamId, short HoleNumber, short GrossScore,
+        IReadOnlyDictionary<Guid, int>? Shots = null);
+    public readonly record struct PlayerRow(Guid Id, string Name, Guid TeamId, string TeamName);
     public readonly record struct ParRow(short HoleNumber, short Par);
 
     public sealed record StandingEntry
@@ -43,6 +48,8 @@ public static class LeaderboardCalculator
         public short?   BestHoleScore    { get; init; }
     }
 
+    private static readonly IReadOnlyDictionary<Guid, int> NoShots = new Dictionary<Guid, int>();
+
     public static List<StandingEntry> Compute(
         IReadOnlyCollection<TeamRow>  teams,
         IReadOnlyCollection<ScoreRow> scores,
@@ -65,10 +72,15 @@ public static class LeaderboardCalculator
         {
             var ts            = scoresByTeam.GetValueOrDefault(t.Id, []);
             var gross         = ts.Sum(s => (int)s.GrossScore);
-            var parTotal      = ts.Sum(s => parByHole.GetValueOrDefault(s.HoleNumber, 4));
+            // One par per ball the row counts — an aggregate Stroke/Stableford
+            // row holds every golfer's strokes (U8, FormatScoring.TeamHolePar).
+            var parTotal      = ts.Sum(s => FormatScoring.TeamHolePar(
+                format, s.Shots ?? NoShots, parByHole.GetValueOrDefault(s.HoleNumber, 4)));
             var holesComplete = ts.Count;
+            // Stableford is scored per golfer, then summed (Rule 21.1, U8).
             var stableford    = isStableford
-                ? ts.Sum(s => Math.Max(0, parByHole.GetValueOrDefault(s.HoleNumber, 4) - (int)s.GrossScore + 2))
+                ? ts.Sum(s => FormatScoring.TeamStablefordPoints(
+                    s.Shots ?? NoShots, parByHole.GetValueOrDefault(s.HoleNumber, 4), s.GrossScore))
                 : 0;
 
             // Best hole = lowest score relative to par. Ties break on lower
@@ -78,7 +90,8 @@ public static class LeaderboardCalculator
             var    bestRel       = int.MaxValue;
             foreach (var s in ts)
             {
-                var rel    = (int)s.GrossScore - parByHole.GetValueOrDefault(s.HoleNumber, 4);
+                var rel    = (int)s.GrossScore - FormatScoring.TeamHolePar(
+                    format, s.Shots ?? NoShots, parByHole.GetValueOrDefault(s.HoleNumber, 4));
                 var better = rel < bestRel
                     || (rel == bestRel && s.GrossScore <  bestHoleScore)
                     || (rel == bestRel && s.GrossScore == bestHoleScore && s.HoleNumber < bestHole);
@@ -145,6 +158,93 @@ public static class LeaderboardCalculator
             {
                 Rank        = sorted[i].HolesComplete == 0 ? 0 : rank,
                 StrokesBack = strokesBack,
+            });
+        }
+
+        return ranked;
+    }
+    /// <summary>One golfer's line on a Stroke Play leaderboard (U8).</summary>
+    public sealed record IndividualEntry
+    {
+        public int    Rank          { get; init; }
+        public Guid   PlayerId      { get; init; }
+        public string PlayerName    { get; init; } = string.Empty;
+        public Guid   TeamId        { get; init; }
+        public string TeamName      { get; init; } = string.Empty;
+        public int    ToPar         { get; init; }
+        public int    GrossTotal    { get; init; }
+        public int    HolesComplete { get; init; }
+        public bool   IsComplete    { get; init; }
+
+        /// <summary>Strokes behind the leader. 0 for the leader, ties, and unscored golfers.</summary>
+        public int    StrokesBack   { get; init; }
+    }
+
+    /// <summary>
+    /// Stroke Play is individual (Rule 3.3): each golfer's own strokes, read
+    /// from the per-golfer breakdown on their team's completed holes. A hole
+    /// typed as one team gross has no breakdown and so counts for nobody —
+    /// there is no way to know whose strokes it holds.
+    ///
+    /// Same ordering as the team board: unscored last, then to-par, then more
+    /// holes played; ties share a rank.
+    /// </summary>
+    public static List<IndividualEntry> ComputeIndividuals(
+        IReadOnlyCollection<PlayerRow> players,
+        IReadOnlyCollection<ScoreRow>  scores,
+        IReadOnlyCollection<ParRow>    pars,
+        int defaultHoles)
+    {
+        var parByHole = pars.Count > 0
+            ? pars.ToDictionary(p => (int)p.HoleNumber, p => (int)p.Par)
+            : Enumerable.Range(1, defaultHoles).ToDictionary(n => n, _ => 4);
+
+        var gross = new Dictionary<Guid, int>();
+        var par   = new Dictionary<Guid, int>();
+        var holes = new Dictionary<Guid, int>();
+        foreach (var s in scores)
+        {
+            if (s.Shots is null) continue;
+            foreach (var (playerId, strokes) in s.Shots)
+            {
+                gross[playerId] = gross.GetValueOrDefault(playerId) + strokes;
+                par[playerId]   = par.GetValueOrDefault(playerId)   + parByHole.GetValueOrDefault(s.HoleNumber, 4);
+                holes[playerId] = holes.GetValueOrDefault(playerId) + 1;
+            }
+        }
+
+        var sorted = players
+            .Select(p => new IndividualEntry
+            {
+                PlayerId      = p.Id,
+                PlayerName    = p.Name,
+                TeamId        = p.TeamId,
+                TeamName      = p.TeamName,
+                GrossTotal    = gross.GetValueOrDefault(p.Id),
+                ToPar         = gross.GetValueOrDefault(p.Id) - par.GetValueOrDefault(p.Id),
+                HolesComplete = holes.GetValueOrDefault(p.Id),
+                IsComplete    = holes.GetValueOrDefault(p.Id) >= defaultHoles,
+            })
+            .OrderBy(e => e.HolesComplete == 0 ? 1 : 0)
+            .ThenBy(e => e.ToPar)
+            .ThenByDescending(e => e.HolesComplete)
+            .ThenBy(e => e.PlayerName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var leader = sorted.FirstOrDefault(e => e.HolesComplete > 0);
+        var ranked = new List<IndividualEntry>(sorted.Count);
+        var rank   = 1;
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            if (i > 0 && sorted[i].HolesComplete > 0 && sorted[i].ToPar != sorted[i - 1].ToPar)
+                rank = i + 1;
+
+            ranked.Add(sorted[i] with
+            {
+                Rank        = sorted[i].HolesComplete == 0 ? 0 : rank,
+                StrokesBack = sorted[i].HolesComplete == 0 || leader is null
+                    ? 0
+                    : sorted[i].ToPar - leader.ToPar,
             });
         }
 

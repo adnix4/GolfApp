@@ -8,6 +8,8 @@ using GolfFundraiserPro.Api.Domain.Enums;
 using GolfFundraiserPro.Api.Features.Emails;
 using GolfFundraiserPro.Api.Features.RealTime;
 
+using GolfFundraiserPro.Api.Features.Scores;
+
 namespace GolfFundraiserPro.Api.Features.Mobile;
 
 /// <summary>
@@ -521,10 +523,20 @@ public class MobileService
             if (pending.HoleNumber < 1 || pending.HoleNumber > evt.Holes)
                 continue; // silently skip out-of-range holes
 
+            // The format decides what the golfers' strokes add up to (U8). The
+            // phone's own total is not trusted — builds before U8 summed every
+            // golfer regardless of format, and some are still in the field.
+            var shotsJson = pending.PlayerShotsJson
+                ?? (pending.PlayerShots is { Count: > 0 } byPlayer
+                    ? JsonSerializer.Serialize(byPlayer)
+                    : null);
+            var gross = FormatScoring.TeamHoleGross(
+                evt.Format, FormatScoring.ParseShots(shotsJson), pending.GrossScore);
+
             if (existing.TryGetValue(pending.HoleNumber, out var current))
             {
                 var sameDevice = current.DeviceId == request.DeviceId;
-                var sameValue  = current.GrossScore == pending.GrossScore;
+                var sameValue  = current.GrossScore == gross;
 
                 if (!sameDevice && !sameValue)
                 {
@@ -532,12 +544,12 @@ public class MobileService
                     // authoritative; record the golfer's proposed value so the
                     // admin can approve it and the device can warn the golfer.
                     current.IsConflicted  = true;
-                    current.ProposedScore = pending.GrossScore;
+                    current.ProposedScore = gross;
                     conflicts.Add(new SyncConflictDto
                     {
                         HoleNumber       = pending.HoleNumber,
                         ExistingScore    = current.GrossScore,
-                        SubmittedScore   = pending.GrossScore,
+                        SubmittedScore   = gross,
                         ExistingDeviceId = current.DeviceId,
                     });
                     _logger.LogWarning(
@@ -545,15 +557,15 @@ public class MobileService
                         "device {OldDev}={Old} vs {NewDev}={New}",
                         request.EventId, request.TeamId, pending.HoleNumber,
                         current.DeviceId, current.GrossScore,
-                        request.DeviceId, pending.GrossScore);
+                        request.DeviceId, gross);
                 }
                 else
                 {
                     // Same device re-sync, or different device with same value — accept
-                    current.GrossScore    = pending.GrossScore;
+                    current.GrossScore    = gross;
                     current.Putts         = pending.Putts;
                     current.DeviceId      = request.DeviceId;
-                    current.PlayerShotsJson = pending.PlayerShotsJson;
+                    current.PlayerShotsJson = shotsJson;
                     current.SyncedAt      = DateTime.UtcNow;
                     current.IsConflicted  = false;
                     current.ProposedScore = null;
@@ -562,7 +574,7 @@ public class MobileService
                     // arriving here IS the golfer's completion signal (U1).
                     current.CompletedAt ??= DateTime.UtcNow;
                     accepted++;
-                    acceptedScores.Add((request.TeamId, team.Name, pending.HoleNumber, pending.GrossScore));
+                    acceptedScores.Add((request.TeamId, team.Name, pending.HoleNumber, gross));
                 }
             }
             else
@@ -573,9 +585,9 @@ public class MobileService
                     EventId         = request.EventId,
                     TeamId          = request.TeamId,
                     HoleNumber      = pending.HoleNumber,
-                    GrossScore      = pending.GrossScore,
+                    GrossScore      = gross,
                     Putts           = pending.Putts,
-                    PlayerShotsJson = pending.PlayerShotsJson,
+                    PlayerShotsJson = shotsJson,
                     DeviceId        = request.DeviceId,
                     SubmittedAt     = DateTime.UtcNow,
                     SyncedAt        = DateTime.UtcNow,
@@ -585,7 +597,7 @@ public class MobileService
                     CompletedAt     = DateTime.UtcNow,
                 });
                 accepted++;
-                acceptedScores.Add((request.TeamId, team.Name, pending.HoleNumber, pending.GrossScore));
+                acceptedScores.Add((request.TeamId, team.Name, pending.HoleNumber, gross));
             }
         }
 
