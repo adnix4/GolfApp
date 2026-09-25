@@ -11,11 +11,8 @@ import {
   HOLES_OPTIONS,
 } from '@gfp/shared-types';
 import { eventsApi, type EventSummary, type CreateEventPayload } from '@/lib/api';
-import {
-  formatDateInput, formatTimeInput,
-  validateDateField, validateTimeField,
-  buildIsoDateTime,
-} from '@/lib/dateTime';
+import { pickerValuesToIso, toPickerDate, validatePickerDateTime } from '@/lib/dateTime';
+import { DateTimePairField } from '@/components/DateTimePairField';
 import { eventStatusColor } from '@/lib/eventStatus';
 import { friendlyApiError } from '@/lib/errors';
 
@@ -219,6 +216,14 @@ function parseEntryFeeCents(input: string): number | null {
   return Math.round(parseFloat(raw) * 100);
 }
 
+// Start date/time errors keyed for FieldErrors; both keys always present so a
+// spread clears whichever field is now valid. The API rejects a start that
+// isn't in the future, so check the full moment, not just the date.
+function startErrors(date: string, time: string): Pick<FieldErrors, 'startDate' | 'startTime'> {
+  const e = validatePickerDateTime(date, time, { label: 'Start', future: true });
+  return { startDate: e.date, startTime: e.time };
+}
+
 function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps) {
   const theme = useTheme();
 
@@ -226,10 +231,9 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
   const [format,      setFormat]      = useState<string>('Scramble');
   const [startType,   setStartType]   = useState<string>('Shotgun');
   const [holes,       setHoles]       = useState<9 | 18>(18);
-  const [startDate,   setStartDate]   = useState('');   // MM/DD/YYYY
-  const [startTime,   setStartTime]   = useState('');   // HH:MM
-  const [startAmPm,   setStartAmPm]   = useState<'AM' | 'PM'>('AM');
-  const [entryFee,    setEntryFee]    = useState('');   // dollars; blank = free
+  const [startDate,   setStartDate]   = useState('');   // YYYY-MM-DD
+  const [startTime,   setStartTime]   = useState('');   // HH:mm, 24-hour
+  const [entryFee,   setEntryFee]    = useState('');   // dollars; blank = free
   const [loading,     setLoading]     = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -237,7 +241,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
 
   function reset() {
     setName(''); setFormat('Scramble'); setStartType('Shotgun'); setHoles(18);
-    setStartDate(''); setStartTime(''); setStartAmPm('AM'); setEntryFee('');
+    setStartDate(''); setStartTime(''); setEntryFee('');
     setSubmitError(null); setFieldErrors({}); setTouched({});
   }
 
@@ -257,10 +261,9 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
     } else if (name.trim().length > 200) {
       errs.name = 'Name cannot exceed 200 characters.';
     }
-    const dateErr = validateDateField(startDate);
-    if (dateErr) errs.startDate = dateErr;
-    const timeErr = validateTimeField(startTime);
-    if (timeErr) errs.startTime = timeErr;
+    const start = startErrors(startDate, startTime);
+    if (start.startDate) errs.startDate = start.startDate;
+    if (start.startTime) errs.startTime = start.startTime;
     if (parseEntryFeeCents(entryFee) == null) {
       errs.entryFee = 'Enter a dollar amount like 150 or 150.50 (leave blank for free).';
     }
@@ -277,7 +280,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
     setSubmitError(null);
     setLoading(true);
     try {
-      const startAt = buildIsoDateTime(startDate, startTime, startAmPm);
+      const startAt = pickerValuesToIso(startDate, startTime);
       const feeCents = parseEntryFeeCents(entryFee) ?? 0;
       const payload: CreateEventPayload = {
         name: name.trim(),
@@ -477,76 +480,23 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
               Can be set now or updated later from event settings.
             </Text>
 
-            <View style={styles.dateTimeRow}>
-              {/* Date */}
-              <View style={styles.dateCol}>
-                <Text style={styles.subLabel}>Date</Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    styles.inputSm,
-                    { borderColor: showDateError ? '#e74c3c' : theme.colors.accent },
-                  ]}
-                  value={startDate}
-                  onChangeText={v => {
-                    setStartDate(formatDateInput(v));
-                    if (touched.startDate) setFieldErrors(prev => ({ ...prev, startDate: undefined }));
-                  }}
-                  onBlur={() => {
-                    touch('startDate');
-                    setFieldErrors(prev => ({ ...prev, startDate: validateDateField(startDate) }));
-                  }}
-                  placeholder="MM/DD/YYYY"
-                  placeholderTextColor="#aaa"
-                  keyboardType="number-pad"
-                  editable={!loading}
-                  accessibilityLabel="Start date MM/DD/YYYY"
-                />
-                {showDateError && (
-                  <Text style={styles.fieldError}>{fieldErrors.startDate}</Text>
-                )}
-              </View>
-
-              {/* Time + AM/PM */}
-              <View style={styles.timeCol}>
-                <Text style={styles.subLabel}>Time</Text>
-                <View style={styles.timeInputRow}>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      styles.inputSm,
-                      styles.timeInput,
-                      { borderColor: showTimeError ? '#e74c3c' : theme.colors.accent },
-                    ]}
-                    value={startTime}
-                    onChangeText={v => {
-                      setStartTime(formatTimeInput(v));
-                      if (touched.startTime) setFieldErrors(prev => ({ ...prev, startTime: undefined }));
-                    }}
-                    onBlur={() => {
-                      touch('startTime');
-                      setFieldErrors(prev => ({ ...prev, startTime: validateTimeField(startTime) }));
-                    }}
-                    placeholder="HH:MM"
-                    placeholderTextColor="#aaa"
-                    keyboardType="number-pad"
-                    editable={!loading}
-                    accessibilityLabel="Start time HH:MM"
-                  />
-                  <Pressable
-                    style={[styles.ampmBtn, { borderColor: theme.colors.accent }]}
-                    onPress={() => setStartAmPm(p => p === 'AM' ? 'PM' : 'AM')}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Toggle AM/PM, currently ${startAmPm}`}
-                  >
-                    <Text style={[styles.ampmText, { color: theme.colors.primary }]}>{startAmPm}</Text>
-                  </Pressable>
-                </View>
-                {showTimeError && (
-                  <Text style={styles.fieldError}>{fieldErrors.startTime}</Text>
-                )}
-              </View>
-            </View>
+            <DateTimePairField
+              label="Start"
+              date={startDate}
+              time={startTime}
+              onChange={({ date, time }) => {
+                setStartDate(date); setStartTime(time);
+                setTouched(prev => ({ ...prev, startDate: true, startTime: true }));
+                setFieldErrors(prev => ({ ...prev, ...startErrors(date, time) }));
+              }}
+              errors={{
+                date: showDateError ? fieldErrors.startDate : undefined,
+                time: showTimeError ? fieldErrors.startTime : undefined,
+              }}
+              min={toPickerDate(new Date())}
+              disabled={loading}
+              clearable
+            />
 
     </FormModal>
   );
@@ -811,47 +761,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     color: '#888',
-  },
-  dateTimeRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 4,
-  },
-  dateCol: {
-    flex: 3,
-  },
-  timeCol: {
-    flex: 2,
-  },
-  subLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#888',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  timeInputRow: {
-    flexDirection: 'row',
-    gap: 6,
-    alignItems: 'center',
-  },
-  timeInput: {
-    flex: 1,
-  },
-  ampmBtn: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    backgroundColor: '#fafafa',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 46,
-  },
-  ampmText: {
-    fontSize: 13,
-    fontWeight: '700',
   },
   modalActions: {
     flexDirection: 'row',

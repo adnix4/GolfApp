@@ -16,6 +16,7 @@ import {
   type AddMemberFields, type AddSubFields,
 } from '@/components/seasonModals';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { validatePickerDateTime } from '@/lib/dateTime';
 import { useLeagueName } from '../../_layout';
 
 type Tab = 'overview' | 'roster' | 'rounds' | 'handicaps' | 'standings' | 'skins';
@@ -49,7 +50,8 @@ export default function SeasonDashboardScreen() {
   const [mSaving, setMSaving]             = useState(false);
 
   const [showAddRound, setShowAddRound] = useState(false);
-  const [rDate, setRDate]   = useState('');
+  const [rDate, setRDate]   = useState('');   // YYYY-MM-DD
+  const [rDateErr, setRDateErr] = useState<string | undefined>();
   const [rNotes, setRNotes] = useState('');
   const [rSaving, setRSaving] = useState(false);
 
@@ -125,12 +127,24 @@ export default function SeasonDashboardScreen() {
     } catch (e: unknown) { setError((e as Error).message); }
   }
 
+  // A round must be dated inside its season; the picker is bounded to the
+  // season too, but a typed-in date can still land outside it.
+  function roundDateError(date: string): string | undefined {
+    if (!date) return 'Pick a round date';
+    return validatePickerDateTime(date, '', {
+      label: 'Round', min: dashboard?.season.startDate, max: dashboard?.season.endDate, rangeName: 'the season',
+    }).date;
+  }
+
   async function handleAddRound() {
-    if (!id || !sid || !rDate) return;
+    if (!id || !sid) return;
+    const err = roundDateError(rDate);
+    setRDateErr(err);
+    if (err) return;
     setRSaving(true);
     try {
       await leagueApi.createRound(id, sid, { roundDate: rDate, notes: rNotes || undefined });
-      setShowAddRound(false); setRDate(''); setRNotes('');
+      setShowAddRound(false); setRDate(''); setRNotes(''); setRDateErr(undefined);
       await load();
     } catch (e: unknown) { setError((e as Error).message); }
     finally { setRSaving(false); }
@@ -630,9 +644,12 @@ export default function SeasonDashboardScreen() {
         date={rDate}
         notes={rNotes}
         saving={rSaving}
-        setDate={setRDate}
+        seasonStart={dashboard?.season.startDate}
+        seasonEnd={dashboard?.season.endDate}
+        dateError={rDateErr}
+        setDate={v => { setRDate(v); if (rDateErr) setRDateErr(roundDateError(v)); }}
         setNotes={setRNotes}
-        onCancel={() => setShowAddRound(false)}
+        onCancel={() => { setShowAddRound(false); setRDateErr(undefined); }}
         onSave={handleAddRound}
       />
     </View>

@@ -114,6 +114,19 @@ public class LeagueServiceTests
     }
 
     [Fact]
+    public async Task CreateSeason_with_end_before_start_throws_Validation()
+    {
+        var c = Build();
+        var leagueId = await NewLeague(c);
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            c.Svc.CreateSeasonAsync(c.OrgId, leagueId, new CreateSeasonRequest
+            {
+                Name = "S", TotalRounds = 10,
+                StartDate = new DateOnly(2026, 9, 30), EndDate = new DateOnly(2026, 4, 1),
+            }, default));
+    }
+
+    [Fact]
     public async Task AddMember_then_GetMembers_lists_them()
     {
         var c = Build();

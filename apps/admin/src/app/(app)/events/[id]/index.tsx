@@ -16,10 +16,9 @@ import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 import { confirmAction } from '@/lib/confirmAction';
 import { isCheckedIn } from '@/lib/checkIn';
 import {
-  formatDateInput, formatTimeInput,
-  validateDateField, validateTimeField,
-  buildIsoDateTime, parseIsoToFields,
+  isoToPickerValues, pickerValuesToIso, toPickerDate, validatePickerDateTime,
 } from '@/lib/dateTime';
+import { DateTimePairField } from '@/components/DateTimePairField';
 import {
   eventStatusColor, eventStatusLabel, NEXT_TRANSITIONS,
   scoringGate, scoringGateHint, openScoringEarlyCopy,
@@ -582,7 +581,10 @@ interface EditEventModalProps {
 
 function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProps) {
   const theme = useTheme();
-  const parsed = parseIsoToFields(event.startAt);
+  // The event's saved start, as picker values. Only a changed start is sent
+  // (and checked against "must be in the future", which the API enforces), so
+  // organizers can still edit other details of an event that already happened.
+  const parsed = isoToPickerValues(event.startAt);
 
   const [name,      setName]      = useState(event.name);
   const [format,    setFormat]    = useState(event.format);
@@ -593,7 +595,6 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
   const [holes,     setHoles]     = useState(event.holes);
   const [startDate, setStartDate] = useState(parsed.date);
   const [startTime, setStartTime] = useState(parsed.time);
-  const [ampm,      setAmpm]      = useState<'AM' | 'PM'>(parsed.ampm);
   const [entryFee,  setEntryFee]  = useState(centsToMoneyValue(readEntryFeeCents(event.config)));
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
@@ -601,9 +602,9 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
 
   useEffect(() => {
     if (!visible) return;
-    const p = parseIsoToFields(event.startAt);
+    const p = isoToPickerValues(event.startAt);
     setName(event.name); setFormat(event.format); setStartType(event.startType); setHoles(event.holes);
-    setStartDate(p.date); setStartTime(p.time); setAmpm(p.ampm);
+    setStartDate(p.date); setStartTime(p.time);
     setEntryFee(centsToMoneyValue(readEntryFeeCents(event.config)));
     setError(null); setFieldErrors({});
   }, [visible, event]);
@@ -616,14 +617,22 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
     return Math.round(parseFloat(raw) * 100);
   }
 
+  const startChanged = startDate !== parsed.date || startTime !== parsed.time;
+
+  // Errors for the start pair, only the keys that failed. The API ignores a
+  // null startAt on update, so a saved start can be changed but not removed.
+  function startErrors(date: string, time: string): Pick<typeof fieldErrors, 'startDate' | 'startTime'> {
+    if (parsed.date && !date) return { startDate: 'A start date can’t be removed once set; pick a new one instead.' };
+    const changed = date !== parsed.date || time !== parsed.time;
+    const e = validatePickerDateTime(date, time, { label: 'Start', future: changed });
+    return { ...(e.date ? { startDate: e.date } : {}), ...(e.time ? { startTime: e.time } : {}) };
+  }
+
   function validate(): boolean {
     const errs: typeof fieldErrors = {};
     if (!name.trim() || name.trim().length < 3) errs.name = 'Event name must be at least 3 characters.';
     else if (name.trim().length > 200) errs.name = 'Event name must be 200 characters or fewer.';
-    const dateErr = validateDateField(startDate);
-    if (dateErr) errs.startDate = dateErr;
-    const timeErr = validateTimeField(startTime);
-    if (timeErr) errs.startTime = timeErr;
+    Object.assign(errs, startErrors(startDate, startTime));
     if (parseEntryFeeCents() == null) errs.entryFee = 'Enter a dollar amount like 150 or 150.50 (leave blank for free).';
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
@@ -635,7 +644,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
     try {
       const updated = await eventsApi.update(event.id, {
         name: name.trim(), format, startType, holes,
-        ...(startDate ? { startAt: buildIsoDateTime(startDate, startTime, ampm) } : {}),
+        ...(startChanged && startDate ? { startAt: pickerValuesToIso(startDate, startTime) } : {}),
         config: { entryFeeCents: parseEntryFeeCents() ?? 0 },
       });
       onSaved(updated);
@@ -715,36 +724,21 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
               ? <Text style={styles.fieldError}>{fieldErrors.entryFee}</Text>
               : <Text style={[styles.fieldHint, { color: theme.mutedText }]}>Shown on the public event page and email ads; each golfer pays at registration.</Text>}
 
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Start Date *</Text>
-            <TextInput
-              style={[styles.input, { borderColor: fieldErrors.startDate ? '#e74c3c' : theme.colors.accent }]}
-              value={startDate}
-              onChangeText={v => { setStartDate(formatDateInput(v)); if (fieldErrors.startDate) setFieldErrors(p => ({ ...p, startDate: undefined })); }}
-              onBlur={() => { const err = validateDateField(startDate); if (err) setFieldErrors(p => ({ ...p, startDate: err })); }}
-              placeholder="MM/DD/YYYY"
-              placeholderTextColor="#999"
-              keyboardType="numeric"
-              editable={!loading}
+            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Start Date & Time</Text>
+            <DateTimePairField
+              label="Start"
+              date={startDate}
+              time={startTime}
+              onChange={({ date, time }) => {
+                setStartDate(date); setStartTime(time);
+                const e = startErrors(date, time);
+                setFieldErrors(p => ({ ...p, startDate: e.startDate, startTime: e.startTime }));
+              }}
+              errors={{ date: fieldErrors.startDate, time: fieldErrors.startTime }}
+              min={!parsed.date || parsed.date >= toPickerDate(new Date()) ? toPickerDate(new Date()) : undefined}
+              disabled={loading}
+              clearable={!parsed.date}
             />
-            {fieldErrors.startDate && <Text style={styles.fieldError}>{fieldErrors.startDate}</Text>}
-
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Start Time</Text>
-            <View style={styles.timeRow}>
-              <TextInput
-                style={[styles.input, styles.timeInput, { borderColor: fieldErrors.startTime ? '#e74c3c' : theme.colors.accent }]}
-                value={startTime}
-                onChangeText={v => { setStartTime(formatTimeInput(v)); if (fieldErrors.startTime) setFieldErrors(p => ({ ...p, startTime: undefined })); }}
-                onBlur={() => { const err = validateTimeField(startTime); if (err) setFieldErrors(p => ({ ...p, startTime: err })); }}
-                placeholder="HH:MM"
-                placeholderTextColor="#999"
-                keyboardType="numeric"
-                editable={!loading}
-              />
-              <Pressable style={[styles.ampmBtn, { borderColor: theme.colors.primary }]} onPress={() => setAmpm(a => a === 'AM' ? 'PM' : 'AM')}>
-                <Text style={[styles.ampmText, { color: theme.colors.primary }]}>{ampm}</Text>
-              </Pressable>
-            </View>
-            {fieldErrors.startTime && <Text style={styles.fieldError}>{fieldErrors.startTime}</Text>}
 
             <View style={styles.modalActions}>
               <Pressable style={[styles.modalCancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
@@ -950,10 +944,6 @@ const styles = StyleSheet.create({
   pillRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
   pill:           { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: '#ddd', backgroundColor: '#fafafa' },
   pillText:       { fontSize: 13, fontWeight: '600', color: '#555' },
-  timeRow:        { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  timeInput:      { flex: 1 },
-  ampmBtn:        { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1.5 },
-  ampmText:       { fontSize: 15, fontWeight: '700' },
   modalActions:   { flexDirection: 'row', gap: 12, marginTop: 20 },
   modalCancelBtn: { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   modalCancelText: { fontSize: 15, fontWeight: '600' },
