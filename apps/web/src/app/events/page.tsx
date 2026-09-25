@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchActiveEvents, fetchPublicEvent, type ActiveEventSummary } from '@/lib/api';
 import { L } from '../landingStyles';
+import { formatDate } from '@gfp/shared-types';
 
 const STATUS: Record<string, { label: string; color: string }> = {
   Registration: { label: 'Registration Open', color: '#2e7d32' },
@@ -20,9 +21,9 @@ const STATUS: Record<string, { label: string; color: string }> = {
   Scoring:      { label: 'In Progress',        color: '#e65100' },
 };
 
-function formatDate(iso: string | null): string {
+function formatEventDate(iso: string | null): string {
   if (!iso) return '';
-  return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return formatDate(iso, { weekday: 'short', year: undefined });
 }
 
 export default function EventsPage() {
@@ -112,7 +113,7 @@ export default function EventsPage() {
           <div style={ec.grid}>
             {filtered.map(e => {
               const st = STATUS[e.status];
-              const meta = [e.orgName, e.courseName, e.courseCity && e.courseState ? `${e.courseCity}, ${e.courseState}` : null, formatDate(e.startAt)].filter(Boolean).join(' · ');
+              const meta = [e.orgName, e.courseName, e.courseCity && e.courseState ? `${e.courseCity}, ${e.courseState}` : null, formatEventDate(e.startAt)].filter(Boolean).join(' · ');
               return (
                 <a key={e.id} href={`/e/${e.orgSlug}/${e.eventCode}`} style={ec.card} className="gfp-cta">
                   <div style={ec.cardName}>{e.name}</div>

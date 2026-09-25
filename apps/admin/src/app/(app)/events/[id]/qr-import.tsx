@@ -7,6 +7,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { scoresApi, type QrCollectResult } from '@/lib/api';
 import { decodeQrPayload, type DecodedQrPayload as DecodedPreview } from '@/lib/qrUtils';
+import { formatDateTime } from '@gfp/shared-types';
 
 export default function QrImportScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
@@ -94,7 +95,7 @@ export default function QrImportScreen() {
           )}
           <PreviewRow
             label="Captured"
-            value={preview.ts ? new Date(preview.ts * 1000).toLocaleTimeString() : 'Unknown'}
+            value={preview.ts ? formatDateTime(new Date(preview.ts * 1000)) : 'Unknown'}
           />
         </View>
       )}

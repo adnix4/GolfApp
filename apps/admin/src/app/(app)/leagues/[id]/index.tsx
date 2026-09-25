@@ -8,6 +8,9 @@ import { useTheme } from '@gfp/ui';
 import { leagueApi, SeasonSummary } from '@/lib/api';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useLeagueName } from './_layout';
+import { DateTimeField } from '@/components/DateTimeField';
+import { validateDateRange } from '@/lib/dateTime';
+import { formatDateOnly } from '@gfp/shared-types';
 
 export default function LeagueDetailScreen() {
   const theme  = useTheme();
@@ -22,7 +25,8 @@ export default function LeagueDetailScreen() {
   const [sName, setSName]     = useState('');
   const [rounds, setRounds]   = useState('18');
   const [start, setStart]     = useState('');
-  const [end, setEnd]         = useState('');
+  const [end, setEnd]         = useState('');   // YYYY-MM-DD, as is start
+  const [dateErrs, setDateErrs] = useState<{ start?: string; end?: string }>({});
   const [counted, setCounted] = useState('0');
   const [method, setMethod]   = useState('TotalNet');
   const [saving, setSaving]   = useState(false);
@@ -46,7 +50,10 @@ export default function LeagueDetailScreen() {
   useDocumentTitle(leagueName ? `${leagueName} - Seasons` : 'GFP Leagues');
 
   async function handleCreate() {
-    if (!sName.trim() || !start || !end || !id) return;
+    if (!id) return;
+    const errs = validateDateRange(start, end);
+    setDateErrs(errs);
+    if (!sName.trim() || errs.start || errs.end) return;
     setSaving(true);
     try {
       await leagueApi.createSeason(id, {
@@ -68,7 +75,7 @@ export default function LeagueDetailScreen() {
   }
 
   function resetForm() {
-    setSName(''); setRounds('18'); setStart(''); setEnd('');
+    setSName(''); setRounds('18'); setStart(''); setEnd(''); setDateErrs({});
     setCounted('0'); setMethod('TotalNet');
   }
 
@@ -128,7 +135,7 @@ export default function LeagueDetailScreen() {
                 </Text>
               </View>
               <Text style={[styles.cardMeta, { color: theme.mutedText }]}>
-                {item.startDate} – {item.endDate}
+                {formatDateOnly(item.startDate)} – {formatDateOnly(item.endDate)}
               </Text>
               <View style={styles.cardStats}>
                 <Text style={[styles.stat, { color: theme.colors.primary }]}>
@@ -158,19 +165,30 @@ export default function LeagueDetailScreen() {
             <View style={styles.row}>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={[styles.label, { color: theme.mutedText }]}>Start Date</Text>
-                <TextInput
-                  style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-                  value={start} onChangeText={setStart} placeholder="2026-04-01"
-                  placeholderTextColor={theme.colors.accent}
+                <DateTimeField
+                  mode="date"
+                  value={start}
+                  onChange={v => { setStart(v); if (dateErrs.start || dateErrs.end) setDateErrs(validateDateRange(v, end)); }}
+                  placeholder="Pick a date"
+                  disabled={saving}
+                  borderColor={dateErrs.start ? '#e74c3c' : theme.colors.accent}
+                  accessibilityLabel="Season start date"
                 />
+                {!!dateErrs.start && <Text style={styles.fieldError}>{dateErrs.start}</Text>}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.label, { color: theme.mutedText }]}>End Date</Text>
-                <TextInput
-                  style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-                  value={end} onChangeText={setEnd} placeholder="2026-09-30"
-                  placeholderTextColor={theme.colors.accent}
+                <DateTimeField
+                  mode="date"
+                  value={end}
+                  onChange={v => { setEnd(v); if (dateErrs.start || dateErrs.end) setDateErrs(validateDateRange(start, v)); }}
+                  min={start || undefined}
+                  placeholder="Pick a date"
+                  disabled={saving}
+                  borderColor={dateErrs.end ? '#e74c3c' : theme.colors.accent}
+                  accessibilityLabel="Season end date"
                 />
+                {!!dateErrs.end && <Text style={styles.fieldError}>{dateErrs.end}</Text>}
               </View>
             </View>
 
@@ -248,6 +266,7 @@ const styles = StyleSheet.create({
   modal:        { width: '90%', maxWidth: 460, borderRadius: 16, padding: 24 },
   modalTitle:   { fontSize: 18, fontWeight: '700', marginBottom: 8 },
   label:        { fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 4 },
+  fieldError:   { fontSize: 12, color: '#e74c3c', marginTop: 4 },
   input:        { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 14 },
   row:          { flexDirection: 'row', marginTop: 4 },
   segRow:       { flexDirection: 'row', gap: 6, marginTop: 4 },

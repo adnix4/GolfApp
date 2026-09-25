@@ -15,9 +15,11 @@ import {
   Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useTheme } from '@gfp/ui';
+import { DateTimeField } from './DateTimeField';
 import type {
   HandicapHistoryRow, LeagueMember, LeagueRound, PairingGroup, RoundAbsence,
 } from '@/lib/api';
+import { formatDateOnly, formatDate } from '@gfp/shared-types';
 
 // ── PAIRINGS PREVIEW ──────────────────────────────────────────────────────────
 
@@ -36,7 +38,7 @@ export function PairingsPreviewModal({
       <View style={mStyles.overlay}>
         <View style={[mStyles.modal, { backgroundColor: theme.colors.surface, maxHeight: '80%' as unknown as number }]}>
           <Text style={[mStyles.modalTitle, { color: theme.colors.primary }]}>
-            Proposed Pairings — {round?.roundDate}
+            Proposed Pairings — {formatDateOnly(round?.roundDate)}
           </Text>
           <ScrollView>
             {groups.map(g => (
@@ -86,7 +88,7 @@ export function HandicapHistoryModal({
               : history.map(h => (
                 <View key={h.id} style={[mStyles.histRow, { borderColor: theme.colors.accent }]}>
                   <Text style={[mStyles.histDate, { color: theme.mutedText }]}>
-                    {h.roundDate ?? h.createdAt.slice(0, 10)}{h.adminOverride ? ' (Admin)' : ''}
+                    {h.roundDate ? formatDateOnly(h.roundDate) : formatDate(h.createdAt)}{h.adminOverride ? ' (Admin)' : ''}
                   </Text>
                   <Text style={[mStyles.histChg, { color: theme.colors.primary }]}>
                     {h.oldIndex.toFixed(1)} → {h.newIndex.toFixed(1)}
@@ -257,7 +259,7 @@ export function AbsencesModal({
       <View style={mStyles.overlay}>
         <View style={[mStyles.modal, { backgroundColor: theme.colors.surface, maxHeight: '80%' as unknown as number }]}>
           <Text style={[mStyles.modalTitle, { color: theme.colors.primary }]}>
-            Absences — {round?.roundDate}
+            Absences — {formatDateOnly(round?.roundDate)}
           </Text>
           <ScrollView style={{ maxHeight: 260 }}>
             {absences.length === 0
@@ -393,10 +395,15 @@ export function AddSubModal({
 // ── ADD ROUND ─────────────────────────────────────────────────────────────────
 
 export function AddRoundModal({
-  visible, date, notes, saving, setDate, setNotes, onCancel, onSave,
+  visible, date, notes, saving, seasonStart, seasonEnd, dateError,
+  setDate, setNotes, onCancel, onSave,
 }: {
   visible: boolean;
-  date:    string;
+  date:    string;   // YYYY-MM-DD
+  /** The season's date range (`YYYY-MM-DD`); the picker is bounded to it. */
+  seasonStart?: string;
+  seasonEnd?:   string;
+  dateError?:   string;
   notes:   string;
   saving:  boolean;
   setDate: (v: string) => void;
@@ -410,12 +417,19 @@ export function AddRoundModal({
       <View style={mStyles.overlay}>
         <View style={[mStyles.modal, { backgroundColor: theme.colors.surface }]}>
           <Text style={[mStyles.modalTitle, { color: theme.colors.primary }]}>Add Round</Text>
-          <Text style={[mStyles.label, { color: theme.mutedText }]}>Round Date (YYYY-MM-DD)</Text>
-          <TextInput
-            style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-            value={date} onChangeText={setDate} placeholder="2026-06-15"
-            placeholderTextColor={theme.colors.accent}
+          <Text style={[mStyles.label, { color: theme.mutedText }]}>Round Date</Text>
+          <DateTimeField
+            mode="date"
+            value={date}
+            onChange={setDate}
+            min={seasonStart}
+            max={seasonEnd}
+            placeholder="Pick a date"
+            disabled={saving}
+            borderColor={dateError ? '#e74c3c' : theme.colors.accent}
+            accessibilityLabel="Round date"
           />
+          {!!dateError && <Text style={mStyles.fieldError}>{dateError}</Text>}
           <Text style={[mStyles.label, { color: theme.mutedText }]}>Notes (optional)</Text>
           <TextInput
             style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
@@ -446,6 +460,7 @@ const mStyles = StyleSheet.create({
   modal:         { width: '92%', maxWidth: 500, borderRadius: 16, padding: 24 },
   modalTitle:    { fontSize: 17, fontWeight: '700', marginBottom: 8 },
   label:         { fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 4 },
+  fieldError:    { fontSize: 12, color: '#e74c3c', marginTop: 4 },
   input:         { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 14 },
   row:           { flexDirection: 'row' },
   modalActions:  { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 20 },

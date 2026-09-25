@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { FORMAT_LABELS } from '@gfp/shared-types';
+import { FORMAT_LABELS, formatDate } from '@gfp/shared-types';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useSession } from '@/lib/session';
 import { joinEvent, fetchActiveEvents, type ActiveEventSummary, type JoinEventResponse } from '@/lib/api';
@@ -19,10 +19,8 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   Scoring:      { label: 'In Progress',         color: '#e65100' },
 };
 
-function formatDate(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+function formatEventDate(iso: string | null): string {
+  return formatDate(iso, { weekday: 'short', year: undefined });
 }
 
 export default function JoinScreen() {
@@ -404,7 +402,7 @@ export default function JoinScreen() {
                   selected.courseCity && selected.courseState
                     ? `${selected.courseCity}, ${selected.courseState}`
                     : null,
-                  selected.startAt ? formatDate(selected.startAt) : null,
+                  selected.startAt ? formatEventDate(selected.startAt) : null,
                 ].filter(Boolean).join(' · ')}
               </Text>
               <Text style={[styles.formatLabel, { color: theme.mutedText }]}>
@@ -543,7 +541,7 @@ export default function JoinScreen() {
             const st = STATUS_LABELS[evt.status];
             const meta = [
               evt.courseCity && evt.courseState ? `${evt.courseCity}, ${evt.courseState}` : null,
-              evt.startAt ? formatDate(evt.startAt) : null,
+              evt.startAt ? formatEventDate(evt.startAt) : null,
             ].filter(Boolean).join(' · ');
 
             return (

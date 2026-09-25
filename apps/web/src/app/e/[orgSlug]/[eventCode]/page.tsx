@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { fetchPublicEvent, fetchPublicLeaderboard } from '@/lib/api';
+import { formatDate } from '@gfp/shared-types';
 import EventRegistrationSection from './EventActions';
 import EventHeader from './EventHeader';
 import EventInfoCard from './EventInfoCard';
@@ -19,7 +20,9 @@ export async function generateMetadata(
   if (!event) return { title: 'Event Not Found' };
 
   const dateStr = event.startAt
-    ? new Date(event.startAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    // Metadata renders only on the server (UTC), so an evening start can read
+    // as the next day here; the visible page uses LocalDate instead.
+    ? formatDate(event.startAt, { month: 'long' })
     : '';
   const description = [
     `${event.orgName} golf fundraiser`,

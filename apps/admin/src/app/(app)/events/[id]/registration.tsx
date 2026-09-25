@@ -13,6 +13,7 @@ import {
   canCheckInWholeTeam, golfersWithoutCard,
 } from '@/lib/checkIn';
 import { AddCardModal, cardCaptureEnabled } from '@/components/AddCardModal';
+import { formatTime } from '@gfp/shared-types';
 
 type Filter = 'all' | 'pending' | 'checked_in';
 
@@ -261,7 +262,7 @@ export default function RegistrationScreen() {
                     <Text style={[styles.meta, { color: theme.mutedText }]}>
                       {team.players.length} player{team.players.length !== 1 ? 's' : ''}
                       {team.startingHole ? ` · Hole ${team.startingHole}` : ''}
-                      {team.teeTime ? ` · ${new Date(team.teeTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                      {team.teeTime ? ` · ${formatTime(team.teeTime)}` : ''}
                     </Text>
                   </View>
                   <View style={[

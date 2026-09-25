@@ -15,6 +15,7 @@
     "@gfp/shared-types": "*",
     "@gfp/theme": "*",
     "@gfp/ui": "*",
+    "@react-native-community/datetimepicker": "9.1.0",
     "@react-navigation/native": "^7.0.0",
     "@stripe/react-stripe-js": "^6.8.0",
     "@stripe/stripe-js": "^9.12.1",

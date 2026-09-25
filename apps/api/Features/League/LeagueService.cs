@@ -157,6 +157,8 @@ public class LeagueService
         Guid orgId, Guid leagueId, CreateSeasonRequest req, CancellationToken ct)
     {
         await GetOwnedLeagueAsync(orgId, leagueId, ct);
+        if (req.EndDate < req.StartDate)
+            throw new ValidationException("Season end date can't be before its start date.");
 
         var season = new Season
         {

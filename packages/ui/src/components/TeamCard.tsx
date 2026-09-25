@@ -16,6 +16,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { TeamDTO } from '@gfp/shared-types';
 import { useTheme } from './ThemeProvider';
+import { formatTime } from '@gfp/shared-types';
 
 interface TeamCardProps {
   team: TeamDTO;
@@ -61,7 +62,7 @@ export function TeamCard({ team, showCheckIn: _showCheckIn = false }: TeamCardPr
         )}
         {team.teeTime && (
           <Text style={[styles.infoText, { color: theme.colors.action }]}>
-            {new Date(team.teeTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {formatTime(team.teeTime)}
           </Text>
         )}
         <Text style={[styles.infoText, { color: theme.mutedText }]}>

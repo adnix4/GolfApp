@@ -1,4 +1,4 @@
-import { ApiError, createApiClient } from '@gfp/shared-types';
+import { ApiError, createApiClient, formatDate, formatTime } from '@gfp/shared-types';
 import type { GFPTheme } from '@gfp/theme';
 import { storage } from './storage';
 import { uploadWithProgress, type UploadOptions } from './upload';
@@ -295,8 +295,17 @@ export const sponsorsApi = {
 };
 
 export const emailBuilderApi = {
-  getData: (eventId: string) =>
-    request<EmailBuilderData>(`/api/v1/events/${eventId}/email-builder/data`),
+  // The server formats eventDate/eventTime in UTC (no event time zone is
+  // stored), so rebuild them in the organizer's zone, the one they entered.
+  getData: async (eventId: string): Promise<EmailBuilderData> => {
+    const d = await request<EmailBuilderData>(`/api/v1/events/${eventId}/email-builder/data`);
+    if (!d.startAt) return d;
+    return {
+      ...d,
+      eventDate: formatDate(d.startAt, { month: 'long' }),
+      eventTime: `${formatTime(d.startAt)} · ${d.startTypeLabel}`,
+    };
+  },
 
   send: (eventId: string, payload: { toAddress: string; subject: string; html: string }) =>
     request<{ sent: boolean }>(`/api/v1/events/${eventId}/email-builder/send`, {
@@ -326,6 +335,9 @@ export interface EmailBuilderData {
   eventDate:        string;
   /** "7:30 AM · Shotgun start" — empty when the event has no start time yet. */
   eventTime:        string;
+  /** Raw start (ISO, UTC); eventDate/eventTime are re-derived from it locally. */
+  startAt:          string | null;
+  startTypeLabel:   string;
   eventLocation:    string;
   courseName:       string;
   courseAddress:    string;

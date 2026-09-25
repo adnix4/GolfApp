@@ -10,6 +10,7 @@ import {
   formatCentsShort, dollarsToCents, centsToMoneyValue, useLiveAuction,
   needsPaymentMethod, minimumBidCents, isDonationItem, usesProxyBidding,
   foldPlayerBidsByItem, bidTone, buildBidConfirmation, type BidTone,
+  formatDateTime,
 } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
 import { notify } from '@/lib/notify';
@@ -459,7 +460,7 @@ export default function AuctionScreen() {
                     <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Text>
                     <Text style={{ color: theme.mutedText, fontSize: 12 }}>
                       {item.auctionType}
-                      {item.closesAt ? `  · Closes: ${new Date(item.closesAt).toLocaleTimeString()}` : ''}
+                      {item.closesAt ? `  · Closes: ${formatDateTime(item.closesAt)}` : ''}
                     </Text>
                     {isDonation ? (
                       <>
@@ -617,7 +618,7 @@ export default function AuctionScreen() {
                 {usesProxyBidding(item.auctionType) ? 'max ' : ''}{fmt(item.amountCents)} · {item.status}
               </Text>
               <Text style={{ color: '#888', fontSize: 11, marginTop: 2 }}>
-                {new Date(item.placedAt).toLocaleString()}
+                {formatDateTime(item.placedAt)}
               </Text>
             </View>
           )}

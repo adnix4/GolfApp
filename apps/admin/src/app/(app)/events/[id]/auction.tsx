@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme, MoneyInput } from '@gfp/ui';
-import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
+import { dollarsToCents, formatCentsShort, centsToMoneyValue, formatDateTime } from '@gfp/shared-types';
 import { auctionApi, resolveUrl, type AuctionItem, type CreateAuctionItemPayload } from '@/lib/api';
 import { bidIncrementWarning } from '@/lib/auctionSetup';
 import {
@@ -13,9 +13,9 @@ import {
   endAuctionCopy, endAuctionResult,
 } from '@/lib/auctionEnd';
 import {
-  formatDateInput, formatTimeInput,
-  buildIsoDateTime, parseIsoToFields,
+  isoToPickerValues, pickerValuesToIso, toPickerDate, validatePickerDateTime,
 } from '@/lib/dateTime';
+import { DateTimePairField } from '@/components/DateTimePairField';
 import { confirmAction, alertAction } from '@/lib/confirmAction';
 
 // An item's auction type is locked once it has bids or leaves the Open state
@@ -36,9 +36,8 @@ interface AuctionForm {
   startingBid:     string;   // dollars
   bidIncrement:    string;   // dollars
   buyNowPrice:     string;   // dollars, empty = none
-  closeDate:       string;   // MM/DD/YYYY
-  closeTime:       string;   // HH:MM
-  closeAmpm:       'AM' | 'PM';
+  closeDate:       string;   // YYYY-MM-DD
+  closeTime:       string;   // HH:mm, 24-hour
   fairMarketValue: string;   // dollars
   goal:            string;   // dollars, only for donation types
   displayOrder:    string;
@@ -48,13 +47,13 @@ function emptyForm(): AuctionForm {
   return {
     title: '', description: '', auctionType: 'Silent',
     startingBid: '', bidIncrement: '$5.00', buyNowPrice: '',
-    closeDate: '', closeTime: '', closeAmpm: 'AM',
+    closeDate: '', closeTime: '',
     fairMarketValue: '', goal: '', displayOrder: '0',
   };
 }
 
 function itemToForm(item: AuctionItem): AuctionForm {
-  const c = parseIsoToFields(item.closesAt);
+  const c = isoToPickerValues(item.closesAt);
   return {
     title:           item.title,
     description:     item.description,
@@ -64,7 +63,6 @@ function itemToForm(item: AuctionItem): AuctionForm {
     buyNowPrice:     centsToMoneyValue(item.buyNowPriceCents),
     closeDate:       c.date,
     closeTime:       c.time,
-    closeAmpm:       c.ampm,
     fairMarketValue: centsToMoneyValue(item.fairMarketValueCents),
     goal:            centsToMoneyValue(item.goalCents),
     displayOrder:    String(item.displayOrder),
@@ -159,14 +157,27 @@ export default function AuctionScreen() {
     dollarsToCents(form.bidIncrement),
   );
 
+  // Closes-at applies to silent types only. It's sent only when it changed:
+  // the API resets the bid-extension ceiling (OriginalClosesAt) whenever
+  // closesAt arrives, and ignores null, so a saved close can't be removed.
+  const showsClose = form.auctionType === 'Silent' || form.auctionType === 'DonationSilent';
+  const savedClose = isoToPickerValues(editItem?.closesAt);
+  const closeChanged = form.closeDate !== savedClose.date || form.closeTime !== savedClose.time;
+
+  function closeErrors(date: string, time: string): Record<string, string> {
+    if (savedClose.date && !date) return { closeDate: 'A close time can’t be removed once set; pick a new one instead.' };
+    const changed = date !== savedClose.date || time !== savedClose.time;
+    const e = validatePickerDateTime(date, time, { label: 'Close', future: changed });
+    return { ...(e.date ? { closeDate: e.date } : {}), ...(e.time ? { closeTime: e.time } : {}) };
+  }
+
   function validate(): boolean {
     const errs: Record<string, string> = {};
     if (!form.title.trim()) errs.title = 'Title is required.';
     const bid = dollarsToCents(form.startingBid);
     if (!form.startingBid.trim()) errs.startingBid = 'Starting bid is required.';
     else if (bid <= 0) errs.startingBid = 'Starting bid must be greater than $0.00.';
-    if (form.closeDate && form.closeDate.length > 0 && form.closeDate.length < 10)
-      errs.closeDate = 'Enter a complete date (MM/DD/YYYY).';
+    if (showsClose) Object.assign(errs, closeErrors(form.closeDate, form.closeTime));
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -202,8 +213,8 @@ export default function AuctionScreen() {
         displayOrder:        parseInt(form.displayOrder) || 0,
         ...(form.buyNowPrice.trim()  ? { buyNowPriceCents:  dollarsToCents(form.buyNowPrice)  } : {}),
         ...(form.goal.trim()         ? { goalCents:         dollarsToCents(form.goal)          } : {}),
-        ...(form.closeDate.length >= 10
-          ? { closesAt: buildIsoDateTime(form.closeDate, form.closeTime, form.closeAmpm) }
+        ...(showsClose && closeChanged && form.closeDate
+          ? { closesAt: pickerValuesToIso(form.closeDate, form.closeTime) }
           : {}),
       };
       let saved: AuctionItem;
@@ -361,7 +372,7 @@ export default function AuctionScreen() {
                 </Text>
                 {item.closesAt && (
                   <Text style={{ color: '#888', fontSize: 12, marginTop: 2 }}>
-                    Closes: {new Date(item.closesAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    Closes: {formatDateTime(item.closesAt)}
                   </Text>
                 )}
               </View>
@@ -489,34 +500,26 @@ export default function AuctionScreen() {
           </View>
 
           {/* Closes At — only for silent types */}
-          {(form.auctionType === 'Silent' || form.auctionType === 'DonationSilent') && (
+          {showsClose && (
             <>
               <Text style={styles.label}>Closes At — optional</Text>
-              <View style={styles.dateTimeRow}>
-                <TextInput
-                  style={[styles.input, styles.dateInput, fieldErrors.closeDate && styles.inputError]}
-                  value={form.closeDate}
-                  onChangeText={v => field('closeDate', formatDateInput(v))}
-                  placeholder="MM/DD/YYYY"
-                  placeholderTextColor="#999"
-                  keyboardType="numeric"
-                />
-                <TextInput
-                  style={[styles.input, styles.timeInput]}
-                  value={form.closeTime}
-                  onChangeText={v => field('closeTime', formatTimeInput(v))}
-                  placeholder="HH:MM"
-                  placeholderTextColor="#999"
-                  keyboardType="numeric"
-                />
-                <Pressable
-                  style={[styles.ampmBtn, { borderColor: theme.colors.primary }]}
-                  onPress={() => setForm(f => ({ ...f, closeAmpm: f.closeAmpm === 'AM' ? 'PM' : 'AM' }))}
-                >
-                  <Text style={[styles.ampmText, { color: theme.colors.primary }]}>{form.closeAmpm}</Text>
-                </Pressable>
-              </View>
-              {fieldErrors.closeDate && <Text style={styles.fieldError}>{fieldErrors.closeDate}</Text>}
+              <DateTimePairField
+                label="Close"
+                date={form.closeDate}
+                time={form.closeTime}
+                onChange={({ date, time }) => {
+                  setForm(f => ({ ...f, closeDate: date, closeTime: time }));
+                  const e = closeErrors(date, time);
+                  setFieldErrors(p => {
+                    const n = { ...p }; delete n.closeDate; delete n.closeTime;
+                    return { ...n, ...e };
+                  });
+                }}
+                errors={{ date: fieldErrors.closeDate, time: fieldErrors.closeTime }}
+                min={!savedClose.date || savedClose.date >= toPickerDate(new Date()) ? toPickerDate(new Date()) : undefined}
+                disabled={saving}
+                clearable={!savedClose.date}
+              />
             </>
           )}
 
@@ -683,11 +686,6 @@ const styles = StyleSheet.create({
   dollarRow:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dollarSign:   { fontSize: 18, fontWeight: '700', color: '#555', paddingBottom: 2 },
   dollarInput:  { flex: 1 },
-  dateTimeRow:  { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  dateInput:    { flex: 2 },
-  timeInput:    { flex: 1 },
-  ampmBtn:      { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8, borderWidth: 1.5 },
-  ampmText:     { fontSize: 14, fontWeight: '700' },
   modalContent: { padding: 24, paddingBottom: 60 },
   modalTitle:   { fontSize: 20, fontWeight: '800', marginBottom: 16 },
   modalBtnRow:  { flexDirection: 'row', marginTop: 28 },

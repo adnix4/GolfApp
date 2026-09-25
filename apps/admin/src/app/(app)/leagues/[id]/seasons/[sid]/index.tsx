@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { formatCentsShort } from '@gfp/shared-types';
+import { formatCentsShort, formatDateOnly } from '@gfp/shared-types';
 import {
   leagueApi, SeasonDashboard, LeagueMember, LeagueRound,
   StandingRow, SkinRow, PairingGroup, HandicapHistoryRow, RoundAbsence,
@@ -16,6 +16,7 @@ import {
   type AddMemberFields, type AddSubFields,
 } from '@/components/seasonModals';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { validatePickerDateTime } from '@/lib/dateTime';
 import { useLeagueName } from '../../_layout';
 
 type Tab = 'overview' | 'roster' | 'rounds' | 'handicaps' | 'standings' | 'skins';
@@ -49,7 +50,8 @@ export default function SeasonDashboardScreen() {
   const [mSaving, setMSaving]             = useState(false);
 
   const [showAddRound, setShowAddRound] = useState(false);
-  const [rDate, setRDate]   = useState('');
+  const [rDate, setRDate]   = useState('');   // YYYY-MM-DD
+  const [rDateErr, setRDateErr] = useState<string | undefined>();
   const [rNotes, setRNotes] = useState('');
   const [rSaving, setRSaving] = useState(false);
 
@@ -125,12 +127,24 @@ export default function SeasonDashboardScreen() {
     } catch (e: unknown) { setError((e as Error).message); }
   }
 
+  // A round must be dated inside its season; the picker is bounded to the
+  // season too, but a typed-in date can still land outside it.
+  function roundDateError(date: string): string | undefined {
+    if (!date) return 'Pick a round date';
+    return validatePickerDateTime(date, '', {
+      label: 'Round', min: dashboard?.season.startDate, max: dashboard?.season.endDate, rangeName: 'the season',
+    }).date;
+  }
+
   async function handleAddRound() {
-    if (!id || !sid || !rDate) return;
+    if (!id || !sid) return;
+    const err = roundDateError(rDate);
+    setRDateErr(err);
+    if (err) return;
     setRSaving(true);
     try {
       await leagueApi.createRound(id, sid, { roundDate: rDate, notes: rNotes || undefined });
-      setShowAddRound(false); setRDate(''); setRNotes('');
+      setShowAddRound(false); setRDate(''); setRNotes(''); setRDateErr(undefined);
       await load();
     } catch (e: unknown) { setError((e as Error).message); }
     finally { setRSaving(false); }
@@ -340,7 +354,7 @@ export default function SeasonDashboardScreen() {
             {dashboard.rounds.slice(0, 5).map(r => (
               <View key={r.id} style={[styles.roundRow, { borderColor: theme.colors.accent }]}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.roundDate, { color: theme.colors.primary }]}>{r.roundDate}</Text>
+                  <Text style={[styles.roundDate, { color: theme.colors.primary }]}>{formatDateOnly(r.roundDate)}</Text>
                   <Text style={[styles.roundMeta, { color: theme.mutedText }]}>
                     {r.courseName ?? 'No course'} · {r.scoredCount} scored
                   </Text>
@@ -404,7 +418,7 @@ export default function SeasonDashboardScreen() {
               <View key={r.id} style={[styles.roundCard, { borderColor: theme.colors.accent }]}>
                 <View style={styles.roundCardTop}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.roundDate, { color: theme.colors.primary }]}>{r.roundDate}</Text>
+                    <Text style={[styles.roundDate, { color: theme.colors.primary }]}>{formatDateOnly(r.roundDate)}</Text>
                     <Text style={[styles.roundMeta, { color: theme.mutedText }]}>
                       {r.courseName ?? 'No course'} · {r.pairingCount} groups · {r.scoredCount} scored
                       {r.absenceCount > 0 ? ` · ${r.absenceCount} absent` : ''}
@@ -532,7 +546,7 @@ export default function SeasonDashboardScreen() {
         {tab === 'skins' && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
-              Skins — {selRound?.roundDate ?? 'Select a round'}
+              Skins — {selRound ? formatDateOnly(selRound.roundDate) : 'Select a round'}
             </Text>
             {skins.length === 0 ? (
               <Text style={[styles.emptyText, { color: theme.mutedText }]}>
@@ -630,9 +644,12 @@ export default function SeasonDashboardScreen() {
         date={rDate}
         notes={rNotes}
         saving={rSaving}
-        setDate={setRDate}
+        seasonStart={dashboard?.season.startDate}
+        seasonEnd={dashboard?.season.endDate}
+        dateError={rDateErr}
+        setDate={v => { setRDate(v); if (rDateErr) setRDateErr(roundDateError(v)); }}
         setNotes={setRNotes}
-        onCancel={() => setShowAddRound(false)}
+        onCancel={() => { setShowAddRound(false); setRDateErr(undefined); }}
         onSave={handleAddRound}
       />
     </View>
