@@ -9,6 +9,7 @@ import {
   eventsApi, teamsApi, sponsorsApi,
   type EventDetail, type Team, type LeaderboardEntry, type IndividualLeaderboardEntry, type Sponsor,
 } from '@/lib/api';
+import { formatDateTime, formatDate, formatTime } from '@gfp/shared-types';
 
 type PrintMode = 'scorecards' | 'leaderboard' | 'sponsors' | 'teetime';
 
@@ -212,7 +213,7 @@ function buildScorecardHtml(event: EventDetail, teams: Team[]): string {
       <h2>${event.name} &nbsp;·&nbsp; ${fmt(event.format)}</h2>
       <p style="font-size:12px; color:#888; margin-bottom:8px">
         ${team.startingHole ? `Starting Hole: ${team.startingHole}` : ''}
-        ${team.teeTime ? ` &nbsp;·&nbsp; Tee Time: ${new Date(team.teeTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+        ${team.teeTime ? ` &nbsp;·&nbsp; Tee Time: ${formatTime(team.teeTime)}` : ''}
       </p>
       <p style="font-size:12px; color:#888; margin-bottom:4px">Players: ${team.players.map(p => `${p.firstName} ${p.lastName}`).join(', ')}</p>
       <table>
@@ -304,7 +305,7 @@ function buildLeaderboardHtml(
   }).join('');
 
   const dateStr = event.startAt
-    ? new Date(event.startAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    ? formatDate(event.startAt, { weekday: 'long', month: 'long' })
     : '';
 
   return `<!DOCTYPE html><html><head><title>Leaderboard — ${event.name}</title>${buildPrintBase(primary)}</head>
@@ -317,7 +318,7 @@ function buildLeaderboardHtml(
     <div style="padding:24px">
       <h1>${event.name}</h1>
       <h2>${fmt(event.format)}${dateStr ? ' &nbsp;·&nbsp; ' + dateStr : ''}</h2>
-      <p style="font-size:12px; color:#888; margin-top:4px">Printed ${new Date().toLocaleString()}</p>
+      <p style="font-size:12px; color:#888; margin-top:4px">Printed ${formatDateTime(new Date())}</p>
       ${event.format === 'Stroke' && golfers.length > 0 ? buildGolferTableHtml(golfers) : ''}
       <table>
         <thead><tr>
@@ -382,7 +383,7 @@ function buildTeeTimeHtml(event: EventDetail, teams: Team[]): string {
 
   const rows = sorted.map((team, idx) => {
     const teeStr = team.teeTime
-      ? new Date(team.teeTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      ? formatTime(team.teeTime)
       : '—';
     const players = team.players.map(p => `${p.firstName} ${p.lastName}`).join(', ') || '—';
     return `<tr>
@@ -395,7 +396,7 @@ function buildTeeTimeHtml(event: EventDetail, teams: Team[]): string {
   }).join('');
 
   const dateStr = event.startAt
-    ? new Date(event.startAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    ? formatDate(event.startAt, { weekday: 'long', month: 'long' })
     : '';
 
   return `<!DOCTYPE html><html><head><title>Tee Times — ${event.name}</title>${buildPrintBase(primary)}</head>
@@ -408,7 +409,7 @@ function buildTeeTimeHtml(event: EventDetail, teams: Team[]): string {
     <div style="padding:24px">
       <h1>${event.name}</h1>
       <h2>Tee Time Schedule${dateStr ? ' &nbsp;·&nbsp; ' + dateStr : ''}</h2>
-      <p style="font-size:12px; color:#888; margin-top:4px">Printed ${new Date().toLocaleString()}</p>
+      <p style="font-size:12px; color:#888; margin-top:4px">Printed ${formatDateTime(new Date())}</p>
       <table>
         <thead><tr>
           <th style="width:40px;text-align:center">#</th>

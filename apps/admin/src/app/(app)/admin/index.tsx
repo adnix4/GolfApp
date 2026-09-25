@@ -6,6 +6,7 @@ import {
 import { useTheme, StatusPill } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
 import { superAdminApi, OrgSummary, AllEventSummary } from '@/lib/api';
+import { formatDate } from '@gfp/shared-types';
 
 // Super-admin uses a different palette than the organizer event view —
 // here Completed is blue (legacy) and Archived is a real status.
@@ -158,7 +159,7 @@ export default function SuperAdminDashboard() {
               </Text>
               {!isMobile && (
                 <Text style={[styles.tdCell, styles.thDate, { color: theme.mutedText }]}>
-                  {new Date(org.createdAt).toLocaleDateString()}
+                  {formatDate(org.createdAt)}
                 </Text>
               )}
             </View>
@@ -208,7 +209,7 @@ export default function SuperAdminDashboard() {
               </Text>
               {!isMobile && (
                 <Text style={[styles.tdCell, styles.thDate, { color: theme.mutedText }]}>
-                  {ev.startAt ? new Date(ev.startAt).toLocaleDateString() : '—'}
+                  {formatDate(ev.startAt) || '—'}
                 </Text>
               )}
             </View>

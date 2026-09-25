@@ -131,6 +131,7 @@ function LeaguePromo() {
   );
 }
 import { fetchMemberSeasonSummary, MemberSeasonSummary } from '@/lib/api';
+import { formatDateOnly, formatDate } from '@gfp/shared-types';
 
 export default function LeagueScreen() {
   const theme   = useTheme();
@@ -234,7 +235,7 @@ export default function LeagueScreen() {
             <View key={h.id} style={[styles.trendRow, { borderColor: theme.colors.accent }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.trendDate, { color: theme.mutedText }]}>
-                  {h.roundDate ?? h.createdAt.slice(0, 10)}
+                  {h.roundDate ? formatDateOnly(h.roundDate) : formatDate(h.createdAt)}
                   {h.adminOverride ? '  (Admin)' : ''}
                 </Text>
               </View>
@@ -267,7 +268,7 @@ export default function LeagueScreen() {
             </View>
             {summary.roundHistory.map(r => (
               <View key={r.roundId} style={[styles.tableRow, { borderBottomColor: theme.colors.accent }]}>
-                <Text style={[styles.tableCell, { color: theme.mutedText }]}>{r.roundDate}</Text>
+                <Text style={[styles.tableCell, { color: theme.mutedText }]}>{formatDateOnly(r.roundDate, { year: undefined })}</Text>
                 <Text style={[styles.tableCell, { color: theme.colors.primary }]}>{r.grossTotal}</Text>
                 <Text style={[styles.tableCell, { color: theme.colors.primary, fontWeight: '600' }]}>{r.netTotal}</Text>
                 <Text style={[styles.tableCell, { color: theme.colors.primary, fontWeight: '600' }]}>{r.stablefordPoints}</Text>

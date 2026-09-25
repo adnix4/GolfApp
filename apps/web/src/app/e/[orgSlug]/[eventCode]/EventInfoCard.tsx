@@ -1,5 +1,7 @@
 import { s } from './eventPageStyles';
 import type { PublicEventData } from '@/lib/api';
+import type { ReactNode } from 'react';
+import LocalDate from './LocalDate';
 
 /**
  * The date / format / course / team-spots quick-facts card.
@@ -7,16 +9,16 @@ import type { PublicEventData } from '@/lib/api';
  * vertically aligned without per-row style duplication.
  */
 export default function EventInfoCard({ event }: { event: PublicEventData }) {
-  const dateStr = event.startAt
-    ? new Date(event.startAt).toLocaleDateString('en-US', {
-        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
-      })
-    : null;
-
   return (
     <section style={s.card}>
       <div style={s.infoGrid}>
-        {dateStr && <InfoItem icon="📅" label="Date" value={dateStr} />}
+        {event.startAt && (
+          <InfoItem
+            icon="📅"
+            label="Date"
+            value={<LocalDate iso={event.startAt} options={{ weekday: 'long', month: 'long' }} />}
+          />
+        )}
         <InfoItem icon="⛳" label="Format" value={titleCase(event.format)} />
         {event.course && (
           <InfoItem
@@ -42,7 +44,7 @@ export default function EventInfoCard({ event }: { event: PublicEventData }) {
   );
 }
 
-function InfoItem({ icon, label, value }: { icon: string; label: string; value: string }) {
+function InfoItem({ icon, label, value }: { icon: string; label: string; value: ReactNode }) {
   return (
     <div style={s.infoItem}>
       <span style={s.infoIcon}>{icon}</span>

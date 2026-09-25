@@ -19,6 +19,7 @@ import { DateTimeField } from './DateTimeField';
 import type {
   HandicapHistoryRow, LeagueMember, LeagueRound, PairingGroup, RoundAbsence,
 } from '@/lib/api';
+import { formatDateOnly, formatDate } from '@gfp/shared-types';
 
 // ── PAIRINGS PREVIEW ──────────────────────────────────────────────────────────
 
@@ -37,7 +38,7 @@ export function PairingsPreviewModal({
       <View style={mStyles.overlay}>
         <View style={[mStyles.modal, { backgroundColor: theme.colors.surface, maxHeight: '80%' as unknown as number }]}>
           <Text style={[mStyles.modalTitle, { color: theme.colors.primary }]}>
-            Proposed Pairings — {round?.roundDate}
+            Proposed Pairings — {formatDateOnly(round?.roundDate)}
           </Text>
           <ScrollView>
             {groups.map(g => (
@@ -87,7 +88,7 @@ export function HandicapHistoryModal({
               : history.map(h => (
                 <View key={h.id} style={[mStyles.histRow, { borderColor: theme.colors.accent }]}>
                   <Text style={[mStyles.histDate, { color: theme.mutedText }]}>
-                    {h.roundDate ?? h.createdAt.slice(0, 10)}{h.adminOverride ? ' (Admin)' : ''}
+                    {h.roundDate ? formatDateOnly(h.roundDate) : formatDate(h.createdAt)}{h.adminOverride ? ' (Admin)' : ''}
                   </Text>
                   <Text style={[mStyles.histChg, { color: theme.colors.primary }]}>
                     {h.oldIndex.toFixed(1)} → {h.newIndex.toFixed(1)}
@@ -258,7 +259,7 @@ export function AbsencesModal({
       <View style={mStyles.overlay}>
         <View style={[mStyles.modal, { backgroundColor: theme.colors.surface, maxHeight: '80%' as unknown as number }]}>
           <Text style={[mStyles.modalTitle, { color: theme.colors.primary }]}>
-            Absences — {round?.roundDate}
+            Absences — {formatDateOnly(round?.roundDate)}
           </Text>
           <ScrollView style={{ maxHeight: 260 }}>
             {absences.length === 0

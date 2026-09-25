@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme, MoneyInput } from '@gfp/ui';
-import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
+import { dollarsToCents, formatCentsShort, centsToMoneyValue, formatDateTime } from '@gfp/shared-types';
 import { auctionApi, resolveUrl, type AuctionItem, type CreateAuctionItemPayload } from '@/lib/api';
 import { bidIncrementWarning } from '@/lib/auctionSetup';
 import {
@@ -372,7 +372,7 @@ export default function AuctionScreen() {
                 </Text>
                 {item.closesAt && (
                   <Text style={{ color: '#888', fontSize: 12, marginTop: 2 }}>
-                    Closes: {new Date(item.closesAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    Closes: {formatDateTime(item.closesAt)}
                   </Text>
                 )}
               </View>

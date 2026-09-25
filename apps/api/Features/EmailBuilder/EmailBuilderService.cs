@@ -121,6 +121,8 @@ public class EmailBuilderService
                                   System.Globalization.CultureInfo.InvariantCulture)
                               ?? "Date TBD",
             EventTime        = eventTime,
+            StartAt          = evt.StartAt,
+            StartTypeLabel   = startTypeLabel,
             EventLocation    = location,
             CourseName       = evt.Course?.Name ?? string.Empty,
             CourseAddress    = courseAddress,
@@ -227,6 +229,14 @@ public sealed record EmailBuilderDataResponse
     public string  EventDate        { get; init; } = string.Empty;
     /// <summary>"7:30 AM · Shotgun start" for the WHEN block; empty when StartAt is unset.</summary>
     public string  EventTime        { get; init; } = string.Empty;
+    /// <summary>
+    /// The raw start (UTC). EventDate/EventTime above are formatted in UTC
+    /// because no event time zone is stored; the admin builder re-formats
+    /// from this in the organizer's own zone, which is what they entered.
+    /// </summary>
+    public DateTime? StartAt        { get; init; }
+    /// <summary>"Shotgun start" or "Tee times".</summary>
+    public string  StartTypeLabel   { get; init; } = string.Empty;
     public string  EventLocation    { get; init; } = string.Empty;
     /// <summary>Golf course name for the flier; empty when no course attached.</summary>
     public string  CourseName       { get; init; } = string.Empty;

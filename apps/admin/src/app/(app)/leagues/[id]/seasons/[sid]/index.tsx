@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { formatCentsShort } from '@gfp/shared-types';
+import { formatCentsShort, formatDateOnly } from '@gfp/shared-types';
 import {
   leagueApi, SeasonDashboard, LeagueMember, LeagueRound,
   StandingRow, SkinRow, PairingGroup, HandicapHistoryRow, RoundAbsence,
@@ -354,7 +354,7 @@ export default function SeasonDashboardScreen() {
             {dashboard.rounds.slice(0, 5).map(r => (
               <View key={r.id} style={[styles.roundRow, { borderColor: theme.colors.accent }]}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.roundDate, { color: theme.colors.primary }]}>{r.roundDate}</Text>
+                  <Text style={[styles.roundDate, { color: theme.colors.primary }]}>{formatDateOnly(r.roundDate)}</Text>
                   <Text style={[styles.roundMeta, { color: theme.mutedText }]}>
                     {r.courseName ?? 'No course'} · {r.scoredCount} scored
                   </Text>
@@ -418,7 +418,7 @@ export default function SeasonDashboardScreen() {
               <View key={r.id} style={[styles.roundCard, { borderColor: theme.colors.accent }]}>
                 <View style={styles.roundCardTop}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.roundDate, { color: theme.colors.primary }]}>{r.roundDate}</Text>
+                    <Text style={[styles.roundDate, { color: theme.colors.primary }]}>{formatDateOnly(r.roundDate)}</Text>
                     <Text style={[styles.roundMeta, { color: theme.mutedText }]}>
                       {r.courseName ?? 'No course'} · {r.pairingCount} groups · {r.scoredCount} scored
                       {r.absenceCount > 0 ? ` · ${r.absenceCount} absent` : ''}
@@ -546,7 +546,7 @@ export default function SeasonDashboardScreen() {
         {tab === 'skins' && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
-              Skins — {selRound?.roundDate ?? 'Select a round'}
+              Skins — {selRound ? formatDateOnly(selRound.roundDate) : 'Select a round'}
             </Text>
             {skins.length === 0 ? (
               <Text style={[styles.emptyText, { color: theme.mutedText }]}>

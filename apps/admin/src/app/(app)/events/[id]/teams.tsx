@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme, StatusPill, FormModal } from '@gfp/ui';
-import { digitsOnly, fmtAgeGroup, fmtPhone, fmtPhoneInput } from '@gfp/shared-types';
+import { digitsOnly, fmtAgeGroup, fmtPhone, fmtPhoneInput, formatTime } from '@gfp/shared-types';
 import {
   teamsApi, eventsApi, playersApi,
   type Team, type Player, type RegisterTeamPayload, type AddPlayerPayload,
@@ -54,7 +54,7 @@ const TeamRow = memo(function TeamRow({
           <Text style={[styles.meta, { color: theme.mutedText }]}>
             {team.players.length}/{team.maxPlayers} players
             {team.startingHole ? ` · Hole ${team.startingHole}` : ''}
-            {team.teeTime ? ` · ${new Date(team.teeTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+            {team.teeTime ? ` · ${formatTime(team.teeTime)}` : ''}
           </Text>
         </View>
         <View style={styles.cardRight}>

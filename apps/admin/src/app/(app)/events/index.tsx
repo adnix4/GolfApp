@@ -9,6 +9,7 @@ import {
   FORMAT_OPTIONS, FORMAT_LABELS, FORMAT_HINTS,
   START_OPTIONS, START_LABELS, START_HINTS,
   HOLES_OPTIONS,
+  formatDate,
 } from '@gfp/shared-types';
 import { eventsApi, type EventSummary, type CreateEventPayload } from '@/lib/api';
 import { pickerValuesToIso, toPickerDate, validatePickerDateTime } from '@/lib/dateTime';
@@ -64,7 +65,7 @@ const EventRow = memo(function EventRow({
           </Text>
           {item.startAt && (
             <Text style={[styles.metaItem, { color: theme.mutedText }]}>
-              {new Date(item.startAt).toLocaleDateString()}
+              {formatDate(item.startAt)}
             </Text>
           )}
         </View>

@@ -8,6 +8,7 @@ import {
   FORMAT_OPTIONS, FORMAT_LABELS,
   START_OPTIONS, START_LABELS,
   HOLES_OPTIONS, centsToMoneyValue,
+  formatDateTime,
 } from '@gfp/shared-types';
 import { eventsApi, testDataApi, teamsApi, auctionApi, type Course, type EventDetail } from '@/lib/api';
 import { isAuctionStatusFinal } from '@/lib/auctionEnd';
@@ -250,9 +251,7 @@ export default function EventOverviewScreen() {
         <DetailRow label="Holes"      value={`${event.holes} holes`} />
         <DetailRow label="Entry Fee"  value={entryFeeLabel(readEntryFeeCents(event.config))} />
         {event.startAt && (
-          <DetailRow label="Start Date" value={new Date(event.startAt).toLocaleString([], {
-            month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
-          })} />
+          <DetailRow label="Start Date" value={formatDateTime(event.startAt)} />
         )}
       </View>
 
@@ -422,9 +421,7 @@ function DraftSetupSection({ event, updating, seeding, onOpenEdit, onOpenCourse,
           done={hasDate}
           required
           label="Start date & time"
-          doneDetail={event.startAt ? new Date(event.startAt).toLocaleString([], {
-            weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-          }) : undefined}
+          doneDetail={formatDateTime(event.startAt, { weekday: 'short', year: undefined }) || undefined}
           missingDetail="Required before golfers can register."
           action={!hasDate ? { label: 'Set Date', onPress: onOpenEdit } : undefined}
         />

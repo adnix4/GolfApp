@@ -8,6 +8,7 @@ import * as Battery from 'expo-battery';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { checkConnectivity } from '@/lib/api';
+import { formatTime } from '@gfp/shared-types';
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
 
@@ -97,7 +98,7 @@ export default function PreflightScreen() {
     : session.team.startingHole != null
       ? { status: 'ok', detail: `Shotgun start — Hole ${session.team.startingHole}` }
       : session.team.teeTime != null
-        ? { status: 'ok', detail: `Tee time — ${new Date(session.team.teeTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` }
+        ? { status: 'ok', detail: `Tee time — ${formatTime(session.team.teeTime)}` }
         : { status: 'warn', detail: 'Start assignment not set yet — check with organizer' };
 
   // ── Async checks ───────────────────────────────────────────────────────────

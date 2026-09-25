@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import type { PlayerCacheDto } from '@/lib/api';
+import { formatTime } from '@gfp/shared-types';
 
 // ── PLAYER ROW ────────────────────────────────────────────────────────────────
 
@@ -80,7 +81,7 @@ export default function TeamScreen() {
     team.startingHole != null
       ? `Hole ${team.startingHole} (Shotgun Start)`
       : team.teeTime != null
-        ? `Tee Time: ${new Date(team.teeTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+        ? `Tee Time: ${formatTime(team.teeTime)}`
         : 'Start assignment pending';
 
   const formatLabel = event.format

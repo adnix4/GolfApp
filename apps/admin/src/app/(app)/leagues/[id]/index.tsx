@@ -10,6 +10,7 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useLeagueName } from './_layout';
 import { DateTimeField } from '@/components/DateTimeField';
 import { validateDateRange } from '@/lib/dateTime';
+import { formatDateOnly } from '@gfp/shared-types';
 
 export default function LeagueDetailScreen() {
   const theme  = useTheme();
@@ -134,7 +135,7 @@ export default function LeagueDetailScreen() {
                 </Text>
               </View>
               <Text style={[styles.cardMeta, { color: theme.mutedText }]}>
-                {item.startDate} – {item.endDate}
+                {formatDateOnly(item.startDate)} – {formatDateOnly(item.endDate)}
               </Text>
               <View style={styles.cardStats}>
                 <Text style={[styles.stat, { color: theme.colors.primary }]}>
