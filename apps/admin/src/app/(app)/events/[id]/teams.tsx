@@ -4,10 +4,11 @@ import {
   StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useEventDetail } from '@/lib/eventContext';
 import { useTheme, StatusPill, FormModal } from '@gfp/ui';
 import { digitsOnly, fmtAgeGroup, fmtPhone, fmtPhoneInput, formatTime } from '@gfp/shared-types';
 import {
-  teamsApi, eventsApi, playersApi,
+  teamsApi, playersApi,
   type Team, type Player, type RegisterTeamPayload, type AddPlayerPayload,
 } from '@/lib/api';
 import { confirmAction } from '@/lib/confirmAction';
@@ -192,8 +193,9 @@ export default function TeamsScreen() {
   const theme    = useTheme();
 
   const [teams,             setTeams]             = useState<Team[]>([]);
-  const [eventName,         setEventName]         = useState<string>('');
-  const [eventStatus,       setEventStatus]       = useState<string | null>(null);
+  const { event } = useEventDetail();
+  const eventName   = event.name;
+  const eventStatus = event.status;
   const [loading,           setLoading]           = useState(true);
   const [error,             setError]             = useState<string | null>(null);
   const [showAdd,           setShowAdd]           = useState(false);
@@ -209,13 +211,7 @@ export default function TeamsScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [teamList, event] = await Promise.all([
-        teamsApi.list(id),
-        eventsApi.get(id),
-      ]);
-      setTeams(teamList);
-      setEventName(event.name);
-      setEventStatus(event.status);
+      setTeams(await teamsApi.list(id));
     } catch (e: any) {
       setError(e.message ?? 'Failed to load teams.');
     } finally {

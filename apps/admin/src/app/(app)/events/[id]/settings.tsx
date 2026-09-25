@@ -1,13 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView,
   Switch, StyleSheet, ActivityIndicator, Platform, Image,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useEventDetail } from '@/lib/eventContext';
 import { useTheme } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme } from '@gfp/theme';
 import { useResponsive } from '@/lib/responsive';
-import { eventsApi, eventBrandingApi, type EventDetail } from '@/lib/api';
+import { eventsApi, eventBrandingApi } from '@/lib/api';
 import { UPLOAD_ABORTED } from '@/lib/upload';
 import { UploadProgress } from '@/components/UploadProgress';
 
@@ -96,8 +97,8 @@ export default function EventSettingsScreen() {
   const { id }  = useLocalSearchParams<{ id: string }>();
   const theme   = useTheme();
   const { pagePadding } = useResponsive();
+  const { event, setEvent, refresh } = useEventDetail();
 
-  const [loading,    setLoading]    = useState(true);
   const [saving,     setSaving]     = useState(false);
   const [uploading,  setUploading]  = useState(false);
   const [uploadPct,  setUploadPct]  = useState(0);
@@ -122,32 +123,25 @@ export default function EventSettingsScreen() {
   const [extractErr,    setExtractErr]    = useState<string | null>(null);
   const [extractedFrom, setExtractedFrom] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (!id) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const evt: EventDetail = await eventsApi.get(id);
-      setLogoUrl(evt.logoUrl ?? '');
-      setMission(evt.missionStatement ?? '');
-      setIs501c3(evt.is501c3);
-      setOfflineMode(!!(evt.config as any)?.offlineMode);
-      setFreeAgentEnabled(!!(evt.config as any)?.freeAgentEnabled);
-      if (evt.themeJson) {
-        setHasTheme(true);
-        setColors(parseTheme(evt.themeJson));
-      } else {
-        setHasTheme(false);
-        setColors({ ...ECO_GREEN_DEFAULT });
-      }
-    } catch {
-      setError('Failed to load event settings.');
-    } finally {
-      setLoading(false);
+  // Seed the form from the layout's event once per event. Later refreshes
+  // (tab focus, other screens) must not overwrite edits that aren't saved yet.
+  const seededFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (seededFor.current === event.id) return;
+    seededFor.current = event.id;
+    setLogoUrl(event.logoUrl ?? '');
+    setMission(event.missionStatement ?? '');
+    setIs501c3(event.is501c3);
+    setOfflineMode(!!(event.config as any)?.offlineMode);
+    setFreeAgentEnabled(!!(event.config as any)?.freeAgentEnabled);
+    if (event.themeJson) {
+      setHasTheme(true);
+      setColors(parseTheme(event.themeJson));
+    } else {
+      setHasTheme(false);
+      setColors({ ...ECO_GREEN_DEFAULT });
     }
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
+  }, [event]);
 
   function setToken(key: keyof GFPTheme, value: string) {
     setColors(prev => ({ ...prev, [key]: value }));
@@ -174,12 +168,13 @@ export default function EventSettingsScreen() {
     setSaved(false);
     setError(null);
     try {
-      await eventBrandingApi.update(id, {
+      // Publishing the saved event re-themes the layout and every screen now.
+      setEvent(await eventBrandingApi.update(id, {
         logoUrl:          logoUrl.trim() || null,
         missionStatement: mission.trim() || null,
         is501c3,
         themeJson:        hasTheme ? JSON.stringify(colors) : null,
-      });
+      }));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e: any) {
@@ -229,6 +224,9 @@ export default function EventSettingsScreen() {
           signal:     ctrl.signal,
         });
         setLogoUrl(result.url);
+        // The upload saves the logo onto the event server-side; re-pull it so
+        // the layout and other screens see the new logo without a Save.
+        refresh().catch(() => {});
       } catch (e: any) {
         // A user-initiated cancel isn't an error — just leave the logo unchanged.
         if (e?.code !== UPLOAD_ABORTED) setUploadErr(e.message ?? 'Upload failed.');
@@ -238,10 +236,6 @@ export default function EventSettingsScreen() {
       }
     };
     input.click();
-  }
-
-  if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
   }
 
   return (
@@ -525,7 +519,7 @@ export default function EventSettingsScreen() {
         onPress={async () => {
           setSavingConfig(true);
           try {
-            await eventsApi.update(id, { config: { offlineMode, freeAgentEnabled } });
+            setEvent(await eventsApi.update(id, { config: { offlineMode, freeAgentEnabled } }));
           } catch (e: any) {
             setError(e.message ?? 'Failed to save event options.');
           } finally {

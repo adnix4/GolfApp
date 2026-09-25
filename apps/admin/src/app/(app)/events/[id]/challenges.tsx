@@ -4,9 +4,10 @@ import {
   StyleSheet, ActivityIndicator, Image,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useEventDetail } from '@/lib/eventContext';
 import { useTheme, MoneyInput } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
-import { challengesApi, eventsApi, type HoleChallenge } from '@/lib/api';
+import { challengesApi, type HoleChallenge } from '@/lib/api';
 
 const COMMON_CHALLENGES = [
   'Closest to Pin',
@@ -22,7 +23,7 @@ export default function ChallengesScreen() {
   const theme    = useTheme();
 
   const [challenges, setChallenges] = useState<HoleChallenge[]>([]);
-  const [holeCount,  setHoleCount]  = useState(18);
+  const holeCount = useEventDetail().event.holes;
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<string | null>(null);
   const [editing,    setEditing]    = useState<HoleChallenge | null>(null);  // null = add new
@@ -31,12 +32,7 @@ export default function ChallengesScreen() {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [ch, ev] = await Promise.all([
-        challengesApi.list(id),
-        eventsApi.get(id),
-      ]);
-      setChallenges(ch);
-      setHoleCount(ev.holes);
+      setChallenges(await challengesApi.list(id));
     } catch (e: any) {
       setError(e.message ?? 'Failed to load challenges.');
     } finally {

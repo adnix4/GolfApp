@@ -4,8 +4,9 @@ import {
   StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useEventDetail } from '@/lib/eventContext';
 import { useTheme } from '@gfp/ui';
-import { eventsApi, teamsApi, type EventDetail, type Team } from '@/lib/api';
+import { eventsApi, teamsApi, type Team } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
 import { autoAssignHoles, validateShotgunAssignments } from '@/lib/shotgunUtils';
 
@@ -15,7 +16,7 @@ export default function ShotgunScreen() {
 
   const { pagePadding } = useResponsive();
 
-  const [event,    setEvent]    = useState<EventDetail | null>(null);
+  const { event } = useEventDetail();
   const [teams,    setTeams]    = useState<Team[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState(false);
@@ -28,8 +29,7 @@ export default function ShotgunScreen() {
   const load = useCallback(async () => {
     setLoading(true); setError(null); setSuccess(false);
     try {
-      const [ev, ts] = await Promise.all([eventsApi.get(id), teamsApi.list(id)]);
-      setEvent(ev);
+      const ts = await teamsApi.list(id);
       setTeams(ts);
       // Pre-populate from existing assignments
       const init: Record<string, string> = {};

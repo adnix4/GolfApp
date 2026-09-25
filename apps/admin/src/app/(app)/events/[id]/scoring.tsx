@@ -3,8 +3,9 @@ import {
   View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator, Switch,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useEventDetail } from '@/lib/eventContext';
 import { ScoreCard, useTheme } from '@gfp/ui';
-import { teamsApi, scoresApi, eventsApi, testDataApi, challengesApi, type Team, type Scorecard, type EventDetail, type LeaderboardEntry, type HoleChallenge } from '@/lib/api';
+import { teamsApi, scoresApi, eventsApi, testDataApi, challengesApi, type Team, type Scorecard, type LeaderboardEntry, type HoleChallenge } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
 import { resolveGrossScore, needsAceConfirmation, aceGolferIds } from '@/lib/scoring';
 import { countingPlayerId, isOwnBallFormat, stablefordPoints, FORMAT_LABELS } from '@gfp/shared-types';
@@ -18,7 +19,7 @@ export default function ScoringScreen() {
   // 200px compact cards keep +/− buttons inside the card boundary (44pt × 2 + 60pt score = 148px + 24px padding = 172px ≤ 200px)
   const cardWidth = isMobile ? Math.floor((width - 40) / 2) : 200;
 
-  const [event,        setEvent]        = useState<EventDetail | null>(null);
+  const { event, setEvent } = useEventDetail();
   const [teams,        setTeams]        = useState<Team[]>([]);
   const [leaderboard,  setLeaderboard]  = useState<LeaderboardEntry[]>([]);
   const [challenges,   setChallenges]   = useState<HoleChallenge[]>([]);
@@ -36,13 +37,11 @@ export default function ScoringScreen() {
   useEffect(() => {
     async function init() {
       try {
-        const [e, t, lb, ch] = await Promise.all([
-          eventsApi.get(id),
+        const [t, lb, ch] = await Promise.all([
           teamsApi.list(id),
           eventsApi.getLeaderboard(id).catch(() => [] as LeaderboardEntry[]),
           challengesApi.list(id).catch(() => [] as HoleChallenge[]),
         ]);
-        setEvent(e);
         setTeams(t);
         setLeaderboard(lb);
         setChallenges(ch);

@@ -3,8 +3,9 @@ import {
   View, Text, Pressable, StyleSheet, ActivityIndicator, FlatList,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useEventDetail } from '@/lib/eventContext';
 import { useTheme } from '@gfp/ui';
-import { eventsApi, type LeaderboardEntry, type IndividualLeaderboardEntry, type EventDetail } from '@/lib/api';
+import { eventsApi, type LeaderboardEntry, type IndividualLeaderboardEntry } from '@/lib/api';
 import { FORMAT_LABELS } from '@gfp/shared-types';
 import { useResponsive } from '@/lib/responsive';
 
@@ -26,7 +27,7 @@ export default function LeaderboardScreen() {
   const theme   = useTheme();
   const { pagePadding } = useResponsive();
 
-  const [event,     setEvent]     = useState<EventDetail | null>(null);
+  const { event, refresh } = useEventDetail();
   const [entries,   setEntries]   = useState<LeaderboardEntry[]>([]);
   const [golfers,   setGolfers]   = useState<IndividualLeaderboardEntry[]>([]);
   // Stroke Play is scored per golfer (Rule 3.3, U8), so that board leads; the
@@ -40,12 +41,12 @@ export default function LeaderboardScreen() {
     if (!silent) setLoading(true); else setRefreshing(true);
     setError(null);
     try {
-      const [evt, board, individuals] = await Promise.all([
-        eventsApi.get(id),
+      // The event itself comes from the layout; a manual refresh re-pulls it too.
+      const [board, individuals] = await Promise.all([
         eventsApi.getLeaderboard(id),
         eventsApi.getIndividualLeaderboard(id).catch(() => [] as IndividualLeaderboardEntry[]),
+        silent ? refresh() : null,
       ]);
-      setEvent(evt);
       setEntries(board);
       setGolfers(individuals);
     } catch (e: any) {
@@ -54,7 +55,7 @@ export default function LeaderboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [id]);
+  }, [id, refresh]);
 
   useEffect(() => { load(); }, [load]);
 

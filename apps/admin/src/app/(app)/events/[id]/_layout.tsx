@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { Slot, useLocalSearchParams, usePathname, useRouter } from 'expo-router';
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { ThemeProvider, useTheme } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, type GFPTheme } from '@gfp/theme';
-import { eventsApi, type EventDetail } from '@/lib/api';
+import { EventProvider, useEventLoader } from '@/lib/eventContext';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 
 function parseTheme(json: string | null | undefined): GFPTheme | null {
@@ -74,12 +74,11 @@ export default function EventLayout() {
   const router   = useRouter();
   const theme    = useTheme();
 
-  const [event, setEvent] = useState<EventDetail | null>(null);
-
-  // Refresh test-mode status on each tab navigation so the bar reflects changes
-  useEffect(() => {
-    eventsApi.get(id).then(setEvent).catch(() => {});
-  }, [id, pathname]);
+  // One copy of the event for the layout and every tab screen. Screens push
+  // their changes back through the provider, so the theme, tab labels and
+  // test-mode bar update the moment something is saved.
+  const { event, error, refresh, setEvent, retry } = useEventLoader(id, pathname);
+  const eventCtx = useMemo(() => (event ? { event, refresh, setEvent } : null), [event, refresh, setEvent]);
 
   const pathSuffix = pathname.replace(/.*\/events\/[^/]+\/?/, '');
 
@@ -165,7 +164,20 @@ export default function EventLayout() {
 
       {/* ── Screen content ───────────────────────────────────────────────── */}
       <View style={styles.content}>
-        <Slot />
+        {eventCtx ? (
+          <EventProvider value={eventCtx}>
+            <Slot />
+          </EventProvider>
+        ) : error ? (
+          <View style={styles.center}>
+            <Text style={styles.errorText}>{error}</Text>
+            <Pressable onPress={retry} accessibilityRole="button">
+              <Text style={{ color: theme.colors.action, marginTop: 8 }}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>
+        )}
       </View>
 
     </View>
@@ -201,4 +213,6 @@ const styles = StyleSheet.create({
   subLabelActive: { fontWeight: '700' },
 
   content: { flex: 1 },
+  center:  { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  errorText: { color: '#c0392b', fontSize: 14, textAlign: 'center' },
 });
