@@ -18,10 +18,10 @@ public record SubmitScoreRequest
     [Required, Range(1, 18)]
     public short HoleNumber { get; init; }
 
-    [Required, Range(1, 20)]
+    [Required, Range(1, FormatScoring.MaxTeamHoleGross)]
     public short GrossScore { get; init; }
 
-    [Range(0, 10)]
+    [Range(0, FormatScoring.MaxTeamHolePutts)]
     public short? Putts { get; init; }
 
     /// <summary>Device identifier for conflict detection. Default = admin-dashboard.</summary>
@@ -35,10 +35,10 @@ public record SubmitScoreRequest
 /// <summary>PATCH /api/v1/events/{eventId}/scores/{id} — admin correction.</summary>
 public record UpdateScoreRequest
 {
-    [Range(1, 20)]
+    [Range(1, FormatScoring.MaxTeamHoleGross)]
     public short? GrossScore { get; init; }
 
-    [Range(0, 10)]
+    [Range(0, FormatScoring.MaxTeamHolePutts)]
     public short? Putts { get; init; }
 
     /// <summary>Per-player shot totals as JSON: { "playerId": shots }. Null if not tracked.</summary>
@@ -51,7 +51,7 @@ public record UpdateScoreRequest
 /// </summary>
 public record ResolveConflictRequest
 {
-    [Required, Range(1, 20)]
+    [Required, Range(1, FormatScoring.MaxTeamHoleGross)]
     public short AcceptedScore { get; init; }
 
     [MaxLength(500)]
@@ -127,6 +127,12 @@ public record ScorecardResponse
     public int    GrossTotal    { get; init; }
     public int    ParTotal      { get; init; }
     public int    ToPar         { get; init; }
+
+    /// <summary>Team Stableford points (per golfer, summed). 0 for other formats.</summary>
+    public int    StablefordPoints { get; init; }
+
+    /// <summary>The event's scoring format — the scorecard reads differently per format (U8).</summary>
+    public string Format        { get; init; } = string.Empty;
     public int    HolesComplete { get; init; }
     public bool   HasConflicts  { get; init; }
 }

@@ -12,12 +12,10 @@ P0 — BREAKS A LIVE EVENT, SMALL FIX, DO FIRST
      [x] D14  pledges now summed 2026-08-01
      [x] D16  fee UI hidden on free events 2026-08-01
      [x] U1   strokes sum + Hole Complete / Edit Score 2026-08-01
-     U8   non-scramble score entry is wrong — carved out of U1 2026-09-23,
-          where a [x] entry hid it. Scores are silently wrong on Stroke and
-          BestBall, in BOTH clients. Traced and confirmed 2026-09-23; three
-          options written up in the entry, and it now waits on one decision:
-          is a Stroke event a team aggregate or individual golfers?
-     Otherwise this tier is clear.
+     [x] U8   scoring follows the organizer's format 2026-09-23 — Scramble
+          sum, Best Ball lowest ball, Stableford per-golfer points, Stroke
+          Play individual board. Server recomputes on every write.
+     This tier is clear.
 
 P1 — PILOT PATH (external lead times first; D1 gates D3 and D10)
      D1   accounts / domain / Apple / Stripe / email — start now, rest waits
@@ -378,7 +376,7 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         fundraising) still untested; defer.
 
   [x] U1. STROKES NOW SUM INTO THE TEAM SCORE, PLUS HOLE COMPLETE / EDIT SCORE (2026-08-01) — new scores.completed_at; the admin transcribes paper cards, so completion had to be its own persisted state.
-        STILL OPEN → CARVED OUT AS U8 (2026-09-23), because a `[x]` entry hid it: the per-golfer count means "shots of yours the team used", which sums to the team score in a SCRAMBLE by construction. Stroke and BestBall have each golfer playing their own ball, where the team gross is the relevant individual score, NOT a sum. Nobody has exercised admin entry on those formats — check before running a non-scramble event. U8 is in P0; the detail lives there now.
+        STILL OPEN → CARVED OUT AS U8 (2026-09-23, since FIXED), because a `[x]` entry hid it: the per-golfer count means "shots of yours the team used", which sums to the team score in a SCRAMBLE by construction. Stroke and BestBall have each golfer playing their own ball, where the team gross is the relevant individual score, NOT a sum. Nobody has exercised admin entry on those formats — check before running a non-scramble event. U8 is in P0; the detail lives there now.
 
   [x] U2 + U3. ONE COMBINED SPONSOR/AUCTION TICKER (2026-08-01) — sponsors lead, on both the normal web scorecard and the ?tv=1 board, riding the existing leaderboard socket rather than a second one. NOT exercised: a real projector, and reduced-motion rendering (both belong in D4).
 
@@ -551,7 +549,49 @@ Captured while filling API test-coverage holes. Mark [x] when done.
             lockstep comment at the head of auctionRules.ts names the server
             file to change with it.
 
-  [ ] U8. (OPEN, carved out of U1 2026-09-23) NON-SCRAMBLE ADMIN SCORE ENTRY IS
+  [x] U8. SCORING FOLLOWS THE FORMAT THE ORGANIZER PICKED (2026-09-23).
+        USER DECISION: "the way the scores are calculated should be based on the
+        scoring format picked by the event organizer." Checked against the Rules
+        of Golf (what the PGA Tour plays under) and common charity practice:
+          Scramble   — local format; sum of the shots used (unchanged).
+          Best Ball  — Rule 23 four-ball: LOWEST golfer's strokes on the hole.
+          Stableford — Rule 21.1: points PER GOLFER (0/1/2/3/4/5 for double bogey
+                       or worse .. albatross), summed for the team. The old
+                       team-row math scored ~0 for every team.
+          Stroke     — Rule 3.3 is individual, and the admin hint already said
+                       "per player": a per-golfer board, team aggregate kept.
+        HOW. apps/api/Features/Scores/FormatScoring.cs is the rule; every write
+        path (admin submit/patch, mobile batch sync) recomputes GrossScore from
+        player_shots with it, so an old phone build's scramble-style sum is
+        corrected on arrival. TS twin: packages/shared-types/src/formatScoring.ts
+        (admin + mobile previews), same case table in both test suites. No
+        migration — player_shots already held per-golfer strokes.
+        FOUND ON THE WAY: the phone posts `playerShots` (an object) but the sync
+        DTO only bound `playerShotsJson` (a string), so EVERY phone breakdown was
+        silently dropped. PendingScoreInput.PlayerShots now binds it.
+        ALSO: score limits raised from single-ball (gross 20 / putts 10) to team
+        aggregate (160 / 80) — a Stroke foursome of sixes was a 400. Hole-in-one
+        is per golfer outside a scramble (an aggregate row is never 1) and names
+        the golfer. The format is locked once any score exists (API 400 + admin
+        pills disabled). Scorecard + leaderboard to-par use one par per ball on
+        an aggregate row. Stroke boards: admin (Golfers/Teams), print, mobile,
+        web scoreboard + event card; Stableford now shows points on all of them.
+        VERIFIED 2026-09-23 against the real API, one event per format, a
+        foursome at 4/5/5/6 on a par 4 with the client sending the sum (20):
+        BestBall stored 4; Stroke stored 20, team +4, golfers 4/5/5/6 ranked with
+        a shared rank; Stableford 4 points; format change → 400 on each. Best
+        Ball ace at 1/4/5/5 logged "Hole-in-one ... by 'Cal Tester'". Tests: API
+        694, shared-types 164, admin 200, mobile 183 — all green.
+        NOT DONE (follow-ups, not bugs): "2 best balls of 4" / 1-2-3 variants,
+        net scoring with handicap allowances, a max-score-per-hole cap. A
+        conflict resolved to a typed gross on a hole that has a breakdown keeps
+        the breakdown, which Stableford/Stroke still score from.
+        NOT EXERCISED at runtime: the mobile scorecard UI and the web boards
+        (type-checked and unit-tested only), and a phone sync end-to-end (unit
+        test covers the binding).
+
+        --- history: the entry as written before the fix ---
+        (was: OPEN, carved out of U1 2026-09-23) NON-SCRAMBLE ADMIN SCORE ENTRY IS
         UNVERIFIED. Not new — this was U1's STILL OPEN note, and sitting under a
         [x] entry it read as finished for seven weeks. Promoted to P0 because it
         reports wrong scores on the day with nothing to notice: no error, no

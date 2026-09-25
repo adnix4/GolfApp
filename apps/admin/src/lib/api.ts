@@ -62,6 +62,10 @@ export const eventsApi = {
   getLeaderboard: (id: string) =>
     request<LeaderboardEntry[]>(`/api/v1/events/${id}/leaderboard`),
 
+  /** Per-golfer standings — Stroke Play only (U8); [] for other formats. */
+  getIndividualLeaderboard: (id: string) =>
+    request<IndividualLeaderboardEntry[]>(`/api/v1/events/${id}/leaderboard/individuals`),
+
   getFundraising: (id: string) =>
     request<FundraisingTotals>(`/api/v1/events/${id}/fundraising`),
 };
@@ -440,6 +444,10 @@ export interface Scorecard {
   teamId: string; teamName: string;
   holes: ScorecardHole[];
   grossTotal: number; parTotal: number; toPar: number;
+  /** Team Stableford points (per golfer, summed); 0 for other formats. */
+  stablefordPoints: number;
+  /** The event's scoring format (U8). */
+  format: string;
   holesComplete: number; hasConflicts: boolean;
 }
 
@@ -451,6 +459,16 @@ export interface LeaderboardEntry {
   strokesBack: number;
   bestHole: number | null;
   bestHoleScore: number | null;
+}
+
+/** One golfer's line on a Stroke Play leaderboard (U8 — Rule 3.3 scores golfers). */
+export interface IndividualLeaderboardEntry {
+  rank: number;
+  playerId: string; playerName: string;
+  teamId: string; teamName: string;
+  toPar: number; grossTotal: number;
+  holesComplete: number; isComplete: boolean;
+  strokesBack: number;
 }
 
 export interface FundraisingTotals {

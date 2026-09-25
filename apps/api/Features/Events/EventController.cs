@@ -241,6 +241,23 @@ public class EventController : ControllerBase
         return Ok(board);
     }
 
+    /// <summary>
+    /// Per-golfer standings for a Stroke Play event (U8: Rule 3.3 scores
+    /// golfers, not teams). Empty list for every other format.
+    /// </summary>
+    [HttpGet("api/v1/events/{id:guid}/leaderboard/individuals")]
+    [Authorize(Policy = "EventStaff")]
+    [ProducesResponseType(typeof(List<IndividualLeaderboardEntry>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<List<IndividualLeaderboardEntry>>> GetIndividualLeaderboard(
+        [FromRoute] Guid id,
+        CancellationToken ct)
+    {
+        var orgId = GetOrgId();
+        var board = await _eventService.GetIndividualLeaderboardAsync(orgId, id, ct);
+        return Ok(board);
+    }
+
     // ── FUNDRAISING ───────────────────────────────────────────────────────────
 
     /// <summary>

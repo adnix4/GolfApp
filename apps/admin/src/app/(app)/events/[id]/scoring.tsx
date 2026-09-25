@@ -6,7 +6,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { ScoreCard, useTheme } from '@gfp/ui';
 import { teamsApi, scoresApi, eventsApi, testDataApi, challengesApi, type Team, type Scorecard, type EventDetail, type LeaderboardEntry, type HoleChallenge } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
-import { resolveGrossScore, needsAceConfirmation } from '@/lib/scoring';
+import { resolveGrossScore, needsAceConfirmation, aceGolferIds } from '@/lib/scoring';
+import { countingPlayerId, isOwnBallFormat, stablefordPoints, FORMAT_LABELS } from '@gfp/shared-types';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 
 export default function ScoringScreen() {
@@ -110,9 +111,10 @@ export default function ScoringScreen() {
     if (next === 0) delete newHoleShots[playerId];
     setPlayerShotsByHole(prev => ({ ...prev, [holeNumber]: newHoleShots }));
 
-    // The golfers' strokes ARE the team score (U1) — see lib/scoring.ts.
+    // The golfers' strokes drive the team score (U1), the way the event's
+    // format counts them (U8) — see lib/scoring.ts.
     const existingGross = scorecard?.holes.find(h => h.holeNumber === holeNumber)?.grossScore;
-    const grossScore    = resolveGrossScore(newHoleShots, existingGross);
+    const grossScore    = resolveGrossScore(format, newHoleShots, existingGross);
     if (grossScore == null) return;
 
     setSaving(holeNumber);
@@ -146,7 +148,7 @@ export default function ScoringScreen() {
   function handleToggleComplete(holeNumber: number, complete: boolean) {
     if (!selectedTeam) return;
     const gross = scorecard?.holes.find(h => h.holeNumber === holeNumber)?.grossScore;
-    if (needsAceConfirmation(complete, gross)) {
+    if (needsAceConfirmation(complete, format, gross, playerShotsByHole[holeNumber])) {
       setPendingAce(holeNumber);
       return;
     }
@@ -207,6 +209,19 @@ export default function ScoringScreen() {
   }
 
   const selectedTeamPlayers = teams.find(t => t.id === selectedTeam)?.players ?? [];
+  const format    = event?.format ?? 'Scramble';
+  // U8: outside a scramble each golfer plays their own ball, so the team's
+  // number is derived from the golfers (lowest, or the aggregate) and can't be
+  // typed on the card directly — a typed total says nothing about whose
+  // strokes it holds, and Stroke/Stableford score per golfer.
+  const ownBall   = isOwnBallFormat(format);
+  const typedGrossLocked = ownBall && selectedTeamPlayers.length > 0;
+
+  // Who the ace confirmation is about: the golfers at 1, or the team.
+  const aceNames = pendingAce === null ? [] : aceGolferIds(format, playerShotsByHole[pendingAce])
+    .map(pid => selectedTeamPlayers.find(p => p.id === pid))
+    .filter(p => p != null)
+    .map(p => `${p.firstName} ${p.lastName}`.trim());
   const holes = event?.course?.holes ?? [];
   const holesCount = event?.holes ?? 18;
   const holeNumbers = holes.length > 0
@@ -264,7 +279,9 @@ export default function ScoringScreen() {
         title="Confirm Hole-in-One"
         description={
           `Hole ${pendingAce} is recorded as 1 stroke for ${
-            teams.find(t => t.id === selectedTeam)?.name ?? 'this team'
+            aceNames.length > 0
+              ? aceNames.join(' & ')
+              : teams.find(t => t.id === selectedTeam)?.name ?? 'this team'
           }. Completing it announces a hole-in-one on every live scoreboard and sends a push notification to subscribers. This cannot be undone.\n\n` +
           'If the hole is still half-entered, cancel and finish entering the rest of the team’s strokes first.'
         }
@@ -328,7 +345,7 @@ export default function ScoringScreen() {
       {scorecard && (
         <View style={[styles.summaryBar, { backgroundColor: theme.colors.highlight }]}>
           <Text style={[styles.summaryText, { color: theme.colors.primary }]}>
-            {scorecard.teamName} · Gross: {scorecard.grossTotal} · To Par: {scorecard.toPar >= 0 ? `+${scorecard.toPar}` : scorecard.toPar} · {scorecard.holesComplete}/{holesCount} holes
+            {scorecard.teamName} · {FORMAT_LABELS[format] ?? format} · {format === 'Stableford' ? `Points: ${scorecard.stablefordPoints} · ` : ''}Gross: {scorecard.grossTotal} · To Par: {scorecard.toPar >= 0 ? `+${scorecard.toPar}` : scorecard.toPar} · {scorecard.holesComplete}/{holesCount} holes
           </Text>
           {scorecard.hasConflicts && (
             <Text style={styles.conflictWarning}>⚠ Has conflicts</Text>
@@ -363,7 +380,7 @@ export default function ScoringScreen() {
                   score={score}
                   onScoreChange={newScore => handleScoreChange(holeNum, newScore)}
                   isConflicted={isConflicted}
-                  disabled={isSaving || isComplete}
+                  disabled={isSaving || isComplete || typedGrossLocked}
                   compact
                   challenge={holeChallenge}
                 />
@@ -400,12 +417,27 @@ export default function ScoringScreen() {
                 {/* Per-player shot entry */}
                 {selectedTeamPlayers.length > 0 && (
                   <View style={[styles.playerShotsBox, { backgroundColor: theme.colors.surface }]}>
+                    <Text style={[styles.playerShotsCaption, { color: theme.mutedText }]}>
+                      {ownBall ? 'Strokes (own ball)' : 'Shots used by the team'}
+                    </Text>
                     {selectedTeamPlayers.map(player => {
                       const shots = playerShotsByHole[holeNum]?.[player.id] ?? 0;
+                      // Best Ball: mark whose ball counts. Stableford: each
+                      // golfer's own points (they're summed for the team).
+                      const counts = countingPlayerId(format, playerShotsByHole[holeNum]) === player.id;
+                      const note = format === 'Stableford' && shots > 0
+                        ? `${stablefordPoints(par, shots)}p`
+                        : counts ? '★' : '';
                       return (
                         <View key={player.id} style={styles.playerShotRow}>
                           <Text style={[styles.playerShotName, { color: theme.colors.primary }]} numberOfLines={1}>
                             {player.firstName}
+                          </Text>
+                          <Text
+                            style={[styles.playerShotNote, { color: theme.mutedText }]}
+                            accessibilityLabel={counts ? 'counting score' : note ? `${stablefordPoints(par, shots)} Stableford points` : undefined}
+                          >
+                            {note}
                           </Text>
                           <Pressable
                             onPress={() => handlePlayerShotChange(holeNum, player.id, -1)}
@@ -542,6 +574,8 @@ const styles = StyleSheet.create({
     paddingVertical: 3, gap: 6,
   },
   playerShotName: { flex: 1, fontSize: 12, fontWeight: '600' },
+  playerShotNote: { fontSize: 11, fontWeight: '700', minWidth: 18, textAlign: 'right' },
+  playerShotsCaption: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 },
   completeBtn: {
     marginTop: 6, paddingVertical: 7, borderRadius: 6, borderWidth: 1.5,
     alignItems: 'center',

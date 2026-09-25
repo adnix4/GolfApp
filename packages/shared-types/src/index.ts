@@ -44,6 +44,7 @@ export * from './logo';
 export * from './money';
 export * from './phone';
 export * from './eventOptions';
+export * from './formatScoring';
 export * from './apiClient';
 export * from './auctionRules';
 export * from './useLiveLeaderboard';

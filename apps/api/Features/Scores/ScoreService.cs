@@ -57,6 +57,11 @@ public class ScoreService
         if (team is null)
             throw new NotFoundException("Team", request.TeamId);
 
+        // The format decides what the golfers' strokes add up to (U8) — the
+        // server recomputes rather than trusting the client's arithmetic.
+        var gross = FormatScoring.TeamHoleGross(
+            evt.Format, FormatScoring.ParseShots(request.PlayerShotsJson), request.GrossScore);
+
         var existing = await _db.Scores
             .FirstOrDefaultAsync(s =>
                 s.EventId    == eventId &&
@@ -69,20 +74,20 @@ public class ScoreService
         {
             if (ScoreConflictRules.IsConflict(
                     existing.DeviceId, existing.GrossScore,
-                    request.DeviceId,  request.GrossScore))
+                    request.DeviceId,  gross))
             {
                 existing.IsConflicted  = true;
-                existing.ProposedScore = request.GrossScore; // surfaced to the admin for approval
+                existing.ProposedScore = gross; // surfaced to the admin for approval
                 _logger.LogWarning(
                     "Score conflict on event {EventId} team {TeamId} hole {Hole}: " +
                     "device {OldDevice}={Old} vs device {NewDevice}={New}",
                     eventId, request.TeamId, request.HoleNumber,
                     existing.DeviceId, existing.GrossScore,
-                    request.DeviceId, request.GrossScore);
+                    request.DeviceId, gross);
             }
             else
             {
-                existing.GrossScore      = request.GrossScore;
+                existing.GrossScore      = gross;
                 existing.Putts           = request.Putts;
                 existing.PlayerShotsJson = request.PlayerShotsJson;
                 existing.DeviceId        = request.DeviceId;
@@ -101,7 +106,7 @@ public class ScoreService
                 EventId         = eventId,
                 TeamId          = request.TeamId,
                 HoleNumber      = request.HoleNumber,
-                GrossScore      = request.GrossScore,
+                GrossScore      = gross,
                 Putts           = request.Putts,
                 PlayerShotsJson = request.PlayerShotsJson,
                 DeviceId        = request.DeviceId,
@@ -203,8 +208,18 @@ public class ScoreService
             };
         }).ToList();
 
+        // Measured the way the format counts (U8): an aggregate Stroke/
+        // Stableford row carries one par per golfer, and Stableford is points
+        // per golfer — same rules as the leaderboard (LeaderboardCalculator).
         var grossTotal = teamScores.Sum(s => (int)s.GrossScore);
-        var parTotal   = teamScores.Sum(s => parByHole.GetValueOrDefault(s.HoleNumber, 4));
+        var parTotal   = teamScores.Sum(s => FormatScoring.TeamHolePar(
+            evt.Format, FormatScoring.ParseShots(s.PlayerShotsJson),
+            parByHole.GetValueOrDefault(s.HoleNumber, 4)));
+        var stableford = evt.Format == EventFormat.Stableford
+            ? teamScores.Sum(s => FormatScoring.TeamStablefordPoints(
+                FormatScoring.ParseShots(s.PlayerShotsJson),
+                parByHole.GetValueOrDefault(s.HoleNumber, 4), s.GrossScore))
+            : 0;
 
         return new ScorecardResponse
         {
@@ -214,6 +229,8 @@ public class ScoreService
             GrossTotal    = grossTotal,
             ParTotal      = parTotal,
             ToPar         = grossTotal - parTotal,
+            StablefordPoints = stableford,
+            Format        = evt.Format.ToString(),
             HolesComplete = teamScores.Count,
             HasConflicts  = teamScores.Any(s => s.IsConflicted),
         };
@@ -321,15 +338,21 @@ public class ScoreService
         if (score is null)
             throw new NotFoundException("Score", scoreId);
 
-        var eventBelongs = await _db.Events
-            .AnyAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
+        var evt = await _db.Events
+            .Where(e => e.Id == eventId && e.OrgId == orgId)
+            .Select(e => new { e.Format })
+            .FirstOrDefaultAsync(ct);
 
-        if (!eventBelongs)
+        if (evt is null)
             throw new ForbiddenException();
 
         if (request.GrossScore.HasValue)       score.GrossScore      = request.GrossScore.Value;
         if (request.Putts.HasValue)            score.Putts           = request.Putts;
         if (request.PlayerShotsJson is not null) score.PlayerShotsJson = request.PlayerShotsJson;
+
+        // Same rule as SubmitAsync: a recorded breakdown decides the gross (U8).
+        score.GrossScore = FormatScoring.TeamHoleGross(
+            evt.Format, FormatScoring.ParseShots(score.PlayerShotsJson), score.GrossScore);
 
         // Admin correction is authoritative — clears any conflict and proposed value
         score.IsConflicted  = false;

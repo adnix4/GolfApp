@@ -161,8 +161,9 @@ public class LeaderboardBroadcaster
             var meta = await LeaderboardLoader.LoadEventAsync(db, eventId, CancellationToken.None);
             if (meta is null) return;
 
-            var standings = await LeaderboardLoader.LoadStandingsAsync(db, meta, CancellationToken.None);
-            await _hub.Clients.Group(eventCode).SendAsync("LeaderboardRefreshed", new { standings });
+            var board = await LeaderboardLoader.LoadAsync(db, meta, CancellationToken.None);
+            await _hub.Clients.Group(eventCode).SendAsync("LeaderboardRefreshed",
+                new { standings = board.Standings, individuals = board.Individuals });
         }
         catch (Exception ex)
         {

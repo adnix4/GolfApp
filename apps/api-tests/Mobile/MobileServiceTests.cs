@@ -715,4 +715,48 @@ public class MobileServiceTests
         Assert.Contains(list, e => e.Id == w.EventId);
         Assert.DoesNotContain(list, e => e.Name == "Draft One");
     }
+
+    // ── U8: format-aware sync ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task BatchSync_reads_the_breakdown_the_phone_actually_sends()
+    {
+        // The app posts `playerShots: { id: n }` (an object), not the
+        // playerShotsJson string. Before U8 nothing bound it, so every phone
+        // breakdown was dropped.
+        var w = Seed();
+        w.Db.Events.Single(e => e.Id == w.EventId).Format = EventFormat.BestBall;
+        w.Db.SaveChanges();
+        var other = Guid.NewGuid();
+
+        var res = await w.Svc.BatchSyncAsync(SyncReq(w, w.SessionToken, "dev-A", new PendingScoreInput
+        {
+            HoleNumber  = 1,
+            GrossScore  = 9,     // an old build's scramble-style sum
+            PlayerShots = new Dictionary<string, int> { [w.PlayerId.ToString()] = 4, [other.ToString()] = 5 },
+        }));
+
+        Assert.Equal(1, res.Accepted);
+        var row = w.Db.Scores.Single(s => s.TeamId == w.TeamId);
+        Assert.Equal(4, row.GrossScore);                     // lowest ball
+        Assert.Contains(w.PlayerId.ToString(), row.PlayerShotsJson);
+    }
+
+    [Fact]
+    public async Task BatchSync_accepts_a_foursome_aggregate_above_the_old_single_ball_cap()
+    {
+        var w = Seed();
+        w.Db.Events.Single(e => e.Id == w.EventId).Format = EventFormat.Stroke;
+        w.Db.SaveChanges();
+
+        var res = await w.Svc.BatchSyncAsync(SyncReq(w, w.SessionToken, "dev-A", new PendingScoreInput
+        {
+            HoleNumber  = 1,
+            GrossScore  = 24,
+            PlayerShots = Enumerable.Range(0, 4).ToDictionary(_ => Guid.NewGuid().ToString(), _ => 6),
+        }));
+
+        Assert.Equal(1, res.Accepted);
+        Assert.Equal(24, w.Db.Scores.Single(s => s.TeamId == w.TeamId).GrossScore);
+    }
 }

@@ -14,6 +14,19 @@ import {
 import { useScorecardLayout } from '@/lib/scorecardLayout';
 import { resolveChipsLayout, type ChipSpec } from '@/lib/chipsFit';
 import { formatToPar } from '@/lib/toPar';
+import {
+  teamHoleGross, teamHolePar, teamStablefordPoints, aceGolferIds, countingPlayerId,
+  type HoleShots,
+} from '@gfp/shared-types';
+
+/** Per-golfer strokes on a hole — the shape the format rules read (U8). */
+function strokesByPlayer(
+  breakdown: Record<string, PlayerShotBreakdown> | undefined,
+): HoleShots {
+  const out: HoleShots = {};
+  for (const [id, b] of Object.entries(breakdown ?? {})) out[id] = b.drive + b.approach + b.putt;
+  return out;
+}
 
 // ── SUMMARY TABLE (pre-scoring and post-round shared layout) ──────────────────
 
@@ -192,7 +205,9 @@ export default function ScorecardScreen() {
             const pending   = pendingScores.find(s => s.holeNumber === holeNum);
             const hasScore  = !!pending;
             const gross     = pending?.grossScore ?? 0;
-            const relative  = hasScore ? gross - par : null;
+            // An aggregate Stroke/Stableford row holds every golfer's ball (U8).
+            const rowPar    = teamHolePar(session.event.format, strokesByPlayer(pending?.playerShots), par);
+            const relative  = hasScore ? gross - rowPar : null;
             const relLabel  =
               relative === null ? '—' :
               relative === 0    ? 'E' :
@@ -300,11 +315,14 @@ export default function ScorecardScreen() {
     valueFont: layout.shotValueFont,
   };
 
-  // Team gross = sum of every player's (drive + approach + putt)
+  // The team's number for the hole is the format's call (U8): the sum of the
+  // shots used in a scramble, the lowest golfer in Best Ball, the aggregate in
+  // Stroke/Stableford. The server recomputes the same way when the hole syncs.
+  const format          = session?.event.format ?? 'Scramble';
   const playerBreakdown = currentScore?.playerShots ?? {};
-  const grossScore      = Object.values(playerBreakdown).reduce(
-    (sum, b) => sum + b.drive + b.approach + b.putt, 0,
-  );
+  const holeStrokes     = strokesByPlayer(playerBreakdown);
+  const grossScore      = teamHoleGross(format, holeStrokes) ?? 0;
+  const holePar         = teamHolePar(format, holeStrokes, par);
   // Fall back to the stored gross when there's no per-player breakdown — e.g.
   // an admin-corrected score pulled from the server has a total but no shots.
   const displayScore = grossScore > 0 ? grossScore : (currentScore?.grossScore ?? null);
@@ -327,8 +345,13 @@ export default function ScorecardScreen() {
       if (b.drive + b.approach + b.putt > 0) cleaned[pid] = b;
     }
 
-    const gross      = Object.values(cleaned).reduce((s, b) => s + b.drive + b.approach + b.putt, 0);
-    const totalPutts = Object.values(cleaned).reduce((s, b) => s + b.putt, 0);
+    const gross      = teamHoleGross(format, strokesByPlayer(cleaned)) ?? 0;
+    // Best Ball's putts are the counting ball's; every other format's row
+    // holds all of them.
+    const counting   = countingPlayerId(format, strokesByPlayer(cleaned));
+    const totalPutts = counting
+      ? cleaned[counting].putt
+      : Object.values(cleaned).reduce((s, b) => s + b.putt, 0);
 
     upsertScore({
       holeNumber:        currentHoleNumber,
@@ -345,7 +368,12 @@ export default function ScorecardScreen() {
     setCompleting(true);
     try {
       await completeHole(currentHoleNumber);
-      if (grossScore === 1) setShowHio(true);
+      // Scramble: the team ball in one. Every other format: any golfer's own
+      // ball in one — the aggregate row can't show it (U8).
+      const ace = format === 'Scramble'
+        ? grossScore === 1
+        : aceGolferIds(format, holeStrokes).length > 0;
+      if (ace) setShowHio(true);
     } finally {
       setCompleting(false);
     }
@@ -361,27 +389,35 @@ export default function ScorecardScreen() {
   }
 
   const completedCount = completedHoles.size;
-  const grossTotal     = pendingScores
-    .filter(s => completedHoles.has(s.holeNumber))
-    .reduce((sum, s) => sum + s.grossScore, 0);
+  const completedScores = pendingScores.filter(s => completedHoles.has(s.holeNumber));
+  const grossTotal     = completedScores.reduce((sum, s) => sum + s.grossScore, 0);
 
   // Par for the holes actually completed, so the round's to-par compares like
-  // with like. Unknown holes fall back to 4, matching the server's
-  // LeaderboardCalculator default.
-  const parThrough = [...completedHoles]
-    .reduce((sum, h) => sum + (holeByNumber.get(h)?.par ?? 4), 0);
+  // with like — one par per ball the row holds (U8). Unknown holes fall back
+  // to 4, matching the server's LeaderboardCalculator default.
+  const parThrough = completedScores.reduce(
+    (sum, s) => sum + teamHolePar(format, strokesByPlayer(s.playerShots), holeByNumber.get(s.holeNumber)?.par ?? 4),
+    0,
+  );
   const roundToPar = completedCount > 0 ? grossTotal - parThrough : null;
+  // Stableford ranks on points, scored per golfer and summed (Rule 21.1).
+  const roundPoints = completedScores.reduce(
+    (sum, s) => sum + teamStablefordPoints(strokesByPlayer(s.playerShots), holeByNumber.get(s.holeNumber)?.par ?? 4),
+    0,
+  );
 
   // Round-level chips only once the round is under way — "Through 0 · Round 0"
   // before the first hole is noise.
   const roundChips: ChipSpec[] = completedCount > 0
     ? [
-        { label: 'Round',   value: String(grossTotal), suffix: formatToPar(roundToPar) },
+        format === 'Stableford'
+          ? { label: 'Points',  value: String(roundPoints) }
+          : { label: 'Round',   value: String(grossTotal), suffix: formatToPar(roundToPar) },
         { label: 'Through', value: String(completedCount) },
       ]
     : [];
 
-  const relLabel = formatToPar(displayScore !== null ? displayScore - par : null);
+  const relLabel = formatToPar(displayScore !== null ? displayScore - (hasShots ? holePar : par) : null);
 
   const yardageChips: ChipSpec[] = hole
     ? ([

@@ -409,7 +409,7 @@ public record LeaderboardEntryResponse
 
     /// <summary>
     /// Stableford points total. Only meaningful for Stableford-format events.
-    /// Formula per hole: max(0, par - gross + 2). Higher = better.
+    /// Scored per golfer, max(0, par - strokes + 2), and summed for the team (U8). Higher = better.
     /// </summary>
     public int     StablefordPoints { get; init; }
 
@@ -594,6 +594,12 @@ public record PublicLeaderboardResponse
     public string  Status             { get; init; } = string.Empty;
     public List<PublicLeaderboardEntry> Standings { get; init; } = new();
 
+    /// <summary>
+    /// Per-golfer standings. Stroke Play only (Rule 3.3 scores golfers, U8).
+    /// Null for every other format.
+    /// </summary>
+    public List<IndividualLeaderboardEntry>? Individuals { get; init; }
+
     /// <summary>Resolved branding for the live leaderboard display page.</summary>
     public string? ResolvedLogoUrl   { get; init; }
     public string? ResolvedThemeJson { get; init; }
@@ -620,6 +626,41 @@ public record PublicLeaderboardEntry
 
     /// <summary>Gross score on the team's best hole. Null until scored.</summary>
     public short?  BestHoleScore    { get; init; }
+}
+
+/// <summary>
+/// One golfer's line on a Stroke Play leaderboard. Returned inside
+/// PublicLeaderboardResponse.Individuals and by GET /events/{id}/leaderboard/individuals.
+/// Carries no contact details, so it is safe for the public board.
+/// </summary>
+public record IndividualLeaderboardEntry
+{
+    public int     Rank          { get; init; }
+    public Guid    PlayerId      { get; init; }
+    public string  PlayerName    { get; init; } = string.Empty;
+    public Guid    TeamId        { get; init; }
+    public string  TeamName      { get; init; } = string.Empty;
+    public int     ToPar         { get; init; }
+    public int     GrossTotal    { get; init; }
+    public int     HolesComplete { get; init; }
+    public bool    IsComplete    { get; init; }
+
+    /// <summary>Strokes behind the leader. 0 for the leader.</summary>
+    public int     StrokesBack   { get; init; }
+
+    public static IndividualLeaderboardEntry From(Leaderboard.LeaderboardCalculator.IndividualEntry e) => new()
+    {
+        Rank          = e.Rank,
+        PlayerId      = e.PlayerId,
+        PlayerName    = e.PlayerName,
+        TeamId        = e.TeamId,
+        TeamName      = e.TeamName,
+        ToPar         = e.ToPar,
+        GrossTotal    = e.GrossTotal,
+        HolesComplete = e.HolesComplete,
+        IsComplete    = e.IsComplete,
+        StrokesBack   = e.StrokesBack,
+    };
 }
 
 // ── PUBLIC CHALLENGES ────────────────────────────────────────────────────────

@@ -31,7 +31,7 @@ export const FORMAT_LABELS: Record<string, string> = {
 export const FORMAT_HINTS: Record<string, string> = {
   Scramble:   'Team plays the best shot each stroke',
   Stroke:     'Total strokes counted per player',
-  Stableford: 'Points awarded based on score vs par',
+  Stableford: 'Each golfer earns points vs par; the team adds them up',
   BestBall:   'Best individual score counts per hole',
 };
 

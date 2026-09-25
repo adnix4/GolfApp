@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using GolfFundraiserPro.Api.Data;
+using GolfFundraiserPro.Api.Domain.Enums;
 using GolfFundraiserPro.Api.Hubs;
 using GolfFundraiserPro.Api.Features.Events.Leaderboard;
 using GolfFundraiserPro.Api.Features.Notifications;
+using GolfFundraiserPro.Api.Features.Scores;
 
 namespace GolfFundraiserPro.Api.Features.RealTime;
 
@@ -63,21 +65,8 @@ public class RealTimeService : IRealTimeService
             rank             = entry?.Rank             ?? 0,
         }, ct);
 
-        if (grossScore == 1)
-        {
-            await TrySendAsync("HoleInOneAlert", eventCode, new
-            {
-                teamName,
-                playerName = teamName,
-                holeNumber,
-            }, ct);
-
-            await SendHoleInOnePushAsync(eventId, teamName, holeNumber, ct);
-
-            _logger.LogInformation(
-                "Hole-in-one on event {EventCode} hole {Hole} by team '{Team}'",
-                eventCode, holeNumber, teamName);
-        }
+        await AnnounceHoleInOneAsync(
+            eventCode, eventId, meta.Format, teamId, teamName, holeNumber, grossScore, ct);
 
         _broadcaster.RequestBroadcast(eventCode, eventId);
     }
@@ -92,22 +81,17 @@ public class RealTimeService : IRealTimeService
         IEnumerable<(Guid TeamId, string TeamName, short HoleNumber, short GrossScore)> acceptedScores,
         CancellationToken ct = default)
     {
-        foreach (var (_, teamName, holeNumber, grossScore) in acceptedScores)
+        var scores = acceptedScores.ToList();
+        if (scores.Count > 0)
         {
-            if (grossScore != 1) continue;
+            var format = await _db.Events
+                .Where(e => e.Id == eventId)
+                .Select(e => e.Format)
+                .FirstOrDefaultAsync(ct);
 
-            await TrySendAsync("HoleInOneAlert", eventCode, new
-            {
-                teamName,
-                playerName = teamName,
-                holeNumber,
-            }, ct);
-
-            await SendHoleInOnePushAsync(eventId, teamName, holeNumber, ct);
-
-            _logger.LogInformation(
-                "Hole-in-one on event {EventCode} hole {Hole} by team '{Team}'",
-                eventCode, holeNumber, teamName);
+            foreach (var (teamId, teamName, holeNumber, grossScore) in scores)
+                await AnnounceHoleInOneAsync(
+                    eventCode, eventId, format, teamId, teamName, holeNumber, grossScore, ct);
         }
 
         _broadcaster.RequestBroadcast(eventCode, eventId);
@@ -206,9 +190,62 @@ public class RealTimeService : IRealTimeService
         }
     }
 
+    /// <summary>
+    /// Fires HoleInOneAlert + push when the completed hole is an ace under the
+    /// event's format (U8). In a scramble that is the team row at 1. In every
+    /// other format each golfer plays their own ball, so it is any golfer at 1
+    /// in player_shots — a Stroke foursome's aggregate row is never 1, and a
+    /// Best Ball row at 1 still needs a name.
+    /// </summary>
+    private async Task AnnounceHoleInOneAsync(
+        string eventCode, Guid eventId, EventFormat format,
+        Guid teamId, string teamName, short holeNumber, short grossScore,
+        CancellationToken ct)
+    {
+        // Only the scramble row answers the question by itself; every other
+        // format needs the per-golfer breakdown.
+        if (format == EventFormat.Scramble && grossScore != 1) return;
+
+        var shots = FormatScoring.ParseShots(format == EventFormat.Scramble
+            ? null
+            : await _db.Scores
+                .Where(s => s.EventId == eventId && s.TeamId == teamId && s.HoleNumber == holeNumber)
+                .Select(s => s.PlayerShotsJson)
+                .FirstOrDefaultAsync(ct));
+
+        var ace = FormatScoring.FindHoleInOne(format, shots, grossScore);
+        if (ace is null) return;
+
+        var byWhom = teamName;
+        if (ace.PlayerIds.Count > 0)
+        {
+            var ids   = ace.PlayerIds.ToList();
+            var names = await _db.Players
+                .Where(p => ids.Contains(p.Id) && p.EventId == eventId)
+                .OrderBy(p => p.FirstName).ThenBy(p => p.LastName)
+                .Select(p => (p.FirstName + " " + p.LastName).Trim())
+                .ToListAsync(ct);
+            if (names.Count > 0) byWhom = string.Join(" & ", names);
+        }
+
+        await TrySendAsync("HoleInOneAlert", eventCode, new
+        {
+            teamName,
+            playerName = byWhom,
+            holeNumber,
+        }, ct);
+
+        await SendHoleInOnePushAsync(eventId, teamName, byWhom, holeNumber, ct);
+
+        _logger.LogInformation(
+            "Hole-in-one on event {EventCode} hole {Hole} by '{Who}' (team '{Team}')",
+            eventCode, holeNumber, byWhom, teamName);
+    }
+
     // Fetches all player push tokens for the event and sends a hole-in-one push notification.
+    // byWhom is the golfer's name, or the team's in a scramble.
     private async Task SendHoleInOnePushAsync(
-        Guid eventId, string teamName, short holeNumber, CancellationToken ct)
+        Guid eventId, string teamName, string byWhom, short holeNumber, CancellationToken ct)
     {
         var tokens = await _db.Players
             .Where(p => p.EventId == eventId && p.ExpoPushToken != null)
@@ -220,8 +257,8 @@ public class RealTimeService : IRealTimeService
         await _push.SendAsync(
             tokens,
             title: "Hole-in-One!",
-            body:  $"{teamName} just made a hole-in-one on hole {holeNumber}!",
-            data:  new { type = "hole_in_one", teamName, holeNumber },
+            body:  $"{byWhom} just made a hole-in-one on hole {holeNumber}!",
+            data:  new { type = "hole_in_one", teamName, playerName = byWhom, holeNumber },
             ct:    ct);
     }
 }

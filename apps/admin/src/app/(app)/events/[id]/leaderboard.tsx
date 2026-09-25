@@ -4,7 +4,8 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { eventsApi, type LeaderboardEntry, type EventDetail } from '@/lib/api';
+import { eventsApi, type LeaderboardEntry, type IndividualLeaderboardEntry, type EventDetail } from '@/lib/api';
+import { FORMAT_LABELS } from '@gfp/shared-types';
 import { useResponsive } from '@/lib/responsive';
 
 function formatScore(toPar: number): string {
@@ -27,6 +28,10 @@ export default function LeaderboardScreen() {
 
   const [event,     setEvent]     = useState<EventDetail | null>(null);
   const [entries,   setEntries]   = useState<LeaderboardEntry[]>([]);
+  const [golfers,   setGolfers]   = useState<IndividualLeaderboardEntry[]>([]);
+  // Stroke Play is scored per golfer (Rule 3.3, U8), so that board leads; the
+  // team aggregate stays one tap away.
+  const [view,      setView]      = useState<'golfers' | 'teams'>('golfers');
   const [loading,   setLoading]   = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error,     setError]     = useState<string | null>(null);
@@ -35,12 +40,14 @@ export default function LeaderboardScreen() {
     if (!silent) setLoading(true); else setRefreshing(true);
     setError(null);
     try {
-      const [evt, board] = await Promise.all([
+      const [evt, board, individuals] = await Promise.all([
         eventsApi.get(id),
         eventsApi.getLeaderboard(id),
+        eventsApi.getIndividualLeaderboard(id).catch(() => [] as IndividualLeaderboardEntry[]),
       ]);
       setEvent(evt);
       setEntries(board);
+      setGolfers(individuals);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load leaderboard.');
     } finally {
@@ -52,6 +59,8 @@ export default function LeaderboardScreen() {
   useEffect(() => { load(); }, [load]);
 
   const isStableford = event?.format === 'Stableford';
+  const isStroke     = event?.format === 'Stroke';
+  const showGolfers  = isStroke && view === 'golfers';
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
@@ -64,7 +73,7 @@ export default function LeaderboardScreen() {
           <Text style={[styles.title, { color: theme.colors.primary }]}>Leaderboard</Text>
           {event && (
             <Text style={[styles.formatBadge, { color: theme.mutedText }]}>
-              {event.format} · {event.holes} holes
+              {FORMAT_LABELS[event.format] ?? event.format} · {event.holes} holes
             </Text>
           )}
         </View>
@@ -85,7 +94,76 @@ export default function LeaderboardScreen() {
         </View>
       )}
 
-      {entries.length === 0 && !error ? (
+      {isStroke && (
+        <View style={styles.viewToggle} accessibilityRole="tablist">
+          {(['golfers', 'teams'] as const).map(v => (
+            <Pressable
+              key={v}
+              onPress={() => setView(v)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: view === v }}
+              style={[styles.viewTab, { borderColor: theme.colors.primary }, view === v && { backgroundColor: theme.colors.primary }]}
+            >
+              <Text style={[styles.viewTabText, { color: view === v ? theme.buttonLabel : theme.colors.primary }]}>
+                {v === 'golfers' ? 'Golfers' : 'Teams'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {showGolfers ? (
+        golfers.every(g => g.holesComplete === 0) && !error ? (
+          <View style={styles.emptyWrap}>
+            <Text style={[styles.emptyText, { color: theme.mutedText }]}>
+              No golfer strokes recorded yet.
+            </Text>
+          </View>
+        ) : (
+          <View style={[styles.table, { borderColor: '#e8e8e8' }]}>
+            <View style={[styles.colHeader, { backgroundColor: theme.colors.highlight, borderBottomColor: '#e8e8e8' }]}>
+              <Text style={[styles.colRank,  { color: theme.colors.primary }]}>#</Text>
+              <Text style={[styles.colName,  { color: theme.colors.primary }]}>Golfer</Text>
+              <Text style={[styles.colScore, { color: theme.colors.primary }]}>To Par</Text>
+              <Text style={[styles.colNum,   { color: theme.colors.primary }]}>Back</Text>
+              <Text style={[styles.colNum,   { color: theme.colors.primary }]}>Gross</Text>
+              <Text style={[styles.colThru,  { color: theme.colors.primary }]}>Thru</Text>
+            </View>
+            <FlatList
+              data={golfers}
+              keyExtractor={g => g.playerId}
+              renderItem={({ item, index }) => (
+                <View style={[styles.row, index % 2 === 1 && styles.rowAlt]}>
+                  <View style={styles.colRank}><RankBadge rank={item.rank} /></View>
+                  <View style={[styles.colName, styles.golferCol]}>
+                    <Text style={[styles.teamName, { color: theme.colors.primary }]} numberOfLines={1}>
+                      {item.playerName}
+                    </Text>
+                    <Text style={[styles.golferTeam, { color: theme.mutedText }]} numberOfLines={1}>
+                      {item.teamName}
+                    </Text>
+                  </View>
+                  <Text style={[
+                    styles.colScore, styles.scoreText,
+                    { color: item.toPar < 0 ? '#27ae60' : item.toPar > 0 ? '#e74c3c' : theme.colors.primary },
+                  ]}>
+                    {item.holesComplete === 0 ? '—' : formatScore(item.toPar)}
+                  </Text>
+                  <Text style={[styles.colNum, styles.numText, { color: theme.colors.primary }]}>
+                    {item.holesComplete === 0 || item.strokesBack === 0 ? '—' : item.strokesBack}
+                  </Text>
+                  <Text style={[styles.colNum, styles.numText, { color: theme.colors.primary }]}>
+                    {item.holesComplete === 0 ? '—' : item.grossTotal}
+                  </Text>
+                  <Text style={[styles.colThru, styles.thruText, { color: theme.mutedText }]}>
+                    {item.holesComplete === 0 ? '—' : item.isComplete ? 'F' : item.holesComplete}
+                  </Text>
+                </View>
+              )}
+            />
+          </View>
+        )
+      ) : entries.length === 0 && !error ? (
         <View style={styles.emptyWrap}>
           <Text style={[styles.emptyText, { color: theme.mutedText }]}>
             No scores submitted yet.
@@ -164,6 +242,12 @@ const styles = StyleSheet.create({
   header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
   title:       { fontSize: 22, fontWeight: '800' },
   formatBadge: { fontSize: 13, marginTop: 2 },
+
+  viewToggle:  { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  viewTab:     { borderWidth: 1.5, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6 },
+  viewTabText: { fontSize: 13, fontWeight: '700' },
+  golferCol:   { flexDirection: 'column', alignItems: 'flex-start', gap: 0 },
+  golferTeam:  { fontSize: 12 },
 
   refreshBtn:  { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, minWidth: 80, alignItems: 'center' },
   refreshText: { fontSize: 14, fontWeight: '600' },
