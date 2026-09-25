@@ -340,7 +340,10 @@ public class EventService
             "Attached course '{CourseName}' to event {EventId}",
             course.Name, eventId);
 
-        return MapToEventResponse(evt, await LoadCountsAsync(eventId, ct));
+        // Include the real test-data summary: the admin publishes this response
+        // as the event, and a zeroed summary would drop the test-mode bar's count.
+        return MapToEventResponse(evt, await LoadCountsAsync(eventId, ct),
+            await _testData.GetSummaryAsync(orgId, eventId, ct));
     }
 
     /// <summary>
@@ -374,7 +377,10 @@ public class EventService
         _logger.LogInformation(
             "Updated course '{CourseName}' on event {EventId}", evt.Course.Name, eventId);
 
-        return MapToEventResponse(evt, await LoadCountsAsync(eventId, ct));
+        // Include the real test-data summary: the admin publishes this response
+        // as the event, and a zeroed summary would drop the test-mode bar's count.
+        return MapToEventResponse(evt, await LoadCountsAsync(eventId, ct),
+            await _testData.GetSummaryAsync(orgId, eventId, ct));
     }
 
     /// <summary>
@@ -763,7 +769,10 @@ public class EventService
             evt.Is501c3 = request.Is501c3.Value;
 
         await _db.SaveChangesAsync(ct);
-        return MapToEventResponse(evt, await LoadCountsAsync(eventId, ct));
+        // Include the real test-data summary: the admin publishes this response
+        // as the event, and a zeroed summary would drop the test-mode bar's count.
+        return MapToEventResponse(evt, await LoadCountsAsync(eventId, ct),
+            await _testData.GetSummaryAsync(orgId, eventId, ct));
     }
 
     private static readonly long    MaxLogoBytes       = 2 * 1024 * 1024;

@@ -170,10 +170,12 @@ export default function EventSettingsScreen() {
     try {
       // Publishing the saved event re-themes the layout and every screen now.
       setEvent(await eventBrandingApi.update(id, {
-        logoUrl:          logoUrl.trim() || null,
-        missionStatement: mission.trim() || null,
+        // The API reads null as "leave unchanged" and '' as "clear", so a
+        // blank field (or "Clear (use org)") must send '' to take effect.
+        logoUrl:          logoUrl.trim(),
+        missionStatement: mission.trim(),
         is501c3,
-        themeJson:        hasTheme ? JSON.stringify(colors) : null,
+        themeJson:        hasTheme ? JSON.stringify(colors) : '',
       }));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
