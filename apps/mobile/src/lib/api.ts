@@ -273,6 +273,19 @@ export interface EventStatusResult {
 }
 
 /**
+ * The server has no event with this code: it was removed (an e2e run drops its
+ * database) or the device points at a different server. Distinct from a network
+ * or server error so the session can drop a saved event that no longer exists
+ * without doing so just because the golfer is offline.
+ */
+export class EventNotFoundError extends Error {
+  constructor(eventCode: string) {
+    super(`No event found with code '${eventCode}'.`);
+    this.name = 'EventNotFoundError';
+  }
+}
+
+/**
  * Polls event status. Passing session auth also returns the caller's own
  * check-in / payment-method state, which is how a device notices it was checked
  * in — that happens after join, so the cached session would otherwise stay
@@ -291,6 +304,9 @@ export async function fetchEventStatus(
       ? { 'X-GFP-Player-Id': auth.playerId, 'X-GFP-Session-Token': auth.sessionToken }
       : undefined,
   });
+  // The status endpoint 404s only for an unknown event code; a bad session
+  // token just omits `player`, so a 404 here really means the event is gone.
+  if (res.status === 404) throw new EventNotFoundError(eventCode);
   if (!res.ok) throw new Error(`Status check failed (${res.status})`);
   const data = await res.json();
   return {

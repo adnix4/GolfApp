@@ -26,7 +26,7 @@ function formatEventDate(iso: string | null): string {
 export default function JoinScreen() {
   const theme  = useTheme();
   const router = useRouter();
-  const { session, loading, deviceId, setSession } = useSession();
+  const { session, loading, deviceId, setSession, endedNotice, dismissEndedNotice } = useSession();
   const { preEventId } = useLocalSearchParams<{ preEventId?: string }>();
 
   const [step,          setStep]          = useState<Step>('pick');
@@ -516,6 +516,16 @@ export default function JoinScreen() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {logo}
 
+        {/* The saved event disappeared from the server (see SessionProvider). */}
+        {endedNotice && (
+          <View style={styles.noticeBox}>
+            <Text style={styles.noticeText}>{endedNotice}</Text>
+            <Pressable onPress={dismissEndedNotice} accessibilityRole="button" accessibilityLabel="Dismiss notice">
+              <Text style={styles.noticeDismiss}>Dismiss</Text>
+            </Pressable>
+          </View>
+        )}
+
         <Text style={[styles.sectionHeading, { color: theme.colors.primary }]}>
           Select Your Tournament
         </Text>
@@ -711,6 +721,12 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3, borderLeftColor: '#e74c3c',
   },
   errorText: { color: '#c0392b', fontSize: 14 },
+  noticeBox: {
+    backgroundColor: '#fff8e1', borderColor: '#f39c12', borderWidth: 1, borderRadius: 10,
+    padding: 12, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12,
+  },
+  noticeText:    { flex: 1, color: '#6d4c00', fontSize: 14 },
+  noticeDismiss: { color: '#6d4c00', fontSize: 13, fontWeight: '700' },
 
   // Verify step (A3 email one-time code)
   verifyIcon: { fontSize: 40, textAlign: 'center', marginBottom: 8 },

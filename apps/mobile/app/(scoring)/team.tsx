@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
+import { LeaveEventButton } from '@/components/LeaveEventButton';
 import type { PlayerCacheDto } from '@/lib/api';
 import { formatTime } from '@gfp/shared-types';
 
@@ -134,6 +135,7 @@ export default function TeamScreen() {
           )}
         </View>
 
+        <LeaveEventButton />
       </ScrollView>
     </SafeAreaView>
   );

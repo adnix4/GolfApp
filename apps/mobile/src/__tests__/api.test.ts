@@ -13,7 +13,7 @@ import {
   fetchAuctionItems, placeBid, pledge,
   createSetupIntent, confirmSetup,
   fetchPlayerBidHistory, fetchActiveAuctionSession,
-  fetchEventStatus,
+  fetchEventStatus, EventNotFoundError,
   fetchMyCheckout, confirmMyCheckout,
 } from '../lib/api';
 import type { PendingScore } from '../lib/api';
@@ -571,5 +571,19 @@ describe('confirmMyCheckout', () => {
     const result = await confirmMyCheckout('p1', 'tok');
     expect(result.failed).toBe(1);
     expect(result.settledCents).toBe(0);
+  });
+});
+
+describe('fetchEventStatus — missing event', () => {
+  it('throws EventNotFoundError on 404 so the session can drop a deleted event', async () => {
+    mockErr(404, { error: "No event found with code 'GONE0000'." });
+    await expect(fetchEventStatus('GONE0000')).rejects.toBeInstanceOf(EventNotFoundError);
+  });
+
+  it('keeps other failures generic (offline/5xx must not drop the session)', async () => {
+    mockErr(503);
+    const err = await fetchEventStatus('ABCD1234').catch(e => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err).not.toBeInstanceOf(EventNotFoundError);
   });
 });
