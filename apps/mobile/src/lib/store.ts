@@ -274,3 +274,20 @@ export async function clearPendingScores(
     [eventId, teamId],
   );
 }
+
+// ── Flags (popup "don't show again") ─────────────────────────────────────────
+// Stored in event_cache like the session; keys come from dismissKey() in
+// @gfp/shared-types, so they are already scoped to one tournament.
+
+export async function getFlag(key: string): Promise<boolean> {
+  const db  = await getDb();
+  const row = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM event_cache WHERE key = ?', [key],
+  );
+  return row?.value === '1';
+}
+
+export async function setFlag(key: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('INSERT OR REPLACE INTO event_cache (key, value) VALUES (?, ?)', [key, '1']);
+}

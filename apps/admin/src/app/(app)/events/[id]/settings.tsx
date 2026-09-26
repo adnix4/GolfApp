@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
+import { clearDismissedWarnings, notify } from '@/lib/dialog';
 import { useTheme } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme } from '@gfp/theme';
 import { useResponsive } from '@/lib/responsive';
@@ -554,11 +555,30 @@ export default function EventSettingsScreen() {
           ? <ActivityIndicator color="#fff" />
           : <Text style={styles.saveBtnText}>Save Event Options</Text>}
       </Pressable>
+
+      {/* Undo every "Don't show me this warning again" ticked for this event. */}
+      <Pressable
+        onPress={() => {
+          const n = clearDismissedWarnings(event.id);
+          notify(
+            'Dismissed warnings reset',
+            n > 0
+              ? `${n === 1 ? 'The warning you hid' : `The ${n} warnings you hid`} will show again for this event.`
+              : 'No warnings are hidden for this event.',
+          );
+        }}
+        style={styles.resetWarnings}
+        accessibilityRole="button"
+      >
+        <Text style={[styles.resetWarningsText, { color: theme.colors.primary }]}>Show dismissed warnings again</Text>
+      </Pressable>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  resetWarnings:     { alignSelf: 'center', marginTop: 16, padding: 8 },
+  resetWarningsText: { fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
   page:   { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 

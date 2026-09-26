@@ -1,117 +1,19 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator,
-  ScrollView, Platform, SafeAreaView, Modal,
+  ScrollView, Platform, SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
 import { confirmLeaveEvent, unsyncedHoleCount } from '@/lib/confirmLeave';
+// Same challenge popup as the scorecard (the shared DialogFrame, sponsor highlighted).
+import { ChallengeDetailModal } from '@/components/scorecardComponents';
 import {
   fetchPublicChallenges,
   type SyncConflictDto,
   type ChallengeCacheDto,
 } from '@/lib/api';
-
-// ── CHALLENGE MODAL ───────────────────────────────────────────────────────────
-
-const CHALLENGE_TYPE_LABELS: Record<string, string> = {
-  ClosestToPin: '📍 Closest to the Pin',
-  LongestDrive: '💨 Longest Drive',
-  LongestPutt:  '⛳ Longest Putt',
-  KP:           '🎯 KP Challenge',
-  HoleInOne:    '🎰 Hole in One',
-};
-
-function ChallengeModal({
-  challenge,
-  onDismiss,
-}: {
-  challenge: ChallengeCacheDto | null;
-  onDismiss: () => void;
-}) {
-  const theme = useTheme();
-  if (!challenge) return null;
-
-  return (
-    <Modal
-      transparent
-      visible
-      animationType="slide"
-      onRequestClose={onDismiss}
-    >
-      <View style={modalStyles.backdrop}>
-        {/* Dismiss layer behind the card — a sibling, not a parent, so the
-            card's buttons aren't nested inside another Pressable (invalid
-            <button>-in-<button> on web). */}
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onDismiss}
-          accessibilityLabel="Close challenge detail"
-          accessibilityRole="button"
-        />
-        <View style={[modalStyles.card, { backgroundColor: theme.colors.surface }]}>
-          <View style={[modalStyles.header, { backgroundColor: theme.colors.primary }]}>
-            <Text style={modalStyles.headerText}>
-              {challenge.holeNumber != null
-                ? `Hole ${challenge.holeNumber} Challenge`
-                : 'Event Challenge'}
-            </Text>
-          </View>
-
-          <View style={modalStyles.body}>
-            {challenge.challengeType ? (
-              <Text style={[modalStyles.typeLabel, { color: theme.mutedText }]}>
-                {CHALLENGE_TYPE_LABELS[challenge.challengeType] ?? challenge.challengeType}
-              </Text>
-            ) : null}
-
-            <Text style={[modalStyles.description, { color: theme.colors.primary }]}>
-              {challenge.description}
-            </Text>
-
-            {challenge.prizeDescription ? (
-              <View style={[modalStyles.prizeBox, { backgroundColor: '#fffbf0', borderColor: '#f39c12' }]}>
-                <Text style={modalStyles.prizeLabel}>🏆 Prize</Text>
-                <Text style={modalStyles.prizeText}>{challenge.prizeDescription}</Text>
-              </View>
-            ) : null}
-
-            {challenge.sponsorName ? (
-              <Text style={[modalStyles.sponsorText, { color: theme.mutedText }]}>
-                Presented by {challenge.sponsorName}
-              </Text>
-            ) : null}
-          </View>
-
-          <Pressable
-            style={[modalStyles.closeBtn, { backgroundColor: theme.colors.primary }]}
-            onPress={onDismiss}
-            accessibilityRole="button"
-          >
-            <Text style={modalStyles.closeBtnText}>Got It</Text>
-          </Pressable>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-const modalStyles = StyleSheet.create({
-  backdrop:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  card:         { borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
-  header:       { paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center' },
-  headerText:   { color: '#fff', fontSize: 17, fontWeight: '800' },
-  body:         { padding: 20, gap: 10 },
-  typeLabel:    { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
-  description:  { fontSize: 16, lineHeight: 24 },
-  prizeBox:     { borderWidth: 1, borderRadius: 10, padding: 12 },
-  prizeLabel:   { fontSize: 12, fontWeight: '700', color: '#b7770d', marginBottom: 4 },
-  prizeText:    { fontSize: 14, color: '#7d6608', lineHeight: 20 },
-  sponsorText:  { fontSize: 13, textAlign: 'center' },
-  closeBtn:     { margin: 20, marginTop: 8, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  closeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-});
 
 // ── CONFLICT CARD ─────────────────────────────────────────────────────────────
 
@@ -461,7 +363,7 @@ export default function SyncScreen() {
       </ScrollView>
 
       {/* ── CHALLENGE MODAL ── */}
-      <ChallengeModal
+      <ChallengeDetailModal
         challenge={selectedChallenge}
         onDismiss={() => setSelectedChallenge(null)}
       />

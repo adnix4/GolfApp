@@ -138,7 +138,7 @@ const TeamRow = memo(function TeamRow({
                       onPress={() => {
                         const c = checkInConfirmCopy(
                           `${p.firstName} ${p.lastName}`.trim(), p.hasPaymentMethod);
-                        confirmAction(c.title, c.message, () => onCheckInPlayer(p), c.confirmText);
+                        confirmAction(c.title, c.message, () => onCheckInPlayer(p), c.confirmText, c.dialog);
                       }}
                     >
                       <Text style={[styles.smallBtnText, { color: theme.colors.action }]}>Check In</Text>
@@ -157,6 +157,8 @@ const TeamRow = memo(function TeamRow({
                     'Remove Player',
                     `Remove ${p.firstName} ${p.lastName} from this team?`,
                     () => onRemovePlayer(team.id, p.id),
+                    'Remove',
+                    { destructive: true },
                   )}
                 >
                   <Text style={[styles.smallBtnText, { color: '#e74c3c' }]}>Remove</Text>

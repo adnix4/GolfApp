@@ -5,6 +5,7 @@ import { ErrorFallback, ThemeProvider } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, type GFPTheme } from '@gfp/theme';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { orgApi } from '@/lib/api';
+import { DialogHost } from '@/lib/dialog';
 
 // Root safety net (problemList A4): an uncaught render throw anywhere in the
 // dashboard shows a branded retry card instead of a blank screen.
@@ -21,17 +22,25 @@ function parseTheme(json: string | null | undefined): GFPTheme | null {
 function OrgThemeWrapper({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [orgTheme, setOrgTheme] = useState<GFPTheme | null>(null);
+  const [orgName,  setOrgName]  = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user || user.role === 'SuperAdmin') { setOrgTheme(null); return; }
-    orgApi.getMe().then(org => setOrgTheme(parseTheme(org.themeJson))).catch(() => {});
+    if (!user || user.role === 'SuperAdmin') { setOrgTheme(null); setOrgName(null); return; }
+    orgApi.getMe().then(org => { setOrgTheme(parseTheme(org.themeJson)); setOrgName(org.name); }).catch(() => {});
   // The whole user, not just orgId: the effect also branches on role, so a
   // same-org role change has to re-run it or the previous role's theme sticks.
   // Cheap to depend on the object — setUser only fires on a real auth
   // transition (mount restore, login, logout, register), never per render.
   }, [user]);
 
-  return <ThemeProvider theme={orgTheme}>{children}</ThemeProvider>;
+  return (
+    <ThemeProvider theme={orgTheme}>
+      {children}
+      {/* Popups outside an event wear the org theme; the event layout mounts
+          its own host (event theme + name), which wins while it's mounted. */}
+      <DialogHost headerTitle={orgName || 'Golf Fundraiser Pro'} />
+    </ThemeProvider>
+  );
 }
 
 function AuthGate() {

@@ -117,6 +117,8 @@ export default function SponsorsScreen() {
         }
       },
       'Remove',
+      // Sponsors named in a popup are always highlighted.
+      { destructive: true, highlights: [{ text: sponsor.name, kind: 'sponsor' }] },
     );
   }
 

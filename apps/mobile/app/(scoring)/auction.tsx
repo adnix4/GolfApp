@@ -270,7 +270,8 @@ export default function AuctionScreen() {
     notify(prompt.title, prompt.message, [
       { text: 'Cancel', style: 'cancel', onPress: () => { bidInFlightRef.current = false; } },
       { text: prompt.confirmLabel, onPress: () => { void submitBid(item, cents); } },
-    ], { highlight: item.title });
+    // A payment check: always asks, never offers "don't show again".
+    ], { highlight: item.title, payment: true });
   }
 
   /**

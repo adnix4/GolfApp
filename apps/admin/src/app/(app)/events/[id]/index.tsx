@@ -86,7 +86,7 @@ export default function EventOverviewScreen() {
 
     if (newStatus === 'Cancelled') {
       const copy = cancelEventCopy();
-      confirmAction(copy.title, copy.message, () => { doStatusChange('Cancelled'); }, copy.confirmText);
+      confirmAction(copy.title, copy.message, () => { doStatusChange('Cancelled'); }, copy.confirmText, { kind: 'warning', destructive: true });
       return;
     }
 
@@ -126,7 +126,7 @@ export default function EventOverviewScreen() {
     } finally {
       setCheckingScores(false);
     }
-    confirmAction(copy.title, copy.message, () => { doStatusChange('Completed'); }, copy.confirmText);
+    confirmAction(copy.title, copy.message, () => { doStatusChange('Completed'); }, copy.confirmText, { kind: 'warning' });
   }
 
   // Override for the Open Scoring gate. The team list isn't loaded on this
@@ -141,7 +141,7 @@ export default function EventOverviewScreen() {
         .filter(t => !isCheckedIn(t.checkInStatus))
         .map(t => t.name);
       const copy = openScoringEarlyCopy(pending);
-      confirmAction(copy.title, copy.message, () => { doStatusChange('Scoring'); }, copy.confirmText);
+      confirmAction(copy.title, copy.message, () => { doStatusChange('Scoring'); }, copy.confirmText, { kind: 'warning' });
     } catch (e: any) {
       setError(e.message ?? 'Could not load teams.');
     } finally {
