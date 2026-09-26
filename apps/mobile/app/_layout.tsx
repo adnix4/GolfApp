@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorFallback, ThemeProvider } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, type GFPTheme } from '@gfp/theme';
 import { SessionProvider, useSession } from '@/lib/session';
+import { DialogHost } from '@/components/DialogHost';
 import { defineBackgroundSyncTask, registerBackgroundSync } from '@/lib/backgroundSync';
 
 // Must run synchronously at module initialisation — before any component renders
@@ -38,6 +39,8 @@ export default function RootLayout() {
       <SessionProvider>
         <SessionThemeProvider>
           <Stack screenOptions={{ headerShown: false }} />
+          {/* Inside the event theme so every notify() dialog wears its colors. */}
+          <DialogHost />
         </SessionThemeProvider>
       </SessionProvider>
     </SafeAreaProvider>

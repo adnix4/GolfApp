@@ -115,6 +115,7 @@ export default function EventSettingsScreen() {
   const [colors,       setColors]       = useState<GFPTheme>({ ...ECO_GREEN_DEFAULT });
   const [offlineMode,       setOfflineMode]       = useState(false);
   const [freeAgentEnabled,  setFreeAgentEnabled]  = useState(false);
+  const [allowWalkUps,      setAllowWalkUps]      = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
 
   // Brand-from-website (optional convenience — pre-fills the editors below)
@@ -134,6 +135,7 @@ export default function EventSettingsScreen() {
     setIs501c3(event.is501c3);
     setOfflineMode(!!(event.config as any)?.offlineMode);
     setFreeAgentEnabled(!!(event.config as any)?.freeAgentEnabled);
+    setAllowWalkUps(!!(event.config as any)?.allowWalkUps);
     if (event.themeJson) {
       setHasTheme(true);
       setColors(parseTheme(event.themeJson));
@@ -514,6 +516,24 @@ export default function EventSettingsScreen() {
             disabled={savingConfig}
           />
         </View>
+
+        <View style={styles.toggleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.label, { color: theme.colors.primary, marginTop: 0 }]}>
+              Allow Walk-Up Registration
+            </Text>
+            <Text style={[styles.hint, { color: theme.mutedText }]}>
+              Lets new teams be added on event day, once the event is Active. Registration and
+              Draft events always accept teams; guests (non-golfers) can be added any time.
+            </Text>
+          </View>
+          <Switch
+            value={allowWalkUps}
+            onValueChange={setAllowWalkUps}
+            trackColor={{ true: theme.colors.primary }}
+            disabled={savingConfig}
+          />
+        </View>
       </View>
 
       <Pressable
@@ -521,7 +541,7 @@ export default function EventSettingsScreen() {
         onPress={async () => {
           setSavingConfig(true);
           try {
-            setEvent(await eventsApi.update(id, { config: { offlineMode, freeAgentEnabled } }));
+            setEvent(await eventsApi.update(id, { config: { offlineMode, freeAgentEnabled, allowWalkUps } }));
           } catch (e: any) {
             setError(e.message ?? 'Failed to save event options.');
           } finally {

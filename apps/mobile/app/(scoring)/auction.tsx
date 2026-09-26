@@ -251,16 +251,16 @@ export default function AuctionScreen() {
     }
     setBidError(null);
 
-    // Web only, and deliberately so. There, notify() is window.confirm: it runs
-    // synchronously inside this handler, so a setState would not have flushed in
-    // time to block a second tap — hence a ref — and it can only ever return
-    // true or false, so the flag cannot get stranded.
+    // Web only, and deliberately so. A setState would not flush in time to
+    // block a second tap on web — hence a ref. It cannot get stranded: the
+    // themed DialogHost runs the Cancel handler on every dismissal (Escape,
+    // backdrop tap), and submitBid clears it in `finally`.
     //
-    // Native needs no guard: Alert is a system-modal dialog, so the Bid button
-    // underneath cannot be tapped while it is up. Applying the ref there WOULD
-    // strand it — Android dismisses an alert on the back button without calling
-    // any button handler, and the flag would then block every later bid with no
-    // message at all. That is the D12 dead-button failure exactly.
+    // Native keeps no guard: the dialog is modal, so the Bid button underneath
+    // cannot be tapped while it is up. If notify() ever falls back to a system
+    // Alert (no host mounted), Android dismisses it on back without calling any
+    // handler, and a ref would then block every later bid with no message at
+    // all — the D12 dead-button failure exactly.
     if (Platform.OS === 'web') {
       if (bidInFlightRef.current) return;
       bidInFlightRef.current = true;
@@ -270,7 +270,7 @@ export default function AuctionScreen() {
     notify(prompt.title, prompt.message, [
       { text: 'Cancel', style: 'cancel', onPress: () => { bidInFlightRef.current = false; } },
       { text: prompt.confirmLabel, onPress: () => { void submitBid(item, cents); } },
-    ]);
+    ], { highlight: item.title });
   }
 
   /**
@@ -285,7 +285,7 @@ export default function AuctionScreen() {
     try {
       if (isDonation) {
         await pledge(item.id, player.id, cents, session!.sessionToken);
-        notify('Success', 'Pledge recorded!');
+        notify('Pledge recorded', `Thank you — your ${fmt(cents)} pledge is in.`, undefined, { highlight: item.title });
       } else {
         const res = await placeBid(item.id, player.id, cents, session!.sessionToken);
         // A proxy bid can be accepted and lose in the same breath — someone
@@ -298,6 +298,8 @@ export default function AuctionScreen() {
               ? `The bid is at ${fmt(res.currentHighBidCents)}. We'll bid for you up to ${fmt(cents)}.`
               : `Another golfer's maximum is higher. The bid is now ${fmt(res.currentHighBidCents)}.`
             : 'Bid placed!',
+          undefined,
+          { highlight: item.title },
         );
       }
       setBidAmt('');
@@ -652,9 +654,16 @@ export default function AuctionScreen() {
           {/* Bounded height + internal scroll so tall content (photos, denom
               grids) never pushes the bid controls off-screen. */}
           <View style={[styles.modalCard, { backgroundColor: theme.colors.surface, maxHeight: screenHeight * 0.88 }]}>
+            {/* Same frame as the themed dialogs: event name on a primary band,
+                the item bold on an action chip (on-colors keep it readable). */}
+            <View style={[styles.sheetHeader, { backgroundColor: theme.colors.primary }]}>
+              <Text style={[styles.sheetEventName, { color: theme.buttonLabel }]} numberOfLines={1}>
+                {session?.event.name}
+              </Text>
+            </View>
             {liveSelectedItem && (
               <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>
+                <Text style={[styles.sheetItemTitle, { backgroundColor: theme.colors.action, color: theme.ctaLabel }]}>
                   {liveSelectedItem.title}
                 </Text>
                 {liveSelectedItem.photoUrls.length > 0 && (
@@ -811,7 +820,13 @@ const styles = StyleSheet.create({
   denomRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   denomBtn:    { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1.5, borderColor: '#27ae60' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalCard:   { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
+  modalCard:   { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, overflow: 'hidden' },
+  sheetHeader: { marginTop: -24, marginHorizontal: -24, marginBottom: 16, paddingVertical: 12, paddingHorizontal: 24 },
+  sheetEventName: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
+  sheetItemTitle: {
+    alignSelf: 'flex-start', fontSize: 17, fontWeight: '800',
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, marginBottom: 10, overflow: 'hidden',
+  },
   cancelBtn:   { alignItems: 'center', marginTop: 16, paddingVertical: 10 },
   raiseHandBtn: {
     backgroundColor: '#2980b9', borderRadius: 12,
