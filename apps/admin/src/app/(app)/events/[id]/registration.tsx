@@ -6,7 +6,7 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { useTheme } from '@gfp/ui';
-import { teamsApi, playersApi, type Team, type Player } from '@/lib/api';
+import { eventsApi, teamsApi, playersApi, type Team, type Player } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
 import { confirmAction } from '@/lib/confirmAction';
 import {
@@ -501,6 +501,21 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
   const [isGuest,   setIsGuest]   = useState(false);
   const [saving,    setSaving]    = useState(false);
   const [err,       setErr]       = useState<string | null>(null);
+  const [enabling,  setEnabling]  = useState(false);
+
+  // An Active event only takes new teams when walk-ups are switched on
+  // (config.allowWalkUps; the API enforces it). Offer the switch right here so
+  // the check-in desk isn't sent off to Settings mid-line. Guests aren't gated.
+  const { event, setEvent } = useEventDetail();
+  const walkUpsOff = event.status === 'Active' && !(event.config as { allowWalkUps?: boolean })?.allowWalkUps;
+  const blocked    = walkUpsOff && !isGuest;
+
+  async function enableWalkUps() {
+    setEnabling(true); setErr(null);
+    try { setEvent(await eventsApi.update(eventId, { config: { allowWalkUps: true } })); }
+    catch (e: any) { setErr(e.message ?? 'Could not turn on walk-ups.'); }
+    finally { setEnabling(false); }
+  }
 
   function reset() {
     setFirstName(''); setLastName(''); setEmail('');
@@ -580,6 +595,25 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
               </View>
             </Pressable>
 
+            {blocked && (
+              <View style={styles.walkUpOffBox}>
+                <Text style={styles.walkUpOffText}>
+                  Walk-up registration is off for this event, so new teams can't be added while
+                  it's Active. Guests can still be added.
+                </Text>
+                <Pressable
+                  onPress={enableWalkUps}
+                  disabled={enabling}
+                  style={[styles.walkUpOffBtn, { backgroundColor: theme.colors.primary }, enabling && { opacity: 0.6 }]}
+                  accessibilityRole="button"
+                >
+                  {enabling
+                    ? <ActivityIndicator size="small" color={theme.buttonLabel} />
+                    : <Text style={[styles.walkUpOffBtnText, { color: theme.buttonLabel }]}>Turn on walk-ups</Text>}
+                </Pressable>
+              </View>
+            )}
+
             <LabeledInput label="First Name *" value={firstName} onChangeText={setFirstName} placeholder="Jane" />
             <LabeledInput label="Last Name *"  value={lastName}  onChangeText={setLastName}  placeholder="Smith" />
             <LabeledInput label="Email *"      value={email}     onChangeText={setEmail}     placeholder="jane@example.com" keyboardType="email-address" autoCapitalize="none" />
@@ -599,8 +633,8 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
             </Pressable>
             <Pressable
               onPress={handleSubmit}
-              disabled={saving}
-              style={[styles.modalSubmit, { backgroundColor: theme.colors.action }]}
+              disabled={saving || blocked}
+              style={[styles.modalSubmit, { backgroundColor: theme.colors.action }, blocked && { opacity: 0.5 }]}
             >
               {saving
                 ? <ActivityIndicator size="small" color="#fff" />
@@ -650,6 +684,10 @@ const styles = StyleSheet.create({
   inputLabel:      { fontSize: 12, fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 5 },
   textInput:       { borderWidth: 1.5, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, fontSize: 15, color: '#222', backgroundColor: '#fafafa' },
   modalErr:        { color: '#c0392b', fontSize: 13, marginTop: 10, marginBottom: 4 },
+  walkUpOffBox:     { backgroundColor: '#fff8e1', borderColor: '#f39c12', borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12, gap: 10 },
+  walkUpOffText:    { color: '#6d4c00', fontSize: 13, lineHeight: 18 },
+  walkUpOffBtn:     { alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, minWidth: 140, alignItems: 'center' },
+  walkUpOffBtnText: { fontSize: 13, fontWeight: '700' },
   modalActions:    { flexDirection: 'row', gap: 12, marginTop: 18 },
   modalCancel:     { flex: 1, paddingVertical: 12, borderRadius: 8, borderWidth: 1.5, borderColor: '#ddd', alignItems: 'center' },
   modalCancelText: { fontSize: 14, fontWeight: '700' },
