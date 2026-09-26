@@ -6,6 +6,7 @@ import { ECO_GREEN_DEFAULT, type GFPTheme } from '@gfp/theme';
 import { EventProvider, useEventLoader, type EventContextValue } from '@/lib/eventContext';
 import type { EventDetail } from '@/lib/api';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { DialogHost } from '@/lib/dialog';
 
 function parseTheme(json: string | null | undefined): GFPTheme | null {
   if (!json) return null;
@@ -201,6 +202,10 @@ function EventChrome({ event, error, retry, eventCtx }: {
           <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>
         )}
       </View>
+
+      {/* Event popups: event colors, event name, and per-event
+          "don't show again" memory. */}
+      <DialogHost headerTitle={event?.name ?? 'Golf Fundraiser Pro'} eventId={event?.id} />
 
     </View>
   );

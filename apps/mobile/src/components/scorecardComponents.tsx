@@ -15,7 +15,8 @@ import {
   Animated, Linking, Modal, Pressable,
   StyleSheet, Text, View,
 } from 'react-native';
-import { AdaptiveLogoFrame, useTheme } from '@gfp/ui';
+import { AdaptiveLogoFrame, DialogFrame, useTheme } from '@gfp/ui';
+import { useSession } from '@/lib/session';
 import type { ThemeContextValue } from '@gfp/ui';
 import type { ChallengeCacheDto, HoleCacheDto, SponsorCacheDto } from '@/lib/api';
 import { formatToPar, toParColor } from '@/lib/toPar';
@@ -161,81 +162,43 @@ export function ChallengeDetailModal({
   onDismiss: () => void;
 }) {
   const theme = useTheme();
+  const { session } = useSession();
   if (!challenge) return null;
 
+  const where = challenge.holeNumber != null ? `Hole ${challenge.holeNumber} Challenge` : 'Event Challenge';
+  const type  = challenge.challengeType
+    ? (CHALLENGE_TYPE_LABELS[challenge.challengeType] ?? challenge.challengeType)
+    : null;
+  // The sponsor is named in the message so the frame sets it on a sponsor chip.
+  const message = [
+    challenge.description,
+    challenge.sponsorName ? `Presented by ${challenge.sponsorName}.` : '',
+  ].filter(Boolean).join('\n\n');
+
   return (
-    <Modal
-      transparent
-      visible
-      animationType="slide"
-      onRequestClose={onDismiss}
+    <DialogFrame
+      headerTitle={session?.event.name ?? 'Golf Fundraiser Pro'}
+      title={type ? `${where} · ${type}` : where}
+      message={message}
+      highlights={challenge.sponsorName ? [{ text: challenge.sponsorName, kind: 'sponsor' }] : []}
+      buttons={[{ text: 'Got It' }]}
+      onButton={onDismiss}
+      onDismiss={onDismiss}
     >
-      <View style={chalModalStyles.backdrop}>
-        {/* Dismiss layer behind the card — a sibling, not a parent, so the
-            card's buttons aren't nested inside another Pressable (invalid
-            <button>-in-<button> on web). */}
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onDismiss}
-          accessibilityLabel="Close challenge detail"
-          accessibilityRole="button"
-        />
-        <View style={[chalModalStyles.card, { backgroundColor: theme.colors.surface }]}>
-          <View style={[chalModalStyles.header, { backgroundColor: theme.colors.primary }]}>
-            <Text style={chalModalStyles.headerText}>
-              {challenge.holeNumber != null
-                ? `Hole ${challenge.holeNumber} Challenge`
-                : 'Event Challenge'}
-            </Text>
-          </View>
-          <View style={chalModalStyles.body}>
-            {challenge.challengeType ? (
-              <Text style={[chalModalStyles.typeLabel, { color: theme.mutedText }]}>
-                {CHALLENGE_TYPE_LABELS[challenge.challengeType] ?? challenge.challengeType}
-              </Text>
-            ) : null}
-            <Text style={[chalModalStyles.description, { color: theme.colors.primary }]}>
-              {challenge.description}
-            </Text>
-            {challenge.prizeDescription ? (
-              <View style={[chalModalStyles.prizeBox, { backgroundColor: '#fffbf0', borderColor: '#f39c12' }]}>
-                <Text style={chalModalStyles.prizeLabel}>🏆 Prize</Text>
-                <Text style={chalModalStyles.prizeText}>{challenge.prizeDescription}</Text>
-              </View>
-            ) : null}
-            {challenge.sponsorName ? (
-              <Text style={[chalModalStyles.sponsorText, { color: theme.mutedText }]}>
-                Presented by {challenge.sponsorName}
-              </Text>
-            ) : null}
-          </View>
-          <Pressable
-            style={[chalModalStyles.closeBtn, { backgroundColor: theme.colors.primary }]}
-            onPress={onDismiss}
-            accessibilityRole="button"
-          >
-            <Text style={chalModalStyles.closeBtnText}>Got It</Text>
-          </Pressable>
+      {challenge.prizeDescription ? (
+        <View style={[chalModalStyles.prizeBox, { backgroundColor: theme.colors.highlight }]}>
+          <Text style={[chalModalStyles.prizeLabel, { color: theme.colors.primary }]}>🏆 Prize</Text>
+          <Text style={[chalModalStyles.prizeText, { color: theme.colors.primary }]}>{challenge.prizeDescription}</Text>
         </View>
-      </View>
-    </Modal>
+      ) : null}
+    </DialogFrame>
   );
 }
 
 const chalModalStyles = StyleSheet.create({
-  backdrop:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  card:         { borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
-  header:       { paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center' },
-  headerText:   { color: '#fff', fontSize: 17, fontWeight: '800' },
-  body:         { padding: 20, gap: 10 },
-  typeLabel:    { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
-  description:  { fontSize: 16, lineHeight: 24 },
-  prizeBox:     { borderWidth: 1, borderRadius: 10, padding: 12 },
-  prizeLabel:   { fontSize: 12, fontWeight: '700', color: '#b7770d', marginBottom: 4 },
-  prizeText:    { fontSize: 14, color: '#7d6608', lineHeight: 20 },
-  sponsorText:  { fontSize: 13, textAlign: 'center' },
-  closeBtn:     { margin: 20, marginTop: 8, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  closeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  prizeBox:   { borderRadius: 10, padding: 12, marginTop: 12 },
+  prizeLabel: { fontSize: 12, fontWeight: '800', marginBottom: 4 },
+  prizeText:  { fontSize: 14, lineHeight: 20 },
 });
 
 // ── HOLE INFO MODAL ───────────────────────────────────────────────────────────
@@ -254,6 +217,7 @@ export function HoleInfoModal({ hole, onDismiss }: {
   onDismiss: () => void;
 }) {
   const theme = useTheme();
+  const { session } = useSession();
   if (!hole) return null;
 
   const rows: { label: string; value: string }[] = [
@@ -265,63 +229,33 @@ export function HoleInfoModal({ hole, onDismiss }: {
   if (hole.yardageRed   != null) rows.push({ label: 'Red tees',   value: `${hole.yardageRed} yds` });
 
   return (
-    <Modal transparent visible animationType="slide" onRequestClose={onDismiss}>
-      <View style={holeInfoStyles.backdrop}>
-        {/* Dismiss layer as a sibling, not a parent — same reason as the
-            challenge modal: nesting the close button inside another Pressable
-            is an invalid <button>-in-<button> on web. */}
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onDismiss}
-          accessibilityLabel="Close hole detail"
-          accessibilityRole="button"
-        />
-        <View style={[holeInfoStyles.card, { backgroundColor: theme.colors.surface }]}>
-          <View style={[holeInfoStyles.header, { backgroundColor: theme.colors.primary }]}>
-            <Text style={[holeInfoStyles.headerText, { color: theme.buttonLabel }]}>
-              Hole {hole.holeNumber}
-            </Text>
-          </View>
-
-          <View style={holeInfoStyles.body}>
-            {rows.map((r, i) => (
-              <View
-                key={r.label}
-                style={[
-                  holeInfoStyles.row,
-                  i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.accent + '33' },
-                ]}
-              >
-                <Text style={[holeInfoStyles.rowLabel, { color: theme.mutedText }]}>{r.label}</Text>
-                <Text style={[holeInfoStyles.rowValue, { color: theme.colors.primary }]}>{r.value}</Text>
-              </View>
-            ))}
-          </View>
-
-          <Pressable
-            style={[holeInfoStyles.closeBtn, { backgroundColor: theme.colors.primary }]}
-            onPress={onDismiss}
-            accessibilityRole="button"
-          >
-            <Text style={[holeInfoStyles.closeBtnText, { color: theme.buttonLabel }]}>Close</Text>
-          </Pressable>
+    <DialogFrame
+      headerTitle={session?.event.name ?? 'Golf Fundraiser Pro'}
+      title={`Hole ${hole.holeNumber}`}
+      buttons={[{ text: 'Close' }]}
+      onButton={onDismiss}
+      onDismiss={onDismiss}
+    >
+      {rows.map((r, i) => (
+        <View
+          key={r.label}
+          style={[
+            holeInfoStyles.row,
+            i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.accent + '33' },
+          ]}
+        >
+          <Text style={[holeInfoStyles.rowLabel, { color: theme.mutedText }]}>{r.label}</Text>
+          <Text style={[holeInfoStyles.rowValue, { color: theme.colors.primary }]}>{r.value}</Text>
         </View>
-      </View>
-    </Modal>
+      ))}
+    </DialogFrame>
   );
 }
 
 const holeInfoStyles = StyleSheet.create({
-  backdrop:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  card:         { borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
-  header:       { paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center' },
-  headerText:   { fontSize: 17, fontWeight: '800' },
-  body:         { paddingHorizontal: 20, paddingVertical: 6 },
-  row:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
-  rowLabel:     { fontSize: 14, fontWeight: '600' },
-  rowValue:     { fontSize: 16, fontWeight: '800' },
-  closeBtn:     { margin: 20, marginTop: 8, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  closeBtnText: { fontSize: 16, fontWeight: '700' },
+  row:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
+  rowLabel: { fontSize: 14, fontWeight: '600' },
+  rowValue: { fontSize: 16, fontWeight: '800' },
 });
 
 // ── SPONSOR MODAL ────────────────────────────────────────────────────────────
@@ -334,165 +268,51 @@ export function SponsorModal({
   onDismiss: () => void;
 }) {
   const theme = useTheme();
-
+  const { session } = useSession();
   if (!sponsor) return null;
 
-  function openWebsite() {
-    if (sponsor!.websiteUrl) Linking.openURL(sponsor!.websiteUrl);
-  }
-
+  const website = sponsor.websiteUrl;
   return (
-    <Modal
-      transparent
-      visible
-      animationType="slide"
-      onRequestClose={onDismiss}
+    <DialogFrame
+      headerTitle={session?.event.name ?? 'Golf Fundraiser Pro'}
+      title="🤝 Hole Sponsor"
+      message={`Thank you to ${sponsor.name} for generously sponsoring this hole and supporting our event!`}
+      highlights={[{ text: sponsor.name, kind: 'sponsor' }]}
+      buttons={[
+        // "Visit website" leaves the popup open; only "Got It" closes it.
+        ...(website ? [{ text: 'Visit website →', style: 'secondary' as const, onPress: () => { void Linking.openURL(website); } }] : []),
+        { text: 'Got It' },
+      ]}
+      onButton={b => (b.onPress ? b.onPress() : onDismiss())}
+      onDismiss={onDismiss}
     >
-      <View style={sponModalStyles.backdrop}>
-        {/*
-          Full-screen dismiss layer rendered as a sibling *behind* the card —
-          not a parent of it. The card's own buttons must not be nested inside
-          another Pressable, since RN-web renders Pressable as <button> and a
-          <button> inside a <button> is invalid DOM.
-        */}
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onDismiss}
-          accessibilityLabel="Close sponsor info"
-          accessibilityRole="button"
-        />
-        {/*
-          Two-layer approach:
-          • cardShell  — outer View owns the visible border + shadow (not clipped)
-          • card       — inner View uses overflow:hidden to clip the header bg
-                         neatly to the top rounded corners
-        */}
-        <View
-          style={[
-            sponModalStyles.cardShell,
-            {
-              borderColor: theme.colors.primary,
-              boxShadow: `0px -6px 14px ${theme.colors.primary}73`,
-            },
-          ]}
-        >
-          <View style={[sponModalStyles.card, { backgroundColor: '#ffffff' }]}>
-            {/* Header */}
-            <View style={[sponModalStyles.header, { backgroundColor: theme.colors.primary }]}>
-              <Text style={sponModalStyles.headerText}>🤝 Hole Sponsor</Text>
-            </View>
-
-            <View style={sponModalStyles.body}>
-              {/* Logo or name — AdaptiveLogoFrame picks bg colour automatically */}
-              {sponsor.logoUrl ? (
-                <AdaptiveLogoFrame
-                  uri={sponsor.logoUrl}
-                  width={200} height={70}
-                  primaryColor={theme.colors.primary}
-                  borderColor={theme.colors.primary}
-                  borderWidth={2}
-                  borderRadius={12}
-                  padding={12}
-                  accessibilityLabel={`${sponsor.name} logo`}
-                />
-              ) : (
-                <Text style={[sponModalStyles.sponsorName, { color: theme.colors.primary }]}>
-                  {sponsor.name}
-                </Text>
-              )}
-
-              {/* Tagline — always on white card body, so always primary */}
-              {sponsor.tagline ? (
-                <Text style={[sponModalStyles.tagline, { color: theme.colors.primary }]}>
-                  {sponsor.tagline}
-                </Text>
-              ) : null}
-
-              {/* Thank-you statement */}
-              <Text style={sponModalStyles.thankYou}>
-                Thank you to{' '}
-                <Text style={{ fontWeight: '800' }}>{sponsor.name}</Text>
-                {' '}for generously sponsoring this hole and supporting our event!
-              </Text>
-
-              {/* Website button — only shown when a URL is set */}
-              {sponsor.websiteUrl ? (
-                <Pressable
-                  onPress={openWebsite}
-                  style={({ pressed }) => [
-                    sponModalStyles.websiteBtn,
-                    { backgroundColor: theme.colors.primary, opacity: pressed ? 0.8 : 1 },
-                  ]}
-                  accessibilityRole="link"
-                  accessibilityLabel={`Visit ${sponsor.name} website`}
-                >
-                  <Text style={sponModalStyles.websiteBtnText}>
-                    Visit {sponsor.name} →
-                  </Text>
-                </Pressable>
-              ) : null}
-            </View>
-
-            {/* Close */}
-            <Pressable
-              style={[sponModalStyles.closeBtn, { backgroundColor: theme.colors.primary }]}
-              onPress={onDismiss}
-              accessibilityRole="button"
-            >
-              <Text style={sponModalStyles.closeBtnText}>Got It</Text>
-            </Pressable>
-          </View>
+      {(sponsor.logoUrl || sponsor.tagline) ? (
+        <View style={sponModalStyles.brand}>
+          {/* Logo — AdaptiveLogoFrame picks the backing colour automatically. */}
+          {sponsor.logoUrl ? (
+            <AdaptiveLogoFrame
+              uri={sponsor.logoUrl}
+              width={200} height={70}
+              primaryColor={theme.colors.primary}
+              borderColor={theme.colors.primary}
+              borderWidth={2}
+              borderRadius={12}
+              padding={12}
+              accessibilityLabel={`${sponsor.name} logo`}
+            />
+          ) : null}
+          {sponsor.tagline ? (
+            <Text style={[sponModalStyles.tagline, { color: theme.colors.primary }]}>{sponsor.tagline}</Text>
+          ) : null}
         </View>
-      </View>
-    </Modal>
+      ) : null}
+    </DialogFrame>
   );
 }
 
 const sponModalStyles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.80)', justifyContent: 'flex-end' },
-
-  // cardShell — outer wrapper that owns the visible 3 px border and drop shadow.
-  // Must NOT have overflow:hidden so the border is fully painted.
-  cardShell: {
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    borderWidth: 3,
-    borderBottomWidth: 0,
-    // boxShadow is set inline — its colour comes from the event theme.
-    elevation: 18,
-  },
-
-  // card — inner View with overflow:hidden so the coloured header is
-  // clipped cleanly to the rounded top corners. Slightly smaller radius so
-  // it sits flush inside the shell border.
-  card: {
-    borderTopLeftRadius: 23,
-    borderTopRightRadius: 23,
-    overflow: 'hidden',
-  },
-
-  header:     { paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center' },
-  headerText: { color: '#fff', fontSize: 17, fontWeight: '800' },
-  body:       { padding: 24, alignItems: 'center', gap: 14 },
-
-  sponsorName: { fontSize: 22, fontWeight: '800', textAlign: 'center' },
-
-  // Tagline under logo — uses primary for max readability on white
-  tagline: {
-    fontSize: 15,
-    fontWeight: '700',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    lineHeight: 21,
-  },
-  thankYou:   { fontSize: 15, color: '#222', textAlign: 'center', lineHeight: 22 },
-  websiteBtn: {
-    paddingVertical: 12, paddingHorizontal: 28,
-    borderRadius: 10, alignItems: 'center', marginTop: 4,
-  },
-  websiteBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  closeBtn:   { marginHorizontal: 20, marginBottom: 24, marginTop: 4, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  closeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  brand:   { alignItems: 'center', gap: 10, marginTop: 14 },
+  tagline: { fontSize: 15, fontWeight: '700', fontStyle: 'italic', textAlign: 'center', lineHeight: 21 },
 });
 
 // ── SHOT COUNTER COLUMN ───────────────────────────────────────────────────────

@@ -13,7 +13,7 @@ import {
 } from '@stripe/stripe-react-native';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
-import { notify } from '@/lib/notify';
+import { notify, notifyFailure } from '@/lib/notify';
 import { createSetupIntent, confirmSetup } from '@/lib/api';
 
 // Set EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY in your .env file.
@@ -89,7 +89,7 @@ function PaymentSetupContent() {
         { text: 'OK', onPress: goBack },
       ]);
     } catch (e: unknown) {
-      notify('Could Not Save Card', e instanceof Error ? e.message : 'Something went wrong. Please try again.');
+      notifyFailure("Couldn't save your card", e);
     } finally {
       setSaving(false);
     }

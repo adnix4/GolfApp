@@ -1,5 +1,5 @@
-import { View, Text, Pressable, Modal, StyleSheet, ActivityIndicator } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { DialogFrame } from '@gfp/ui';
+import { useEventDetail } from '@/lib/eventContext';
 
 interface Props {
   visible:     boolean;
@@ -11,57 +11,31 @@ interface Props {
   onCancel:    () => void;
 }
 
+/**
+ * Test-data warnings (advancing a Draft with test records, clearing test
+ * data, turning test mode off) in the shared DialogFrame. These change or
+ * delete data, so they always ask — no "Don't show me this warning again"
+ * (see .claude/skills/popup-format/SKILL.md §3).
+ */
 export function TestDataWarningModal({
   visible, title, description, confirmLabel = 'Proceed', loading = false, onConfirm, onCancel,
 }: Props) {
-  const theme = useTheme();
+  const { event } = useEventDetail();
+  if (!visible) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <View style={styles.warningHeader}>
-            <Text style={styles.warningIcon}>⚠</Text>
-            <Text style={styles.title}>{title}</Text>
-          </View>
-
-          <Text style={[styles.description, { color: theme.mutedText }]}>{description}</Text>
-
-          <View style={styles.actions}>
-            <Pressable
-              style={[styles.cancelBtn, { borderColor: theme.colors.accent }]}
-              onPress={onCancel}
-              disabled={loading}
-            >
-              <Text style={[styles.cancelText, { color: theme.mutedText }]}>Cancel</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.confirmBtn, { backgroundColor: '#e67e22' }, loading && styles.disabled]}
-              onPress={onConfirm}
-              disabled={loading}
-            >
-              {loading
-                ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={styles.confirmText}>{confirmLabel}</Text>}
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    </Modal>
+    <DialogFrame
+      headerTitle={event.name}
+      kind="warning"
+      title={title}
+      message={description}
+      buttons={[
+        { text: 'Cancel', style: 'cancel' },
+        { text: confirmLabel, style: 'destructive' },
+      ]}
+      busy={loading}
+      onButton={b => (b.style === 'cancel' ? onCancel() : onConfirm())}
+      onDismiss={onCancel}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  modal:         { width: '100%', maxWidth: 440, backgroundColor: '#fff', borderRadius: 16, padding: 24 },
-  warningHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-  warningIcon:   { fontSize: 24, color: '#e67e22' },
-  title:         { fontSize: 18, fontWeight: '800', color: '#2c3e50', flex: 1 },
-  description:   { fontSize: 14, lineHeight: 20, marginBottom: 20 },
-  actions:       { flexDirection: 'row', gap: 12 },
-  cancelBtn:     { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-  cancelText:    { fontSize: 15, fontWeight: '600' },
-  confirmBtn:    { flex: 2, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-  confirmText:   { fontSize: 15, fontWeight: '700', color: '#fff' },
-  disabled:      { opacity: 0.6 },
-});
