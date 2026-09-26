@@ -39,6 +39,8 @@ export { Button, PrimaryButton, SecondaryButton, DangerButton } from './componen
 export type { ButtonProps, ButtonVariant, ButtonSize } from './components/Button';
 export { ThemeProvider, useTheme } from './components/ThemeProvider';
 export { MoneyInput }       from './components/MoneyInput';
+export { DialogFrame }      from './components/DialogFrame';
+export type { DialogFrameProps, DialogButton, DialogKind } from './components/DialogFrame';
 export type { MoneyInputProps } from './components/MoneyInput';
 
 /**

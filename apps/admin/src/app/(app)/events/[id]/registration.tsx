@@ -361,6 +361,8 @@ export default function RegistrationScreen() {
                                   + 'This records only this golfer, not the rest of the team.',
                                   () => markGolferPaid(player),
                                   'Record Payment',
+                                  // A payment check: always asks.
+                                  { payment: true },
                                 )}
                                 disabled={busy[player.id + '_fee']}
                                 style={[styles.golferBtn, { borderColor: '#2980b9' }]}
@@ -379,7 +381,7 @@ export default function RegistrationScreen() {
                             <Pressable
                               onPress={() => {
                                 const c = checkInConfirmCopy(name, player.hasPaymentMethod);
-                                confirmAction(c.title, c.message, () => checkInGolfer(player), c.confirmText);
+                                confirmAction(c.title, c.message, () => checkInGolfer(player), c.confirmText, c.dialog);
                               }}
                               disabled={busy[player.id + '_ci']}
                               style={[styles.golferBtn, { borderColor: theme.colors.action }]}
@@ -463,7 +465,7 @@ function GuestsSection({ guests, checkInOpen, busy, onCheckIn, theme }: GuestsSe
                 <Pressable
                   onPress={() => {
                     const c = checkInConfirmCopy(name, guest.hasPaymentMethod);
-                    confirmAction(c.title, c.message, () => onCheckIn(guest), c.confirmText);
+                    confirmAction(c.title, c.message, () => onCheckIn(guest), c.confirmText, c.dialog);
                   }}
                   disabled={busy[guest.id + '_ci']}
                   style={[styles.golferBtn, { borderColor: theme.colors.action }]}
@@ -509,6 +511,14 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
   const { event, setEvent } = useEventDetail();
   const walkUpsOff = event.status === 'Active' && !(event.config as { allowWalkUps?: boolean })?.allowWalkUps;
   const blocked    = walkUpsOff && !isGuest;
+
+  // With walk-ups off the only thing this window can add is a guest, so start
+  // there. Set once per opening, not on every render, so the organizer can
+  // still untick it (the notice below then offers to turn walk-ups on).
+  useEffect(() => {
+    if (visible) setIsGuest(walkUpsOff);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only on open; walkUpsOff flipping mid-form must not undo the organizer's choice
+  }, [visible]);
 
   async function enableWalkUps() {
     setEnabling(true); setErr(null);
@@ -594,6 +604,12 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
                 </Text>
               </View>
             </Pressable>
+
+            {walkUpsOff && isGuest && (
+              <Text style={[styles.guestToggleHint, { color: theme.mutedText, marginBottom: 12 }]}>
+                Walk-up registration is off, so this adds a guest. Untick Guest to add a golfer.
+              </Text>
+            )}
 
             {blocked && (
               <View style={styles.walkUpOffBox}>

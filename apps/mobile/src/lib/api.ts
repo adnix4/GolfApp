@@ -1,3 +1,4 @@
+import { ApiError } from '@gfp/shared-types';
 import { useAuthStore } from './authStore';
 import { getDeviceId } from './store';
 
@@ -21,6 +22,16 @@ async function deviceHeader(): Promise<Record<string, string>> {
   } catch {
     return {};
   }
+}
+
+/**
+ * A failed response as an ApiError: keeps the server's message (so existing
+ * copy and describeBidError keep working) plus its status and code, so failure
+ * popups can describe it plainly and show the code in dev builds.
+ */
+async function apiFailure(res: Response, fallback: string): Promise<ApiError> {
+  const err = await res.json().catch(() => ({})) as { error?: string; detail?: string; code?: string };
+  return new ApiError(res.status, err.code ?? 'UNKNOWN_ERROR', err.detail ?? err.error ?? `${fallback} (${res.status})`);
 }
 
 async function gfpFetch(url: string, init?: RequestInit): Promise<Response> {
@@ -174,8 +185,7 @@ export async function joinEvent(
     body: JSON.stringify({ email, deviceId, verificationCode }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Join failed (${res.status})`);
+    throw await apiFailure(res, 'Join failed');
   }
   return res.json();
 }
@@ -222,8 +232,7 @@ export interface PublicLeaderboard {
 export async function fetchLeaderboard(eventCode: string): Promise<PublicLeaderboard> {
   const res = await gfpFetch(`${BASE}/api/v1/pub/events/${eventCode}/leaderboard`);
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Leaderboard fetch failed (${res.status})`);
+    throw await apiFailure(res, 'Leaderboard fetch failed');
   }
   return res.json();
 }
@@ -371,8 +380,7 @@ export async function registerPushToken(playerId: string, token: string | null):
     body:    JSON.stringify({ token }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Push token registration failed (${res.status})`);
+    throw await apiFailure(res, 'Push token registration failed');
   }
 }
 
@@ -459,8 +467,7 @@ export interface PlayerBidHistoryItem {
 export async function fetchAuctionItems(eventId: string): Promise<AuctionItemDto[]> {
   const res = await gfpFetch(`${BASE}/api/v1/events/${eventId}/auction/items/public`);
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Auction items fetch failed (${res.status})`);
+    throw await apiFailure(res, 'Auction items fetch failed');
   }
   return res.json();
 }
@@ -477,8 +484,7 @@ export async function placeBid(
     body: JSON.stringify({ playerId, amountCents, sessionToken }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Bid failed (${res.status})`);
+    throw await apiFailure(res, 'Bid failed');
   }
   return res.json();
 }
@@ -495,8 +501,7 @@ export async function pledge(
     body: JSON.stringify({ playerId, amountCents, sessionToken }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Pledge failed (${res.status})`);
+    throw await apiFailure(res, 'Pledge failed');
   }
   return res.json();
 }
@@ -511,8 +516,7 @@ export async function createSetupIntent(
     body: JSON.stringify({ playerId, sessionToken }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Setup intent failed (${res.status})`);
+    throw await apiFailure(res, 'Setup intent failed');
   }
   return res.json();
 }
@@ -528,8 +532,7 @@ export async function confirmSetup(
     body: JSON.stringify({ playerId, setupIntentId, sessionToken }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Confirm setup failed (${res.status})`);
+    throw await apiFailure(res, 'Confirm setup failed');
   }
   return res.json();
 }
@@ -548,8 +551,7 @@ export async function confirmEntryFee(
     body: JSON.stringify({ paymentIntentId }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Confirm entry fee failed (${res.status})`);
+    throw await apiFailure(res, 'Confirm entry fee failed');
   }
   return res.json();
 }
@@ -567,8 +569,7 @@ export async function updateMyProfile(
     body: JSON.stringify({ sessionToken, ...patch }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Profile update failed (${res.status})`);
+    throw await apiFailure(res, 'Profile update failed');
   }
   return res.json();
 }
@@ -582,8 +583,7 @@ export async function fetchPlayerBidHistory(
     `${BASE}/api/v1/players/${playerId}/bids`
     + `?sessionToken=${encodeURIComponent(sessionToken)}`);
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Bid history fetch failed (${res.status})`);
+    throw await apiFailure(res, 'Bid history fetch failed');
   }
   return res.json();
 }
@@ -631,8 +631,7 @@ export async function fetchMyCheckout(
     `${BASE}/api/v1/players/${playerId}/auction/checkout`
     + `?sessionToken=${encodeURIComponent(sessionToken)}`);
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Checkout fetch failed (${res.status})`);
+    throw await apiFailure(res, 'Checkout fetch failed');
   }
   return res.json();
 }
@@ -652,9 +651,8 @@ export async function confirmMyCheckout(
       body: JSON.stringify({ sessionToken }),
     });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
     // NO_PAYMENT_METHOD is expected — the screen routes to card setup.
-    throw new Error(err.error ?? `Checkout failed (${res.status})`);
+    throw await apiFailure(res, 'Checkout failed');
   }
   return res.json();
 }
@@ -713,8 +711,7 @@ export async function fetchMemberSeasonSummary(
   );
   if (res.status === 404) return null;
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Summary fetch failed (${res.status})`);
+    throw await apiFailure(res, 'Summary fetch failed');
   }
   return res.json();
 }
@@ -765,8 +762,7 @@ export async function registerTeam(
     body: JSON.stringify({ teamName, players }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Registration failed (${res.status})`);
+    throw await apiFailure(res, 'Registration failed');
   }
   return res.json();
 }
@@ -791,8 +787,7 @@ export async function registerFreeAgent(
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail ?? err.error ?? `Registration failed (${res.status})`);
+    throw await apiFailure(res, 'Registration failed');
   }
   return res.json();
 }
@@ -826,8 +821,7 @@ export async function batchSync(
     }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `Sync failed (${res.status})`);
+    throw await apiFailure(res, 'Sync failed');
   }
   return res.json();
 }

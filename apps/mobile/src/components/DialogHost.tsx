@@ -1,128 +1,83 @@
 /**
- * DialogHost — the in-app dialog every notify() call renders through.
+ * DialogHost — renders every notify() call as the shared DialogFrame.
  *
- * Mounted once in the root layout, inside the event ThemeProvider, so dialogs
- * carry the event's colors: a primary header naming the event, a light surface
- * body, and the subject (an auction item) bold on an action-colored chip.
- * Label colors come from the theme's derived on-colors (buttonLabel on
- * primary, ctaLabel on action), so any org palette stays readable.
+ * Mounted once in the root layout, inside the event ThemeProvider, so popups
+ * wear the event's colors with its name in the header.
  *
- * Dismissing without a button (Android back, Escape on web, tapping outside)
- * runs the cancel button's handler — callers rely on it to clear in-flight
- * guards (the auction bid ref), so a dismissed dialog never strands one.
+ *  - Queue, not a single slot: a confirm's handler often raises the next
+ *    dialog (the bid result) while the first is still closing.
+ *  - Dismissing without a button (Android back, Escape, backdrop) runs the
+ *    cancel handler, or the lone acknowledge button — callers rely on it to
+ *    clear in-flight guards (the auction bid ref).
+ *  - "Don't show me this warning again" is remembered per event; a dismissed
+ *    warning runs its confirm action without showing. Payment checks never
+ *    offer it (resolveDontShowAgain throws in dev if one asks).
  */
-import { useCallback, useEffect, useState } from 'react';
-import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { DialogFrame, type DialogButton } from '@gfp/ui';
+import { dismissKey, resolveDontShowAgain } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
 import { registerDialogHost, type DialogRequest, type NotifyButton } from '@/lib/notify';
-import { splitHighlight } from '@/lib/dialogText';
+import { getFlag, setFlag } from '@/lib/store';
 
-const DESTRUCTIVE = '#c0392b';
+/** The button a suppressed warning stands in for: its confirm action. */
+function acceptButton(buttons: NotifyButton[] = []): NotifyButton | undefined {
+  return buttons.find(b => b.style !== 'cancel');
+}
 
 export function DialogHost() {
-  const theme = useTheme();
   const { session } = useSession();
-  // A queue, not a single slot: a confirm's handler often raises the next
-  // dialog (the bid result) while the first is still closing.
   const [queue, setQueue] = useState<DialogRequest[]>([]);
   const current = queue[0] ?? null;
 
+  // The host callback outlives renders; read the event id through a ref.
+  const eventId = useRef<string | undefined>(undefined);
+  eventId.current = session?.event.id;
+
   useEffect(() => {
-    registerDialogHost(request => setQueue(q => [...q, request]));
+    registerDialogHost(request => {
+      const opt = resolveDontShowAgain(request, __DEV__);
+      const id  = eventId.current;
+      if (!opt || !id) { setQueue(q => [...q, request]); return; }
+      getFlag(dismissKey(id, opt.id))
+        .catch(() => false)
+        .then(dismissed => {
+          if (dismissed) acceptButton(request.buttons)?.onPress?.();
+          else setQueue(q => [...q, request]);
+        });
+    });
     return () => registerDialogHost(null);
   }, []);
 
-  const close = useCallback((button?: NotifyButton) => {
+  const close = useCallback((button: NotifyButton | undefined, dontShowAgain: boolean) => {
+    const req = queue[0];
     setQueue(q => q.slice(1));
+    // Only remember a dismissal the golfer confirmed — ticking the box and
+    // then backing out means "not this time", not "never again".
+    const opt = req && resolveDontShowAgain(req, __DEV__);
+    if (dontShowAgain && opt && eventId.current && button && button.style !== 'cancel') {
+      void setFlag(dismissKey(eventId.current, opt.id)).catch(() => {});
+    }
     button?.onPress?.();
-  }, []);
+  }, [queue]);
 
   if (!current) return null;
 
-  const buttons = current.buttons?.length ? current.buttons : [{ text: 'OK' }];
-  const cancel  = buttons.find(b => b.style === 'cancel');
-  // No button chosen: cancel if there is one, else the only (acknowledge) button.
-  const dismiss = () => close(cancel ?? (buttons.length === 1 ? buttons[0] : undefined));
-
-  const { parts, inline } = splitHighlight(current.message ?? '', current.highlight);
-  const chip = { backgroundColor: theme.colors.action, color: theme.ctaLabel };
+  const buttons: NotifyButton[] = current.buttons?.length ? current.buttons : [{ text: 'OK' }];
+  const cancel = buttons.find(b => b.style === 'cancel');
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={dismiss}>
-      <Pressable style={styles.overlay} onPress={dismiss} accessibilityLabel="Close dialog">
-        {/* Inner Pressable swallows taps so only the backdrop dismisses. */}
-        <Pressable style={[styles.card, { backgroundColor: theme.colors.surface }]} onPress={() => {}}>
-          <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-            <Text style={[styles.eventName, { color: theme.buttonLabel }]} numberOfLines={1}>
-              {session?.event.name ?? 'Golf Fundraiser Pro'}
-            </Text>
-          </View>
-
-          <View style={styles.body}>
-            <Text style={[styles.title, { color: theme.colors.primary }]} accessibilityRole="header">
-              {current.title}
-            </Text>
-
-            {current.highlight && !inline && (
-              <Text style={[styles.subject, chip]}>{current.highlight}</Text>
-            )}
-
-            {parts.length > 0 && (
-              <Text style={styles.message}>
-                {parts.map((p, i) => p.highlight
-                  ? <Text key={i} style={[styles.inlineChip, chip]}>{` ${p.text} `}</Text>
-                  : <Text key={i}>{p.text}</Text>)}
-              </Text>
-            )}
-
-            <View style={styles.actions}>
-              {buttons.map((b, i) => {
-                const isCancel = b.style === 'cancel';
-                const isDanger = b.style === 'destructive';
-                return (
-                  <Pressable
-                    key={i}
-                    onPress={() => close(b)}
-                    accessibilityRole="button"
-                    style={[
-                      styles.btn,
-                      isCancel
-                        ? { borderWidth: 1.5, borderColor: theme.colors.primary }
-                        : { backgroundColor: isDanger ? DESTRUCTIVE : theme.colors.primary },
-                    ]}
-                  >
-                    <Text style={[
-                      styles.btnText,
-                      { color: isCancel ? theme.colors.primary : isDanger ? '#fff' : theme.buttonLabel },
-                    ]}>
-                      {b.text}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <DialogFrame
+      headerTitle={session?.event.name ?? 'Golf Fundraiser Pro'}
+      kind={current.kind}
+      title={current.title}
+      message={current.message}
+      highlights={current.highlights}
+      detailCode={current.detailCode}
+      buttons={buttons as DialogButton[]}
+      offerDontShowAgain={!!resolveDontShowAgain(current, __DEV__)}
+      onButton={(b, dontShow) => close(b, dontShow)}
+      onDismiss={() => close(cancel ?? (buttons.length === 1 ? buttons[0] : undefined), false)}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
-  card:      { borderRadius: 16, overflow: 'hidden', maxWidth: 440, width: '100%', alignSelf: 'center' },
-  header:    { paddingVertical: 12, paddingHorizontal: 18 },
-  eventName: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
-  body:      { padding: 20 },
-  title:     { fontSize: 19, fontWeight: '800', marginBottom: 10 },
-  subject:   {
-    alignSelf: 'flex-start', fontSize: 15, fontWeight: '800',
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, marginBottom: 10, overflow: 'hidden',
-  },
-  message:    { fontSize: 15, lineHeight: 22, color: '#333' },
-  inlineChip: { fontWeight: '800', borderRadius: 4 },
-  actions:    { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 20, flexWrap: 'wrap' },
-  btn:        { paddingVertical: 11, paddingHorizontal: 18, borderRadius: 10, minWidth: 96, alignItems: 'center' },
-  btnText:    { fontSize: 15, fontWeight: '700' },
-});

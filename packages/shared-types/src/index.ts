@@ -44,6 +44,7 @@ export * from './logo';
 export * from './money';
 export * from './dateFormat';
 export * from './phone';
+export * from './popup';
 export * from './eventOptions';
 export * from './formatScoring';
 export * from './apiClient';

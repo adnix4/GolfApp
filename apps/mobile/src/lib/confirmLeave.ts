@@ -29,5 +29,5 @@ export function confirmLeaveEvent(onLeave: () => void, unsyncedHoles = 0): void 
   notify('Leave this event?', leaveEventMessage(unsyncedHoles), [
     { text: 'Stay', style: 'cancel' },
     { text: 'Leave Event', style: 'destructive', onPress: onLeave },
-  ]);
+  ], { kind: 'warning' });
 }

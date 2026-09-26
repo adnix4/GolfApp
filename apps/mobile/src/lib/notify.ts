@@ -1,44 +1,52 @@
 import { Alert, Platform } from 'react-native';
+import {
+  describeFailure,
+  type DontShowAgainOption, type FailureOverrides, type Highlight,
+} from '@gfp/shared-types';
+import type { DialogButton, DialogKind } from '@gfp/ui';
 
-// ── Web shim ──────────────────────────────────────────────────────────────────
-// react-native-web ships Alert as a literal no-op (`class Alert { static
-// alert() {} }`), so every message this app raised through it was invisible in a
-// browser. That is how a rejected auction bid looked like a dead button: the
-// request failed, the error dialog never appeared, and the modal just sat there.
-//
-// window.confirm/alert are ugly, but they are the only thing on web that is
-// guaranteed to reach the golfer regardless of which screen raised it. Screens
-// with somewhere better to put the message (see the bid modal's inline error)
-// should still do that — this is the floor, not the ceiling.
+// Every popup goes through notify() and renders as the shared DialogFrame (the
+// popup standard — .claude/skills/popup-format/SKILL.md): event name in the
+// header, items and sponsors on chips, "don't show again" for recurring
+// setting-driven warnings, plain-English failures with codes in dev only.
 
-export interface NotifyButton {
-  text:     string;
-  onPress?: () => void;
-  style?:   'default' | 'cancel' | 'destructive';
-}
+/** A dialog button; 'secondary' is outlined like cancel but isn't one. */
+export type NotifyButton = DialogButton;
 
 export interface NotifyOptions {
+  /** Title icon/accent: 'warning' ⚠, 'error' ✕. Defaults to 'info'. */
+  kind?:        DialogKind;
+  /** Auction item or sponsor names to set on chips. */
+  highlights?:  Highlight[];
+  /** Shorthand for one item highlight (an auction item's title). */
+  highlight?:   string;
   /**
-   * The thing the dialog is about (an auction item's title). The themed dialog
-   * shows it bold on a contrasting chip — inline where the message quotes it,
-   * otherwise as its own line above the message.
+   * Offer "Don't show me this warning again" — ONLY for warnings a tournament
+   * setting raises that can recur. Remembered per event; a dismissed warning
+   * runs its confirm action without showing.
    */
-  highlight?: string;
+  dontShowAgain?: DontShowAgainOption;
+  /** This popup verifies a payment amount: never offers "don't show again". */
+  payment?:     boolean;
+  /** Developer detail (error code) — set by notifyFailure in dev builds. */
+  detailCode?:  string | null;
 }
 
-export interface DialogRequest {
-  title:      string;
-  message?:   string;
-  buttons?:   NotifyButton[];
-  highlight?: string;
+export interface DialogRequest extends Omit<NotifyOptions, 'highlight'> {
+  title:    string;
+  message?: string;
+  buttons?: NotifyButton[];
 }
 
 // ── Themed dialog host ────────────────────────────────────────────────────────
-// The app mounts <DialogHost/> (src/components/DialogHost.tsx) inside the event
-// ThemeProvider and registers here, so every notify() renders as an in-app
-// dialog in the event's colors with the event name in its header. System
-// dialogs (Alert / window.confirm) can't be styled at all. The fallback below
-// only runs with no host mounted (tests, or before the root layout mounts).
+// <DialogHost/> (src/components/DialogHost.tsx), mounted inside the event
+// ThemeProvider, registers here. The platform fallback below only runs with no
+// host mounted (tests, or before the root layout mounts) — and it can't style
+// anything, which is why the host exists.
+//
+// Fallback notes, kept from before the host: react-native-web ships Alert as a
+// literal no-op, so web falls back to window.alert/confirm (OK runs the
+// non-cancel button's onPress, Cancel runs the cancel one's).
 let host: ((request: DialogRequest) => void) | null = null;
 
 export function registerDialogHost(fn: ((request: DialogRequest) => void) | null): void {
@@ -46,12 +54,8 @@ export function registerDialogHost(fn: ((request: DialogRequest) => void) | null
 }
 
 /**
- * Cross-platform replacement for Alert.alert — use this instead, always.
- *
- * With the DialogHost mounted (always, in the app) this shows the themed
- * in-app dialog. Otherwise native gets the real Alert and web gets
- * window.alert, or window.confirm when there is a cancel button to honour
- * (OK runs the non-cancel button's onPress, Cancel runs the cancel one's).
+ * Cross-platform popup — use this instead of Alert.alert / window.confirm,
+ * always. Buttons behave like Alert's: a 'cancel' button runs on dismissal.
  */
 export function notify(
   title:    string,
@@ -60,12 +64,16 @@ export function notify(
   options?: NotifyOptions,
 ): void {
   if (host) {
-    host({ title, message, buttons, highlight: options?.highlight });
+    const { highlight, highlights, ...rest } = options ?? {};
+    host({
+      title, message, buttons, ...rest,
+      highlights: [...(highlights ?? []), ...(highlight ? [{ text: highlight, kind: 'item' as const }] : [])],
+    });
     return;
   }
 
   if (Platform.OS !== 'web') {
-    Alert.alert(title, message, buttons);
+    Alert.alert(title, message, buttons?.map(b => ({ ...b, style: b.style === 'secondary' ? 'default' : b.style })));
     return;
   }
 
@@ -84,4 +92,18 @@ export function notify(
   // hook (payment-setup navigates back from it) — window.alert already blocked
   // until they dismissed it, so running it now matches the native ordering.
   accept?.onPress?.();
+}
+
+/**
+ * A failure popup: plain English from describeFailure (no codes or status
+ * numbers in production), plus the error code on a grey line in dev builds.
+ */
+export function notifyFailure(
+  title:    string,
+  error:    unknown,
+  options?: NotifyOptions & { overrides?: FailureOverrides },
+): void {
+  const { overrides, ...rest } = options ?? {};
+  const info = describeFailure(error, { dev: __DEV__, overrides });
+  notify(title, info.message, undefined, { ...rest, kind: 'error', detailCode: info.code });
 }

@@ -98,6 +98,12 @@ describe('checkInConfirmCopy', () => {
     expect(c.message).toContain('collect payment manually');
   });
 
+  it("offers don't-show-again only on the recurring no-card warning", () => {
+    expect(checkInConfirmCopy('Jane Doe', true).dialog).toBeUndefined();
+    expect(checkInConfirmCopy('John Smith', false).dialog)
+      .toEqual({ kind: 'warning', dontShowAgain: { id: 'cardless-checkin' } });
+  });
+
   it('uses the same title for both so the dialog reads consistently', () => {
     expect(checkInConfirmCopy('A', true).title).toBe(checkInConfirmCopy('A', false).title);
   });

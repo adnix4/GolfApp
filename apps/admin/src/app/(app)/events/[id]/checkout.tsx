@@ -88,7 +88,8 @@ export default function AuctionCheckoutScreen() {
       } finally {
         setCartBusy(false);
       }
-    }, copy.confirmText);
+    // Verifies a payment amount: always asks, never "don't show again".
+    }, copy.confirmText, { payment: true });
   }
 
   async function handlePickup(winnerId: string) {

@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
-import { notify } from '@/lib/notify';
+import { notify, notifyFailure } from '@/lib/notify';
 import { updateMyProfile } from '@/lib/api';
 
 export default function EditProfileScreen() {
@@ -24,7 +24,7 @@ export default function EditProfileScreen() {
   async function handleSave() {
     if (!player) return;
     if (!firstName.trim() || !lastName.trim()) {
-      notify('Required', 'First and last name are required.');
+      notify('Name required', 'Enter both a first and last name, then save again.', undefined, { kind: 'warning' });
       return;
     }
     setSaving(true);
@@ -55,7 +55,7 @@ export default function EditProfileScreen() {
 
       router.back();
     } catch (e: unknown) {
-      notify('Update Failed', e instanceof Error ? e.message : 'Something went wrong.');
+      notifyFailure("Couldn't save your profile", e);
     } finally {
       setSaving(false);
     }

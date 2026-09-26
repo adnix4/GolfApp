@@ -124,7 +124,7 @@ export default function AuctionScreen() {
         } finally {
           setEnding(false);
         }
-      }, copy.confirmText);
+      }, copy.confirmText, { kind: 'warning', destructive: true });
     } catch (e: any) {
       setError(e.message ?? 'Could not check what ending the auction would do.');
     } finally {
@@ -195,6 +195,7 @@ export default function AuctionScreen() {
           "Can't change the auction type",
           `"${editItem.title}" already has bids or is no longer open, so its auction type can't be changed. ` +
           'To use a different type, cancel this item and add a new one.',
+          { kind: 'warning', highlights: [{ text: editItem.title, kind: 'item' }] },
         );
         return;
       }
@@ -249,6 +250,7 @@ export default function AuctionScreen() {
         }
       },
       'Cancel Item',
+      { destructive: true, highlights: [{ text: item.title, kind: 'item' }] },
     );
   }
 

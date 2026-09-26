@@ -51,7 +51,16 @@ export interface CheckInConfirmCopy {
   title:       string;
   message:     string;
   confirmText: string;
+  /**
+   * Popup options. The no-card warning recurs for every cardless golfer (it
+   * comes from the event's card-on-file rule), so it offers "Don't show me
+   * this warning again" — remembered for this event only.
+   */
+  dialog?: { kind: 'warning'; dontShowAgain: { id: string } };
 }
+
+/** "Don't show again" id for the no-card check-in warning. */
+export const CARDLESS_CHECKIN_WARNING = 'cardless-checkin';
 
 /**
  * Copy for the per-golfer check-in confirmation, stating card status either way.
@@ -79,6 +88,7 @@ export function checkInConfirmCopy(
       'Checking in lets them bid in the auction without one. ' +
       "If they win an item you'll need to collect payment manually.",
     confirmText: 'Check In Anyway',
+    dialog:      { kind: 'warning', dontShowAgain: { id: CARDLESS_CHECKIN_WARNING } },
   };
 }
 
