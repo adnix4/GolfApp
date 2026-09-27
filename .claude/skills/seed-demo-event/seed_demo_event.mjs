@@ -438,37 +438,59 @@ async function doAuctionBids(state, token) {
 }
 
 async function doScoring(state, token) {
-  // Mobile scoring is now open (Scoring status). This is where the full round
-  // is entered, including the one team scored entirely through the real mobile
-  // sync endpoint and the deliberate mobile-vs-admin conflict.
+  // Mobile scoring is now open (Scoring status). The round is IN PROGRESS:
+  // each team has played only part of its card — 5 to 12 holes, starting from
+  // its shotgun hole — so the leaderboard shows "thru N" and the scorecards
+  // have holes left to enter. The rest is played in finishRound() just before
+  // the event is Completed. Every hole carries per-golfer strokes (whose
+  // scramble shots the team used), which the server sums to the team score.
+  const roster       = await teamRoster(state, token);
   const mobileTeam   = state.teams[0];
   const conflictTeam = state.teams[1];
 
-  log('▶ Admin-scoring all 18 holes (every team except the mobile-scored one)…');
-  await scoreHoles(state, token, 1, 18, [mobileTeam.id]);
-
-  log(`▶ Mobile sync: "${mobileTeam.name}" posts all 18 holes from the app (Source=MobileSync)…`);
-  const mobileAuth = await joinForToken(state, mobileTeam.playerEmails[0]);
-  const mobileScores = [];
-  for (let h = 1; h <= 18; h++) mobileScores.push({ holeNumber: h, grossScore: scrambleGross(h) });
-  const r1 = await mobileSync(
-    state, mobileTeam.id, `phone-${mobileTeam.id.slice(0, 8)}`, mobileScores, mobileAuth.token);
-
-  // Deliberate conflict: the admin already entered hole 3 for conflictTeam; the
-  // mobile app now syncs a DIFFERENT value from a different device → the server
-  // flags that score IsConflicted (and drops it from the live leaderboard until
-  // an admin resolves it).
-  log(`▶ Mobile sync: deliberate conflict for "${conflictTeam.name}" on hole 3…`);
-  const conflictAuth  = await joinForToken(state, conflictTeam.playerEmails[0]);
-  const card = await api('GET', `/api/v1/events/${state.event.id}/teams/${conflictTeam.id}/scorecard`, { token });
-  const adminGross    = card.holes.find(h => h.holeNumber === 3)?.grossScore ?? PARS[2];
-  const mobileGross   = adminGross + 3 <= 12 ? adminGross + 3 : adminGross - 3;
-  await mobileSync(state, conflictTeam.id, 'phone-conflict-9f2a',
-    [{ holeNumber: 3, grossScore: mobileGross }], conflictAuth.token);
-  state.conflict = { team: conflictTeam.name, hole: 3, adminGross, mobileGross };
+  state.progress = {};
+  for (const team of state.teams) {
+    const played = 5 + rand(8); // 5–12 holes
+    state.progress[team.id] = played;
+  }
   saveState(state);
-  log(`  All 18 holes scored (${r1.accepted} via mobile sync), 1 deliberate conflict ` +
-      `(${conflictTeam.name} h3: admin ${adminGross} vs mobile ${mobileGross}).`);
+
+  log('▶ Admin-scoring each team partway through its round (5–12 holes from its shotgun hole)…');
+  let adminHoles = 0;
+  for (const team of state.teams) {
+    if (team.id === mobileTeam.id) continue;
+    const r = roster[team.id];
+    for (const hole of playOrder(r.startingHole).slice(0, state.progress[team.id])) {
+      await adminScore(state, token, team.id, hole, r.playerIds);
+      adminHoles++;
+    }
+  }
+
+  const mobileHoles = playOrder(roster[mobileTeam.id].startingHole).slice(0, state.progress[mobileTeam.id]);
+  log(`▶ Mobile sync: "${mobileTeam.name}" posts ${mobileHoles.length} holes from the app (Source=MobileSync)…`);
+  const mobileAuth = await joinForToken(state, mobileTeam.playerEmails[0]);
+  const r1 = await mobileSync(state, mobileTeam.id, `phone-${mobileTeam.id.slice(0, 8)}`,
+    mobileHoles.map(h => syncScore(h, roster[mobileTeam.id].playerIds)), mobileAuth.token);
+
+  // Deliberate conflict: the admin already entered the conflict team's first
+  // hole (its shotgun hole); the mobile app now syncs a DIFFERENT value from a
+  // different device → the server flags that score IsConflicted (and drops it
+  // from the live leaderboard until an admin resolves it).
+  const conflictHole = roster[conflictTeam.id].startingHole;
+  log(`▶ Mobile sync: deliberate conflict for "${conflictTeam.name}" on hole ${conflictHole}…`);
+  const conflictAuth = await joinForToken(state, conflictTeam.playerEmails[0]);
+  const card = await api('GET', `/api/v1/events/${state.event.id}/teams/${conflictTeam.id}/scorecard`, { token });
+  const adminGross  = card.holes.find(h => h.holeNumber === conflictHole)?.grossScore ?? PARS[conflictHole - 1];
+  const mobileGross = adminGross + 3 <= 12 ? adminGross + 3 : adminGross - 3;
+  await mobileSync(state, conflictTeam.id, 'phone-conflict-9f2a',
+    [syncScore(conflictHole, roster[conflictTeam.id].playerIds, mobileGross)], conflictAuth.token);
+  state.conflict = { team: conflictTeam.name, hole: conflictHole, adminGross, mobileGross };
+  saveState(state);
+
+  const thru = Object.values(state.progress);
+  log(`  Round in progress: teams are thru ${Math.min(...thru)}–${Math.max(...thru)} holes ` +
+      `(${adminHoles} admin-entered, ${r1.accepted} via mobile sync), every hole with per-golfer strokes; ` +
+      `1 deliberate conflict (${conflictTeam.name} h${conflictHole}: admin ${adminGross} vs mobile ${mobileGross}).`);
 
   log('▶ Recording hole-challenge results…');
   for (const ch of state.challenges) {
@@ -485,7 +507,34 @@ async function doScoring(state, token) {
       });
     }
   }
-  log('  All holes scored; challenge results in.');
+  log('  Challenge results in.');
+}
+
+// Runs BEFORE the switch to Completed — scores can't be entered once the event
+// is Completed. Plays out every team's remaining holes (same paths as the
+// Scoring phase: admin entry, and mobile sync for the mobile team).
+async function finishRound(state, token) {
+  if (!state.progress) return; // an event scored in full by an older seeder run
+  const roster     = await teamRoster(state, token);
+  const mobileTeam = state.teams[0];
+  log('▶ Finishing the round — scoring every team\'s remaining holes…');
+  let n = 0;
+  for (const team of state.teams) {
+    const r = roster[team.id];
+    const remaining = playOrder(r.startingHole).slice(state.progress[team.id] ?? 0);
+    if (remaining.length === 0) continue;
+    if (team.id === mobileTeam.id) {
+      const auth = await joinForToken(state, team.playerEmails[0]);
+      await mobileSync(state, team.id, `phone-${team.id.slice(0, 8)}`,
+        remaining.map(h => syncScore(h, r.playerIds)), auth.token);
+    } else {
+      for (const hole of remaining) await adminScore(state, token, team.id, hole, r.playerIds);
+    }
+    n += remaining.length;
+    state.progress[team.id] = 18;
+  }
+  saveState(state);
+  log(`  ${n} remaining holes scored — every card is complete.`);
 }
 
 async function doCompleted(state) {
@@ -504,19 +553,60 @@ function scrambleGross(hole) {
   return Math.max(1, par + delta);
 }
 
-// Admin score entry (Source=AdminEntry). skipTeamIds lets a team be scored via
-// the mobile path instead, so we can demonstrate both sources side by side.
-async function scoreHoles(state, token, from, to, skipTeamIds = []) {
-  const skip = new Set(skipTeamIds);
-  for (const team of state.teams) {
-    if (skip.has(team.id)) continue;
-    for (let hole = from; hole <= to; hole++) {
-      await api('POST', `/api/v1/events/${state.event.id}/scores`, {
-        token,
-        body: { teamId: team.id, holeNumber: hole, grossScore: scrambleGross(hole) },
-      });
-    }
+/**
+ * Per-golfer strokes for one scramble hole: each stroke the team took is
+ * credited to the golfer whose shot the team used, so the counts sum to the
+ * team gross (the server recomputes the scramble score from these). The tee
+ * shot favours the first golfer (the team's long hitter); the rest are spread.
+ */
+function scrambleShots(gross, playerIds) {
+  const shots = {};
+  for (let s = 0; s < gross; s++) {
+    const who = s === 0 && rand(2) === 0 ? playerIds[0] : playerIds[rand(playerIds.length)];
+    shots[who] = (shots[who] ?? 0) + 1;
   }
+  return shots;
+}
+
+/** Holes in the order a team plays them from its shotgun hole: 7, 8 … 18, 1 … 6. */
+function playOrder(startingHole) {
+  const start = startingHole ?? 1;
+  return Array.from({ length: 18 }, (_, i) => ((start - 1 + i) % 18) + 1);
+}
+
+/** teamId → { startingHole, playerIds } from the live API. */
+async function teamRoster(state, token) {
+  const teams = await api('GET', `/api/v1/events/${state.event.id}/teams`, { token });
+  return Object.fromEntries((teams.items ?? teams).map(t => [
+    t.id, { startingHole: t.startingHole ?? 1, playerIds: t.players.map(p => p.id) },
+  ]));
+}
+
+// Admin score entry (Source=AdminEntry) with per-golfer strokes, then the
+// hole is marked complete — exactly what the admin scorecard does. Saving
+// strokes alone doesn't move the leaderboard: it counts COMPLETED holes only
+// (U1). (Mobile sync marks holes complete itself.)
+async function adminScore(state, token, teamId, hole, playerIds) {
+  const gross = scrambleGross(hole);
+  await api('POST', `/api/v1/events/${state.event.id}/scores`, {
+    token,
+    body: {
+      teamId, holeNumber: hole, grossScore: gross,
+      playerShotsJson: JSON.stringify(scrambleShots(gross, playerIds)),
+    },
+  });
+  await completeHole(state, token, teamId, hole);
+}
+
+async function completeHole(state, token, teamId, hole) {
+  await api('POST', `/api/v1/events/${state.event.id}/teams/${teamId}/holes/${hole}/complete`, {
+    token, body: { complete: true },
+  });
+}
+
+// One score for the mobile sync endpoint, per-golfer strokes as a map.
+function syncScore(hole, playerIds, gross = scrambleGross(hole)) {
+  return { holeNumber: hole, grossScore: gross, playerShots: scrambleShots(gross, playerIds), clientTimestampMs: Date.now() };
 }
 
 // Joins as a real player (the mobile join flow) to mint that player's session
@@ -568,11 +658,17 @@ const PHASE_ACTIONS = {
   Completed:    doCompleted,
 };
 
+// Seeding that must happen BEFORE the status switch (scores can't be entered
+// once the event is Completed).
+const PRE_ACTIONS = {
+  Completed: finishRound,
+};
+
 const PHASE_REVIEW = {
   Registration: 'Public landing page is now LIVE — open it to see custom colors, sponsors, mission, donation thermometer, and team registration.',
   Active:       'Event is day-of: teams are checked in and the auction has live bids. Scoring is NOT open yet — the mobile scorecard stays locked until you advance to Scoring (the admin "Open Scoring" action). Review check-ins and the live auction now.',
-  Scoring:      'Scoring is now OPEN and the mobile scorecard has unlocked. All 18 holes scored — full leaderboard ranks every team. One team was scored through the MOBILE sync path (Source=MobileSync) and there is ONE deliberate mobile-vs-admin conflict to resolve on the admin scorecard. Hole-challenge results recorded.',
-  Completed:    'Final standings published; thank-you flow triggered. Review the completed leaderboard.',
+  Scoring:      'Scoring is now OPEN and the mobile scorecard has unlocked. The round is IN PROGRESS: each team is partway through its card (5-12 holes from its shotgun hole), every hole with per-golfer strokes, so the leaderboard shows "thru N" and holes are left to enter. One team was scored through the MOBILE sync path (Source=MobileSync) and there is ONE deliberate mobile-vs-admin conflict to resolve on the admin scorecard. Hole-challenge results recorded.',
+  Completed:    "Every team's remaining holes were played out, then the round closed. Final standings published; thank-you flow triggered. Review the completed leaderboard.",
 };
 
 // ── ADVANCE ──────────────────────────────────────────────────────────────────
@@ -590,6 +686,7 @@ async function advance() {
   const next = PHASE_ORDER[idx + 1];
 
   log(`\n▶ Advancing ${current} → ${next}…`);
+  if (PRE_ACTIONS[next]) await PRE_ACTIONS[next](state, token);
   await api('PATCH', `/api/v1/events/${state.event.id}`, { token, body: { status: next } });
 
   // Re-login defends against the 15-min token expiring during a long scoring loop.

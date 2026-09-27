@@ -59,8 +59,8 @@ Optional: `TEAM_COUNT=15 node ... setup` (clamped to 10–15; default 12).
 |---------------|-----------|--------|
 | **Registration** | 10–15 teams (2–4 players each), entry fee enabled + ~75% teams marked paid, public donations | Public landing page is now live: colors, sponsors, mission, donation thermometer |
 | **Active** | ~80% of teams checked in; ~12 players checked in and **auction bids placed**. **No scoring yet** — the mobile scorecard stays locked until Scoring | Check-in roster fills; admin Auction tab shows live high bids. The mobile app correctly shows "Scoring Not Open Yet" |
-| **Scoring** | All 18 holes scored — **one team's scores arrive via the real mobile sync endpoint** (`/sync/scores`, Source=MobileSync) and **one deliberate mobile-vs-admin conflict** is created; hole-challenge results recorded | Mobile scorecard unlocks; full ranked leaderboard; admin scorecard shows mobile + admin scores side by side and a conflict to resolve; challenges view |
-| **Completed** | Final round-day donation; round closed | Final standings / thank-you flow |
+| **Scoring** | **Round in progress** — each team has played 5–12 holes from its shotgun hole, every hole with **per-golfer strokes**; **one team's scores arrive via the real mobile sync endpoint** (`/sync/scores`, Source=MobileSync) and **one deliberate mobile-vs-admin conflict** is created; hole-challenge results recorded | Mobile scorecard unlocks with holes left to enter; leaderboard shows "thru N"; admin scorecard shows per-golfer strokes, mobile + admin scores side by side, and a conflict to resolve; challenges view |
+| **Completed** | Every team's **remaining holes** played out (before the status switch — scores can't be entered once Completed); final round-day donation; round closed | Final standings / thank-you flow |
 
 ## Procedure (follow this)
 
@@ -96,7 +96,8 @@ Always surface the exact `…/e/{slug}/{code}` and `…/scores` URLs after each 
 - **Mobile sync path + conflict (Scoring phase):** one team (`teams[0]`) is scored
   through the real `/api/v1/sync/scores` endpoint (Source=MobileSync) instead of
   the admin endpoint, proving mobile scores feed the admin scorecard and both
-  leaderboards. A second team (`teams[1]`) gets a deliberate conflict on hole 3:
+  leaderboards. A second team (`teams[1]`) gets a deliberate conflict on its
+  first hole (its shotgun hole, recorded in `.state.json` as `conflict.hole`):
   the admin value is entered first, then the mobile app syncs a different value
   from a different device → the server flags the existing row `IsConflicted` (it
   does **not** store the mobile value), and the conflicted hole drops out of the
@@ -104,6 +105,21 @@ Always surface the exact `…/e/{slug}/{code}` and `…/scores` URLs after each 
   prints a "Scores by source" breakdown and the unresolved-conflict count. Use
   the `resolve-conflict` command (or the admin UI) to clear it and watch the team
   rejoin the standings.
+- **Per-golfer strokes (scramble):** every seeded hole carries `player_shots` —
+  each stroke credited to the golfer whose shot the team used (the tee shot
+  leans to the team's first golfer). The counts sum to the team gross; the server
+  recomputes the scramble score from them (format-driven scoring, U8). Admin
+  entry sends `playerShotsJson` (a JSON string); mobile sync sends `playerShots`
+  (a `{ playerId: strokes }` map), exactly as the Expo app does.
+- **Admin holes are marked complete:** the leaderboard counts only COMPLETED
+  holes (U1), so every admin-entered score is followed by
+  `POST …/teams/{id}/holes/{n}/complete` — what the admin scorecard does. Mobile
+  sync completes holes itself. (Seeder runs before 2026-09-26 skipped this, so
+  only the mobile-scored team appeared on their leaderboards.)
+- **Partial first scoring pass:** the Scoring phase leaves every card part-done
+  (`state.progress[teamId]` = holes played, in shotgun order), so the demo shows a
+  live round. `advance` to Completed runs `finishRound` **before** switching
+  status, scoring each team's remaining holes on the same admin/mobile paths.
 - **Session tokens (security model):** golfers have no password, so the player
   endpoints (`/sync/scores`, auction `bid`/`pledge`, profile/payment) require an
   opaque **session token** minted by the real `/join` flow. The seeder therefore
