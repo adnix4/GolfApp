@@ -37,6 +37,7 @@
 import { readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const HERE      = dirname(fileURLToPath(import.meta.url));
 const STATE_FILE = join(HERE, '.state.json');
@@ -703,6 +704,36 @@ async function advance() {
 // Re-runs just the auction step for an event already in Active. Useful when the
 // Active advance completed but bidding was skipped (e.g. the join flow changed
 // under the seeder), so the auction can be filled in without advancing a phase.
+// ── RESCORE (recovery) ───────────────────────────────────────────────────────
+
+// Wipes this demo event's scores and challenge results and re-runs the Scoring
+// seed (round in progress, per-golfer strokes, completed holes, one conflict).
+// The API has no way to delete scores, so the wipe goes straight to the local
+// Postgres container — LOCAL DEV ONLY. Snapshot first: npm run db:backup.
+async function rescore() {
+  await assertApiUp();
+  const state = loadState();
+  const token = await login(state);
+  const evt = await api('GET', `/api/v1/events/${state.event.id}`, { token });
+  if (evt.status !== 'Scoring') fail(`rescore needs the event in Scoring (it is ${evt.status}).`);
+  const id = state.event.id;
+  if (!/^[0-9a-f-]{36}$/i.test(id)) fail(`Unexpected event id: ${id}`);
+
+  log("\n▶ Clearing this event's scores and challenge results (local Postgres)…");
+  execFileSync('docker', [
+    'exec', 'gfp-postgres', 'psql', '-U', 'gfp', '-d', 'golf_fundraiser', '-v', 'ON_ERROR_STOP=1', '-c',
+    `delete from challenge_results where challenge_id in (select id from hole_challenges where event_id = '${id}');
+     delete from scores where event_id = '${id}';`,
+  ], { stdio: 'pipe' });
+  delete state.conflict;
+  delete state.progress;
+  saveState(state);
+
+  await doScoring(state, token);
+  log(`\n✔ Scoring re-seeded.\n  ${PHASE_REVIEW.Scoring}`);
+  reviewBlock(state, 'Scoring');
+}
+
 async function seedBids() {
   await assertApiUp();
   const state = loadState();
@@ -818,9 +849,9 @@ async function resolveConflict() {
 // ── ENTRY ────────────────────────────────────────────────────────────────────
 
 const cmd = process.argv[2];
-const actions = { setup, advance, status, reset, 'resolve-conflict': resolveConflict, 'seed-bids': seedBids };
+const actions = { setup, advance, status, reset, rescore, 'resolve-conflict': resolveConflict, 'seed-bids': seedBids };
 if (!actions[cmd]) {
-  log('Usage: node seed_demo_event.mjs <setup|advance|status|seed-bids|resolve-conflict|reset>');
+  log('Usage: node seed_demo_event.mjs <setup|advance|status|seed-bids|rescore|resolve-conflict|reset>');
   process.exit(cmd ? 1 : 0);
 }
 actions[cmd]().catch((e) => fail(e.message));
