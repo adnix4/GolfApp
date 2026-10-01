@@ -518,11 +518,17 @@ async function finishRound(state, token) {
   if (!state.progress) return; // an event scored in full by an older seeder run
   const roster     = await teamRoster(state, token);
   const mobileTeam = state.teams[0];
+  // Holes scored since the Scoring seed (a golfer's phone, an admin at the
+  // desk) are left alone — re-scoring them from another source would turn
+  // each into a conflict.
+  const scored = new Set((await api('GET', `/api/v1/events/${state.event.id}/scores`, { token }))
+    .map(sc => `${sc.teamId}:${sc.holeNumber}`));
   log('▶ Finishing the round — scoring every team\'s remaining holes…');
   let n = 0;
   for (const team of state.teams) {
     const r = roster[team.id];
-    const remaining = playOrder(r.startingHole).slice(state.progress[team.id] ?? 0);
+    const remaining = playOrder(r.startingHole).slice(state.progress[team.id] ?? 0)
+      .filter(h => !scored.has(`${team.id}:${h}`));
     if (remaining.length === 0) continue;
     if (team.id === mobileTeam.id) {
       const auth = await joinForToken(state, team.playerEmails[0]);
