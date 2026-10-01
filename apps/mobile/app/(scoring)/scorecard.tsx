@@ -3,7 +3,7 @@ import {
   View, Text, Pressable, StyleSheet, ActivityIndicator,
   ScrollView, Platform, SafeAreaView,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
 import { fetchPublicChallenges, type ChallengeCacheDto, type HoleCacheDto, type PlayerCacheDto, type PlayerShotBreakdown, type SponsorCacheDto } from '@/lib/api';
@@ -52,10 +52,14 @@ export default function ScorecardScreen() {
   const {
     session, loading,
     pendingScores, completedHoles, syncedHoles,
-    upsertScore, completeHole, refreshFromServer,
+    upsertScore, completeHole, reopenHole, refreshFromServer,
   } = useSession();
+  // /scorecard?hole=N opens that hole (the round summary links here to edit).
+  const { hole: holeParam } = useLocalSearchParams<{ hole?: string }>();
 
   const [holeIndex,         setHoleIndex]         = useState(0);
+  /** Hole reopened for editing whose score came from the organizer (no per-golfer shots on it). */
+  const [organizerEditHole, setOrganizerEditHole] = useState<number | null>(null);
   const [showHio,           setShowHio]           = useState(false);
   const [completing,        setCompleting]        = useState(false);
   const [challenges,        setChallenges]        = useState<ChallengeCacheDto[]>([]);
@@ -75,6 +79,15 @@ export default function ScorecardScreen() {
     () => session?.team ? getHoleOrder(session.team.startingHole, session.event.holes) : [],
     [session],
   );
+
+  useEffect(() => {
+    if (!holeParam || holeOrder.length === 0) return;
+    const idx = holeOrder.indexOf(Number(holeParam));
+    if (idx >= 0) setHoleIndex(idx);
+    // Consume the param so returning to this tab later doesn't jump again.
+    router.setParams({ hole: undefined });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- router is a module singleton
+  }, [holeParam, holeOrder]);
 
   // hole number → full sponsor object (first match wins)
   const holeSponsorMap = useMemo(() => {
@@ -379,12 +392,24 @@ export default function ScorecardScreen() {
     }
   }
 
+  // Edit Score: reopen a submitted hole. Changing a shot re-queues it and Hole
+  // Complete resends it. The server replaces this phone's own score; a hole
+  // someone else entered (the organizer's desk) becomes a proposed score for
+  // the organizer to approve — the conflict notice then shows it as pending.
+  async function handleEdit() {
+    if (!scoringEnabled || !isCurrentHoleDone) return;
+    setOrganizerEditHole(currentScore && !currentScore.playerShots ? currentHoleNumber : null);
+    await reopenHole(currentHoleNumber);
+  }
+
   function handlePrev() {
     if (holeIndex > 0) setHoleIndex(i => i - 1);
   }
 
   function handleNext() {
-    if (isLastHole) router.replace('/sync');
+    // push, not replace: the summary sits in the tab group (tab bar stays),
+    // and Back returns to the scorecard.
+    if (isLastHole) router.push('/round-summary');
     else setHoleIndex(i => i + 1);
   }
 
@@ -607,6 +632,16 @@ export default function ScorecardScreen() {
           </View>
         )}
 
+        {/* ── EDITING AN ORGANIZER-ENTERED HOLE ── */}
+        {organizerEditHole === currentHoleNumber && !isCurrentHoleDone && scoringEnabled && (
+          <View style={[styles.conflictNotice, { backgroundColor: '#fff7e6', borderColor: '#f0a500' }]}>
+            <Text style={styles.conflictNoticeText}>
+              This hole was scored by the organizer. When you tap Complete Hole, your change is
+              sent to them to approve.
+            </Text>
+          </View>
+        )}
+
         {/* ── READ-ONLY NOTICE ── */}
         {!scoringEnabled && (
           <View style={[styles.readOnlyNotice, { backgroundColor: theme.colors.surface, borderColor: theme.colors.accent + '55' }]}>
@@ -814,9 +849,20 @@ export default function ScorecardScreen() {
 
           {/* Complete Hole button */}
           {isCurrentHoleDone ? (
-            <View style={styles.completedBtn}>
-              <Text style={styles.completedBtnText}>✓ Done</Text>
-            </View>
+            scoringEnabled ? (
+              <Pressable
+                onPress={() => { void handleEdit(); }}
+                style={({ pressed }) => [styles.completedBtn, pressed && { opacity: 0.75 }]}
+                accessibilityLabel={`Edit score for hole ${currentHoleNumber}`}
+                accessibilityRole="button"
+              >
+                <Text style={styles.completedBtnText}>✎ Edit Score</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.completedBtn}>
+                <Text style={styles.completedBtnText}>✓ Done</Text>
+              </View>
+            )
           ) : (
             <Pressable
               onPress={handleComplete}
