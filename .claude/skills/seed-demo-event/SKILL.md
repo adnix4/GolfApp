@@ -44,6 +44,7 @@ node .claude/skills/seed-demo-event/seed_demo_event.mjs <command>
 | `advance` | Moves to the next phase and seeds that phase's data (see below). |
 | `status`  | Prints current phase, counts, score-source breakdown, conflicts, and review URLs. |
 | `seed-bids` | **Recovery only.** Re-runs just the auction step (player join + check-in + bids/pledges) for an event already in **Active**. Use when the Active advance succeeded but printed `(not enough eligible players to bid — skipped)`, so the auction can be filled in without advancing a phase. Errors if the event is not Active. |
+| `rescore` | **Recovery, local only.** For an event in **Scoring**: deletes its scores and challenge results straight from the local `gfp-postgres` container (the API has no score delete), then re-runs the Scoring seed — round in progress, per-golfer strokes, one conflict. Run `npm run db:backup` first. |
 | `resolve-conflict [admin\|mobile\|<score>]` | Resolves the seeded mobile-vs-admin conflict (default keeps the **admin** value; `mobile` takes the mobile value; or pass an exact gross score). Prints the team's holes-complete before→after as it rejoins the leaderboard. |
 | `reset`   | Cancels the event and clears local state so a new run can start clean. |
 
