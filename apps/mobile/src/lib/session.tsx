@@ -5,7 +5,7 @@ import React, {
 import type { JoinEventResponse, PendingScore, BatchSyncResponse, SponsorCacheDto } from './api';
 import { batchSync, fetchTeamScores, fetchEventStatus, fetchPublicSponsors, EventNotFoundError } from './api';
 import { router } from 'expo-router';
-import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsyncedScores, upsertPendingScore, markScoresSynced, markHoleComplete, loadCompletedHoleNumbers, loadSyncedHoleNumbers, clearPendingScores, mergeServerScores, getDeviceId } from './store';
+import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsyncedScores, upsertPendingScore, markScoresSynced, markHoleComplete, reopenHole as reopenStoredHole, loadCompletedHoleNumbers, loadSyncedHoleNumbers, clearPendingScores, mergeServerScores, getDeviceId } from './store';
 import { attemptSync } from './backgroundSync';
 import { useNetworkTier, POLL_INTERVAL_MS, type NetworkTier } from './useNetworkTier';
 
@@ -23,6 +23,8 @@ interface SessionContextValue {
   clearSession:       () => Promise<void>;
   upsertScore:        (score: PendingScore) => Promise<void>;
   completeHole:       (holeNumber: number) => Promise<void>;
+  /** Unlock a submitted hole for editing; Hole Complete resubmits it. */
+  reopenHole:         (holeNumber: number) => Promise<void>;
   syncScores:         () => Promise<BatchSyncResponse | null>;
   refreshFromServer:  () => Promise<void>;
   updateEventStatus:  (status?: string, themeJson?: string | null) => void;
@@ -352,16 +354,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     syncScores(); // release to leaderboard immediately
   }, [session, syncScores]);
 
+  const reopenHole = useCallback(async (holeNumber: number): Promise<void> => {
+    if (!session?.team) return;
+    await reopenStoredHole(session.event.id, session.team.id, holeNumber);
+    setCompletedHoles(prev => { const n = new Set(prev); n.delete(holeNumber); return n; });
+  }, [session]);
+
   // Memoize the context value so consumers only re-render when one of these
   // slots actually changes. Without this, every render of SessionProvider
   // (the foreground poll fires every 10–30s) re-runs every useSession() caller.
   const value = useMemo<SessionContextValue>(() => ({
     session, deviceId, loading, pendingScores, completedHoles, syncedHoles, syncStatus, networkTier,
-    setSession, clearSession: clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors, updatePlayer,
+    setSession, clearSession: clear, upsertScore, completeHole, reopenHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors, updatePlayer,
     endedNotice, dismissEndedNotice,
   }), [
     session, deviceId, loading, pendingScores, completedHoles, syncedHoles, syncStatus, networkTier,
-    setSession, clear, upsertScore, completeHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors, updatePlayer,
+    setSession, clear, upsertScore, completeHole, reopenHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors, updatePlayer,
     endedNotice, dismissEndedNotice,
   ]);
 

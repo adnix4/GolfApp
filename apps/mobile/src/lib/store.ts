@@ -166,6 +166,23 @@ export async function markHoleComplete(
   );
 }
 
+// Reopens a completed hole for editing. synced_at is left as is: the server
+// keeps its value until the golfer changes a shot (upsertPendingScore's INSERT
+// OR REPLACE then clears synced_at) and taps Hole Complete again, which is the
+// only thing that queues a hole for sync.
+export async function reopenHole(
+  eventId:    string,
+  teamId:     string,
+  holeNumber: number,
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE pending_scores SET completed_at = ?
+      WHERE event_id = ? AND team_id = ? AND hole_number = ?`,
+    [null, eventId, teamId, holeNumber],
+  );
+}
+
 // Returns hole numbers that have been marked complete (regardless of sync state).
 export async function loadCompletedHoleNumbers(
   eventId: string,

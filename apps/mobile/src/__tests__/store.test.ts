@@ -105,7 +105,7 @@ vi.mock('../lib/db', () => ({
 import {
   getDeviceId, saveSession, loadSession, clearSession,
   upsertPendingScore, loadPendingScores, loadUnsyncedScores,
-  markHoleComplete, loadCompletedHoleNumbers,
+  markHoleComplete, reopenHole, loadCompletedHoleNumbers,
   markScoresSynced, incrementSyncAttempts, clearPendingScores,
 } from '../lib/store';
 
@@ -234,6 +234,28 @@ describe('markHoleComplete', () => {
     await markHoleComplete('ev1', 'tm1', 1);
     const row = mockDb._scores.get('tm1:1');
     expect(row?.completed_at).toBeTruthy();
+  });
+});
+
+describe('reopenHole', () => {
+  it('takes a completed hole off the sync queue until it is completed again', async () => {
+    await upsertPendingScore('ev1', 'tm1', SCORE);
+    await markHoleComplete('ev1', 'tm1', 1);
+    await reopenHole('ev1', 'tm1', 1);
+    expect(mockDb._scores.get('tm1:1')?.completed_at).toBeNull();
+    expect(await loadCompletedHoleNumbers('ev1', 'tm1')).toEqual([]);
+    expect(await loadUnsyncedScores('ev1', 'tm1')).toHaveLength(0);
+    await markHoleComplete('ev1', 'tm1', 1);
+    expect(await loadUnsyncedScores('ev1', 'tm1')).toHaveLength(1);
+  });
+
+  it('only reopens the named hole', async () => {
+    await upsertPendingScore('ev1', 'tm1', SCORE);
+    await upsertPendingScore('ev1', 'tm1', { ...SCORE, holeNumber: 2 });
+    await markHoleComplete('ev1', 'tm1', 1);
+    await markHoleComplete('ev1', 'tm1', 2);
+    await reopenHole('ev1', 'tm1', 1);
+    expect(await loadCompletedHoleNumbers('ev1', 'tm1')).toEqual([2]);
   });
 });
 

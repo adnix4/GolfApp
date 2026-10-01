@@ -106,6 +106,7 @@ export default function SyncScreen() {
 
   // Scoring is only live in Scoring or Draft (test) status
   const scoringLive = session.event.status === 'Scoring' || session.event.status === 'Draft';
+  const openHole = (hole: number) => router.navigate(`/scorecard?hole=${hole}`);
 
   const grossTotal = pendingScores.reduce((sum, s) => sum + s.grossScore, 0);
   const toPar      = pendingScores.reduce((sum, s) => {
@@ -281,7 +282,14 @@ export default function SyncScreen() {
             return (
               <View key={holeNum} style={styles.holeBlock}>
                 <View style={[col.row, { backgroundColor: rowBg }]}>
-                  <Text style={[col.hole, styles.cellHole, { color: theme.colors.primary }]}>
+                  {/* Hole number and score open the hole on the scorecard, where a
+                      submitted score can be edited while scoring is open. */}
+                  <Text
+                    style={[col.hole, styles.cellHole, { color: theme.colors.primary }, scoringLive && styles.cellLink]}
+                    onPress={scoringLive ? () => openHole(holeNum) : undefined}
+                    accessibilityRole={scoringLive ? 'link' : undefined}
+                    accessibilityLabel={scoringLive ? `Open hole ${holeNum} on the scorecard` : undefined}
+                  >
                     {holeNum}
                   </Text>
                   <Text style={[col.yds, styles.cellYds, { color: theme.mutedText }]}>
@@ -290,10 +298,13 @@ export default function SyncScreen() {
                   <Text style={[col.par, styles.cellPar, { color: theme.mutedText }]}>
                     {par}
                   </Text>
-                  <Text style={[
-                    col.score, styles.cellScore,
-                    { color: theme.colors.primary, opacity: hasScore ? 1 : 0.35 },
-                  ]}>
+                  <Text
+                    style={[
+                      col.score, styles.cellScore,
+                      { color: theme.colors.primary, opacity: hasScore ? 1 : 0.35 },
+                    ]}
+                    onPress={scoringLive ? () => openHole(holeNum) : undefined}
+                  >
                     {hasScore ? gross : '—'}
                   </Text>
                   <Text style={[col.rel, styles.cellRel, { color: relColor }]}>
@@ -357,7 +368,8 @@ export default function SyncScreen() {
 
         <Text style={[styles.hint, { color: theme.mutedText }]}>
           {scoringLive
-            ? 'Your scores are saved locally. Sync ensures the organizer has your latest results.'
+            ? 'Your scores are saved locally. Sync ensures the organizer has your latest results. '
+              + 'Tap a hole number to open it on the scorecard and edit it.'
             : 'Sync will be available once the organizer opens scoring.'}
         </Text>
       </ScrollView>
@@ -387,6 +399,7 @@ const col = StyleSheet.create({
 // ── MAIN STYLES ───────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  cellLink:    { textDecorationLine: 'underline' },
   page:   { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { padding: 16, paddingBottom: 48 },
