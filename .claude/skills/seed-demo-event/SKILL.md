@@ -40,9 +40,10 @@ node .claude/skills/seed-demo-event/seed_demo_event.mjs <command>
 
 | Command | What it does |
 |---------|--------------|
-| `setup`   | Registers a throwaway org+admin, creates the event, attaches a par-72 course, applies **custom colors**, adds **6 unique sponsors** + **4 hole challenges** + **5 auction items** (4 silent + 1 Fund-a-Need), configures free agents/capacity. Leaves the event in **Draft**. |
+| `setup`   | Registers a throwaway org+admin, creates the event, attaches a par-72 course, applies **custom colors**, adds **6 unique sponsors** (with uploaded logos) + **4 hole challenges** + **5 auction items** (4 silent + 1 Fund-a-Need, with uploaded photos), configures free agents/capacity. Leaves the event in **Draft**. |
 | `advance` | Moves to the next phase and seeds that phase's data (see below). |
 | `status`  | Prints current phase, counts, score-source breakdown, conflicts, and review URLs. |
+| `seed-images` | Uploads a generated logo for every sponsor and photos for every auction item that has none (safe to re-run; photos are not duplicated). Runs automatically in `setup`; use it to add images to an event created before this existed, in any phase. |
 | `seed-bids` | **Recovery only.** Re-runs just the auction step (player join + check-in + bids/pledges) for an event already in **Active**. Use when the Active advance succeeded but printed `(not enough eligible players to bid — skipped)`, so the auction can be filled in without advancing a phase. Errors if the event is not Active. |
 | `rescore` | **Recovery, local only.** For an event in **Scoring**: deletes its scores and challenge results straight from the local `gfp-postgres` container (the API has no score delete), then re-runs the Scoring seed — round in progress, per-golfer strokes, one conflict. Run `npm run db:backup` first. |
 | `resolve-conflict [admin\|mobile\|<score>]` | Resolves the seeded mobile-vs-admin conflict (default keeps the **admin** value; `mobile` takes the mobile value; or pass an exact gross score). Prints the team's holes-complete before→after as it rejoins the leaderboard. |
@@ -140,6 +141,7 @@ Always surface the exact `…/e/{slug}/{code}` and `…/scores` URLs after each 
   the Active auction bids **and** the Scoring phase's mobile-sync + conflict
   seeding, the symptom was a silent "not enough eligible players" with no bids.
   Both call sites now surface the underlying error instead of swallowing it.
+- **Sponsor logos + auction photos (Fundraising tab):** generated in the script as SVG (emblem + name + tagline in each sponsor's brand color; an illustrated scene + caption per auction item, two for the golf getaway) and uploaded multipart to `POST …/sponsors/{id}/logo` and `POST …/auction/items/{id}/photos` — the same endpoints the admin Sponsors / Auction Items screens use. The API rasterises SVG to PNG (`ImageNormalizer`, Svg.Skia) and stores it via `IFileStorage` (local: `apps/api/wwwroot/uploads/{sponsor-logos,auction-photos}`). No network needed. Sponsors are still created with a placehold.co `logoUrl` first; the upload replaces it.
 - **Auction items stay Open** for the whole demo. Closing/awarding/buy-now would
   trigger `ChargeWinnerAsync` (Stripe), which 500s with no `STRIPE_SECRET_KEY`.
   So the seeder only creates items + bids/pledges; it never produces winners or
