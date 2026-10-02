@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Tabs, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ErrorFallback, useTheme } from '@gfp/ui';
@@ -216,9 +217,17 @@ export default function ScoringLayout() {
   // ── Tabs (scoring open, test mode, or player dismissed the warning) ───────────
 
   const preScoringBrowse = dismissed && !scoringOpen && !isTestMode;
+  const offline = networkTier === 'offline';
+
+  // This layout owns the status-bar inset for the banners and every tab (the
+  // tab screens exclude the top edge), tinted to match the topmost banner.
+  const topBannerStyle =
+    isTestMode       ? styles.testBanner       :
+    preScoringBrowse ? styles.preScoringBanner :
+    offline          ? styles.offlineBanner    : null;
 
   return (
-    <View style={styles.root}>
+    <SafeAreaView edges={['top']} style={[styles.root, { backgroundColor: topBannerStyle?.backgroundColor ?? theme.pageBackground }]}>
       {isTestMode && (
         <View style={styles.testBanner}>
           <Text style={styles.bannerText}>Test Mode — scores will not appear on the live leaderboard</Text>
@@ -237,7 +246,7 @@ export default function ScoringLayout() {
           <Text style={styles.bannerText}>Scoring not open yet — browsing only, scorecard is read-only</Text>
         </View>
       )}
-      {networkTier === 'offline' && (
+      {offline && (
         <View style={styles.offlineBanner}>
           <Text style={styles.bannerText}>No connection — scores saved locally</Text>
         </View>
@@ -328,7 +337,7 @@ export default function ScoringLayout() {
           }}
         />
       </Tabs>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -340,8 +349,8 @@ const styles = StyleSheet.create({
   testBanner:       { backgroundColor: '#6a0dad', paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
   testBannerLeave:  { marginLeft: 10, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)' },
   testBannerLeaveText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  preScoringBanner: { backgroundColor: '#b45309', paddingVertical: 6, alignItems: 'center' },
-  offlineBanner:    { backgroundColor: '#e74c3c', paddingVertical: 6, alignItems: 'center' },
+  preScoringBanner: { backgroundColor: '#b45309', paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row' },
+  offlineBanner:    { backgroundColor: '#e74c3c', paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row' },
 
   // Waiting screen
   waitPage: { flex: 1 },

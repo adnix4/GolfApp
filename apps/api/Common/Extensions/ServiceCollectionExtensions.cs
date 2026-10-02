@@ -469,6 +469,7 @@ public static class ServiceCollectionExtensions
                         "http://localhost:8083",  // Expo Router admin (alt port)
                         "http://localhost:8084",  // Expo Router admin (alt port)
                         "http://localhost:8085",  // Expo Router admin (alt port)
+                        "http://localhost:8200",  // Expo scorer (mobile) web — pinned port
                         "http://localhost:8080")  // nginx reverse proxy
                     .AllowAnyMethod()
                     .AllowAnyHeader()

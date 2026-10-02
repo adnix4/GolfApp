@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator,
-  ScrollView, Platform, SafeAreaView,
+  ScrollView, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
@@ -170,7 +171,7 @@ export default function ScorecardScreen() {
     const allHoles = Array.from({ length: session.event.holes }, (_, i) => i + 1);
 
     return (
-      <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+      <SafeAreaView edges={['left', 'right']} style={[styles.page, { backgroundColor: theme.pageBackground }]}>
         {/* Header: event name + hosted by course */}
         <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
           <Text style={[styles.headerEventName, { color: theme.colors.highlight }]} numberOfLines={2}>
@@ -470,7 +471,7 @@ export default function ScorecardScreen() {
   });
 
   return (
-    <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+    <SafeAreaView edges={['left', 'right']} style={[styles.page, { backgroundColor: theme.pageBackground }]}>
       {/* ── HEADER ── */}
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <Text style={[styles.headerTeam, { color: theme.colors.highlight }]} numberOfLines={1}>

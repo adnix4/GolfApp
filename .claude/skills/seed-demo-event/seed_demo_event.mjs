@@ -10,7 +10,8 @@
 //   Draft → Registration → Active → Scoring → Completed
 //
 // Each phase adds the data that belongs to that phase:
-//   setup (Draft) ....... org+admin, event, course, custom colors, sponsors,
+//   setup (Draft) ....... org+admin, event, course, custom colors, sponsors
+//                         (uploaded logos), auction items (uploaded photos),
 //                         hole challenges, entry fee / free-agent config
 //   → Registration ...... 10–15 teams (2–4 players each) + public donations
 //   → Active ............ team check-ins + auction bids (scoring NOT open yet)
@@ -26,6 +27,7 @@
 //   node seed_demo_event.mjs setup            # create everything, leave in Draft
 //   node seed_demo_event.mjs advance          # move to the next phase
 //   node seed_demo_event.mjs status           # print current phase + review URLs
+//   node seed_demo_event.mjs seed-images      # (re)upload sponsor logos + auction photos
 //   node seed_demo_event.mjs reset            # cancel event + forget local state
 //
 // ENV OVERRIDES:
@@ -99,6 +101,144 @@ const AUCTION_ITEMS = [
   { title: 'Premium Whiskey Tasting Experience',   auctionType: 'Silent',         startingBidCents:  7500, bidIncrementCents: 2500, fairMarketValueCents:  30000, description: 'Guided tasting of rare whiskeys for six guests.' },
   { title: 'Fund-a-Need: Junior Golf Scholarships',auctionType: 'DonationSilent', startingBidCents:  2500, minimumBidCents: 2500, donationDenominations: [2500, 5000, 10000, 25000], goalCents: 500000, fairMarketValueCents: 0, description: 'Every dollar funds equipment and lessons for a junior golfer.' },
 ];
+
+// ── ARTWORK (uploaded images) ────────────────────────────────────────────────
+
+// Sponsor logos and auction photos are generated here as SVG and uploaded
+// through the same multipart endpoints the admin Fundraising tab uses. The API
+// rasterises SVG to PNG (ImageNormalizer) and stores it via IFileStorage, so
+// the demo exercises the real upload path and needs no network for images.
+// Keyed by sponsor name / auction title so `seed-images` can re-apply them.
+
+const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const FONT = "font-family=\"Segoe UI, Helvetica, Arial, sans-serif\"";
+
+// Emblems drawn in a 160×160 box at the logo's left edge.
+const EMBLEMS = {
+  'Summit Financial Group':   (c) => `<circle cx="80" cy="80" r="74" fill="${c}"/><polygon points="22,122 64,52 86,86 104,64 140,122" fill="#fff"/><polygon points="64,52 74,68 54,68" fill="#f2cc8f"/>`,
+  'Evergreen Landscaping':    (c) => `<rect x="72" y="118" width="16" height="26" fill="#6b4f2a"/><polygon points="80,10 128,70 32,70" fill="${c}"/><polygon points="80,40 140,118 20,118" fill="${c}"/>`,
+  'Harbor Point Brewing Co.': (c) => `<circle cx="80" cy="80" r="74" fill="${c}"/><rect x="50" y="42" width="52" height="76" rx="8" fill="#fff"/><path d="M102 58h14a10 10 0 0 1 10 10v22a10 10 0 0 1-10 10h-14" stroke="#fff" stroke-width="9" fill="none"/><rect x="56" y="62" width="40" height="50" rx="4" fill="#f4a261"/><circle cx="64" cy="40" r="11" fill="#fff"/><circle cx="82" cy="36" r="13" fill="#fff"/>`,
+  'Crestview Dental':         (c) => `<path d="M40 30c16-12 30 2 40 2s24-14 40-2c18 14 8 48 0 70-6 18-8 40-18 40s-10-34-22-34-12 34-22 34-12-22-18-40c-8-22-18-56 0-70z" fill="${c}"/><path d="M58 70q22 18 44 0" stroke="#fff" stroke-width="7" fill="none" stroke-linecap="round"/>`,
+  'Apex Auto Group':          (c) => `<polygon points="80,14 150,146 116,146 80,76 44,146 10,146" fill="${c}"/><rect x="56" y="108" width="48" height="14" fill="${c}"/>`,
+  'Lakeside Realty':          (c) => `<polygon points="80,18 146,74 128,74 128,112 32,112 32,74 14,74" fill="${c}"/><rect x="68" y="80" width="24" height="32" fill="#fff"/><path d="M10 130q17-12 35 0t35 0 35 0 35 0" stroke="${c}" stroke-width="7" fill="none"/><path d="M10 148q17-12 35 0t35 0 35 0 35 0" stroke="${c}" stroke-width="7" fill="none" opacity=".6"/>`,
+};
+
+function sponsorLogoSvg(s) {
+  const c = `#${s.color}`;
+  // Split long names over two lines at the word boundary nearest the middle.
+  const words = s.name.split(' ');
+  let lines = [s.name];
+  if (s.name.length > 15) {
+    let best = 1, bestDiff = Infinity;
+    for (let i = 1; i < words.length; i++) {
+      const diff = Math.abs(words.slice(0, i).join(' ').length - words.slice(i).join(' ').length);
+      if (diff < bestDiff) { best = i; bestDiff = diff; }
+    }
+    lines = [words.slice(0, best).join(' '), words.slice(best).join(' ')];
+  }
+  const size = Math.min(40, Math.floor(310 / (Math.max(...lines.map(l => l.length)) * 0.56)));
+  const top  = lines.length === 1 ? 104 : 84;
+  const text = lines.map((l, i) =>
+    `<text x="186" y="${top + i * (size + 6)}" ${FONT} font-size="${size}" font-weight="700" fill="${c}">${esc(l)}</text>`).join('');
+  const tagY = top + (lines.length - 1) * (size + 6) + 34;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="520" height="180" viewBox="0 0 520 180">
+<g transform="translate(10,10)">${EMBLEMS[s.name]?.(c) ?? `<circle cx="80" cy="80" r="74" fill="${c}"/>`}</g>
+${text}<text x="188" y="${tagY}" ${FONT} font-size="17" font-style="italic" fill="#555">${esc(s.tagline)}</text></svg>`;
+}
+
+// Auction "photos": 800×600 illustrations with a caption band.
+function photoSvg(bg1, bg2, scene, caption) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${bg1}"/><stop offset="1" stop-color="${bg2}"/></linearGradient></defs>
+<rect width="800" height="600" fill="url(#bg)"/>${scene}
+<rect y="510" width="800" height="90" fill="#000" opacity=".55"/>
+<text x="400" y="568" ${FONT} font-size="38" font-weight="700" fill="#fff" text-anchor="middle">${esc(caption)}</text></svg>`;
+}
+
+const AUCTION_PHOTOS = {
+  'Weekend Golf Getaway for Four': [
+    photoSvg('#8ecae6', '#e0f4ff',
+      `<circle cx="640" cy="120" r="60" fill="#ffd166"/>
+       <path d="M0 360q200-90 400-20t400-30v300H0z" fill="#52b788"/><path d="M0 430q250-70 480-10t320-20v210H0z" fill="#2d6a4f"/>
+       <ellipse cx="470" cy="420" rx="120" ry="26" fill="#95d5b2"/><rect x="486" y="250" width="6" height="170" fill="#eee"/>
+       <polygon points="492,252 572,276 492,300" fill="#e63946"/><circle cx="470" cy="418" r="9" fill="#1b4332"/>`,
+      'Championship Resort Golf'),
+    photoSvg('#f8961e', '#ffd6a5',
+      `<circle cx="400" cy="300" r="110" fill="#ffe8a3" opacity=".8"/>
+       <rect x="150" y="250" width="500" height="260" fill="#6d4c41"/><polygon points="130,260 400,140 670,260" fill="#4e342e"/>
+       ${[0, 1, 2, 3, 4].map(i => `<rect x="${190 + i * 90}" y="300" width="50" height="60" fill="#ffd166"/><rect x="${190 + i * 90}" y="400" width="50" height="60" fill="#ffd166"/>`).join('')}
+       <rect x="0" y="480" width="800" height="40" fill="#2d6a4f"/>`,
+      'Two Nights at the Lodge'),
+  ],
+  'Signed Major Championship Flag': [
+    photoSvg('#1d3557', '#457b9d',
+      `<rect x="250" y="70" width="10" height="440" fill="#ddd"/>
+       <path d="M260 80h330l-40 90 40 90H260z" fill="#ffd60a"/>
+       <text x="420" y="200" ${FONT} font-size="96" font-weight="800" fill="#1d3557" text-anchor="middle">18</text>
+       <path d="M300 236c20-24 34 8 52-10s26 12 46-6 30 14 50-4 24 6 40-2" stroke="#1d3557" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+      'Autographed Pin Flag'),
+  ],
+  'Private Chef Dinner for Eight': [
+    photoSvg('#3d2c2e', '#7f5539',
+      `<ellipse cx="400" cy="300" rx="200" ry="170" fill="#fff"/><ellipse cx="400" cy="300" rx="150" ry="125" fill="#f1f1f1"/>
+       <ellipse cx="400" cy="290" rx="80" ry="55" fill="#c1121f"/><ellipse cx="370" cy="280" rx="30" ry="18" fill="#90be6d"/>
+       <circle cx="440" cy="300" r="16" fill="#f4a261"/><rect x="140" y="160" width="14" height="280" rx="7" fill="#d9d9d9"/>
+       <rect x="646" y="160" width="14" height="280" rx="7" fill="#d9d9d9"/><path d="M646 160h14v110h-14z" fill="#bdbdbd"/>`,
+      'Five-Course Chef Dinner'),
+  ],
+  'Premium Whiskey Tasting Experience': [
+    photoSvg('#2b1d14', '#5c3d2e',
+      `<rect x="470" y="140" width="130" height="340" rx="18" fill="#7f4f24" opacity=".9"/><rect x="510" y="80" width="50" height="70" fill="#432818"/>
+       <rect x="480" y="260" width="110" height="90" fill="#f2e8cf"/><text x="535" y="315" ${FONT} font-size="26" font-weight="700" fill="#432818" text-anchor="middle">18 YR</text>
+       <polygon points="200,250 380,250 360,480 220,480" fill="#ffffff" opacity=".35"/><polygon points="208,340 372,340 360,480 220,480" fill="#d4a017"/>
+       <rect x="240" y="310" width="50" height="40" fill="#e0fbfc" opacity=".7" transform="rotate(12 265 330)"/>`,
+      'Rare Whiskey Tasting'),
+  ],
+  'Fund-a-Need: Junior Golf Scholarships': [
+    photoSvg('#a8dadc', '#f1faee',
+      `<path d="M400 470C250 360 170 290 170 210c0-60 48-100 104-100 52 0 96 40 126 90 30-50 74-90 126-90 56 0 104 40 104 100 0 80-80 150-230 260z" fill="#e63946"/>
+       <circle cx="400" cy="250" r="70" fill="#fff"/>
+       ${[[-30, -30], [0, -40], [30, -30], [-40, 0], [-10, -8], [20, -6], [42, 4], [-26, 26], [6, 22], [32, 34]].map(([dx, dy]) => `<circle cx="${400 + dx}" cy="${250 + dy}" r="6" fill="#dedede"/>`).join('')}`,
+      'Every Dollar Helps a Junior Golfer'),
+  ],
+};
+
+// POST an SVG as multipart/form-data (field "file"), like the admin's FormData upload.
+async function uploadSvg(path, svg, filename, token) {
+  const form = new FormData();
+  form.append('file', new Blob([svg], { type: 'image/svg+xml' }), filename);
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form,
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`POST ${path} → ${res.status}: ${text}`);
+  return text ? JSON.parse(text) : null;
+}
+
+// Uploads a logo for every sponsor and photos for every auction item that has
+// none yet (photos append, so re-running must not duplicate them).
+async function seedImages(state, token) {
+  log('▶ Uploading sponsor logos…');
+  for (const sp of state.sponsors) {
+    const spec = SPONSORS.find(s => s.name === sp.name);
+    if (!spec) continue;
+    await uploadSvg(`/api/v1/events/${state.event.id}/sponsors/${sp.id}/logo`,
+      sponsorLogoSvg(spec), 'logo.svg', token);
+  }
+
+  log('▶ Uploading auction item photos…');
+  const items = await api('GET', `/api/v1/events/${state.event.id}/auction/items`, { token });
+  let photos = 0;
+  for (const item of items) {
+    if ((item.photoUrls ?? []).length > 0) continue;
+    for (const svg of AUCTION_PHOTOS[item.title] ?? []) {
+      await uploadSvg(`/api/v1/events/${state.event.id}/auction/items/${item.id}/photos`,
+        svg, 'photo.svg', token);
+      photos++;
+    }
+  }
+  log(`  ${state.sponsors.length} sponsor logos, ${photos} auction photos uploaded.`);
+}
 
 const TEAM_NAMES = [
   'The Bogey Brothers', 'Fairway Frenzy', 'Mulligan Militia', 'Birdie Hunters',
@@ -305,8 +445,11 @@ async function setup() {
   };
   saveState(state);
 
+  // After saveState so a failed upload can be retried with `seed-images`.
+  await seedImages(state, token);
+
   log('\n✔ Setup complete — event is in Draft.');
-  log(`  ${sponsors.length} sponsors, ${challenges.length} challenges, ${auction.length} auction items, custom colors, par-72 course.`);
+  log(`  ${sponsors.length} sponsors (with logos), ${challenges.length} challenges, ${auction.length} auction items (with photos), custom colors, par-72 course.`);
   reviewBlock(state, 'Draft');
   log('NOTE: a Draft event is NOT public yet — review it in the admin dashboard');
   log('      (test-mode join by code). It becomes public at the Registration phase.');
@@ -754,6 +897,18 @@ async function seedBids() {
   reviewBlock(state, 'Active');
 }
 
+// ── SEED IMAGES (recovery) ───────────────────────────────────────────────────
+
+// (Re-)uploads sponsor logos and fills in auction photos for items that have
+// none, in any phase. For events created before images were part of setup.
+async function seedImagesCmd() {
+  await assertApiUp();
+  const state = loadState();
+  await seedImages(state, await login(state));
+  log('\n✔ Images seeded — see the Fundraising tab (Sponsors, Auction Items).');
+  reviewBlock(state, '(images)');
+}
+
 // ── STATUS ───────────────────────────────────────────────────────────────────
 
 async function status() {
@@ -855,9 +1010,9 @@ async function resolveConflict() {
 // ── ENTRY ────────────────────────────────────────────────────────────────────
 
 const cmd = process.argv[2];
-const actions = { setup, advance, status, reset, rescore, 'resolve-conflict': resolveConflict, 'seed-bids': seedBids };
+const actions = { setup, advance, status, reset, rescore, 'resolve-conflict': resolveConflict, 'seed-bids': seedBids, 'seed-images': seedImagesCmd };
 if (!actions[cmd]) {
-  log('Usage: node seed_demo_event.mjs <setup|advance|status|seed-bids|rescore|resolve-conflict|reset>');
+  log('Usage: node seed_demo_event.mjs <setup|advance|status|seed-bids|seed-images|rescore|resolve-conflict|reset>');
   process.exit(cmd ? 1 : 0);
 }
 actions[cmd]().catch((e) => fail(e.message));

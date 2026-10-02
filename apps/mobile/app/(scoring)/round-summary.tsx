@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator,
-  ScrollView, Platform, SafeAreaView,
+  ScrollView, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
@@ -138,7 +139,7 @@ export default function SyncScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+    <SafeAreaView edges={['left', 'right']} style={[styles.page, { backgroundColor: theme.pageBackground }]}>
 
       {/* ── HEADER ── */}
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
