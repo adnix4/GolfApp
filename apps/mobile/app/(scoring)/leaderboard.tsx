@@ -1,8 +1,9 @@
 import { memo, useEffect, useState } from 'react';
 import {
   View, Text, FlatList, Pressable, StyleSheet, Modal,
-  ActivityIndicator, SafeAreaView, Platform,
+  ActivityIndicator, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@gfp/ui';
 import { useLiveLeaderboard, type HoleInOneAlert as HoleInOneData } from '@gfp/shared-types';
 import { formatRelativeAge, resolveLeaderboardState, type LeaderboardState } from '@/lib/leaderboardState';
@@ -300,7 +301,7 @@ export default function LeaderboardScreen() {
   const view = resolveLeaderboardState({ offlineMode, error, standings, loading });
 
   return (
-    <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+    <SafeAreaView edges={['left', 'right']} style={[styles.page, { backgroundColor: theme.pageBackground }]}>
 
       {hioAlert && <HoleInOneOverlay data={hioAlert} onDismiss={dismissHioAlert} />}
 

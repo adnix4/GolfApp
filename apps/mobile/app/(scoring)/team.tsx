@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@gfp/ui';
@@ -91,7 +92,7 @@ export default function TeamScreen() {
     .join(' ');
 
   return (
-    <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+    <SafeAreaView edges={['left', 'right']} style={[styles.page, { backgroundColor: theme.pageBackground }]}>
       <ScrollView contentContainerStyle={styles.scroll}>
 
         {/* ── TEAM HEADER ── */}

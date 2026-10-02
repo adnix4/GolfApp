@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator,
-  ScrollView, Platform, SafeAreaView,
+  ScrollView, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Battery from 'expo-battery';
 import { useTheme } from '@gfp/ui';
