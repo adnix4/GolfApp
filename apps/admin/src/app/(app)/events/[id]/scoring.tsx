@@ -312,7 +312,7 @@ export default function ScoringScreen() {
 
       {/* Team selector */}
       <View style={styles.teamBar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.teamScroll}>
+        <View style={styles.teamWrap}>
           {teams.map(team => {
             const isSelected = team.id === selectedTeam;
             return (
@@ -331,7 +331,7 @@ export default function ScoringScreen() {
               </Pressable>
             );
           })}
-        </ScrollView>
+        </View>
       </View>
 
       {error && (
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
   testModeLabel: { fontSize: 13, fontWeight: '700', color: '#856404' },
   testModeDesc:  { fontSize: 12, color: '#856404', marginTop: 1 },
   teamBar: { paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e0e0e0' },
-  teamScroll: { gap: 8 },
+  teamWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   teamChip: {
     paddingHorizontal: 14,
     paddingVertical: 7,
