@@ -1,4 +1,11 @@
 {
   "_comment": "Accepted high/critical advisories in PRODUCTION dependencies. Read by scripts/audit-prod.js, which runs in CI. Every entry needs a reason and a reviewBy date; the build fails once reviewBy passes, and again if the entry stops matching anything. Do not add an entry to silence a finding that has a patched version available - upgrade instead.",
-  "allow": []
+  "allow": [
+    {
+      "advisory": "GHSA-86w9-cpqp-85rv",
+      "package": "node-forge",
+      "reason": "Dev tooling only, never shipped. Sole path is expo > @expo/cli (directly and via @expo/code-signing-certificates), which uses node-forge to read local iOS signing certs for `expo run:ios` and to sign expo-updates manifests in the dev server - no app here configures updates code signing. It is not imported by app code and is absent from the C# API, the Next.js runtime and the compiled RN bundles. Advisory range is '<= 1.4.0' with no patched release; 1.4.0 is the latest.",
+      "reviewBy": "2026-11-01"
+    }
+  ]
 }
