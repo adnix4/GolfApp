@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   auctionStatusColor, auctionStatusLabel, isAuctionStatusFinal,
-  endAuctionCopy, endAuctionResult, settleCopy, formatCents,
+  endAuctionCopy, endAuctionResult, settleCopy, formatCents, paidLabel,
 } from '../lib/auctionEnd';
 import type { AuctionEndSummary } from '../lib/api';
 
@@ -133,6 +133,22 @@ describe('endAuctionResult', () => {
   it('says so when the auction was already over', () => {
     expect(endAuctionResult(summary()))
       .toBe('Nothing left to close — the auction was already over.');
+  });
+});
+
+describe('paidLabel', () => {
+  it('names the method', () => {
+    expect(paidLabel('Card')).toBe('Paid · card');
+    expect(paidLabel('Cash')).toBe('Paid · cash');
+  });
+
+  it('adds the check number when one was recorded', () => {
+    expect(paidLabel('Check', '1042')).toBe('Paid · check #1042');
+  });
+
+  it('falls back to plain check, and to Paid with no method', () => {
+    expect(paidLabel('Check', null)).toBe('Paid · check');
+    expect(paidLabel(null)).toBe('Paid');
   });
 });
 

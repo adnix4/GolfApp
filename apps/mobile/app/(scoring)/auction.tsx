@@ -22,6 +22,7 @@ import {
   fetchMyCheckout,
   AuctionItemDto, AuctionSessionDto, PlayerBidHistoryItem, CheckoutCartDto,
 } from '@/lib/api';
+import { checkoutCounts, checkoutHeadline } from '@/lib/checkoutSummary';
 
 type Tab = 'items' | 'history' | 'live';
 
@@ -365,10 +366,10 @@ export default function AuctionScreen() {
         >
           <View style={styles.paymentWarningRow}>
             <Text style={styles.wonBannerText}>
-              🎉 You won {cart.lines.length} item{cart.lines.length === 1 ? '' : 's'}
+              🎉 {checkoutHeadline(cart.lines)}
               {cart.outstandingCents > 0
                 ? ` — ${formatCentsShort(cart.outstandingCents)} to pay`
-                : ' — paid, ready to collect'}
+                : checkoutCounts(cart.lines).awaitingPickup ? ' — paid, ready to collect' : ' — paid'}
             </Text>
             <Text style={styles.wonBannerLink}>
               {cart.outstandingCents > 0 ? 'Check Out →' : 'View →'}
