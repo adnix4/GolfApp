@@ -154,7 +154,7 @@ function PaymentSetupContent() {
             <View style={[styles.infoCard, { backgroundColor: theme.colors.surface }]}>
               <Ionicons name="lock-closed-outline" size={20} color={theme.colors.primary} style={{ marginBottom: 6 }} />
               <Text style={[styles.infoText, { color: theme.colors.primary }]}>
-                Your card is saved securely via Stripe and is only charged if you win an auction item.
+                Your card is saved securely via Stripe and is only charged when you check out for auction items you win or pledges you make.
               </Text>
             </View>
 

@@ -599,8 +599,12 @@ export interface CheckoutLineDto {
   auctionItemId:    string;
   itemTitle:        string;
   amountCents:      number;
+  /** A Fund-a-Need pledge — paid like any line, but nothing to pick up. */
+  isPledge:         boolean;
   chargeStatus:     'Pending' | 'Succeeded' | 'Failed' | 'Waived';
   settlementMethod: 'Card' | 'Cash' | 'Check' | null;
+  /** Recorded at the desk when paid by check. */
+  checkNumber:      string | null;
   checkedOutAt:     string | null;
   pickedUpAt:       string | null;
 }

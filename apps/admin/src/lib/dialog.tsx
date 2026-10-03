@@ -10,7 +10,7 @@
  * confirmAction / alertAction (lib/confirmAction.ts) call through here.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { DialogFrame, type DialogButton, type DialogKind } from '@gfp/ui';
 import {
   describeFailure, dismissKey, resolveDontShowAgain,
@@ -33,6 +33,17 @@ export interface NotifyOptions {
   payment?:       boolean;
   /** Developer detail — set by alertFailure in dev builds. */
   detailCode?:    string | null;
+  /** A one-line text field under the message (e.g. a check number). */
+  input?:         DialogInput;
+}
+
+/** A text field inside a popup. confirmAction hands its value to onConfirm. */
+export interface DialogInput {
+  label:         string;
+  placeholder?:  string;
+  maxLength?:    number;
+  /** Called on every keystroke — confirmAction uses it to capture the value. */
+  onChangeText?: (value: string) => void;
 }
 
 interface DialogRequest extends NotifyOptions {
@@ -40,6 +51,10 @@ interface DialogRequest extends NotifyOptions {
   message?: string;
   buttons?: DialogButton[];
 }
+
+/** Queued requests get an id so each popup's text field starts empty. */
+interface QueuedRequest extends DialogRequest { id: number }
+let nextRequestId = 0;
 
 // Innermost-wins stack of mounted hosts.
 const hosts: ((r: DialogRequest) => void)[] = [];
@@ -92,7 +107,7 @@ export function clearDismissedWarnings(eventId: string): number {
 // ── Host ──────────────────────────────────────────────────────────────────────
 
 export function DialogHost({ headerTitle, eventId }: { headerTitle: string; eventId?: string }) {
-  const [queue, setQueue] = useState<DialogRequest[]>([]);
+  const [queue, setQueue] = useState<QueuedRequest[]>([]);
   const current = queue[0] ?? null;
   const eventIdRef = useRef(eventId);
   eventIdRef.current = eventId;
@@ -106,7 +121,7 @@ export function DialogHost({ headerTitle, eventId }: { headerTitle: string; even
         request.buttons?.find(b => b.style !== 'cancel')?.onPress?.();
         return;
       }
-      setQueue(q => [...q, request]);
+      setQueue(q => [...q, { ...request, id: nextRequestId++ }]);
     };
     hosts.push(host);
     return () => { hosts.splice(hosts.indexOf(host), 1); };
@@ -127,6 +142,7 @@ export function DialogHost({ headerTitle, eventId }: { headerTitle: string; even
 
   const buttons = current.buttons?.length ? current.buttons : [{ text: 'OK' }];
   const cancel  = buttons.find(b => b.style === 'cancel');
+  const accept  = buttons.find(b => b.style !== 'cancel');
 
   return (
     <DialogFrame
@@ -140,6 +156,45 @@ export function DialogHost({ headerTitle, eventId }: { headerTitle: string; even
       offerDontShowAgain={!!eventId && !!resolveDontShowAgain(current, __DEV__)}
       onButton={(b, dontShow) => close(b, dontShow)}
       onDismiss={() => close(cancel ?? (buttons.length === 1 ? buttons[0] : undefined), false)}
-    />
+    >
+      {current.input && (
+        <DialogInputField
+          key={current.id}
+          input={current.input}
+          onSubmit={() => close(accept, false)}
+        />
+      )}
+    </DialogFrame>
   );
 }
+
+/** The popup's text field. Enter confirms, like pressing the confirm button. */
+function DialogInputField({ input, onSubmit }: { input: DialogInput; onSubmit: () => void }) {
+  const [value, setValue] = useState('');
+  return (
+    <View style={inputStyles.wrap}>
+      <Text style={inputStyles.label}>{input.label}</Text>
+      <TextInput
+        style={inputStyles.field}
+        value={value}
+        onChangeText={v => { setValue(v); input.onChangeText?.(v); }}
+        placeholder={input.placeholder}
+        placeholderTextColor="#999"
+        maxLength={input.maxLength}
+        autoFocus
+        returnKeyType="done"
+        onSubmitEditing={onSubmit}
+        accessibilityLabel={input.label}
+      />
+    </View>
+  );
+}
+
+const inputStyles = StyleSheet.create({
+  wrap:  { marginTop: 14 },
+  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  field: {
+    borderWidth: 1, borderColor: '#ccc', borderRadius: 8, backgroundColor: '#fff',
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: '#111',
+  },
+});

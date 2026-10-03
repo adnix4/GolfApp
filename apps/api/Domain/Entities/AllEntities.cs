@@ -1152,6 +1152,11 @@ public class AuctionWinner
     [Column("settlement_method")]
     public SettlementMethod? SettlementMethod { get; set; }
 
+    /// <summary>The check's number, when the desk recorded payment by check. Optional — a missing number never blocks taking payment.</summary>
+    [Column("check_number")]
+    [MaxLength(50)]
+    public string? CheckNumber { get; set; }
+
     /// <summary>When payment was settled (card charged, or cash/check recorded).</summary>
     [Column("checked_out_at")]
     public DateTime? CheckedOutAt { get; set; }

@@ -237,10 +237,10 @@ public class AuctionEndTests
     }
 
     [Fact]
-    public async Task EndAuction_excludes_Fund_a_Need_pledges_from_the_amount_owed_at_checkout()
+    public async Task EndAuction_counts_Fund_a_Need_pledges_in_the_amount_owed_at_checkout()
     {
-        // Pledges charge on close and have nothing to collect, so counting them
-        // as outstanding would overstate what the desk has to take.
+        // Nothing charges on close — pledges are settled at the desk like any
+        // win, so leaving them out would understate what the desk has to take.
         var (svc, db) = Build();
         var (orgId, eventId) = await SeedEventAsync(db);
         var player = AddPlayer(db, eventId);
@@ -255,7 +255,7 @@ public class AuctionEndTests
         var summary = await svc.EndAuctionAsync(orgId, eventId);
 
         Assert.Equal(2, summary.WinnersCreated);
-        Assert.Equal(3000, summary.OutstandingCents); // the pledge is not owed at the desk
+        Assert.Equal(3000 + 9900, summary.OutstandingCents); // the pledge is owed at the desk too
     }
 
     // ── Preview tells the truth ───────────────────────────────────────────────

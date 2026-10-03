@@ -156,6 +156,23 @@ export function endAuctionResult(summary: AuctionEndSummary): string {
 // ── Checkout desk ─────────────────────────────────────────────────────────────
 
 /** Confirm copy for taking money at the desk. */
+/**
+ * How a paid checkout line reads: "Paid · card", "Paid · check #1042", or just
+ * "Paid" when no method was recorded. Shared so the desk shows one format.
+ */
+export function paidLabel(method: string | null, checkNumber?: string | null): string {
+  if (!method) return 'Paid';
+  const how = method.toLowerCase();
+  return method === 'Check' && checkNumber ? `Paid · ${how} #${checkNumber}` : `Paid · ${how}`;
+}
+
+/** The text field the "Record check" popup adds — the number is optional. */
+export const CHECK_NUMBER_INPUT = {
+  label:       'Check number (optional)',
+  placeholder: 'e.g. 1042',
+  maxLength:   50,
+} as const;
+
 export function settleCopy(
   playerName: string, outstandingCents: number,
   method: 'Card' | 'Cash' | 'Check', markPickedUp: boolean,

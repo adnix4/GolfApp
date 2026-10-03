@@ -2,7 +2,8 @@
  * "You won" + self-checkout.
  *
  * Closing a lot no longer charges the winner — they settle at the auction
- * checkout desk when they collect the item. This screen is what makes that
+ * checkout desk when they collect the item. Fund-a-Need pledges settle here
+ * too; they just have nothing to collect. This screen is what makes that
  * bearable: the golfer sees what they won and what they owe, and can confirm
  * their saved card here so the desk visit is only a handover.
  *
@@ -18,6 +19,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { fetchMyCheckout, confirmMyCheckout, type CheckoutCartDto } from '@/lib/api';
+import { checkoutCounts, checkoutHeadline } from '@/lib/checkoutSummary';
 
 function usd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -97,22 +99,25 @@ export default function AuctionCheckoutScreen() {
       refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
     >
       <Text style={[styles.title, { color: theme.colors.primary }]}>
-        {won.length === 0 ? 'Auction checkout' : `You won ${won.length} item${won.length === 1 ? '' : 's'}!`}
+        {won.length === 0 ? 'Auction checkout' : `${checkoutHeadline(won)}!`}
       </Text>
 
       {won.length === 0 ? (
         <Text style={styles.empty}>
-          You haven't won anything yet. Winners appear here once the auction closes.
+          You haven't won or pledged anything yet. It appears here once the auction closes.
         </Text>
       ) : (
         <>
           {won.map(line => (
             <View key={line.winnerId} style={styles.line}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.lineTitle}>{line.itemTitle}</Text>
+                <Text style={styles.lineTitle}>
+                  {line.itemTitle}
+                  {line.isPledge && <Text style={styles.pledgeTag}>  PLEDGE</Text>}
+                </Text>
                 <Text style={styles.lineMeta}>
                   {line.chargeStatus === 'Succeeded'
-                    ? `Paid${line.settlementMethod ? ` · ${line.settlementMethod.toLowerCase()}` : ''}`
+                    ? `Paid${line.settlementMethod ? ` · ${line.settlementMethod.toLowerCase()}` : ''}${line.settlementMethod === 'Check' && line.checkNumber ? ` #${line.checkNumber}` : ''}`
                     : line.chargeStatus === 'Waived' ? 'Nothing to pay'
                     : line.chargeStatus === 'Failed' ? 'Payment failed'
                     : 'Unpaid'}
@@ -159,9 +164,9 @@ export default function AuctionCheckoutScreen() {
           ) : (
             <Text style={styles.paidNote}>
               {paidJust ? '✓ Paid — thank you!' : '✓ Paid in full.'}
-              {won.some(l => !l.pickedUpAt)
+              {checkoutCounts(won).awaitingPickup
                 ? ' Collect your items at the auction checkout desk.'
-                : ' Everything has been collected.'}
+                : checkoutCounts(won).items > 0 ? ' Everything has been collected.' : ''}
             </Text>
           )}
         </>
@@ -179,6 +184,7 @@ const styles = StyleSheet.create({
 
   line:       { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.08)' },
   lineTitle:  { fontSize: 16, fontWeight: '700', color: '#111' },
+  pledgeTag:  { fontSize: 11, fontWeight: '700', color: '#7c3aed', letterSpacing: 0.5 },
   lineMeta:   { fontSize: 12, color: '#777', marginTop: 2 },
   lineAmount: { fontSize: 16, fontWeight: '700', color: '#111' },
 

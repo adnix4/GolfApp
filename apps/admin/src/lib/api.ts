@@ -713,7 +713,7 @@ export interface AuctionEndSummary {
   lotsSold: number;
   lotsUnsold: number;
   winnersCreated: number;
-  /** Owed at the checkout desk. Excludes Fund-a-Need pledges, which charge on close. */
+  /** Owed at the checkout desk, Fund-a-Need pledges included (nothing charges on close). */
   outstandingCents: number;
   /** Winners with no card on file — they can still pay by card, cash or check at the desk. */
   winnersWithoutCard: number;
@@ -729,13 +729,15 @@ export interface CheckoutDeskRow {
   playerId: string;
   playerName: string;
   playerEmail: string;
+  /** Items to hand over; Fund-a-Need pledges are counted in `pledges`. */
   itemsWon: number;
   itemsPickedUp: number;
+  pledges: number;
   totalCents: number;
   settledCents: number;
   outstandingCents: number;
   hasPaymentMethod: boolean;
-  /** Paid in full AND everything handed over. */
+  /** Paid in full AND every item handed over (pledges have nothing to hand over). */
   isComplete: boolean;
 }
 
@@ -744,8 +746,12 @@ export interface CheckoutLine {
   auctionItemId: string;
   itemTitle: string;
   amountCents: number;
+  /** A Fund-a-Need pledge — paid like any line, but nothing to pick up. */
+  isPledge: boolean;
   chargeStatus: 'Pending' | 'Succeeded' | 'Failed' | 'Waived';
   settlementMethod: SettlementMethod | null;
+  /** Recorded when settled by check (optional at the desk). */
+  checkNumber: string | null;
   checkedOutAt: string | null;
   pickedUpAt: string | null;
 }
@@ -797,9 +803,12 @@ export const checkoutApi = {
     request<CheckoutCart>(`/api/v1/events/${eventId}/auction/checkout/${playerId}`),
 
   /** Settles everything one golfer owes: card on file, or cash/check taken at the desk. */
-  settle: (eventId: string, playerId: string, method: SettlementMethod, markPickedUp: boolean) =>
+  settle: (
+    eventId: string, playerId: string, method: SettlementMethod, markPickedUp: boolean,
+    checkNumber?: string,
+  ) =>
     request<SettleResult>(`/api/v1/events/${eventId}/auction/checkout/${playerId}/settle`, {
-      method: 'POST', body: { method, markPickedUp },
+      method: 'POST', body: { method, markPickedUp, checkNumber },
     }),
 
   /** Hands one item over, independently of payment. */

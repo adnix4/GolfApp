@@ -11,9 +11,10 @@ namespace GolfFundraiserPro.Api.Features.Auction;
 /// The auction checkout desk.
 ///
 /// Closing a lot records a Pending winner and charges nobody (see
-/// AuctionService.CloseItemInternalAsync). This is where the money actually
-/// moves: the winner turns up, collects the item, and settles by card on file,
-/// a card entered at the desk, cash, or check. Staff can complete it on a
+/// AuctionService.CloseItemInternalAsync) — Fund-a-Need pledges included. This
+/// is where the money actually moves: the winner turns up, collects the item,
+/// and settles by card on file, a card entered at the desk, cash, or check.
+/// A pledge is settled the same way but has nothing to collect. Staff can complete it on a
 /// golfer's behalf, and a golfer with the app can confirm their own card before
 /// they arrive.
 ///
@@ -26,6 +27,9 @@ public class AuctionCheckoutService
     private readonly ApplicationDbContext _db;
     private readonly PaymentsService _payments;
     private readonly ILogger<AuctionCheckoutService> _logger;
+
+    /// <summary>Matches the auction_winners.check_number column.</summary>
+    private const int MaxCheckNumberLength = 50;
 
     public AuctionCheckoutService(
         ApplicationDbContext db,
@@ -57,18 +61,20 @@ public class AuctionCheckoutService
             {
                 var player = g.First().Player;
                 var settledCents = g.Where(IsSettled).Sum(w => w.AmountCents);
+                var items        = g.Where(w => !IsPledge(w)).ToList();
                 return new CheckoutDeskRow
                 {
                     PlayerId         = g.Key,
                     PlayerName       = PlayerName(player),
                     PlayerEmail      = player?.Email ?? string.Empty,
-                    ItemsWon         = g.Count(),
-                    ItemsPickedUp    = g.Count(w => w.PickedUpAt is not null),
+                    ItemsWon         = items.Count,
+                    ItemsPickedUp    = items.Count(w => w.PickedUpAt is not null),
+                    Pledges          = g.Count(IsPledge),
                     TotalCents       = g.Sum(w => w.AmountCents),
                     SettledCents     = settledCents,
                     OutstandingCents = g.Where(w => !IsSettled(w)).Sum(w => w.AmountCents),
                     HasPaymentMethod = player?.HasPaymentMethod ?? false,
-                    IsComplete       = g.All(w => IsSettled(w) && w.PickedUpAt is not null),
+                    IsComplete       = g.All(w => IsSettled(w) && !AwaitingPickup(w)),
                 };
             })
             // Unfinished business first, then biggest balance — the order the
@@ -102,6 +108,13 @@ public class AuctionCheckoutService
         CancellationToken ct = default)
     {
         await VerifyEventOwnershipAsync(orgId, eventId, ct);
+
+        // Only a check has a number; a stray one on card or cash is dropped.
+        var checkNumber = req.Method == SettlementMethod.Check
+            ? (string.IsNullOrWhiteSpace(req.CheckNumber) ? null : req.CheckNumber.Trim())
+            : null;
+        if (checkNumber is { Length: > MaxCheckNumberLength })
+            throw new ValidationException($"Check number must be {MaxCheckNumberLength} characters or fewer.");
 
         var winners  = await LoadCollectableWinnersAsync(eventId, playerId, ct);
         if (winners.Count == 0)
@@ -143,6 +156,7 @@ public class AuctionCheckoutService
             }
 
             winner.SettlementMethod = req.Method;
+            winner.CheckNumber      = checkNumber;
             winner.CheckedOutAt     = now;
             winner.SettledByUserId  = settledByUserId;
             settled++;
@@ -153,7 +167,7 @@ public class AuctionCheckoutService
         {
             // Handing over an item the winner has not paid for is a judgement
             // call the desk is allowed to make, so this is not gated on payment.
-            foreach (var winner in winners.Where(w => w.PickedUpAt is null))
+            foreach (var winner in winners.Where(AwaitingPickup))
                 winner.PickedUpAt = now;
         }
 
@@ -187,6 +201,9 @@ public class AuctionCheckoutService
 
         if (winner.AuctionItem?.Event?.OrgId != orgId)
             throw new NotFoundException("AuctionWinner", winnerId);
+
+        // A pledge has nothing to hand over.
+        if (IsPledge(winner)) return;
 
         // Idempotent: keep the first handover time rather than resetting it.
         winner.PickedUpAt ??= DateTime.UtcNow;
@@ -236,9 +253,8 @@ public class AuctionCheckoutService
     // ── HELPERS ───────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Winners with something to collect: everything for the event except
-    /// Fund-a-Need pledges, which are charged on close and have no item.
-    /// Cancelled lots drop out too — nothing was sold.
+    /// Everything owed at the desk for the event: competitive wins and
+    /// Fund-a-Need pledges alike. Cancelled lots drop out — nothing was sold.
     /// </summary>
     private async Task<List<AuctionWinner>> LoadCollectableWinnersAsync(
         Guid eventId, Guid? playerId, CancellationToken ct)
@@ -247,8 +263,6 @@ public class AuctionCheckoutService
             .Include(w => w.Player)
             .Include(w => w.AuctionItem)
             .Where(w => w.AuctionItem.EventId == eventId
-                     && w.AuctionItem.AuctionType != AuctionType.DonationSilent
-                     && w.AuctionItem.AuctionType != AuctionType.DonationLive
                      && w.AuctionItem.Status != AuctionItemStatus.Cancelled);
 
         if (playerId is Guid p) query = query.Where(w => w.PlayerId == p);
@@ -281,8 +295,10 @@ public class AuctionCheckoutService
                     AuctionItemId    = w.AuctionItemId,
                     ItemTitle        = w.AuctionItem?.Title ?? string.Empty,
                     AmountCents      = w.AmountCents,
+                    IsPledge         = IsPledge(w),
                     ChargeStatus     = w.ChargeStatus.ToString(),
                     SettlementMethod = w.SettlementMethod?.ToString(),
+                    CheckNumber      = w.CheckNumber,
                     CheckedOutAt     = w.CheckedOutAt,
                     PickedUpAt       = w.PickedUpAt,
                 })
@@ -310,6 +326,13 @@ public class AuctionCheckoutService
     /// </summary>
     private static bool IsSettled(AuctionWinner w) =>
         w.ChargeStatus is ChargeStatus.Succeeded or ChargeStatus.Waived;
+
+    /// <summary>A Fund-a-Need pledge — settled like any line, but nothing to hand over.</summary>
+    private static bool IsPledge(AuctionWinner w) =>
+        w.AuctionItem?.AuctionType is AuctionType.DonationSilent or AuctionType.DonationLive;
+
+    private static bool AwaitingPickup(AuctionWinner w) =>
+        !IsPledge(w) && w.PickedUpAt is null;
 
     private static string PlayerName(Player? p) =>
         p is null ? string.Empty : $"{p.FirstName} {p.LastName}".Trim();
