@@ -25,10 +25,6 @@ config.resolver.blockList = [
   /[\\/][^\\/]*\.log$/,
 ];
 
-// expo-sqlite's web worker imports its wa-sqlite .wasm binary; Metro must treat
-// it as an asset or the web bundle fails to resolve it.
-config.resolver.assetExts.push('wasm');
-
 // zustand (and similar packages) expose an ESM build via the "import" condition
 // that uses import.meta.env, which is invalid in a non-module <script> bundle.
 // Adding "react-native" to web conditions causes Metro to prefer the CJS build
@@ -48,8 +44,10 @@ const NODE_VIBRANT_BROWSER = path.resolve(
   'node_modules/node-vibrant/dist/esm/browser.js',
 );
 
-// Stub native-only packages that can't bundle for web.
-const WEB_EMPTY_MODULES = new Set(['@stripe/stripe-react-native']);
+// Stub native-only packages that can't bundle for web. expo-sqlite is never
+// opened on web (src/lib/db.ts uses a localStorage shim there), so stubbing it
+// also keeps its wa-sqlite worker and .wasm out of the web bundle.
+const WEB_EMPTY_MODULES = new Set(['@stripe/stripe-react-native', 'expo-sqlite']);
 const defaultResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (platform === 'web' && WEB_EMPTY_MODULES.has(moduleName)) {
