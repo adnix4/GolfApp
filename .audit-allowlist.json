@@ -6,6 +6,12 @@
       "package": "node-forge",
       "reason": "Dev tooling only, never shipped. Sole path is expo > @expo/cli (directly and via @expo/code-signing-certificates), which uses node-forge to read local iOS signing certs for `expo run:ios` and to sign expo-updates manifests in the dev server - no app here configures updates code signing. It is not imported by app code and is absent from the C# API, the Next.js runtime and the compiled RN bundles. Advisory range is '<= 1.4.0' with no patched release; 1.4.0 is the latest.",
       "reviewBy": "2026-11-01"
+    },
+    {
+      "advisory": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "reason": "Build/dev tooling only, never shipped. Sole path is expo > @expo/cli > @expo/metro-file-map > micromatch > braces (also metro-file-map), i.e. the Metro bundler's file watcher, which expands glob patterns from this repo's own config - no untrusted input reaches it. Not imported by app code; absent from the C# API, the Next.js runtime and the compiled RN bundles. Advisory range is '<= 3.0.3' with no patched release; 3.0.3 is the latest.",
+      "reviewBy": "2026-11-02"
     }
   ]
 }
