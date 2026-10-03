@@ -588,6 +588,7 @@ async function doScoring(state, token) {
   // have holes left to enter. The rest is played in finishRound() just before
   // the event is Completed. Every hole carries per-golfer strokes (whose
   // scramble shots the team used), which the server sums to the team score.
+  await adoptOutsideTeams(state, token);
   const roster       = await teamRoster(state, token);
   const mobileTeam   = state.teams[0];
   const conflictTeam = state.teams[1];
@@ -659,6 +660,9 @@ async function doScoring(state, token) {
 // Scoring phase: admin entry, and mobile sync for the mobile team).
 async function finishRound(state, token) {
   if (!state.progress) return; // an event scored in full by an older seeder run
+  // Again here: a team can register after the Scoring seed (it has no
+  // progress yet, so it plays all 18 holes below).
+  await adoptOutsideTeams(state, token);
   const roster     = await teamRoster(state, token);
   const mobileTeam = state.teams[0];
   // Holes scored since the Scoring seed (a golfer's phone, an admin at the
@@ -730,6 +734,34 @@ async function teamRoster(state, token) {
   return Object.fromEntries((teams.items ?? teams).map(t => [
     t.id, { startingHole: t.startingHole ?? 1, playerIds: t.players.map(p => p.id) },
   ]));
+}
+
+/**
+ * Adopts teams registered outside the seeder (e.g. someone testing sign-up
+ * from the web or the app mid-demo) into state.teams, so the scoring phases
+ * play their cards too instead of leaving them blank on the final leaderboard.
+ * Appended, so teams[0]/teams[1] (the mobile-sync and conflict teams) stay
+ * seeded ones; adopted teams are admin-scored only — the seeder never joins
+ * as a real tester. A team with no golfers has no one to credit strokes to,
+ * so it is skipped.
+ */
+async function adoptOutsideTeams(state, token) {
+  const res   = await api('GET', `/api/v1/events/${state.event.id}/teams`, { token });
+  const known = new Set(state.teams.map(t => t.id));
+  const added = [];
+  for (const t of res.items ?? res) {
+    if (known.has(t.id)) continue;
+    if (t.players.length === 0) {
+      log(`  (skipping "${t.name}" — registered outside the seeder but has no golfers)`);
+      continue;
+    }
+    state.teams.push({ id: t.id, name: t.name, playerEmails: t.players.map(p => p.email), external: true });
+    added.push(t.name);
+  }
+  if (added.length > 0) {
+    saveState(state);
+    log(`▶ Including ${added.length} team(s) registered outside the seeder: ${added.join(', ')}`);
+  }
 }
 
 // Admin score entry (Source=AdminEntry) with per-golfer strokes, then the
