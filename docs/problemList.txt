@@ -44,6 +44,14 @@ P4 — FEATURES / POLISH
           bid confirmation). (a) was the security item and is FIXED 2026-08-15 —
           it was pulled forward out of this tier, as the note said to. (b)-(m)
           remain, and are decisions or polish rather than defects.
+     Test-structure review (2026-10-03) — work in this order:
+     T6   e2e harness can pass against an already-running dev API — PLANNED
+     T5   CI never builds the admin/mobile web bundles — PLANNED
+     T8   no UI is ever driven automatically (mobile scorer / admin smoke)
+     T7   CI never runs e2e; API tests are EF InMemory only
+     T9   e2e covers Scramble happy path only
+     T10  apps/web and packages/ui have no tests
+     T11  harness step timings, coverage reporting, turbo cache staleness
 
 P5 — BLOCKED OR DEFERRED (no action available yet)
      D19  dev-loop fixes landed; three follow-ups, one gated on D6
@@ -319,7 +327,10 @@ their standing decisions are in the section above.
           code 999999 covers dev.
         - node-vibrant "invalid exports subpath" WARN is an upstream packaging
           bug (node-vibrant@4.0.4 <- react-native-image-colors <- packages/ui
-          AdaptiveLogoFrame). Metro falls back correctly. Not ours to fix.
+          AdaptiveLogoFrame). Metro falls back correctly. SUPERSEDED 2026-10-03
+          (#97): both metro configs now resolve node-vibrant/browser straight to
+          dist/esm/browser.js, which silences it. Remove that redirect once
+          upstream fixes its exports map (4.0.4 was still latest on 2026-10-03).
         - "apps/admin must declare react-native-image-colors, it only resolves
           via mobile's hoisted copy" was WRONG and is now closed (2026-08-18).
           packages/ui — the only package that imports it (AdaptiveLogoFrame.tsx
@@ -374,6 +385,73 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         404, and the S4 Draft session-token gate). Remaining orchestration paths
         (create/update/status machine, leaderboard, public event/challenges/
         fundraising) still untested; defer.
+
+[ ] T5. (CI) NOTHING BUILDS THE ADMIN OR MOBILE WEB BUNDLE BEFORE MERGE (2026-10-03).
+        VERIFIED: ci.yml runs lint, type-check, vitest, dotnet build/test, the
+        audit and the SDK pin check. None of them run Metro. `expo export` for
+        admin runs only in deploy-admin.yml, on push to main, so a broken admin
+        bundle surfaces at deploy time, after merge. apps/mobile has no `build`
+        script at all, so its web export ran nowhere. That is how the
+        wa-sqlite.wasm resolve failure in mobile web went unnoticed until #97.
+        apps/web is covered, because the Vercel preview runs `next build` per PR.
+        FIX: a CI job running `expo export --platform web` for admin and mobile
+        that fails on a resolve error. Plan written 2026-10-03.
+
+[ ] T6. (E2E) THE HARNESS CAN PASS AGAINST AN ALREADY-RUNNING DEV API (2026-10-03).
+        VERIFIED by reading scripts/e2e-clean.js: phaseBoot spawns
+        `dotnet run`, then waitFor() accepts ANY server answering 404 on :5000
+        (and 200 on :3000). If a dev API is already up, the harness's own API
+        fails to bind (its log shows it, and nothing reads that log), the wait
+        succeeds against the dev process, and every tournament phase runs
+        against golf_fundraiser (the developer's data), not golf_fundraiser_e2e.
+        The run still prints "all passed". It does not destroy data (the clean
+        phase drops only the e2e DB), but the green result is false and test
+        orgs land in dev. The same applies to web on :3000.
+        FIX: fail fast if :5000 or :3000 is already listening, and confirm the
+        server that answers is the one the harness started. Plan written 2026-10-03.
+
+[ ] T7. (INTEGRATION) CI NEVER RUNS E2E; ALL 700 API TESTS USE EF INMEMORY (2026-10-03).
+        InMemory has no transactions, constraints or SQL translation. So
+        migrations from zero, SELECT … FOR UPDATE on bids, unique constraints
+        and query translation are checked only when someone runs `npm run e2e`
+        by hand. FIX: a CI job running the harness in --fast mode against
+        Postgres (PostGIS) and Redis service containers. The harness hard-codes
+        `docker exec gfp-postgres` / `gfp-redis`, so either run compose in CI or
+        make the container names and connection strings configurable.
+
+[ ] T8. (UI) NO TEST EVER LOADS THE MOBILE SCORER OR ADMIN IN A BROWSER (2026-10-03).
+        The harness's own header records #56 (a hook below an early return
+        crashed the scorer) as green across 551 tests. puppeteer-core plus the
+        installed Edge works on this box: on 2026-10-03 it drove mobile web
+        with a session seeded into localStorage and reached /scorecard. FIX: an
+        e2e phase that seeds the joined session, loads mobile web, and fails on
+        any pageerror or a missing scorecard. Same for the admin login page.
+        Needs an `expo export` (or Metro on 8200) served during the run.
+
+[ ] T9. (E2E SCOPE) THE TOURNAMENT PHASE PLAYS ONE FORMAT, HAPPY PATH ONLY (2026-10-03).
+        It plays Scramble, 9 holes, no conflicts. Exercised only by InMemory
+        unit tests, or not at all: BestBall/Stableford/Stroke (U8), the admin-wins
+        conflict and proposed_score approval, Stripe webhooks (the verify skill
+        shows how to sign them locally), the SignalR leaderboard push, and a
+        league round from pairings to close. Cheapest high-value additions: a
+        Stroke or Stableford pass, and a conflict round-trip.
+
+[ ] T10. (COVERAGE) apps/web AND packages/ui HAVE NO TESTS (2026-10-03).
+        apps/web has 29 source files and no `test` script. packages/ui has 13
+        components and no tests, including AdaptiveLogoFrame (logo colour
+        sampling, platform-specific).
+
+[ ] T11. (SMALL) HARNESS AND REPORTING POLISH (2026-10-03).
+        - pass() measures from the phase start, and phaseStart is reset per
+          step only inside the gates loop. Elsewhere the times add up
+          ("dotnet clean 150.8s" includes npm ci), which undermines the
+          "durations must look like real work" check.
+        - coverlet.collector is installed but its output is never reported, and
+          no vitest workspace configures coverage, so nobody can see what the
+          tests miss.
+        - CI uses turbo remote cache and `test` declares no `inputs`. Probably
+          correct, but a cache hit replays an old result; consider a scheduled
+          `--force` run.
 
   [x] U1. STROKES NOW SUM INTO THE TEAM SCORE, PLUS HOLE COMPLETE / EDIT SCORE (2026-08-01) — new scores.completed_at; the admin transcribes paper cards, so completion had to be its own persisted state.
         STILL OPEN → CARVED OUT AS U8 (2026-09-23, since FIXED), because a `[x]` entry hid it: the per-golfer count means "shots of yours the team used", which sums to the team score in a SCRAMBLE by construction. Stroke and BestBall have each golfer playing their own ball, where the team gross is the relevant individual score, NOT a sum. Nobody has exercised admin entry on those formats — check before running a non-scramble event. U8 is in P0; the detail lives there now.
