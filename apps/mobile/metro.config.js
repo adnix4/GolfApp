@@ -25,6 +25,10 @@ config.resolver.blockList = [
   /[\\/][^\\/]*\.log$/,
 ];
 
+// expo-sqlite's web worker imports its wa-sqlite .wasm binary; Metro must treat
+// it as an asset or the web bundle fails to resolve it.
+config.resolver.assetExts.push('wasm');
+
 // zustand (and similar packages) expose an ESM build via the "import" condition
 // that uses import.meta.env, which is invalid in a non-module <script> bundle.
 // Adding "react-native" to web conditions causes Metro to prefer the CJS build
@@ -35,12 +39,24 @@ config.resolver.unstable_conditionsByPlatform = {
   web: ['browser', 'react-native'],
 };
 
+// node-vibrant/browser (pulled in by react-native-image-colors on web) has an
+// "exports" target of "./../dist/esm/browser.js"; ".." is invalid per the Node
+// spec, so Metro warns on every bundle before falling back to the same file.
+// Point straight at it to skip the bad exports map.
+const NODE_VIBRANT_BROWSER = path.resolve(
+  workspaceRoot,
+  'node_modules/node-vibrant/dist/esm/browser.js',
+);
+
 // Stub native-only packages that can't bundle for web.
 const WEB_EMPTY_MODULES = new Set(['@stripe/stripe-react-native']);
 const defaultResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (platform === 'web' && WEB_EMPTY_MODULES.has(moduleName)) {
     return { type: 'empty' };
+  }
+  if (moduleName === 'node-vibrant/browser') {
+    return { type: 'sourceFile', filePath: NODE_VIBRANT_BROWSER };
   }
   if (defaultResolveRequest) return defaultResolveRequest(context, moduleName, platform);
   return context.resolveRequest(context, moduleName, platform);
