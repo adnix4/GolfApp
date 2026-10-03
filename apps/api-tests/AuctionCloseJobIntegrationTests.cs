@@ -372,11 +372,11 @@ public class AuctionCloseJobIntegrationTests
     }
 
     [Fact]
-    public async Task Closing_a_Fund_a_Need_still_charges_on_close()
+    public async Task Closing_a_Fund_a_Need_charges_nobody()
     {
-        // A pledge has nothing to collect, so there is no desk visit to wait for.
-        // With no Stripe customer configured the attempt fails — which is itself
-        // the proof that a charge WAS attempted, unlike a competitive lot.
+        // Pledges settle at the checkout desk (or in the app) like any win. Were
+        // a charge attempted, it would fail here with no Stripe customer and
+        // leave the pledge Failed — so Pending proves none was.
         var (svc, db) = Build();
         var (_, eventId) = await SeedEventAsync(db);
         var player = AddPlayer(db, eventId);
@@ -387,6 +387,7 @@ public class AuctionCloseJobIntegrationTests
         await svc.ProcessExpiredItemsAsync();
 
         var winner = Assert.Single(db.AuctionWinners.Where(w => w.AuctionItemId == item.Id));
-        Assert.NotEqual(ChargeStatus.Pending, winner.ChargeStatus);
+        Assert.Equal(ChargeStatus.Pending, winner.ChargeStatus);
+        Assert.Null(winner.StripePaymentIntentId);
     }
 }

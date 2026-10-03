@@ -8,10 +8,10 @@ namespace GolfFundraiserPro.Api.Features.Auction;
 // checkout desk when they collect the item. These are the shapes that desk (and
 // the golfer's own "you won" screen) runs on.
 //
-// Fund-a-Need lots never appear here. A pledge has nothing to collect and is
-// charged on close, so routing pledgers to a desk to claim nothing would be
-// friction; a pledge whose charge fails surfaces on the existing failed-charges
-// screen instead.
+// Fund-a-Need pledges settle here too. Nothing is charged when a pledge lot
+// closes; the pledge becomes a line the desk settles like any other (card on
+// file, cash, or check) or the golfer pays in the app. A pledge has nothing to
+// hand over, so it never waits on pickup (CheckoutLine.IsPledge).
 
 /// <summary>One line of the desk queue — everything one winner owes, collapsed.</summary>
 public record CheckoutDeskRow
@@ -20,8 +20,10 @@ public record CheckoutDeskRow
     public string PlayerName       { get; init; } = string.Empty;
     public string PlayerEmail      { get; init; } = string.Empty;
 
+    /// <summary>Items to hand over — Fund-a-Need pledges are counted in Pledges, not here.</summary>
     public int    ItemsWon         { get; init; }
     public int    ItemsPickedUp    { get; init; }
+    public int    Pledges          { get; init; }
 
     public int    TotalCents       { get; init; }
     public int    SettledCents     { get; init; }
@@ -30,7 +32,7 @@ public record CheckoutDeskRow
     /// <summary>False for a winner who bid on a checked-in waiver and never saved a card.</summary>
     public bool   HasPaymentMethod { get; init; }
 
-    /// <summary>Paid in full AND everything handed over — the row can leave the queue.</summary>
+    /// <summary>Paid in full AND every item handed over — the row can leave the queue.</summary>
     public bool   IsComplete       { get; init; }
 }
 
@@ -56,11 +58,17 @@ public record CheckoutLine
     public string ItemTitle        { get; init; } = string.Empty;
     public int    AmountCents      { get; init; }
 
+    /// <summary>A Fund-a-Need pledge: paid like any line, but nothing to pick up.</summary>
+    public bool   IsPledge         { get; init; }
+
     /// <summary>Pending / Succeeded / Failed / Waived.</summary>
     public string ChargeStatus     { get; init; } = string.Empty;
 
     /// <summary>Card / Cash / Check, or null until settled.</summary>
     public string? SettlementMethod { get; init; }
+
+    /// <summary>The check's number when settled by check and the desk recorded one.</summary>
+    public string? CheckNumber      { get; init; }
 
     public DateTime? CheckedOutAt  { get; init; }
     public DateTime? PickedUpAt    { get; init; }
@@ -73,6 +81,9 @@ public record SettleCheckoutRequest
 
     /// <summary>Hand the items over at the same time — the common case at a desk.</summary>
     public bool             MarkPickedUp { get; init; }
+
+    /// <summary>The check's number, for a Check settlement. Optional; ignored for Card and Cash.</summary>
+    public string?          CheckNumber  { get; init; }
 }
 
 public record SettleCheckoutResult

@@ -178,6 +178,66 @@ public class AuctionCheckoutTests
         Assert.All(result.Cart.Lines, l => Assert.Null(l.PickedUpAt));
     }
 
+    // ── Check numbers ─────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Settling_by_check_records_the_check_number_on_every_line()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId) = await SeedEventAsync(db);
+        var player = AddPlayer(db, eventId);
+        var lot    = AddItem(db, eventId, title: "Driver");
+        var pledge = AddItem(db, eventId, AuctionType.DonationSilent, "Fund a Need");
+        AddWinner(db, lot.Id,    player.Id, 5000);
+        AddWinner(db, pledge.Id, player.Id, 2500);
+        await db.SaveChangesAsync();
+
+        var result = await svc.SettleAsync(
+            orgId, eventId, player.Id,
+            new SettleCheckoutRequest { Method = SettlementMethod.Check, CheckNumber = "  1042 " },
+            settledByUserId: null);
+
+        // Trimmed, and on both the item and the pledge the one check paid for.
+        Assert.All(result.Cart.Lines, l => Assert.Equal("1042", l.CheckNumber));
+        Assert.All(db.AuctionWinners, w => Assert.Equal("1042", w.CheckNumber));
+    }
+
+    [Fact]
+    public async Task A_check_number_is_optional_and_ignored_for_cash()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId) = await SeedEventAsync(db);
+        var a = AddPlayer(db, eventId);
+        var b = AddPlayer(db, eventId);
+        AddWinner(db, AddItem(db, eventId, title: "A").Id, a.Id, 1000);
+        AddWinner(db, AddItem(db, eventId, title: "B").Id, b.Id, 1000);
+        await db.SaveChangesAsync();
+
+        var check = await svc.SettleAsync(orgId, eventId, a.Id,
+            new SettleCheckoutRequest { Method = SettlementMethod.Check, CheckNumber = "   " }, null);
+        var cash  = await svc.SettleAsync(orgId, eventId, b.Id,
+            new SettleCheckoutRequest { Method = SettlementMethod.Cash, CheckNumber = "999" }, null);
+
+        Assert.Equal(1, check.Settled);                        // no number never blocks payment
+        Assert.Null(Assert.Single(check.Cart.Lines).CheckNumber);
+        Assert.Null(Assert.Single(cash.Cart.Lines).CheckNumber); // cash has no check
+    }
+
+    [Fact]
+    public async Task An_overlong_check_number_is_rejected_before_anything_is_settled()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId) = await SeedEventAsync(db);
+        var player = AddPlayer(db, eventId);
+        var winner = AddWinner(db, AddItem(db, eventId).Id, player.Id, 1000);
+        await db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<ValidationException>(() => svc.SettleAsync(orgId, eventId, player.Id,
+            new SettleCheckoutRequest { Method = SettlementMethod.Check, CheckNumber = new string('1', 51) }, null));
+
+        Assert.Equal(ChargeStatus.Pending, (await db.AuctionWinners.FindAsync(winner.Id))!.ChargeStatus);
+    }
+
     // ── Idempotence: never take the money twice ───────────────────────────────
 
     [Fact]
@@ -312,18 +372,80 @@ public class AuctionCheckoutTests
     }
 
     [Fact]
-    public async Task Fund_a_Need_pledges_never_reach_the_checkout_desk()
+    public async Task Fund_a_Need_pledges_are_owed_at_the_checkout_desk()
     {
-        // They are charged on close and there is nothing to collect, so sending
-        // a pledger to a desk to claim nothing would be pure friction.
+        // Nothing charges on close, so an unpaid pledge is money the desk has
+        // to collect — counted as a pledge, not as an item to hand over.
         var (svc, db) = Build();
         var (orgId, eventId) = await SeedEventAsync(db);
         var player   = AddPlayer(db, eventId);
         var pledge   = AddItem(db, eventId, AuctionType.DonationSilent, "Fund a Need");
-        AddWinner(db, pledge.Id, player.Id, 10000, ChargeStatus.Succeeded);
+        AddWinner(db, pledge.Id, player.Id, 10000);
         await db.SaveChangesAsync();
 
-        Assert.Empty(await svc.GetDeskAsync(orgId, eventId));
+        var row = Assert.Single(await svc.GetDeskAsync(orgId, eventId));
+        Assert.Equal(10000, row.OutstandingCents);
+        Assert.Equal(1, row.Pledges);
+        Assert.Equal(0, row.ItemsWon);
+        Assert.False(row.IsComplete);
+
+        var line = Assert.Single((await svc.GetCartAsync(orgId, eventId, player.Id)).Lines);
+        Assert.True(line.IsPledge);
+    }
+
+    [Fact]
+    public async Task A_paid_pledge_is_complete_without_ever_being_picked_up()
+    {
+        // There is nothing to hand over, so payment alone finishes a pledger —
+        // otherwise they would sit in the queue forever.
+        var (svc, db) = Build();
+        var (orgId, eventId) = await SeedEventAsync(db);
+        var player = AddPlayer(db, eventId);
+        var pledge = AddItem(db, eventId, AuctionType.DonationSilent, "Fund a Need");
+        var winner = AddWinner(db, pledge.Id, player.Id, 5000);
+        await db.SaveChangesAsync();
+
+        await svc.SettleAsync(
+            orgId, eventId, player.Id,
+            new SettleCheckoutRequest { Method = SettlementMethod.Cash, MarkPickedUp = true },
+            settledByUserId: null);
+
+        var row = Assert.Single(await svc.GetDeskAsync(orgId, eventId));
+        Assert.True(row.IsComplete);
+        Assert.Equal(0, row.OutstandingCents);
+        // Even with "picked up" ticked, a pledge is never marked handed over.
+        Assert.Null((await db.AuctionWinners.FindAsync(winner.Id))!.PickedUpAt);
+
+        // And the single-item handover is a no-op for a pledge.
+        await svc.MarkPickedUpAsync(orgId, winner.Id);
+        Assert.Null((await db.AuctionWinners.FindAsync(winner.Id))!.PickedUpAt);
+    }
+
+    [Fact]
+    public async Task A_winner_with_an_item_and_a_pledge_is_complete_once_paid_and_the_item_collected()
+    {
+        var (svc, db) = Build();
+        var (orgId, eventId) = await SeedEventAsync(db);
+        var player = AddPlayer(db, eventId);
+        var lot    = AddItem(db, eventId, title: "Driver");
+        var pledge = AddItem(db, eventId, AuctionType.DonationSilent, "Fund a Need");
+        AddWinner(db, lot.Id,    player.Id, 6000);
+        AddWinner(db, pledge.Id, player.Id, 2500);
+        await db.SaveChangesAsync();
+
+        var req = new SettleCheckoutRequest { Method = SettlementMethod.Check, MarkPickedUp = false };
+        await svc.SettleAsync(orgId, eventId, player.Id, req, null);
+
+        var row = Assert.Single(await svc.GetDeskAsync(orgId, eventId));
+        Assert.Equal(8500, row.SettledCents);
+        Assert.Equal(1, row.ItemsWon);
+        Assert.Equal(1, row.Pledges);
+        Assert.False(row.IsComplete); // the driver has not been handed over yet
+
+        await svc.SettleAsync(
+            orgId, eventId, player.Id,
+            new SettleCheckoutRequest { Method = SettlementMethod.Check, MarkPickedUp = true }, null);
+        Assert.True(Assert.Single(await svc.GetDeskAsync(orgId, eventId)).IsComplete);
     }
 
     [Fact]

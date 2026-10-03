@@ -265,6 +265,11 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("charge_status");
 
+                    b.Property<string>("CheckNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("check_number");
+
                     b.Property<DateTime?>("CheckedOutAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("checked_out_at");

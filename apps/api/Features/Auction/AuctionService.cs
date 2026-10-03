@@ -475,7 +475,8 @@ public class AuctionService
         // Awarded on stage, paid at the checkout desk — same as every other
         // competitive lot. See CloseItemInternalAsync for why closing no longer
         // charges.
-        await NotifyWinnersAsync(item, ct);
+        await NotifyWinnersAsync(
+            item, item.AuctionType is AuctionType.DonationSilent or AuctionType.DonationLive, ct);
     }
 
     // ── CLOSE JOB (called by Hangfire every 10s) ───────────────────────────────
@@ -551,14 +552,9 @@ public class AuctionService
             if (resolved.Count > 0) lotsSold++;
             winnersCreated += resolved.Count;
 
-            // Fund-a-Need pledges charge on close, so they are never owed at the
-            // desk and must not inflate the figure the organizer settles against.
-            var isDonation = item.AuctionType is AuctionType.DonationSilent or AuctionType.DonationLive;
-            if (!isDonation)
-            {
-                outstandingCents += resolved.Sum(r => r.AmountCents);
-                foreach (var (playerId, _) in resolved) playersWinning.Add(playerId);
-            }
+            // Pledges are owed at the desk like any win — nothing charges on close.
+            outstandingCents += resolved.Sum(r => r.AmountCents);
+            foreach (var (playerId, _) in resolved) playersWinning.Add(playerId);
 
             if (commit) await CloseItemInternalAsync(item, ct);
         }
@@ -673,12 +669,12 @@ public class AuctionService
     /// <summary>
     /// Closes one lot: works out who won, records them, and tells them.
     ///
-    /// Deliberately does NOT charge competitive lots. The winner settles at the
-    /// checkout desk when they collect the item, so nobody is billed for a lot
-    /// they never picked up, a winner with no saved card can still pay, and a 3DS
-    /// challenge happens with the cardholder standing there to answer it.
-    /// Fund-a-Need pledges are the exception — there is nothing to collect, so
-    /// they charge on close exactly as before.
+    /// Deliberately charges nobody. The winner settles at the checkout desk when
+    /// they collect the item, so nobody is billed for a lot they never picked
+    /// up, a winner with no saved card can still pay, and a 3DS challenge
+    /// happens with the cardholder standing there to answer it. Fund-a-Need
+    /// pledges settle at the desk too (or in the app) — staff can charge the
+    /// card on file there — they just have nothing to collect.
     /// </summary>
     private async Task CloseItemInternalAsync(AuctionItem item, CancellationToken ct)
     {
@@ -719,39 +715,9 @@ public class AuctionService
                 winner?.PlayerId, winner?.AmountCents ?? 0, ct);
         }
 
-        if (isDonation)
-        {
-            // Fund-a-Need: the pledger named their own amount and has nothing to
-            // collect, so there is no desk visit to wait for.
-            await ChargeWinnersForItemAsync(item.Id, ct);
-        }
-        else
-        {
-            // Competitive lot: the winner pays at checkout. Tell them they won —
-            // until now the only signal was a Stripe receipt that may never arrive.
-            await NotifyWinnersAsync(item, ct);
-        }
-    }
-
-    private async Task ChargeWinnersForItemAsync(Guid itemId, CancellationToken ct)
-    {
-        var winners = await _db.AuctionWinners
-            .Where(w => w.AuctionItemId == itemId && w.ChargeStatus == ChargeStatus.Pending)
-            .ToListAsync(ct);
-
-        foreach (var winner in winners)
-        {
-            try
-            {
-                await _payments.ChargeWinnerAsync(winner.Id, ct);
-            }
-            catch (Exception ex)
-            {
-                winner.ChargeStatus = ChargeStatus.Failed;
-                await _db.SaveChangesAsync(ct);
-                _logger.LogError(ex, "Charge failed for winner {WinnerId}", winner.Id);
-            }
-        }
+        // Everyone pays at checkout, so tell them — a winner what they won, a
+        // pledger what they pledged.
+        await NotifyWinnersAsync(item, isDonation, ct);
     }
 
     // ── SESSIONS ───────────────────────────────────────────────────────────────
@@ -1217,7 +1183,7 @@ public class AuctionService
     /// the automatic charge, so a winner whose charge failed (or who had no card)
     /// heard nothing at all.
     /// </summary>
-    private async Task NotifyWinnersAsync(AuctionItem item, CancellationToken ct)
+    private async Task NotifyWinnersAsync(AuctionItem item, bool isPledge, CancellationToken ct)
     {
         List<AuctionWinner> winners;
         try
@@ -1240,32 +1206,46 @@ public class AuctionService
 
             var amount = $"${winner.AmountCents / 100.0:F2}";
 
+            // A pledger gave money and has nothing to pick up — "you won, collect
+            // your item" would be wrong for them.
+            var pushTitle = isPledge ? "Thank you for your pledge!" : "You won!";
+            var pushBody  = isPledge
+                ? $"Your {amount} pledge to \"{item.Title}\" is ready to pay at checkout or in the app."
+                : $"You won \"{item.Title}\" for {amount}. Visit checkout to collect and pay.";
+            var subject   = isPledge ? $"Your pledge to \"{item.Title}\"" : $"You won \"{item.Title}\"!";
+            var bodyHtml  = isPledge
+                ? $"""
+                    <p>Thank you for pledging <strong>{amount}</strong> to <strong>{item.Title}</strong>.</p>
+                    <p>Settle your pledge at the auction checkout desk, or confirm your payment method
+                    and pay in the app.</p>
+                    """
+                : $"""
+                    <p>Congratulations — you won <strong>{item.Title}</strong> for <strong>{amount}</strong>.</p>
+                    <p>Stop by the auction checkout desk to collect your item and settle up. You can also
+                    confirm your payment method in the app before you get there.</p>
+                    """;
+
             try
             {
                 if (!string.IsNullOrEmpty(player.ExpoPushToken))
                 {
                     await _push.SendAsync(
                         new[] { player.ExpoPushToken },
-                        "You won!",
-                        $"You won \"{item.Title}\" for {amount}. Visit checkout to collect and pay.",
+                        pushTitle,
+                        pushBody,
                         new Dictionary<string, string>
                         {
-                            ["type"]      = "auctionWon",
+                            ["type"]      = isPledge ? "auctionPledge" : "auctionWon",
                             ["itemTitle"] = item.Title,
                         },
                         ct);
                 }
 
-                var html = $"""
-                    <p>Hi {player.FirstName},</p>
-                    <p>Congratulations — you won <strong>{item.Title}</strong> for <strong>{amount}</strong>.</p>
-                    <p>Stop by the auction checkout desk to collect your item and settle up. You can also
-                    confirm your payment method in the app before you get there.</p>
-                    """;
+                var html = $"<p>Hi {player.FirstName},</p>{bodyHtml}";
                 await _email.SendTransactionalAsync(
                     player.Email,
                     $"{player.FirstName} {player.LastName}",
-                    $"You won \"{item.Title}\"!",
+                    subject,
                     html,
                     ct);
             }
