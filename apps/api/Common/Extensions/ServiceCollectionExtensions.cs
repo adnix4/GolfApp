@@ -186,6 +186,11 @@ public static class ServiceCollectionExtensions
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
 
+        // Password-reset links (problemList D21) are Identity data-protection
+        // tokens. The default lifespan is a day; an emailed reset link that
+        // stays valid that long is a needless window, so one hour.
+        services.Configure<DataProtectionTokenProviderOptions>(o => o.TokenLifespan = TimeSpan.FromHours(1));
+
         // ── FILE STORAGE ──────────────────────────────────────────────────
         // Uploaded logos/photos (see Common/Storage/). Local wwwroot/uploads
         // by default; set Storage:Provider=S3 for S3/R2/MinIO — required when
@@ -214,6 +219,7 @@ public static class ServiceCollectionExtensions
         // All services depend on ApplicationDbContext which is also scoped.
         services.AddScoped<Features.Auth.TokenService>();
         services.AddScoped<Features.Auth.AuthService>();
+        services.AddScoped<Features.Auth.AccountService>();   // invite accept + password reset (D20/D21)
         services.AddScoped<Features.Events.EventService>();
         services.AddScoped<Features.Events.TestDataService>();
 
@@ -266,6 +272,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Features.EmailBuilder.EmailBuilderService>();
 
         services.AddScoped<Features.Orgs.OrgService>();
+        services.AddScoped<Features.Orgs.OrgMembersService>(); // staff invites (D20)
 
         // Phase 4: Payments + Auction
         services.AddScoped<Features.Payments.PaymentsService>();

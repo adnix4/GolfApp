@@ -114,6 +114,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     /// See Features/Auth/TokenService.cs for the hashing strategy.
     /// </summary>
     public DbSet<RefreshTokenRecord> RefreshTokens => Set<RefreshTokenRecord>();
+    public DbSet<OrgInvite>          OrgInvites    => Set<OrgInvite>();
 
     // ── Phase 4: Payments + Auction ────────────────────────────────────────
     public DbSet<StripeCustomer> StripeCustomers => Set<StripeCustomer>();
@@ -349,6 +350,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                     .WithMany(e => e.Donations)
                     .HasForeignKey(d => d.EventId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+            // Created by hand in Phase15_DonationPaidAt (the webhook and the
+            // anonymous confirm endpoint look a donation up by PaymentIntent id).
+            // Declared here too, or `ef migrations add` sees it as drift and
+            // generates a DropIndex for it.
+            donation.HasIndex(d => d.StripePaymentIntentId)
+                    .HasDatabaseName("IX_donations_stripe_payment_intent_id");
         });
 
         // ── EMAIL TEMPLATE ────────────────────────────────────────────────
@@ -395,6 +403,17 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             rt.HasOne(r => r.User)
               .WithMany()
               .HasForeignKey(r => r.UserId)
+              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── ORG INVITES (D20) ─────────────────────────────────────────────
+        modelBuilder.Entity<OrgInvite>(oi =>
+        {
+            oi.Property(i => i.Id).ValueGeneratedNever();
+            // Accept looks the invite up by the hash of the link token.
+            oi.HasIndex(i => i.TokenHash).IsUnique().HasDatabaseName("IX_org_invites_token_hash");
+            oi.HasIndex(i => i.OrgId).HasDatabaseName("IX_org_invites_org_id");
+            oi.HasOne(i => i.Organization).WithMany().HasForeignKey(i => i.OrgId)
               .OnDelete(DeleteBehavior.Cascade);
         });
 

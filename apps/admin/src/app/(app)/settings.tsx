@@ -7,6 +7,8 @@ import { useTheme } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme } from '@gfp/theme';
 import { useResponsive } from '@/lib/responsive';
 import { orgApi, type OrgProfile } from '@/lib/api';
+import { TeamMembersCard } from '@/components/TeamMembersCard';
+import { useAuth } from '@/lib/auth';
 
 // ── Colour tokens shown in the picker ────────────────────────────────────────
 
@@ -96,7 +98,25 @@ const cr = StyleSheet.create({
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
+// Event staff (problemList D20) reach this only by typing the URL; the nav
+// doesn't offer it. Everything on it is organizer-only in the API.
 export default function OrgSettingsScreen() {
+  const { user } = useAuth();
+  const theme    = useTheme();
+  if (user?.role === 'EventStaff') {
+    return (
+      <View style={[styles.page, { backgroundColor: theme.pageBackground, padding: 24 }]}>
+        <Text style={[styles.title, { color: theme.colors.primary }]}>Organization Settings</Text>
+        <Text style={[styles.sub, { color: theme.mutedText }]}>
+          Only organizers can change organization settings or invite people. Ask your organizer.
+        </Text>
+      </View>
+    );
+  }
+  return <OrgSettings />;
+}
+
+function OrgSettings() {
   const theme  = useTheme();
   const { pagePadding } = useResponsive();
 
@@ -223,6 +243,10 @@ export default function OrgSettingsScreen() {
 
       {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
       {saved  && <View style={styles.successBox}><Text style={styles.successText}>Settings saved.</Text></View>}
+
+      {/* ── TEAM MEMBERS (problemList D20) ── */}
+      <TeamMembersCard />
+      <View style={{ height: 20 }} />
 
       {/* ── PROFILE CARD ── */}
       <View style={styles.card}>

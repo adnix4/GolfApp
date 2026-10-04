@@ -344,7 +344,7 @@ public class AuthService
     /// Generates access + refresh tokens and builds the AuthResponse.
     /// Extracted to avoid duplicating this logic across Register, Login, Refresh.
     /// </summary>
-    private async Task<AuthResponse> BuildAuthResponseAsync(
+    internal async Task<AuthResponse> BuildAuthResponseAsync(
         ApplicationUser user,
         string role,
         Organization org,
@@ -385,7 +385,7 @@ public class AuthService
     /// Called once per app lifecycle via RegisterAsync (first call creates roles).
     /// Subsequent calls are no-ops because CreateAsync checks for existence.
     /// </summary>
-    private async Task EnsureRolesExistAsync()
+    internal async Task EnsureRolesExistAsync()
     {
         foreach (var roleName in new[] { RoleOrgAdmin, RoleEventStaff, RoleGolfer, RoleSuperAdmin })
         {
