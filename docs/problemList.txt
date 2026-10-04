@@ -52,7 +52,7 @@ P4 — FEATURES / POLISH
      T9   e2e: formats + conflict DONE 2026-10-03; webhooks/SignalR/league open
      [x] T10 web + ui have tests (logic-level, node env) 2026-10-03
      [x] T11 lap timings; API coverage in CI; turbo staleness moot 2026-10-03
-     T12  mobile web: all startup requests sometimes aborted — cause unknown
+     [x] T12 harness-only: fresh Edge profile's extensions abort requests; flags fix 2026-10-03
 
 P5 — BLOCKED OR DEFERRED (no action available yet)
      D19  dev-loop fixes landed; three follow-ups, one gated on D6
@@ -546,7 +546,7 @@ Captured while filling API test-coverage holes. Mark [x] when done.
           so each CI run starts cold and cannot replay an old result. Revisit
           only if remote caching is ever turned on.
 
-[ ] T12. (UNEXPLAINED) EVERY REQUEST IN THE MOBILE WEB PAGE IS SOMETIMES ABORTED AT STARTUP (2026-10-03).
+[x] T12. (UNEXPLAINED) EVERY REQUEST IN THE MOBILE WEB PAGE IS SOMETIMES ABORTED AT STARTUP (2026-10-03).
         Found while building T7. In about 1 harness run in 8 (Windows, Edge 154,
         headless), the T8 mobile scorecard check failed. VERIFIED by the
         harness's page trace (puppeteer request/requestfailed/framenavigated):
@@ -567,12 +567,36 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         (useNetworkTier.ts: type is never wifi/ethernet on web), so the score
         poll runs every 60s. A golfer whose first fetches are aborted sees an
         empty scorecard for up to a minute.
-        MITIGATION, NOT A FIX: the T8 check retries ONCE, only when API calls
-        were aborted AND no /scorecard response arrived. It prints a ⚠ line with
-        the trace and a "passed only after a retry" summary line.
-        NEXT: check CI logs for that ⚠. If Linux/Chrome hits it too, it is real:
-        capture a browser NetLog (--log-net-log) on a failing run, and consider
-        retrying aborted fetches in gfpFetch or an immediate re-pull on failure.
+        ROOT CAUSE (2026-10-03): A TEST-ENVIRONMENT ARTIFACT, NOT AN APP BUG.
+        Captured with GFP_E2E_NETLOG=1 (Chromium NetLog) on a failing run:
+        - attempt 1's five API calls NEVER reached the network service. The
+          NetLog has no trace of them; every logged API request belongs to the
+          retry. So they were cancelled inside the browser, before the network.
+        - in the same second, the fresh Edge profile was signing in, syncing,
+          and installing/verifying its built-in extensions
+          (edge.microsoft.com/extensioninstallverifier,
+          logextensionreliability, bing shopping). When an extension that can
+          intercept web requests comes online, Chromium rebuilds the renderer's
+          request channels, and fetches still in flight on the old channel get
+          ERR_ABORTED without reaching the network. That matches every symptom:
+          all at once, any origin, nothing in the NetLog, intermittent.
+        - the harness used a fresh profile per run AND launched Edge itself,
+          so it never got the quieting flags puppeteer.launch adds by default.
+          A real golfer's browser is not starting a new profile while the
+          scorecard loads. Linux Chrome in CI never showed it.
+        FIX: launchBrowser passes --disable-extensions,
+        --disable-component-extensions-with-background-pages,
+        --disable-component-update, --disable-background-networking,
+        --disable-sync, --disable-default-apps, and
+        --disable-features=msEdgeShopping,EdgeCollections. The extension traffic
+        disappears from the NetLog (Edge's account/rewards calls remain;
+        harmless).
+        VERIFIED: 24/24 CI-mode runs with 0 aborts (before the fix: about 1 in
+        10, 4 of ~39 runs; chance of 24 clean runs at that rate ≈ 8%), plus
+        the mechanism above. The one-time retry added under T7 is REMOVED:
+        the mobile check is strict again, keeping only the page-activity trace.
+        If it ever reappears, rerun with GFP_E2E_NETLOG=1 and read
+        <tmp>/gfp-e2e/netlog.json.
 
   [x] U1. STROKES NOW SUM INTO THE TEAM SCORE, PLUS HOLE COMPLETE / EDIT SCORE (2026-08-01) — new scores.completed_at; the admin transcribes paper cards, so completion had to be its own persisted state.
         STILL OPEN → CARVED OUT AS U8 (2026-09-23, since FIXED), because a `[x]` entry hid it: the per-golfer count means "shots of yours the team used", which sums to the team score in a SCRAMBLE by construction. Stroke and BestBall have each golfer playing their own ball, where the team gross is the relevant individual score, NOT a sum. Nobody has exercised admin entry on those formats — check before running a non-scramble event. U8 is in P0; the detail lives there now.

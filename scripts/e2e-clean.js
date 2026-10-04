@@ -57,7 +57,6 @@ const SKIP_GATES = ARGS.includes('--skip-gates');
 
 const started = [];           // child processes we own and must stop
 const results = [];
-const retries = [];           // checks that passed only after a visible retry
 let phaseStart = Date.now();
 
 // ── output ────────────────────────────────────────────────────────────────────
@@ -712,12 +711,29 @@ function serveStatic(dir, port) {
 async function launchBrowser(exe) {
   const profile = path.join(LOG_DIR, 'browser-profile');
   fs.rmSync(profile, { recursive: true, force: true });
+  // The quieting flags are what puppeteer.launch would normally add. Without
+  // them a FRESH Edge profile signs in, syncs, and installs/activates its
+  // built-in extensions (shopping, etc.) during the first page load. When an
+  // extension that can intercept web requests comes online, Chromium rebuilds
+  // the renderer's request channels and drops in-flight fetches with
+  // ERR_ABORTED before they ever reach the network: T12's "every request
+  // aborted at once" (NetLog showed attempt 1's API calls never left the
+  // renderer).
   const args = ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
-                '--no-first-run', '--no-default-browser-check', 'about:blank'];
+                '--no-first-run', '--no-default-browser-check',
+                '--disable-extensions', '--disable-component-extensions-with-background-pages',
+                '--disable-component-update', '--disable-background-networking', '--disable-sync',
+                '--disable-default-apps', '--disable-features=msEdgeShopping,EdgeCollections',
+                'about:blank'];
   // Chrome's sandbox needs unprivileged user namespaces, which ubuntu-24.04
   // runners restrict via AppArmor; the pages are our own build, so in CI (or
   // as root) run without it.
   if (process.env.CI || process.getuid?.() === 0) args.unshift('--no-sandbox');
+  // GFP_E2E_NETLOG=1 records Chromium's network log (every request's life,
+  // including what cancelled it) to <LOG_DIR>/netlog.json — the tool for T12.
+  if (process.env.GFP_E2E_NETLOG) {
+    args.unshift(`--log-net-log=${path.join(LOG_DIR, 'netlog.json')}`, '--net-log-capture-mode=Everything');
+  }
   const child = spawn(exe, args, { stdio: 'ignore', detached: process.platform !== 'win32' });
   started.push({ name: 'browser', child, logPath: null });
   const portFile = path.join(profile, 'DevToolsActivePort');
@@ -742,14 +758,11 @@ async function watchedPage(browser) {
   const short = u => u.replace('http://localhost:5000', '');
   const ours = u => u.startsWith('http://localhost:5000');
   page.on('request', r => { if (ours(r.url())) api.push(`${at()} → ${r.method()} ${short(r.url())}`); });
-  const stats = { abortedApi: 0, scorecardOk: false };
-  page.on('response', r => { if (ours(r.url()) && r.status() === 200 && /\/scorecard$/.test(r.url())) stats.scorecardOk = true; });
-  page.on('requestfailed', r => { if (ours(r.url()) && r.failure()?.errorText === 'net::ERR_ABORTED') stats.abortedApi++; });
   page.on('response', r => { if (ours(r.url())) api.push(`${at()} ${r.status()} ${r.request().method()} ${short(r.url())}`); });
   page.on('requestfailed', r => { if (ours(r.url())) api.push(`${at()} FAILED ${r.method()} ${short(r.url())} (${r.failure()?.errorText})`); });
   page.on('framenavigated', f => { if (f === page.mainFrame()) api.push(`${at()} NAVIGATED ${f.url()}`); });
   const trace = () => `Page activity (${api.length}):\n` + (api.slice(-18).join('\n') || '(none)');
-  return { page, errors, trace, stats };
+  return { page, errors, trace };
 }
 
 async function phaseUi(ctx) {
@@ -773,41 +786,26 @@ async function phaseUi(ctx) {
 
     // Mobile scorer: seed the session /join returned, exactly where the web
     // db shim keeps it, then expect the scorecard to show the 9 synced holes.
-    //
-    // ONE visible retry, for one known pattern only (T12): roughly 1 run in 8
-    // on Windows/Edge, every request in the page is aborted ~10ms after the
-    // scorecard's first API calls (ERR_ABORTED on API and static assets alike;
-    // the icon font then throws NetworkError). Cause not yet found. Web polls
-    // every 60s, so the page never recovers inside the wait. Retry only when
-    // API calls were aborted AND no scorecard response arrived; print it as ⚠
-    // so it stays visible. Anything else, or a second failure, fails as before.
-    for (let attempt = 1; ; attempt++) {
+    // (T12: this once failed ~1 run in 8 on Windows, with every request in
+    // the page aborted. It was the fresh Edge profile's extensions coming
+    // online, fixed by the quieting flags in launchBrowser, so no retry.)
+    {
       phaseStart = Date.now();
-      const { page, errors, trace, stats } = await watchedPage(browser);
+      const { page, errors, trace } = await watchedPage(browser);
       await page.evaluateOnNewDocument((join, deviceId) => {
         localStorage.setItem('gfp:gfp:session', join);
         localStorage.setItem('gfp:gfp:deviceId', deviceId);
       }, JSON.stringify(ctx.join), ctx.deviceId);
       await page.goto('http://localhost:8200/', { waitUntil: 'networkidle2', timeout: 60_000 });
-      let shown = true;
-      try { await page.waitForSelector('[aria-label="Edit score for hole 1"]', { timeout: 30_000 }); }
-      catch { shown = false; }
-      if (!shown && attempt === 1 && stats.abortedApi > 0 && !stats.scorecardOk) {
-        console.log(`  ${c.bad('⚠')} mobile scorecard: first load's API requests were aborted (${stats.abortedApi}) — retrying once (T12)\n` +
-          trace().split('\n').map(l => '      ' + l).join('\n'));
-        retries.push('mobile scorecard');
-        await page.close();
-        continue;
-      }
-      if (!shown) {
+      try {
+        await page.waitForSelector('[aria-label="Edit score for hole 1"]', { timeout: 30_000 });
+      } catch {
         const text = (await page.evaluate(() => document.body.innerText)).slice(0, 300);
         fail('mobile scorecard', `no completed hole 1 on ${page.url()}\n${trace()}\n${errors.join('\n')}\n${text}`);
       }
       if (errors.length) fail('mobile scorecard', errors.join('\n'));
-      pass('mobile scorecard renders the synced holes',
-        c.dim(new URL(page.url()).pathname + (attempt > 1 ? ' (after 1 retry)' : '')));
+      pass('mobile scorecard renders the synced holes', c.dim(new URL(page.url()).pathname));
       await page.close();
-      break;
     }
 
     // Admin: sign in through the real form and expect this run's event.
@@ -829,7 +827,9 @@ async function phaseUi(ctx) {
       await page.close();
     }
   } finally {
-    if (browser) await browser.disconnect();
+    // A NetLog is only complete if the browser exits on its own; teardown's
+    // kill would truncate it. Otherwise just detach and let teardown kill it.
+    if (browser) await (process.env.GFP_E2E_NETLOG ? browser.close() : browser.disconnect());
     for (const s of servers) s.close();
   }
 }
@@ -1028,7 +1028,5 @@ async function phaseTransactions(ctx) {
   console.log(`\n  ${failed.length ? c.bad(`${failed.length} failed`) : c.ok('all passed')} ` +
               c.dim(`in ${((Date.now() - t0) / 1000 / 60).toFixed(1)} min`));
   if (failed.length) console.log(c.dim(`  logs: ${LOG_DIR}`));
-  // A pass that needed a retry is still worth seeing in the summary (T12).
-  if (retries.length) console.log(`  ${c.bad('⚠')} passed only after a retry: ${retries.join(', ')} (see problemList T12)`);
   process.exit(failed.length ? 1 : 0);
 })();
