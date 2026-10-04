@@ -373,11 +373,18 @@ export async function checkConnectivity(): Promise<boolean> {
   }
 }
 
-export async function registerPushToken(playerId: string, token: string | null): Promise<void> {
+// The /join session token proves this is the golfer's own device: player ids
+// are public, so without it anyone could redirect or silence their outbid
+// alerts (problemList D5).
+export async function registerPushToken(
+  playerId: string,
+  token: string | null,
+  sessionToken: string,
+): Promise<void> {
   const res = await gfpFetch(`${BASE}/api/v1/players/${playerId}/push-token`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ token }),
+    body:    JSON.stringify({ token, sessionToken }),
   });
   if (!res.ok) {
     throw await apiFailure(res, 'Push token registration failed');

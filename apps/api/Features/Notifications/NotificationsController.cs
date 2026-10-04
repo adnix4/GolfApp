@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using GolfFundraiserPro.Api.Common;
 using GolfFundraiserPro.Api.Data;
 
 namespace GolfFundraiserPro.Api.Features.Notifications;
@@ -16,7 +17,13 @@ public class NotificationsController : ControllerBase
     /// <summary>
     /// POST /api/v1/players/{id}/push-token
     /// Registers or updates the Expo push token for a player.
-    /// AllowAnonymous: golfers are identified by player ID, not JWT.
+    /// AllowAnonymous: golfers have no JWT. They prove who they are with the
+    /// session token minted at /join, like every other golfer self-action
+    /// (profile, sync, bids, payments). Player ids are public (the Stroke Play
+    /// board lists them), so without it anyone could clear a golfer's token
+    /// (silencing their outbid alerts) or swap in their own and receive that
+    /// golfer's alerts. A mismatch answers 404, like an unknown player, so the
+    /// endpoint does not confirm which ids exist (problemList D5).
     /// Send { token: null } to opt out.
     /// </summary>
     [HttpPost("{id:guid}/push-token")]
@@ -27,7 +34,8 @@ public class NotificationsController : ControllerBase
         CancellationToken ct)
     {
         var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == id, ct);
-        if (player is null) return NotFound(new { error = "Player not found." });
+        if (player is null || !PlayerSessionAuth.Matches(player.SessionToken, request.SessionToken))
+            return NotFound(new { error = "Player not found." });
 
         player.ExpoPushToken = string.IsNullOrWhiteSpace(request.Token)
             ? null
@@ -38,4 +46,4 @@ public class NotificationsController : ControllerBase
     }
 }
 
-public sealed record RegisterPushTokenRequest(string? Token);
+public sealed record RegisterPushTokenRequest(string? Token, string? SessionToken);

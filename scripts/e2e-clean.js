@@ -411,6 +411,17 @@ async function phaseTournament() {
   ctx.joinPlayerId = join.player?.id; ctx.stamp = stamp;
   pass('golfer joined', c.dim(`${join.team?.players?.length} players`));
 
+  // The outbid-alert token is the golfer's own (D5): player ids are public, so
+  // registering without the /join session must be refused, with a 404 that is
+  // indistinguishable from an unknown player.
+  const pushUrl = `/players/${ctx.joinPlayerId}/push-token`;
+  const stolen = await http(`${API}${pushUrl}`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: 'ExponentPushToken[attacker]' }) });
+  if (stolen.status !== 404) fail('push token needs the session', `no session → ${stolen.status}, expected 404`);
+  const own = await api('POST', pushUrl, { body: { token: 'ExponentPushToken[e2e]', sessionToken: ctx.sessionToken } });
+  if (own?.registered !== true) fail('push token registers', JSON.stringify(own));
+  pass('push token: own session registers, none is refused', c.dim('200 · 404'));
+
   const gross = [3, 5, 3, 4, 3, 2, 5, 4, 4];   // -3 through 9
   const sync = await api('POST', '/sync/scores', { body: {
     eventId: ctx.eventId, teamId: ctx.joinTeamId ?? ctx.teamId,

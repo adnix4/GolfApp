@@ -102,7 +102,9 @@ export default function JoinScreen() {
     }
 
     await setSession(data);
-    registerForPushNotifications(data.player.id).catch(() => {});
+    // Never throws; resolves to an outcome and logs real failures itself, so a
+    // broken push setup no longer hides behind a swallowed promise (D5).
+    void registerForPushNotifications(data.player.id, data.sessionToken);
     // Preflight checks the device for a round of scoring (battery, storage,
     // connectivity) — irrelevant to a guest who is only here to bid.
     router.replace(data.isGuest ? '/(scoring)/auction' : '/preflight');

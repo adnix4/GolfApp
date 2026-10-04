@@ -22,10 +22,14 @@ P1 — PILOT PATH (external lead times first; D1 gates D3 and D10)
      [x] D2  already complete — verified 2026-08-01, nothing to write
      D3   staging environment
      D4   dress rehearsal — the pilot succeeds or fails here
-     D5   mobile distribution (EAS / TestFlight) — now carries two verifications
+     D5   mobile distribution (EAS / TestFlight) — push hardening + push-token
+          auth fix DONE 2026-10-04; now carries two verifications
           nothing else can do: SDK 57 on real hardware, and the outbid push
           end-to-end. D4 needs a build from here, so in practice D5 gates it.
-     D6   pilot ops — backups, error monitoring, day-of runbook
+     D6   pilot ops — runbook drafted 2026-10-04 (docs/PilotRunbook.md); backups,
+          error monitoring, uptime still need accounts/hosting
+     D20  no staff accounts: everyone shares the organizer login (workaround in runbook)
+     D21  no password reset (workaround in runbook; real fix needs email, D1)
 
 P2 — CORRECTNESS THE ORGANIZER WILL HIT ON THE DAY  (tier clear)
      [x] U5  auto-assigned on the Active transition 2026-08-01
@@ -214,6 +218,26 @@ their standing decisions are in the section above.
         Optional hardening while in there: log the registration failure instead of
         swallowing it, and/or pass projectId explicitly so a missing id is a loud
         startup error rather than a silent runtime throw.
+        HARDENING DONE 2026-10-04 (the code half of D5; the device half above
+        still needs EAS/Apple accounts):
+        - pushNotifications.ts resolves the EAS projectId itself (easConfig, then
+          app.json extra.eas.projectId) and passes it to getExpoPushTokenAsync. A
+          missing id is now a named failure ("run `eas init`"), not Expo's
+          ERR_NOTIFICATIONS_NO_EXPERIENCE_ID.
+        - registerForPushNotifications never throws. It returns 'registered' |
+          'declined' | 'unsupported' (web) | 'failed', and console.warns on
+          'failed' (device logs), so infrastructure failure no longer looks like
+          a declined prompt. join.tsx no longer swallows it with .catch(() => {}).
+        - SECURITY GAP FOUND AND CLOSED: POST /players/{id}/push-token was
+          AllowAnonymous and trusted the player id alone. Ids are public (the
+          Stroke Play board lists them), so anyone could clear a golfer's token
+          (silencing outbid alerts) or swap in their own (receiving that
+          golfer's alerts). It now requires the /join session token, like the
+          other golfer self-actions, and answers 404 on a mismatch (same as an
+          unknown player). The mobile client sends it.
+        VERIFIED: 6 API tests (removing the check fails 4), 8 mobile tests, and
+        an e2e harness check (no session → 404, own session → registered).
+        STILL TO DO ON A DEVICE: the three steps above.
 
         WEB MODE GETS NO PUSH, BY DESIGN — NOT A BUG. Running apps/mobile in a
         browser shows no notifications and that is expected: app.json has no
@@ -237,6 +261,34 @@ their standing decisions are in the section above.
           phone fails.
         - Pick a small, friendly event; run a test-mode preview with the
           organizer the week before.
+        RUNBOOK DRAFTED 2026-10-04: docs/PilotRunbook.md. It covers access,
+        the order of the day by status, a fallback table (dead phone → paper
+        card + Scoring tab + Hole Complete, no signal, conflicts, Stripe down →
+        cash/check on Registration and Checkout, outbid alerts, API down), and
+        before/after checklists. Every button it names was checked against the
+        admin code. Items it marks VERIFY IN D4 have not run on a real deploy.
+        STILL OPEN: backups, error monitoring and uptime (accounts and hosting,
+        D1/D3). Writing the runbook surfaced D20 and D21.
+
+[ ] D20. NO WAY TO ADD STAFF: EVERY DESK VOLUNTEER SHARES THE ORGANIZER LOGIN (2026-10-04)
+        VERIFIED: the API defines an EventStaff role (AuthService.cs:58, and the
+        "EventStaff" policy that check-in, score entry and hole completion use),
+        but nothing creates a staff user. /auth/register always creates an
+        OrgAdmin of a NEW org, and there is no invite or add-member endpoint or
+        screen. So on the day, every desk volunteer signs in as the organizer,
+        with full organizer power (settings, auction, cancel event).
+        Pilot workaround (in the runbook): one shared login, signed in on each
+        desk device the day before. VERIFY IN D4 that several sessions stay
+        signed in together. Real fix: an org-member invite that creates
+        EventStaff users.
+
+[ ] D21. NO PASSWORD RESET (2026-10-04)
+        VERIFIED: no forgot/reset-password flow in apps/api Features/Auth or
+        apps/admin. An organizer who forgets the password is locked out with
+        no self-service recovery, which on event day stops check-in and desk
+        scoring (D20 means there is only one login). Pilot workaround (in the
+        runbook): store the password where two people can reach it. Real fix
+        needs email delivery (D1) for a reset link.
 
 [ ] D7. APP STORE LINKS — FINISH WHEN THE APP GOES LIVE (added 2026-07-31)
         The web app already has the "Get the App" UI in place; it is running in
