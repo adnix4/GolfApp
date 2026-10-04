@@ -1,5 +1,8 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  // Stop turbo writing a root AGENTS.md when it detects an AI agent. Agent
+  // guidance lives in CLAUDE.md, which points at the bundled turbo docs.
+  "agentGuidance": false,
   // The root eslint config lives outside every workspace, so without this a
   // rule change alone would not invalidate any workspace's cached lint result.
   "globalDependencies": ["eslint.config.mjs"],

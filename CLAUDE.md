@@ -33,4 +33,5 @@ making non-trivial changes in that area. Do not load all files at once.
 - **API auth** — organizer endpoints use JWT (`[Authorize(Policy = "OrgAdmin")]` or `"EventStaff"`); public/mobile endpoints are `[AllowAnonymous]`.
 - **Event status machine** — Draft → Registration → Active → Scoring → Completed (or Cancelled). Enforce via `EventStatusRules.cs`.
 - **Mobile offline** — scores queue in SQLite (`pending_scores`), synced by `backgroundSync.ts`. Don't assume connectivity.
+- **Turborepo** — behavior varies by version; before changing `turbo.json` or turbo commands, read the docs bundled with the installed version (`node_modules/turbo/docs/README.md`). `"agentGuidance": false` in `turbo.json` stops turbo writing a root `AGENTS.md`.
 - **Test mode** — Draft events are joinable by event code only and show a purple test-mode banner; they never appear in the public event list.
