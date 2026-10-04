@@ -426,6 +426,185 @@ async function phaseTournament() {
   return ctx;
 }
 
+// ── scoring formats and conflicts (T9) ────────────────────────────────────────
+// The tournament phase plays one Scramble, happy path only. Each check below
+// runs on its OWN event so it cannot disturb what later phases assert about
+// the main one (the scores page expects -3).
+
+const E2E_PARS = [4,5,3,4,4,3,5,4,4, 4,3,5,4,4,3,4,5,4];
+
+// Register → course → team → Scoring → join the first golfer. Returns ids and
+// the golfer's session so the caller can sync as that device.
+async function setupScoringEvent(ctx, format, players) {
+  const tag = `${format}-${Date.now()}`;
+  const ev = await api('POST', '/events', { token: ctx.token, body: {
+    name: `E2E ${tag}`, format, startType: 'Shotgun', holes: 18,
+    startAt: new Date(Date.now() + 864e5).toISOString(), config: { maxTeams: 10 },
+  }});
+  await api('PATCH', `/events/${ev.id}`, { token: ctx.token, body: { status: 'Registration' } });
+  await api('POST', `/events/${ev.id}/course`, { token: ctx.token, body: {
+    name: 'E2E National', address: '1 Fairway', city: 'Austin', state: 'TX', zip: '78701',
+    holes: E2E_PARS.map((par, i) => ({ holeNumber: i + 1, par, handicapIndex: i + 1,
+      yardageWhite: 300 + par * 40, yardageBlue: 330 + par * 40, yardageRed: 260 + par * 40 })),
+  }});
+  const team = await api('POST', `/events/${ev.id}/register/team`, { body: {
+    teamName: `Team ${format}`, maxPlayers: 4,
+    players: players.map((n, i) => {
+      const [firstName, lastName] = n.split(' ');
+      return { firstName, lastName, email: `e2e.${tag}.${i}@example.com`, handicapIndex: 10 };
+    }),
+  }});
+  for (const status of ['Active', 'Scoring']) {
+    await api('PATCH', `/events/${ev.id}`, { token: ctx.token, body: { status } });
+  }
+  const deviceId = `e2e-${tag}`;
+  const body = { email: `e2e.${tag}.0@example.com`, deviceId };
+  let join = await api('POST', `/events/${ev.eventCode}/join`, { body });
+  if (join.verificationRequired) {
+    join = await api('POST', `/events/${ev.eventCode}/join`, { body: { ...body, verificationCode: '999999' } });
+  }
+  if (!join.sessionToken) fail(`${format} join`, 'no sessionToken returned');
+  const byName = Object.fromEntries((join.team?.players ?? []).map(p => [`${p.firstName} ${p.lastName}`, p.id]));
+  return { eventId: ev.id, code: ev.eventCode, teamId: join.team?.id ?? team.id ?? team.teamId,
+           deviceId, sessionToken: join.sessionToken, playerIds: players.map(n => byName[n]) };
+}
+
+function syncAs(e, scores) {
+  return api('POST', '/sync/scores', { body: {
+    eventId: e.eventId, teamId: e.teamId, sessionToken: e.sessionToken, deviceId: e.deviceId,
+    scores: scores.map((s, i) => ({ putts: 2, clientTimestampMs: Date.now() + i, ...s })),
+  }});
+}
+
+async function phaseFormats(ctx) {
+  phase('Scoring formats (U8)');
+  // Two golfers, three holes (pars 4, 5, 3). Ava: 4,5,3 = E (12). Ben: 5,6,4 = +3 (15).
+  const shots = [[4, 5], [5, 6], [3, 4]];
+
+  // Stroke Play scores each golfer on their own ball: an individual board.
+  phaseStart = Date.now();
+  {
+    const e = await setupScoringEvent(ctx, 'Stroke', ['Ava Stroke', 'Ben Stroke']);
+    const [ava, ben] = e.playerIds;
+    if (!ava || !ben) fail('stroke setup', `player ids missing: ${JSON.stringify(e.playerIds)}`);
+    const sync = await syncAs(e, shots.map(([a, b], i) => ({
+      holeNumber: i + 1, grossScore: a + b, playerShots: { [ava]: a, [ben]: b } })));
+    if (sync.accepted !== 3 || sync.conflicts !== 0) fail('stroke sync', JSON.stringify(sync));
+    const lb = await api('GET', `/pub/events/${e.code}/leaderboard`);
+    const ind = lb.individuals ?? [];
+    const row = id => ind.find(r => r.playerId === id);
+    const A = row(ava), B = row(ben);
+    if (!A || !B || A.rank !== 1 || A.toPar !== 0 || A.grossTotal !== 12 || A.holesComplete !== 3 ||
+        B.rank !== 2 || B.toPar !== 3 || B.grossTotal !== 15 || B.strokesBack !== 3) {
+      fail('stroke individual board', `expected Ava E/12 1st, Ben +3/15 2nd (3 back), got ${JSON.stringify(ind)}`);
+    }
+    pass('Stroke Play ranks golfers individually', c.dim('Ava E · Ben +3'));
+  }
+
+  // Stableford: per golfer max(0, par − strokes + 2), summed per team.
+  // Ava 2+2+2, Ben 1+1+1 → 9 points.
+  phaseStart = Date.now();
+  {
+    const e = await setupScoringEvent(ctx, 'Stableford', ['Ava Stable', 'Ben Stable']);
+    const [ava, ben] = e.playerIds;
+    const sync = await syncAs(e, shots.map(([a, b], i) => ({
+      holeNumber: i + 1, grossScore: a + b, playerShots: { [ava]: a, [ben]: b } })));
+    if (sync.accepted !== 3 || sync.conflicts !== 0) fail('stableford sync', JSON.stringify(sync));
+    const lb = await api('GET', `/pub/events/${e.code}/leaderboard`);
+    const row = (lb.standings ?? [])[0];
+    if (!row || row.stablefordPoints !== 9 || row.holesComplete !== 3) {
+      fail('stableford points', `expected 9 points thru 3, got ${JSON.stringify(row)}`);
+    }
+    pass('Stableford sums per-golfer points', c.dim('9 pts thru 3'));
+  }
+
+  // Best Ball: the team takes the lowest golfer on each hole (Rule 23).
+  // min(4,5) + min(5,6) + min(3,4) = 12 on par 12 → E. A Scramble-style sum
+  // would give 27.
+  phaseStart = Date.now();
+  {
+    const e = await setupScoringEvent(ctx, 'BestBall', ['Ava Best', 'Ben Best']);
+    const [ava, ben] = e.playerIds;
+    const sync = await syncAs(e, shots.map(([a, b], i) => ({
+      holeNumber: i + 1, grossScore: a + b, playerShots: { [ava]: a, [ben]: b } })));
+    if (sync.accepted !== 3 || sync.conflicts !== 0) fail('best ball sync', JSON.stringify(sync));
+    const lb = await api('GET', `/pub/events/${e.code}/leaderboard`);
+    const row = (lb.standings ?? [])[0];
+    if (!row || row.grossTotal !== 12 || row.toPar !== 0 || row.holesComplete !== 3) {
+      fail('best ball low ball', `expected 12 / E thru 3 (not the 27 sum), got ${JSON.stringify(row)}`);
+    }
+    pass('Best Ball takes the low ball per hole', c.dim('12 · E thru 3'));
+  }
+}
+
+// The public leaderboard is a 2s-TTL Redis read-through cache that nothing
+// invalidates (spec §3: the TTL absorbs spectator bursts). A read within 2s of
+// a change can be stale BY DESIGN, so poll until the expected row appears.
+async function boardRowUntil(code, ok, timeoutMs = 6000) {
+  const deadline = Date.now() + timeoutMs;
+  let row;
+  do {
+    row = (await api('GET', `/pub/events/${code}/leaderboard`)).standings?.[0];
+    if (row && ok(row)) return row;
+    await sleep(500);
+  } while (Date.now() < deadline);
+  return row;
+}
+
+async function phaseConflict(ctx) {
+  phase('Score conflict round-trip');
+  phaseStart = Date.now();
+  const e = await setupScoringEvent(ctx, 'Scramble', ['Cleo Conflict', 'Dev Conflict']);
+  // Holes 1-2 from the golfer: 4 + 5 on pars 4, 5 → E (9).
+  let sync = await syncAs(e, [{ holeNumber: 1, grossScore: 4 }, { holeNumber: 2, grossScore: 5 }]);
+  if (sync.accepted !== 2) fail('conflict setup sync', JSON.stringify(sync));
+
+  // The admin transcribes hole 3 from the paper card first: 3 (par 3), then
+  // marks it complete. Entry and completion are separate steps (U1): only a
+  // completed hole counts on the leaderboard.
+  const admin = await api('POST', `/events/${e.eventId}/scores`, { token: ctx.token,
+    body: { teamId: e.teamId, holeNumber: 3, grossScore: 3 } });
+  await api('POST', `/events/${e.eventId}/teams/${e.teamId}/holes/3/complete`, { token: ctx.token,
+    body: { complete: true } });
+  let row = await boardRowUntil(e.code, r => r.holesComplete === 3 && r.grossTotal === 12);
+  if (!row || row.holesComplete !== 3 || row.grossTotal !== 12) {
+    fail('admin hole on the board', `expected thru 3 / 12 after the admin's hole 3, got ${JSON.stringify(row)}`);
+  }
+  pass('admin enters and completes hole 3 first', c.dim('E · 12 · thru 3'));
+
+  // The phone then syncs a different hole 3. The admin's value must stay, the
+  // phone's becomes a proposal, and the hole drops off the leaderboard.
+  phaseStart = Date.now();
+  sync = await syncAs(e, [{ holeNumber: 3, grossScore: 4 }]);
+  const cd = sync.conflictDetails?.[0];
+  if (sync.conflicts !== 1 || cd?.existingScore !== 3 || cd?.submittedScore !== 4) {
+    fail('conflict detected', `expected 1 conflict 3 vs 4, got ${JSON.stringify(sync)}`);
+  }
+  const card = await api('GET', `/pub/events/${e.code}/teams/${e.teamId}/scorecard`);
+  const h3 = card.holes?.find(h => h.holeNumber === 3);
+  if (!h3 || h3.grossScore !== 3 || !h3.isConflicted || h3.proposedScore !== 4) {
+    fail('conflict on scorecard', `expected hole 3 = 3, conflicted, proposed 4; got ${JSON.stringify(h3)}`);
+  }
+  row = await boardRowUntil(e.code, r => r.holesComplete === 2 && r.grossTotal === 9);
+  if (!row || row.holesComplete !== 2 || row.grossTotal !== 9) {
+    fail('conflict off the board', `expected thru 2 / 9 while conflicted, got ${JSON.stringify(row)}`);
+  }
+  pass('phone conflict kept as a proposal, hole off the board', c.dim('admin 3 · proposed 4 · thru 2'));
+
+  // The admin approves the golfer's value: hole 3 becomes 4, back on the board.
+  phaseStart = Date.now();
+  const resolved = await api('POST', `/events/${e.eventId}/scores/${admin.id}/resolve`, { token: ctx.token,
+    body: { acceptedScore: 4, resolutionNote: 'e2e: golfer was right' } });
+  if (resolved.isConflicted || resolved.grossScore !== 4 || resolved.proposedScore != null) {
+    fail('conflict resolved', JSON.stringify(resolved));
+  }
+  row = await boardRowUntil(e.code, r => r.holesComplete === 3 && r.grossTotal === 13 && r.toPar === 1);
+  if (!row || row.holesComplete !== 3 || row.grossTotal !== 13 || row.toPar !== 1) {
+    fail('resolved score on the board', `expected thru 3 / 13 / +1, got ${JSON.stringify(row)}`);
+  }
+  pass('admin approval puts the hole back on the board', c.dim('+1 · 13 · thru 3'));
+}
+
 async function phaseLogos(ctx) {
   phase('Logo normalisation');
 
@@ -823,6 +1002,8 @@ async function phaseTransactions(ctx) {
     await phaseWeb(ctx);
     await phaseJoinCost(ctx);
     await phaseTransactions(ctx);
+    await phaseFormats(ctx);
+    await phaseConflict(ctx);
     await phaseUi(ctx);
     await phaseVenueNat(ctx);
   } catch (e) {

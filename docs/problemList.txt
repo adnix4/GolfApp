@@ -49,7 +49,7 @@ P4 — FEATURES / POLISH
      [x] T5  CI exports admin + mobile web bundles on every PR 2026-10-03
      [x] T8  e2e drives mobile scorecard + admin sign-in in a browser 2026-10-03
      [x] T7  CI runs the e2e harness (real Postgres/Redis + browser) 2026-10-03
-     T9   e2e covers Scramble happy path only
+     T9   e2e: formats + conflict DONE 2026-10-03; webhooks/SignalR/league open
      T10  apps/web and packages/ui have no tests
      T11  harness step timings, coverage reporting, turbo cache staleness
      T12  mobile web: all startup requests sometimes aborted — cause unknown
@@ -476,6 +476,20 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         shows how to sign them locally), the SignalR leaderboard push, and a
         league round from pairings to close. Cheapest high-value additions: a
         Stroke or Stableford pass, and a conflict round-trip.
+        DONE 2026-10-03 (scripts/e2e-clean.js, each on its own event so the main
+        event's -3 stays intact for the scores page):
+        - "Scoring formats (U8)": Stroke Play ranks golfers on the individual
+          board (Ava E/12 1st, Ben +3/15, 3 back); Stableford sums per-golfer
+          points (9 thru 3); Best Ball takes the low ball (12/E, not the 27 sum).
+        - "Score conflict round-trip": the admin enters and COMPLETES hole 3 (entry
+          and completion are separate, U1), the phone syncs a different value →
+          1 conflict, admin value kept, proposed shown on the public scorecard,
+          hole off the leaderboard; admin approval → back on the board at +1.
+        FOUND ON THE WAY (not a bug): the public leaderboard is a 2s-TTL Redis
+        cache that nothing invalidates, so a read within 2s of a change is stale
+        by design. The checks poll (boardRowUntil) instead of reading once.
+        STILL OPEN: Stripe webhooks (signable locally, see the verify skill),
+        the SignalR leaderboard push, and a league round from pairings to close.
 
 [ ] T10. (COVERAGE) apps/web AND packages/ui HAVE NO TESTS (2026-10-03).
         apps/web has 29 source files and no `test` script. packages/ui has 13
