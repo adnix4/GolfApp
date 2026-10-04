@@ -47,7 +47,7 @@ P4 — FEATURES / POLISH
      Test-structure review (2026-10-03) — work in this order:
      [x] T6  harness refuses busy ports + requires its own servers 2026-10-03
      [x] T5  CI exports admin + mobile web bundles on every PR 2026-10-03
-     T8   no UI is ever driven automatically (mobile scorer / admin smoke)
+     [x] T8  e2e drives mobile scorecard + admin sign-in in a browser 2026-10-03
      T7   CI never runs e2e; API tests are EF InMemory only
      T9   e2e covers Scramble happy path only
      T10  apps/web and packages/ui have no tests
@@ -433,7 +433,7 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         `docker exec gfp-postgres` / `gfp-redis`, so either run compose in CI or
         make the container names and connection strings configurable.
 
-[ ] T8. (UI) NO TEST EVER LOADS THE MOBILE SCORER OR ADMIN IN A BROWSER (2026-10-03).
+[x] T8. (UI) NO TEST EVER LOADS THE MOBILE SCORER OR ADMIN IN A BROWSER (2026-10-03).
         The harness's own header records #56 (a hook below an early return
         crashed the scorer) as green across 551 tests. puppeteer-core plus the
         installed Edge works on this box: on 2026-10-03 it drove mobile web
@@ -441,6 +441,20 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         e2e phase that seeds the joined session, loads mobile web, and fails on
         any pageerror or a missing scorecard. Same for the admin login page.
         Needs an `expo export` (or Metro on 8200) served during the run.
+        FIXED 2026-10-03: "Browser UI smoke" phase in scripts/e2e-clean.js.
+        It exports admin + mobile, serves dist/ on 8081/8200 (origins the
+        GfpDevelopment CORS policy already allows), launches Edge/Chrome
+        headless and connects via the DevTools port (GFP_E2E_BROWSER
+        overrides), then:
+        - mobile: seeds the /join session into localStorage, expects /scorecard
+          with "Edit score for hole 1" (the synced holes);
+        - admin: signs in through the real form, expects this run's event.
+        Fails on any pageerror or console.error. puppeteer-core is now a root
+        devDependency. 8081/8200 are added to the port guard.
+        VERIFIED: green run; a render throw in the scorecard → "✗ mobile
+        scorecard" showing the ErrorBoundary text; a render throw in admin
+        events → "✗ admin sign-in". Both probes reverted.
+        NOT RUN IN CI until T7 (the harness itself is local-only).
 
 [ ] T9. (E2E SCOPE) THE TOURNAMENT PHASE PLAYS ONE FORMAT, HAPPY PATH ONLY (2026-10-03).
         It plays Scramble, 9 holes, no conflicts. Exercised only by InMemory

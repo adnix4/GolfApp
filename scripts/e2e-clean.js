@@ -19,6 +19,11 @@
  *   node scripts/e2e-clean.js --fast       # skip the clean+reinstall
  *   node scripts/e2e-clean.js --keep       # leave services running at the end
  *
+ * The browser UI smoke drives an installed Chromium-family browser (Edge or
+ * Chrome are found automatically); point GFP_E2E_BROWSER at the executable to
+ * override. Ports owned during a run: 5000 API, 3000 web, 8081 admin UI,
+ * 8200 mobile UI — the harness refuses to start if any is taken.
+ *
  * Exits non-zero on the first failed phase, with the failing output.
  */
 
@@ -164,7 +169,7 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
 // dev one, so every phase runs against golf_fundraiser and still prints "all
 // passed" (T6). Refuse to start instead, before the clean phase spends minutes
 // and before dotnet clean trips the running API's MSB3021 build lock.
-const OWNED_PORTS = [[5000, 'API'], [3000, 'web']];
+const OWNED_PORTS = [[5000, 'API'], [3000, 'web'], [8081, 'admin UI'], [8200, 'mobile UI']];
 
 function portAnswers(port, host) {
   return new Promise(resolve => {
@@ -333,6 +338,7 @@ async function phaseTournament() {
     displayName: 'E2E', orgName: `E2E Org ${stamp}`, orgSlug: `e2e-org-${stamp}`, is501c3: true,
   }});
   ctx.token = auth.accessToken;
+  ctx.orgEmail = `e2e.${stamp}@example.com`; ctx.orgPassword = 'E2eVerify!2026#pw';
   ctx.orgSlug = `e2e-org-${stamp}`;
   pass('organizer registered');
 
@@ -375,6 +381,7 @@ async function phaseTournament() {
       body: { email: `e2e.0.${stamp}@example.com`, deviceId: `e2e-${stamp}`, verificationCode: '999999' } });
   }
   if (!join.sessionToken) fail('join', 'no sessionToken returned');
+  ctx.join = join; ctx.deviceId = `e2e-${stamp}`; ctx.eventName = `E2E ${stamp}`;
   ctx.sessionToken = join.sessionToken; ctx.joinTeamId = join.team?.id;
   ctx.joinPlayerId = join.player?.id; ctx.stamp = stamp;
   pass('golfer joined', c.dim(`${join.team?.players?.length} players`));
@@ -452,6 +459,139 @@ async function phaseWeb(ctx) {
 // minutes being rejected at the first tee. And any client without an
 // X-GFP-Device header shared a single 600/min bucket, which a few dozen
 // spectator browsers could exhaust between them.
+// ── browser UI smoke (T8) ─────────────────────────────────────────────────────
+// Every phase above talks to the API directly; nothing loaded a real UI. #56 (a
+// hook below an early return crashed the scorer) was green across 551 tests.
+// Export both web apps, serve them on the ports the API's GfpDevelopment CORS
+// policy already allows (8081 admin, 8200 mobile), and drive them headless.
+
+function findBrowser() {
+  if (process.env.GFP_E2E_BROWSER) return process.env.GFP_E2E_BROWSER;
+  const candidates = {
+    win32: ['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+            'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
+            'C:/Program Files/Google/Chrome/Application/chrome.exe'],
+    darwin: ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+             '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'],
+  }[process.platform] ?? ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',
+                          '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/microsoft-edge'];
+  return candidates.find(p => fs.existsSync(p));
+}
+
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
+  '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon', '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.wasm': 'application/wasm' };
+
+// Admin exports one .html per route (output: static); mobile is a single
+// index.html. Resolve exact file → route.html → dir/index.html → index.html.
+function serveStatic(dir, port) {
+  const server = require('node:http').createServer((req, res) => {
+    const rel = path.normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^[\\/]+/, '');
+    const base = path.join(dir, rel);
+    if (!base.startsWith(dir)) { res.statusCode = 403; return res.end(); }
+    const file = [base, base + '.html', path.join(base, 'index.html'), path.join(dir, 'index.html')]
+      .find(f => fs.existsSync(f) && fs.statSync(f).isFile());
+    res.setHeader('Content-Type', MIME[path.extname(file)] ?? 'application/octet-stream');
+    fs.createReadStream(file).pipe(res);
+  });
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, () => resolve(server));
+  });
+}
+
+// puppeteer.launch can refuse with "browser is already running for <dir>" on
+// Edge even with a fresh profile; launching it ourselves and connecting over
+// the DevTools port has never failed. Port 0 + DevToolsActivePort avoids
+// claiming a fixed port. The child joins `started`, so teardown kills it.
+async function launchBrowser(exe) {
+  const profile = path.join(LOG_DIR, 'browser-profile');
+  fs.rmSync(profile, { recursive: true, force: true });
+  const args = ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
+                '--no-first-run', '--no-default-browser-check', 'about:blank'];
+  if (process.getuid?.() === 0) args.unshift('--no-sandbox');   // root in a CI container
+  const child = spawn(exe, args, { stdio: 'ignore', detached: process.platform !== 'win32' });
+  started.push({ name: 'browser', child, logPath: null });
+  const portFile = path.join(profile, 'DevToolsActivePort');
+  await waitFor('browser DevTools port', () => fs.existsSync(portFile) && fs.readFileSync(portFile, 'utf8').trim(), 30_000);
+  const port = fs.readFileSync(portFile, 'utf8').split('\n')[0].trim();
+  return require('puppeteer-core').connect({ browserURL: `http://127.0.0.1:${port}` });
+}
+
+// A page whose uncaught errors and console.error lines are recorded.
+async function watchedPage(browser) {
+  const page = await browser.newPage();
+  await page.setViewport({ width: 420, height: 900 });
+  const errors = [];
+  page.on('pageerror', e => errors.push(`pageerror: ${e.message.split('\n')[0]}`));
+  page.on('console', m => { if (m.type() === 'error') errors.push(`console.error: ${m.text().slice(0, 200)}`); });
+  return { page, errors };
+}
+
+async function phaseUi(ctx) {
+  phase('Browser UI smoke');
+  const exe = findBrowser();
+  if (!exe) fail('browser', 'no Chromium-family browser found; set GFP_E2E_BROWSER to its executable');
+
+  for (const app of ['admin', 'mobile']) {
+    phaseStart = Date.now();
+    try { run(`npm run build -w @gfp/${app}`, { env: { ...process.env, EXPO_PUBLIC_API_URL: 'http://localhost:5000' } }); }
+    catch (e) { fail(`${app} web export`, (e.stdout || '') + (e.stderr || '')); }
+    pass(`${app} web export`);
+  }
+
+  const servers = [await serveStatic(path.join(ROOT, 'apps/admin/dist'), 8081),
+                   await serveStatic(path.join(ROOT, 'apps/mobile/dist'), 8200)];
+  let browser;
+  try {
+    phaseStart = Date.now();
+    browser = await launchBrowser(exe);
+
+    // Mobile scorer: seed the session /join returned, exactly where the web
+    // db shim keeps it, then expect the scorecard to show the 9 synced holes.
+    {
+      phaseStart = Date.now();
+      const { page, errors } = await watchedPage(browser);
+      await page.evaluateOnNewDocument((join, deviceId) => {
+        localStorage.setItem('gfp:gfp:session', join);
+        localStorage.setItem('gfp:gfp:deviceId', deviceId);
+      }, JSON.stringify(ctx.join), ctx.deviceId);
+      await page.goto('http://localhost:8200/', { waitUntil: 'networkidle2', timeout: 60_000 });
+      try {
+        await page.waitForSelector('[aria-label="Edit score for hole 1"]', { timeout: 30_000 });
+      } catch {
+        const text = (await page.evaluate(() => document.body.innerText)).slice(0, 300);
+        fail('mobile scorecard', `no completed hole 1 on ${page.url()}\n${text}\n${errors.join('\n')}`);
+      }
+      if (errors.length) fail('mobile scorecard', errors.join('\n'));
+      pass('mobile scorecard renders the synced holes', c.dim(new URL(page.url()).pathname));
+      await page.close();
+    }
+
+    // Admin: sign in through the real form and expect this run's event.
+    {
+      phaseStart = Date.now();
+      const { page, errors } = await watchedPage(browser);
+      await page.goto('http://localhost:8081/login', { waitUntil: 'networkidle2', timeout: 60_000 });
+      await page.type('input[placeholder="organizer@email.com"]', ctx.orgEmail);
+      await page.type('input[placeholder="••••••••"]', ctx.orgPassword);
+      await page.click('[aria-label="Sign in"]');
+      try {
+        await page.waitForFunction(name => document.body.innerText.includes(name), { timeout: 30_000 }, ctx.eventName);
+      } catch {
+        const text = (await page.evaluate(() => document.body.innerText)).slice(0, 300);
+        fail('admin sign-in', `"${ctx.eventName}" never appeared on ${page.url()}\n${text}\n${errors.join('\n')}`);
+      }
+      if (errors.length) fail('admin sign-in', errors.join('\n'));
+      pass('admin signs in and lists the event', c.dim(new URL(page.url()).pathname));
+      await page.close();
+    }
+  } finally {
+    if (browser) await browser.disconnect();
+    for (const s of servers) s.close();
+  }
+}
+
 async function phaseVenueNat(ctx) {
   phase('Venue NAT — a whole field behind one IP');
 
@@ -625,6 +765,7 @@ async function phaseTransactions(ctx) {
     await phaseWeb(ctx);
     await phaseJoinCost(ctx);
     await phaseTransactions(ctx);
+    await phaseUi(ctx);
     await phaseVenueNat(ctx);
   } catch (e) {
     // fail() prints and records its own detail; anything else lands here and
