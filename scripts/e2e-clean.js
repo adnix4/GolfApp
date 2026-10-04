@@ -68,10 +68,15 @@ function phase(name) {
   phaseStart = Date.now();
   process.stdout.write(`\n${c.hd('▶ ' + name)}\n`);
 }
+// Each step's time is a LAP: from the previous result (or the phase start) to
+// this one. It used to run from the phase start, so later steps carried the
+// earlier ones ("dotnet clean 150.8s" was mostly npm ci) and the "durations
+// must look like real work" check could not be read off the log (T11).
 function pass(name, detail = '') {
   const ms = Date.now() - phaseStart;
   results.push({ name, ok: true, ms });
   console.log(`  ${c.ok('✓')} ${name} ${c.dim(`${(ms / 1000).toFixed(1)}s`)} ${detail}`);
+  phaseStart = Date.now();
 }
 function fail(name, err) {
   results.push({ name, ok: false, ms: Date.now() - phaseStart, err: String(err) });

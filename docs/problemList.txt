@@ -51,7 +51,7 @@ P4 — FEATURES / POLISH
      [x] T7  CI runs the e2e harness (real Postgres/Redis + browser) 2026-10-03
      T9   e2e: formats + conflict DONE 2026-10-03; webhooks/SignalR/league open
      [x] T10 web + ui have tests (logic-level, node env) 2026-10-03
-     T11  harness step timings, coverage reporting, turbo cache staleness
+     [x] T11 lap timings; API coverage in CI; turbo staleness moot 2026-10-03
      T12  mobile web: all startup requests sometimes aborted — cause unknown
 
 P5 — BLOCKED OR DEFERRED (no action available yet)
@@ -515,7 +515,7 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         tests); `next build` creates no route for __tests__ (an underscore
         folder is private in the App Router).
 
-[ ] T11. (SMALL) HARNESS AND REPORTING POLISH (2026-10-03).
+[x] T11. (SMALL) HARNESS AND REPORTING POLISH (2026-10-03).
         - pass() measures from the phase start, and phaseStart is reset per
           step only inside the gates loop. Elsewhere the times add up
           ("dotnet clean 150.8s" includes npm ci), which undermines the
@@ -526,6 +526,25 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         - CI uses turbo remote cache and `test` declares no `inputs`. Probably
           correct, but a cache hit replays an old result; consider a scheduled
           `--force` run.
+        RESOLVED 2026-10-03, bullet by bullet:
+        - TIMINGS FIXED: pass() is now a lap timer (it resets phaseStart), so
+          each step shows its own time, e.g. "web on :3000" 2.7s instead of
+          9.1s including the API.
+        - COVERAGE, API: CI's dotnet test now collects coverlet output, and
+          scripts/coverage-summary.js writes a per-area table to the run summary
+          (EF migrations excluded: 9,156 generated lines) and uploads the
+          Cobertura artifact. Informational, never fails. First reading: 50.8%
+          (6,612/13,025) excluding migrations (29.8% with them). ZERO coverage:
+          Features/Webhooks (Stripe), QR, RealTime, SuperAdmin; low: Payments
+          22.7%, Common 22.9%.
+        - COVERAGE, JS: deliberately NOT re-added. 7c177ccc dropped
+          @vitest/coverage-v8 because it pins vitest to one exact patch version
+          (every vitest bump would need both packages moved together). Re-add
+          only if someone will act on the numbers.
+        - TURBO CACHE: NOT AN ISSUE. The CI log says "Remote caching disabled"
+          and every task is a cache miss (TURBO_TOKEN/TURBO_TEAM are not set),
+          so each CI run starts cold and cannot replay an old result. Revisit
+          only if remote caching is ever turned on.
 
 [ ] T12. (UNEXPLAINED) EVERY REQUEST IN THE MOBILE WEB PAGE IS SOMETIMES ABORTED AT STARTUP (2026-10-03).
         Found while building T7. In about 1 harness run in 8 (Windows, Edge 154,
