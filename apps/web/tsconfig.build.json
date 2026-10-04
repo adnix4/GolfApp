@@ -1,0 +1,8 @@
+{
+  // What `next build` type-checks (next.config.ts → typescript.tsconfigPath).
+  // Same as tsconfig.json minus the vitest suites: test files import `vitest`,
+  // which the deploy build does not resolve, and they are not part of the app.
+  // `npm run type-check` still uses tsconfig.json, so CI checks the tests.
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "**/__tests__/**", "vitest.config.mts"]
+}
