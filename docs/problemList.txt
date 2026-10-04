@@ -50,7 +50,7 @@ P4 — FEATURES / POLISH
      [x] T8  e2e drives mobile scorecard + admin sign-in in a browser 2026-10-03
      [x] T7  CI runs the e2e harness (real Postgres/Redis + browser) 2026-10-03
      T9   e2e: formats + conflict DONE 2026-10-03; webhooks/SignalR/league open
-     T10  apps/web and packages/ui have no tests
+     [x] T10 web + ui have tests (logic-level, node env) 2026-10-03
      T11  harness step timings, coverage reporting, turbo cache staleness
      T12  mobile web: all startup requests sometimes aborted — cause unknown
 
@@ -491,10 +491,29 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         STILL OPEN: Stripe webhooks (signable locally, see the verify skill),
         the SignalR leaderboard push, and a league round from pairings to close.
 
-[ ] T10. (COVERAGE) apps/web AND packages/ui HAVE NO TESTS (2026-10-03).
+[x] T10. (COVERAGE) apps/web AND packages/ui HAVE NO TESTS (2026-10-03).
         apps/web has 29 source files and no `test` script. packages/ui has 13
         components and no tests, including AdaptiveLogoFrame (logo colour
         sampling, platform-specific).
+        FIXED 2026-10-03, following the repo's convention: logic-level vitest in
+        a node environment, no component rendering.
+        - apps/web gains `test` + vitest.config.mts. tests: lib/api.ts through
+          its public fetchers with a stubbed fetch: status lowercased,
+          root-relative /uploads URLs absolutized against the API (the
+          relative-logo 404 bug), absolute and null left alone, null/[] on
+          404/5xx/network errors, deviceHeaders empty under SSR. Also the
+          scoreboard marquee rules: buildCells moved unchanged from
+          EventTicker.tsx to scores/tickerCells.ts (sponsors lead, empty runs
+          omitted, Fund-a-Need never quotes a bid, first photo as thumbnail,
+          unique keys).
+        - packages/ui gains `test` + vitest.config.mts. AdaptiveLogoFrame's
+          decision moved unchanged to components/logoBackground.ts
+          (pickLogoBackground: per-platform sample, 2:1 contrast line against
+          white). The component only calls it.
+        VERIFIED: 20 web + 6 ui tests; breaking resolveUploadUrl and the
+        donation rule fails 4 tests; repo lint/type-check/test pass (666 JS
+        tests); `next build` creates no route for __tests__ (an underscore
+        folder is private in the App Router).
 
 [ ] T11. (SMALL) HARNESS AND REPORTING POLISH (2026-10-03).
         - pass() measures from the phase start, and phaseStart is reset per
