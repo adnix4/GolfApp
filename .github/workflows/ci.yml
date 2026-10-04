@@ -143,6 +143,36 @@ jobs:
   # 2026-08-14), so instead each accepted high is named in .audit-allowlist.json
   # with a reason and an expiry date. The script fails on anything unlisted, on
   # an entry past its reviewBy, and on an entry that has stopped matching.
+  web-bundles:
+    # Nothing else in CI runs Metro: lint/type-check/vitest pass on code that
+    # cannot bundle (an unresolvable import, a bad metro.config.js). Admin's
+    # export used to run only at deploy time, after merge, and mobile's never
+    # ran at all, which is how the wa-sqlite.wasm resolve failure went unseen
+    # until #97 (problemList T5). Runs `npm run build` directly, not through
+    # turbo, so a cache hit can never replay an old green bundle.
+    name: Web Bundle (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [admin, mobile]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Export web bundle (expo export --platform web)
+        run: npm run build -w @gfp/${{ matrix.app }}
+
   dependency-audit:
     name: Dependency Audit (prod, high+)
     runs-on: ubuntu-latest
@@ -199,7 +229,7 @@ jobs:
   all-checks-passed:
     name: All CI Checks Passed
     runs-on: ubuntu-latest
-    needs: [typescript-checks, dotnet-build, dependency-audit, dependency-pins]
+    needs: [typescript-checks, dotnet-build, web-bundles, dependency-audit, dependency-pins]
     if: always()
 
     steps:
@@ -217,6 +247,10 @@ jobs:
           fi
           if [[ "${{ needs.dotnet-build.result }}" != "success" ]]; then
             echo ".NET build failed"
+            exit 1
+          fi
+          if [[ "${{ needs.web-bundles.result }}" != "success" ]]; then
+            echo "Web bundle export failed (admin or mobile)"
             exit 1
           fi
           if [[ "${{ needs.dependency-audit.result }}" != "success" ]]; then

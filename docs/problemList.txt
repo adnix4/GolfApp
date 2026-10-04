@@ -46,7 +46,7 @@ P4 — FEATURES / POLISH
           remain, and are decisions or polish rather than defects.
      Test-structure review (2026-10-03) — work in this order:
      [x] T6  harness refuses busy ports + requires its own servers 2026-10-03
-     T5   CI never builds the admin/mobile web bundles — PLANNED
+     [x] T5  CI exports admin + mobile web bundles on every PR 2026-10-03
      T8   no UI is ever driven automatically (mobile scorer / admin smoke)
      T7   CI never runs e2e; API tests are EF InMemory only
      T9   e2e covers Scramble happy path only
@@ -386,7 +386,7 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         (create/update/status machine, leaderboard, public event/challenges/
         fundraising) still untested; defer.
 
-[ ] T5. (CI) NOTHING BUILDS THE ADMIN OR MOBILE WEB BUNDLE BEFORE MERGE (2026-10-03).
+[x] T5. (CI) NOTHING BUILDS THE ADMIN OR MOBILE WEB BUNDLE BEFORE MERGE (2026-10-03).
         VERIFIED: ci.yml runs lint, type-check, vitest, dotnet build/test, the
         audit and the SDK pin check. None of them run Metro. `expo export` for
         admin runs only in deploy-admin.yml, on push to main, so a broken admin
@@ -394,8 +394,13 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         script at all, so its web export ran nowhere. That is how the
         wa-sqlite.wasm resolve failure in mobile web went unnoticed until #97.
         apps/web is covered, because the Vercel preview runs `next build` per PR.
-        FIX: a CI job running `expo export --platform web` for admin and mobile
-        that fails on a resolve error. Plan written 2026-10-03.
+        FIXED 2026-10-03: ci.yml `web-bundles` job (matrix admin/mobile, runs
+        `npm run build -w @gfp/<app>` directly, NOT via turbo, so no cache
+        replay), required by all-checks-passed. apps/mobile gained
+        `"build": "expo export --platform web"`, the same as admin.
+        VERIFIED locally: `expo export` exits 1 on an unresolvable import (CI
+        relies on that exit code), and both builds exit 0. Does NOT fail on
+        Metro WARN lines (that would be brittle).
 
 [x] T6. (E2E) THE HARNESS CAN PASS AGAINST AN ALREADY-RUNNING DEV API (2026-10-03).
         VERIFIED by reading scripts/e2e-clean.js: phaseBoot spawns
