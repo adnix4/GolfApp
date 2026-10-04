@@ -32,7 +32,7 @@ import React, { useState, useEffect } from 'react';
 import { Image, View, StyleSheet } from 'react-native';
 import ImageColors from 'react-native-image-colors';
 import { resolveMediaUrl } from '@gfp/shared-types';
-import { getContrastRatio } from '@gfp/theme';
+import { LOGO_FALLBACK_BG, pickLogoBackground, type LogoColorSample } from './logoBackground';
 
 export interface AdaptiveLogoFrameProps {
   /** Logo image URL */
@@ -70,33 +70,17 @@ const DEFAULT_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:50
  * Returns '#ffffff' until the image has been sampled.
  */
 function useAdaptiveLogoBg(uri: string, primaryColor: string): string {
-  const [bg, setBg] = useState<string>('#ffffff');
+  const [bg, setBg] = useState<string>(LOGO_FALLBACK_BG);
 
   useEffect(() => {
     let cancelled = false;
 
-    ImageColors.getColors(uri, { fallback: '#ffffff', cache: true, key: uri })
+    ImageColors.getColors(uri, { fallback: LOGO_FALLBACK_BG, cache: true, key: uri })
       .then(result => {
         if (cancelled) return;
-
-        // Extract the most representative single colour per platform
-        let sample: string | null;
-        if (result.platform === 'ios') {
-          sample = result.background ?? result.primary ?? null;
-        } else if (result.platform === 'android') {
-          sample = result.dominant   ?? result.average  ?? null;
-        } else {
-          // web
-          sample = result.dominant ?? null;
-        }
-
-        if (!sample) { setBg('#ffffff'); return; }
-
-        // If the logo's representative colour barely contrasts with white
-        // (ratio < 2:1), the logo is light/white → use the dark primary bg.
-        setBg(getContrastRatio(sample, '#ffffff') < 2.0 ? primaryColor : '#ffffff');
+        setBg(pickLogoBackground(result as LogoColorSample, primaryColor));
       })
-      .catch(() => setBg('#ffffff'));
+      .catch(() => setBg(LOGO_FALLBACK_BG));
 
     return () => { cancelled = true; };
   }, [uri, primaryColor]);

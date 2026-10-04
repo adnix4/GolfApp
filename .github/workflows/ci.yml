@@ -124,9 +124,29 @@ jobs:
         # Build the full solution so the test project is also compiled.
         run: dotnet build GolfApp.sln --no-restore -c Release
 
-      - name: Run API unit tests
+      - name: Run API unit tests (with coverage)
         # Runs xUnit tests in apps/api-tests against the in-memory database.
-        run: dotnet test GolfApp.sln --no-build -c Release --verbosity normal
+        # coverlet.collector is already a test dependency; this turns it on.
+        run: >
+          dotnet test GolfApp.sln --no-build -c Release --verbosity normal
+          --collect:"XPlat Code Coverage" --results-directory ./coverage
+
+      - name: Coverage summary (informational, never fails)
+        # Per-area table on the run's summary page. EF migrations are excluded
+        # from the total: generated, large, and never exercised by unit tests
+        # (problemList T11).
+        if: always()
+        run: |
+          report=$(find ./coverage -name coverage.cobertura.xml | head -1)
+          node scripts/coverage-summary.js "$report" --markdown >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-coverage
+          path: ./coverage/**/coverage.cobertura.xml
+          if-no-files-found: ignore
 
   # ── DEPENDENCY AUDIT ──────────────────────────────────────────────────────
   # Surfaces vulnerable dependencies on every PR/push. Fails ONLY on high or
