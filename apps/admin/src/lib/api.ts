@@ -30,7 +30,46 @@ export const authApi = {
 
   logout: (refreshToken: string) =>
     request<void>('/api/v1/auth/logout', { method: 'POST', body: { refreshToken } }),
+
+  // ── Staff invites (problemList D20) ──
+  /** What an invite link is for; 404 for any bad, used, revoked or expired link. */
+  previewInvite: (token: string) =>
+    request<InvitePreview>(`/api/v1/auth/invites/${encodeURIComponent(token)}`, { public: true }),
+
+  /** Creates the account from the invite and signs in (same shape as login). */
+  acceptInvite: (token: string, displayName: string, password: string) =>
+    request<{ accessToken: string; refreshToken: string; orgId: string }>(
+      '/api/v1/auth/invites/accept',
+      { method: 'POST', body: { token, displayName, password }, public: true },
+    ),
+
+  // ── Password reset (problemList D21) ──
+  /** Always succeeds, account or not, so it cannot reveal which emails exist. */
+  forgotPassword: (email: string) =>
+    request<{ message: string }>('/api/v1/auth/forgot-password', { method: 'POST', body: { email }, public: true }),
+
+  resetPassword: (email: string, token: string, newPassword: string) =>
+    request<void>('/api/v1/auth/reset-password', { method: 'POST', body: { email, token, newPassword }, public: true }),
 };
+
+export type StaffRole = 'EventStaff' | 'OrgAdmin';
+
+export interface InvitePreview { orgName: string; email: string; role: StaffRole }
+
+export interface OrgMember {
+  userId: string; email: string; displayName: string; role: string; isYou: boolean;
+}
+
+export interface OrgInvite {
+  id: string; email: string; role: StaffRole; createdAt: string; expiresAt: string;
+}
+
+export interface CreateInviteResult {
+  invite: OrgInvite;
+  /** Share this directly if the email doesn't arrive (or email isn't set up yet). */
+  inviteUrl: string;
+  emailSent: boolean;
+}
 
 // ── EVENTS ────────────────────────────────────────────────────────────────────
 
@@ -834,6 +873,19 @@ export interface UpdateOrgPayload {
 
 export const orgApi = {
   getMe: () => request<OrgProfile>('/api/v1/orgs/me'),
+
+  // ── Members and staff invites (problemList D20; organizer only) ──
+  members: () =>
+    request<{ members: OrgMember[]; invites: OrgInvite[] }>('/api/v1/orgs/me/members'),
+
+  invite: (email: string, role: StaffRole) =>
+    request<CreateInviteResult>('/api/v1/orgs/me/invites', { method: 'POST', body: { email, role } }),
+
+  revokeInvite: (inviteId: string) =>
+    request<void>(`/api/v1/orgs/me/invites/${inviteId}`, { method: 'DELETE' }),
+
+  removeMember: (userId: string) =>
+    request<void>(`/api/v1/orgs/me/members/${encodeURIComponent(userId)}`, { method: 'DELETE' }),
 
   updateMe: (payload: UpdateOrgPayload) =>
     request<OrgProfile>('/api/v1/orgs/me', { method: 'PATCH', body: payload }),

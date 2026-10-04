@@ -8,10 +8,13 @@ import { GfpLogo } from '@/components/GfpLogo';
 import { useAuth } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { AuthLink } from '@/components/AuthCard';
+import { useRouter } from 'expo-router';
 
 export default function LoginScreen() {
   const theme = useTheme();
   const { login } = useAuth();
+  const router = useRouter();
   useDocumentTitle('Golf Fundraiser Pro');
 
   const [email,    setEmail]    = useState('');
@@ -99,6 +102,9 @@ export default function LoginScreen() {
             : <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Sign in</Text>
           }
         </Pressable>
+
+        {/* problemList D21: there was no way back in from a forgotten password. */}
+        <AuthLink label="Forgot password?" onPress={() => router.push('/(auth)/forgot-password')} />
       </KeyboardAvoidingView>
     </View>
   );

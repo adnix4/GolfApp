@@ -28,8 +28,8 @@ P1 — PILOT PATH (external lead times first; D1 gates D3 and D10)
           end-to-end. D4 needs a build from here, so in practice D5 gates it.
      D6   pilot ops — runbook drafted 2026-10-04 (docs/PilotRunbook.md); backups,
           error monitoring, uptime still need accounts/hosting
-     D20  no staff accounts: everyone shares the organizer login (workaround in runbook)
-     D21  no password reset (workaround in runbook; real fix needs email, D1)
+     [x] D20 staff invites (EventStaff / co-organizer) 2026-10-04
+     [x] D21 password reset 2026-10-04 (email delivery itself still D1)
 
 P2 — CORRECTNESS THE ORGANIZER WILL HIT ON THE DAY  (tier clear)
      [x] U5  auto-assigned on the Active transition 2026-08-01
@@ -268,9 +268,11 @@ their standing decisions are in the section above.
         before/after checklists. Every button it names was checked against the
         admin code. Items it marks VERIFY IN D4 have not run on a real deploy.
         STILL OPEN: backups, error monitoring and uptime (accounts and hosting,
-        D1/D3). Writing the runbook surfaced D20 and D21.
+        D1/D3). Writing the runbook surfaced D20 and D21, both built
+        2026-10-04; the runbook's access section now describes invites and
+        "Forgot password?".
 
-[ ] D20. NO WAY TO ADD STAFF: EVERY DESK VOLUNTEER SHARES THE ORGANIZER LOGIN (2026-10-04)
+[x] D20. NO WAY TO ADD STAFF: EVERY DESK VOLUNTEER SHARES THE ORGANIZER LOGIN (2026-10-04)
         VERIFIED: the API defines an EventStaff role (AuthService.cs:58, and the
         "EventStaff" policy that check-in, score entry and hole completion use),
         but nothing creates a staff user. /auth/register always creates an
@@ -281,14 +283,61 @@ their standing decisions are in the section above.
         desk device the day before. VERIFY IN D4 that several sessions stay
         signed in together. Real fix: an org-member invite that creates
         EventStaff users.
+        BUILT 2026-10-04:
+        - API: org_invites table (migration Phase18_OrgInvites, additive; only a
+          SHA-256 of the link token is stored). OrgAdmin endpoints under
+          /orgs/me: members (list with roles + pending invites), invites
+          (create as EventStaff or OrgAdmin; emails the link AND returns it, so
+          it can be shared by hand when email fails), revoke invite, remove
+          member (signs them out everywhere, deletes the account; never
+          yourself or the last organizer). Anonymous /auth/invites/{token}
+          (preview) and /auth/invites/accept (creates the account in the
+          inviting org with the invite's role, then signs in). Links work once,
+          expire in 7 days, and re-inviting replaces the old link. A bad, used,
+          revoked or expired link is one identical 404.
+        - GET /orgs/me now allows EventStaff (read-only: the admin app loads it
+          on every page for the org name and theme). Updating stays OrgAdmin.
+        - Admin: Settings → Team members card (list, invite with role, copy
+          link, cancel invite, remove). /accept-invite screen. A staff login
+          gets Events + Help only (no Leagues or org Settings) and no event
+          Settings tab. The rest is enforced by the API's existing
+          EventStaff/OrgAdmin policies (staff can't change status or resolve
+          conflicts, for example).
+        - ADMIN_BASE_URL (new, in .env.example) builds the links; it falls back
+          to localhost:8081 in Development and app.golffundraiser.pro elsewhere.
+        VERIFIED: 21 API tests (StaffAndResetTests; breaking the single-use
+        check fails one); e2e "Staff invites + password reset" (invite →
+        accept → staff GET events/org 200, status PATCH and members 403, reused
+        link 404) plus a browser check that accepts an invite through the real
+        form and lands in the staff view without Leagues.
+        FOUND ON THE WAY: `ef migrations add` wanted to DROP
+        IX_donations_stripe_payment_intent_id (created by hand in Phase15,
+        never declared in the model). It is now declared in
+        ApplicationDbContext, so the new migration only adds org_invites.
 
-[ ] D21. NO PASSWORD RESET (2026-10-04)
+[x] D21. NO PASSWORD RESET (2026-10-04)
         VERIFIED: no forgot/reset-password flow in apps/api Features/Auth or
         apps/admin. An organizer who forgets the password is locked out with
         no self-service recovery, which on event day stops check-in and desk
         scoring (D20 means there is only one login). Pilot workaround (in the
         runbook): store the password where two people can reach it. Real fix
         needs email delivery (D1) for a reset link.
+        BUILT 2026-10-04: POST /auth/forgot-password (always 202 with the same
+        body, so it can't reveal which emails exist) emails a link to
+        /reset-password; POST /auth/reset-password sets the new password with
+        Identity's reset token (1-hour lifespan, single use: the reset changes
+        the security stamp), then revokes every refresh token and clears any
+        lockout. Admin: "Forgot password?" on sign-in, /forgot-password and
+        /reset-password screens. In Development the link is also LOGGED
+        ("DEV password reset link for …"), because local SendGrid keys are
+        placeholders; never outside Development.
+        VERIFIED: API tests (sets the password and kills old sessions; link works
+        once; bad token and unknown email give the same message; weak password
+        says why; reset unlocks a locked account) and the e2e phase above (same
+        202 for real and unknown emails; reads the dev link from api.log; old
+        password and refresh token dead; new password signs in).
+        STILL DEPENDS ON D1: real email delivery. Until then a second organizer
+        (D20) is the fallback, as the runbook says.
 
 [ ] D7. APP STORE LINKS — FINISH WHEN THE APP GOES LIVE (added 2026-07-31)
         The web app already has the "Get the App" UI in place; it is running in

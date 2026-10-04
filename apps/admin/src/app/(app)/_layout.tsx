@@ -22,6 +22,13 @@ const ORG_ADMIN_NAV = [
   { label: 'Help',     segment: 'help',     href: '/(app)/help'     as const },
 ];
 
+// Event staff (problemList D20): Leagues and org Settings are organizer-only
+// in the API, so a staff login doesn't offer them.
+const EVENT_STAFF_NAV = [
+  { label: 'Events', segment: 'events', href: '/(app)/events' as const },
+  { label: 'Help',   segment: 'help',   href: '/(app)/help'   as const },
+];
+
 const SUPER_ADMIN_NAV = [
   { label: 'Organizations', segment: 'admin', href: '/(app)/admin' as const },
   { label: 'Help',          segment: 'help',  href: '/(app)/help'  as const },
@@ -48,7 +55,8 @@ export default function AppLayout() {
   const { isMobile } = useResponsive();
 
   const isSuperAdmin = user?.role === 'SuperAdmin';
-  const navItems     = isSuperAdmin ? SUPER_ADMIN_NAV : ORG_ADMIN_NAV;
+  const navItems     = isSuperAdmin ? SUPER_ADMIN_NAV
+                     : user?.role === 'EventStaff' ? EVENT_STAFF_NAV : ORG_ADMIN_NAV;
   const identityLabel = isSuperAdmin ? 'Platform Admin' : (user?.email ?? '');
 
   // Tab title for the main pages. Inside a specific event/league the nested

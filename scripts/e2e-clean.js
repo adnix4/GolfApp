@@ -620,6 +620,65 @@ async function phaseConflict(ctx) {
   pass('admin approval puts the hole back on the board', c.dim('+1 · 13 · thru 3'));
 }
 
+// ── staff invites and password reset (D20, D21) ──────────────────────────────
+// Real Identity, real Postgres. The reset link only reaches people by email,
+// and local SendGrid keys are placeholders, so in Development the API logs it;
+// the harness reads it back from its own api.log.
+
+async function phaseAccounts(ctx) {
+  phase('Staff invites + password reset');
+  const staffEmail = `e2e.staff.${ctx.stamp}@example.com`;
+  const staffPw    = 'Staff1pass';
+
+  const created = await api('POST', '/orgs/me/invites', { token: ctx.token,
+    body: { email: staffEmail, role: 'EventStaff' } });
+  const inviteToken = new URL(created.inviteUrl).searchParams.get('token');
+  if (!inviteToken || created.invite?.role !== 'EventStaff') fail('invite', JSON.stringify(created));
+  const preview = await api('GET', `/auth/invites/${encodeURIComponent(inviteToken)}`);
+  if (preview.email !== staffEmail) fail('invite preview', JSON.stringify(preview));
+  const staff = await api('POST', '/auth/invites/accept',
+    { body: { token: inviteToken, displayName: 'Desk Volunteer', password: staffPw } });
+  if (staff.user?.role !== 'EventStaff' || staff.org?.id == null) fail('invite accept', JSON.stringify(staff.user));
+  pass('organizer invites, volunteer accepts as EventStaff');
+
+  // What the volunteer can and can't do with their own login.
+  const events = await api('GET', '/events', { token: staff.accessToken });
+  if (!JSON.stringify(events).includes(ctx.eventId)) fail('staff sees events', 'event missing from list');
+  await api('GET', '/orgs/me', { token: staff.accessToken });
+  await api('PATCH', `/events/${ctx.eventId}`, { token: staff.accessToken, body: { status: 'Completed' }, expect: [403] });
+  await api('GET', '/orgs/me/members', { token: staff.accessToken, expect: [403] });
+  await api('POST', '/auth/invites/accept', { expect: [404],
+    body: { token: inviteToken, displayName: 'Again', password: staffPw } });
+  pass('staff: events + org yes; status change + members no; link single-use', c.dim('200 · 403 · 404'));
+
+  // Password reset: same answer for a real and a made-up email.
+  const real  = await http(`${API}/auth/forgot-password`, { method: 'POST',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: staffEmail }) });
+  const ghost = await http(`${API}/auth/forgot-password`, { method: 'POST',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: `nobody.${ctx.stamp}@example.com` }) });
+  if (real.status !== 202 || ghost.status !== 202 || real.text !== ghost.text) {
+    fail('forgot-password reveals nothing', `${real.status} ${real.text} vs ${ghost.status} ${ghost.text}`);
+  }
+
+  // Development-only log line: "DEV password reset link for <email>: <url>".
+  let link;
+  await waitFor('reset link in api.log', () => {
+    const log = fs.readFileSync(path.join(LOG_DIR, 'api.log'), 'utf8');
+    const m = [...log.matchAll(/DEV password reset link for (\S+): (\S+)/g)].filter(x => x[1] === staffEmail).pop();
+    link = m && new URL(m[2]);
+    return !!link;
+  }, 15_000);
+  const newPw = 'Changed2pass';
+  await api('POST', '/auth/reset-password', { expect: [204], body: {
+    email: link.searchParams.get('email'), token: link.searchParams.get('token'), newPassword: newPw } });
+  await api('POST', '/auth/login', { body: { email: staffEmail, password: staffPw }, expect: [400] });
+  const relog = await api('POST', '/auth/login', { body: { email: staffEmail, password: newPw } });
+  if (relog.user?.role !== 'EventStaff') fail('login after reset', JSON.stringify(relog.user));
+  await api('POST', '/auth/refresh', { body: { refreshToken: staff.refreshToken }, expect: [400, 401] });
+  pass('reset: same reply for unknown email; old password + sessions dead, new works');
+  ctx.staffEmail = staffEmail; ctx.staffPassword = newPw;
+}
+
 async function phaseLogos(ctx) {
   phase('Logo normalisation');
 
@@ -837,6 +896,55 @@ async function phaseUi(ctx) {
       pass('admin signs in and lists the event', c.dim(new URL(page.url()).pathname));
       await page.close();
     }
+
+    // D21: the login page leads to the forgot-password form.
+    {
+      phaseStart = Date.now();
+      const { page, errors, trace } = await watchedPage(browser);
+      // Signed out: the organizer check above left its tokens in this origin's storage.
+      await page.evaluateOnNewDocument(() => localStorage.clear());
+      await page.goto('http://localhost:8081/login', { waitUntil: 'networkidle2', timeout: 60_000 });
+      await page.click('[aria-label="Forgot password?"]');
+      try {
+        await page.waitForFunction(() => document.body.innerText.includes('Forgot your password?'), { timeout: 15_000 });
+      } catch { fail('forgot-password screen', `${page.url()}\n${trace()}\n${errors.join('\n')}`); }
+      if (errors.length) fail('forgot-password screen', errors.join('\n'));
+      pass('login → "Forgot password?" opens the reset form', c.dim(new URL(page.url()).pathname));
+      await page.close();
+    }
+
+    // D20: a volunteer accepts an invite through the real form and lands in
+    // the staff view: events listed, no Leagues or org Settings in the nav.
+    {
+      phaseStart = Date.now();
+      const invite = await api('POST', '/orgs/me/invites', { token: ctx.token,
+        body: { email: `e2e.uistaff.${ctx.stamp}@example.com`, role: 'EventStaff' } });
+      const token = new URL(invite.inviteUrl).searchParams.get('token');
+      const { page, errors, trace } = await watchedPage(browser);
+      await page.evaluateOnNewDocument(() => { if (!sessionStorage.getItem('gfp-e2e-cleared')) {
+        localStorage.clear(); sessionStorage.setItem('gfp-e2e-cleared', '1'); } });
+      await page.goto(`http://localhost:8081/accept-invite?token=${encodeURIComponent(token)}`,
+        { waitUntil: 'networkidle2', timeout: 60_000 });
+      try {
+        await page.waitForFunction(() => document.body.innerText.includes('Create account'), { timeout: 15_000 });
+      } catch { fail('accept-invite screen', `${page.url()}\n${trace()}\n${errors.join('\n')}`); }
+      const [nameIn, pwIn, confirmIn] = await page.$$('input');
+      await nameIn.type('UI Volunteer');
+      await pwIn.type('Volunteer1pass');
+      await confirmIn.type('Volunteer1pass');
+      await page.click('[aria-label="Create account"]');
+      try {
+        await page.waitForFunction(name => document.body.innerText.includes(name), { timeout: 30_000 }, ctx.eventName);
+      } catch {
+        const text = (await page.evaluate(() => document.body.innerText)).slice(0, 300);
+        fail('invite accepted in the browser', `"${ctx.eventName}" never appeared on ${page.url()}\n${trace()}\n${errors.join('\n')}\n${text}`);
+      }
+      const nav = await page.evaluate(() => document.body.innerText);
+      if (/\bLeagues\b/.test(nav)) fail('staff nav', 'a staff login is offered Leagues (organizer-only)');
+      if (errors.length) fail('invite accepted in the browser', errors.join('\n'));
+      pass('invite accepted in the browser → staff view of the event', c.dim(new URL(page.url()).pathname));
+      await page.close();
+    }
   } finally {
     // A NetLog is only complete if the browser exits on its own; teardown's
     // kill would truncate it. Otherwise just detach and let teardown kill it.
@@ -1020,6 +1128,7 @@ async function phaseTransactions(ctx) {
     await phaseTransactions(ctx);
     await phaseFormats(ctx);
     await phaseConflict(ctx);
+    await phaseAccounts(ctx);
     await phaseUi(ctx);
     await phaseVenueNat(ctx);
   } catch (e) {

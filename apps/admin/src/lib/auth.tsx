@@ -8,7 +8,7 @@ import { storage } from './storage';
 export interface AuthUser {
   email:       string;
   orgId:       string;
-  role:        string;       // "OrgAdmin" | "SuperAdmin" | ...
+  role:        string;       // "OrgAdmin" | "EventStaff" | "SuperAdmin"
   displayName: string;
   token:       string;
 }
@@ -28,6 +28,8 @@ interface AuthContextValue {
   login:    (email: string, password: string) => Promise<void>;
   logout:   () => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
+  /** Accepts a staff invite (problemList D20): creates the account and signs in. */
+  acceptInvite: (token: string, displayName: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -89,8 +91,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(decodeUser(data.accessToken));
   }, []);
 
+  const acceptInvite = useCallback(async (token: string, displayName: string, password: string) => {
+    const data = await authApi.acceptInvite(token, displayName, password);
+    storage.setAccessToken(data.accessToken);
+    storage.setRefreshToken(data.refreshToken);
+    setUser(decodeUser(data.accessToken));
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register, acceptInvite }}>
       {children}
     </AuthContext.Provider>
   );

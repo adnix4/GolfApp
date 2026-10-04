@@ -1728,3 +1728,54 @@ public class QrCode
     [ForeignKey(nameof(EventId))]
     public Event Event { get; set; } = null!;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OrgInvite — an organizer's invitation for someone to join the org (D20).
+// Before this, /auth/register always created a NEW org, so every desk
+// volunteer had to share the organizer login. The invite carries the role the
+// new user gets (EventStaff by default; OrgAdmin for a co-organizer). Only a
+// SHA-256 hash of the link token is stored, so a database read cannot be
+// turned into a working invite.
+// ─────────────────────────────────────────────────────────────────────────────
+[Table("org_invites")]
+public class OrgInvite
+{
+    [Column("id")]
+    public Guid Id { get; set; }
+
+    [Column("org_id")]
+    public Guid OrgId { get; set; }
+
+    [Column("email")]
+    [MaxLength(256)]
+    public string Email { get; set; } = string.Empty;
+
+    /// <summary>"EventStaff" or "OrgAdmin" — the role the accepted user gets.</summary>
+    [Column("role")]
+    [MaxLength(32)]
+    public string Role { get; set; } = "EventStaff";
+
+    /// <summary>Hex SHA-256 of the token in the invite link. Never the token itself.</summary>
+    [Column("token_hash")]
+    [MaxLength(64)]
+    public string TokenHash { get; set; } = string.Empty;
+
+    [Column("invited_by_user_id")]
+    [MaxLength(450)]
+    public string? InvitedByUserId { get; set; }
+
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [Column("expires_at")]
+    public DateTime ExpiresAt { get; set; }
+
+    [Column("accepted_at")]
+    public DateTime? AcceptedAt { get; set; }
+
+    [Column("revoked_at")]
+    public DateTime? RevokedAt { get; set; }
+
+    [ForeignKey(nameof(OrgId))]
+    public Organization Organization { get; set; } = null!;
+}

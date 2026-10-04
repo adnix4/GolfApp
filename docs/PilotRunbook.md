@@ -8,16 +8,23 @@ rehearsal (problemList D4).
 
 ## Access: read this first
 
-- **There is one login: the organizer account.** The API has an `EventStaff`
-  role, but nothing creates staff users yet, so every desk volunteer signs in
-  as the organizer. Sign in on every desk device the day before, not at the
-  desk. **VERIFY IN D4:** several devices signed in at once stay signed in
-  through the day.
-- **There is no password reset.** Nobody can recover a forgotten organizer
-  password on the day. Store the password somewhere two people can reach
-  (a password manager entry, a sealed envelope with the event lead).
-- Organizer actions (event settings, sponsors, auction setup, status changes)
-  and desk actions (check-in, mark paid, score entry) all use that one login.
+- **Give every desk volunteer their own login.** In the admin dashboard, go to
+  **Settings → Team members → Invite someone**, enter their email, and choose
+  **Event staff**. They get an email with a link to set a password. If the
+  email doesn't arrive, copy the link shown after you send the invite and give
+  it to them directly. The link works once and expires in 7 days.
+- **Event staff can:** check people in, take entry fees, enter scores and mark
+  holes complete, scan QR scorecards, run the live auction, and settle
+  checkout. **They can't:** change event settings or status, edit an existing
+  score, resolve a score conflict, manage sponsors, or invite people. Those
+  need an organizer.
+- **Invite a second organizer** (choose **Organizer**), so the event isn't
+  stuck if one person can't sign in.
+- **Forgot your password?** The sign-in page has a **Forgot password?** link.
+  It emails a reset link that works once, within an hour. **VERIFY IN D4:**
+  this depends on real email delivery (D1). Until then, a second organizer is
+  the fallback.
+- Sign in on every desk device the day before, not at the desk.
 
 ## The day, in order
 
@@ -40,7 +47,7 @@ rehearsal (problemList D4).
 |---|---|
 | A golfer's phone dies, or the app won't work | They score on the paper card. At the desk, enter it on **Scoring**, then press **Hole Complete** for each hole. **An entered hole doesn't count on the leaderboard until it's marked complete.** |
 | No signal on the course | Nothing to do. The app saves scores on the phone and sends them when signal returns. At the end, a golfer can show **End of Round → QR Transfer**; scan it on **QR Import**. That works with no internet at all. |
-| A golfer's phone disagrees with a score the desk entered | **Scoring** shows the hole as a conflict, with both values. The desk value stays and the hole is off the leaderboard until you pick one. Choose **Approve** (the phone's value) or **Keep** (yours). |
+| A golfer's phone disagrees with a score the desk entered | **Scoring** shows the hole as a conflict, with both values. The desk value stays and the hole is off the leaderboard until you pick one. Choose **Approve** (the phone's value) or **Keep** (yours). This needs an **organizer** login. |
 | The leaderboard looks a second or two behind | Normal. The public board refreshes about every 2 seconds. |
 | Stripe or card payment is down at check-in | Take cash or check. On **Registration**, mark that golfer's fee paid. |
 | A winner's card is declined at auction checkout, or they have no card | On **Checkout**, record **Cash** or **Check** instead. |
@@ -50,8 +57,8 @@ rehearsal (problemList D4).
 
 ## Before the day
 
-- [ ] Organizer password stored where two people can get it.
-- [ ] Every desk device signed in as the organizer and showing the event.
+- [ ] A second organizer invited, so one lost password can't lock everyone out.
+- [ ] Every desk volunteer invited as event staff, signed in on their device, and showing the event.
 - [ ] Print Kit printed: QR code, hole sheet, scorecards.
 - [ ] Cash box and a way to take checks.
 - [ ] A test golfer has joined on a real phone, entered a hole, and seen it on the leaderboard.

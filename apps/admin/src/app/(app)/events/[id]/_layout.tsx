@@ -7,6 +7,7 @@ import { EventProvider, useEventLoader, type EventContextValue } from '@/lib/eve
 import type { EventDetail } from '@/lib/api';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { DialogHost } from '@/lib/dialog';
+import { useAuth } from '@/lib/auth';
 
 function parseTheme(json: string | null | undefined): GFPTheme | null {
   if (!json) return null;
@@ -65,6 +66,17 @@ const GROUPS: Group[] = [
   },
 ];
 
+// Event staff (problemList D20) don't get the event Settings tab: the theme
+// and branding it edits are organizer-only in the API.
+const STAFF_HIDDEN_TABS = new Set(['settings']);
+
+function groupsFor(role: string | undefined): Group[] {
+  if (role !== 'EventStaff') return GROUPS;
+  return GROUPS
+    .map(g => ({ ...g, tabs: g.tabs.filter(t => !STAFF_HIDDEN_TABS.has(t.path)) }))
+    .filter(g => g.tabs.length > 0);
+}
+
 // Flat path -> label lookup (''-> 'Overview') for the browser tab title.
 const TAB_LABELS: Record<string, string> = Object.fromEntries(
   GROUPS.flatMap(g => g.tabs.map(t => [t.path, t.label])),
@@ -105,8 +117,10 @@ function EventChrome({ event, error, retry, eventCtx }: {
   const theme    = useTheme();
 
   const pathSuffix = pathname.replace(/.*\/events\/[^/]+\/?/, '');
+  const { user }   = useAuth();
+  const groups     = useMemo(() => groupsFor(user?.role), [user?.role]);
 
-  const activeGroup = GROUPS.find(g => g.tabs.some(t => t.path === pathSuffix)) ?? GROUPS[0];
+  const activeGroup = groups.find(g => g.tabs.some(t => t.path === pathSuffix)) ?? groups[0];
   const showSubRow  = activeGroup.tabs.length > 1;
 
   // Browser tab: "<event name> - <page>" once loaded; "GFP <page>" while fetching.
@@ -134,7 +148,7 @@ function EventChrome({ event, error, retry, eventCtx }: {
         { backgroundColor: '#fff', borderBottomColor: showSubRow ? '#f0f0f0' : '#e0e0e0' },
       ]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-          {GROUPS.map(group => {
+          {groups.map(group => {
             const isActive = group === activeGroup;
             return (
               <Pressable

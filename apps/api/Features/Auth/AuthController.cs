@@ -123,6 +123,74 @@ public class AuthController : ControllerBase
         return Ok(response);
     }
 
+    // ── STAFF INVITES (problemList D20) ──────────────────────────────────────
+
+    /// <summary>
+    /// What an invite link is for (org, email, role), so the accept screen can
+    /// show it before the person picks a password. 404 for any bad, used,
+    /// revoked or expired link, all with the same message.
+    /// </summary>
+    [HttpGet("invites/{token}")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType(typeof(InvitePreviewResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<InvitePreviewResponse>> PreviewInvite(
+        [FromRoute] string token, [FromServices] AccountService accounts, CancellationToken ct)
+        => Ok(await accounts.PreviewInviteAsync(token, ct));
+
+    /// <summary>
+    /// Accepts an invite: creates the account in the inviting org with the
+    /// invite's role and signs the person in (same response as login).
+    /// </summary>
+    [HttpPost("invites/accept")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<AuthResponse>> AcceptInvite(
+        [FromBody] AcceptInviteRequest request, [FromServices] AccountService accounts, CancellationToken ct)
+    {
+        var response = await accounts.AcceptInviteAsync(request, ct);
+        SetRefreshTokenCookie(response.RefreshToken);
+        return Ok(response);
+    }
+
+    // ── PASSWORD RESET (problemList D21) ─────────────────────────────────────
+
+    /// <summary>
+    /// Emails a reset link if the address has an account. Always 202 with the
+    /// same body, so it cannot be used to find out which emails are registered.
+    /// </summary>
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest request, [FromServices] AccountService accounts, CancellationToken ct)
+    {
+        await accounts.ForgotPasswordAsync(request, ct);
+        return Accepted(new { message = "If that email has an account, a reset link is on its way." });
+    }
+
+    /// <summary>
+    /// Sets a new password from a reset link. Signs the account out everywhere
+    /// and clears any lockout. The person then signs in with the new password.
+    /// </summary>
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword(
+        [FromBody] ResetPasswordRequest request, [FromServices] AccountService accounts, CancellationToken ct)
+    {
+        await accounts.ResetPasswordAsync(request, ct);
+        return NoContent();
+    }
+
     // ── REFRESH ───────────────────────────────────────────────────────────────
 
     /// <summary>

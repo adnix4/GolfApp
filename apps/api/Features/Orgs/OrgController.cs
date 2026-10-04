@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GolfFundraiserPro.Api.Common.Middleware;
@@ -15,8 +16,10 @@ public class OrgController : ControllerBase
         _orgService = orgService;
     }
 
+    // EventStaff can READ the org (D20): the admin app loads it on every page
+    // for the org name and color theme. Changing it stays OrgAdmin-only.
     [HttpGet("api/v1/orgs/me")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "EventStaff")]
     [ProducesResponseType(typeof(OrgResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<OrgResponse>> GetMyOrg(CancellationToken ct)
         => Ok(await _orgService.GetAsync(GetOrgId(), ct));
@@ -53,6 +56,64 @@ public class OrgController : ControllerBase
             FullUrl    = url.StartsWith('/') ? $"{Request.Scheme}://{Request.Host}{url}" : url,
         });
     }
+
+    // ── MEMBERS AND STAFF INVITES (problemList D20) ──────────────────────────
+
+    /// <summary>Everyone who can sign in to this org, plus pending invites.</summary>
+    [HttpGet("api/v1/orgs/me/members")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(typeof(OrgMembersResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<OrgMembersResponse>> ListMembers(
+        [FromServices] OrgMembersService members, CancellationToken ct)
+        => Ok(await members.ListAsync(GetOrgId(), GetUserId(), ct));
+
+    /// <summary>
+    /// Invites someone by email as EventStaff (default) or OrgAdmin. Emails the
+    /// link and also returns it, so it can be shared directly if email fails.
+    /// </summary>
+    [HttpPost("api/v1/orgs/me/invites")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(typeof(CreateInviteResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<CreateInviteResponse>> CreateInvite(
+        [FromBody] CreateInviteRequest request, [FromServices] OrgMembersService members, CancellationToken ct)
+    {
+        var created = await members.CreateInviteAsync(GetOrgId(), GetUserId(), request, ct);
+        return StatusCode(StatusCodes.Status201Created, created);
+    }
+
+    [HttpDelete("api/v1/orgs/me/invites/{inviteId:guid}")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RevokeInvite(
+        [FromRoute] Guid inviteId, [FromServices] OrgMembersService members, CancellationToken ct)
+    {
+        await members.RevokeInviteAsync(GetOrgId(), inviteId, ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Removes a member: signs them out everywhere and deletes the account.
+    /// Not yourself, and never the org's last organizer.
+    /// </summary>
+    [HttpDelete("api/v1/orgs/me/members/{userId}")]
+    [Authorize(Policy = "OrgAdmin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemoveMember(
+        [FromRoute] string userId, [FromServices] OrgMembersService members, CancellationToken ct)
+    {
+        await members.RemoveMemberAsync(GetOrgId(), GetUserId(), userId, ct);
+        return NoContent();
+    }
+
+    private string GetUserId() =>
+        User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier)
+        ?? User.FindFirstValue("sub")
+        ?? throw new ForbiddenException("Your access token has no user id.");
 
     private Guid GetOrgId()
     {

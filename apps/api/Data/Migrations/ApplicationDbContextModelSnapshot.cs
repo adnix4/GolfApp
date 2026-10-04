@@ -661,6 +661,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("reminder_sent_at");
 
+                    b.Property<int>("SponsorsVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("sponsors_version");
+
                     b.Property<DateTime?>("StartAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("start_at");
@@ -669,10 +673,6 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("start_type");
-
-                    b.Property<int>("SponsorsVersion")
-                        .HasColumnType("integer")
-                        .HasColumnName("sponsors_version");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1073,6 +1073,67 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasDatabaseName("IX_league_scores_round_member");
 
                     b.ToTable("league_scores");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.OrgInvite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("email");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("InvitedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)")
+                        .HasColumnName("invited_by_user_id");
+
+                    b.Property<Guid>("OrgId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("org_id");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("role");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("token_hash");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrgId")
+                        .HasDatabaseName("IX_org_invites_org_id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("IX_org_invites_token_hash");
+
+                    b.ToTable("org_invites");
                 });
 
             modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Organization", b =>
@@ -2199,6 +2260,17 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                     b.Navigation("Member");
 
                     b.Navigation("Round");
+                });
+
+            modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.OrgInvite", b =>
+                {
+                    b.HasOne("GolfFundraiserPro.Api.Domain.Entities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrgId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("GolfFundraiserPro.Api.Domain.Entities.Player", b =>
