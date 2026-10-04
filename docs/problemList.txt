@@ -48,10 +48,11 @@ P4 — FEATURES / POLISH
      [x] T6  harness refuses busy ports + requires its own servers 2026-10-03
      [x] T5  CI exports admin + mobile web bundles on every PR 2026-10-03
      [x] T8  e2e drives mobile scorecard + admin sign-in in a browser 2026-10-03
-     T7   CI never runs e2e; API tests are EF InMemory only
+     [x] T7  CI runs the e2e harness (real Postgres/Redis + browser) 2026-10-03
      T9   e2e covers Scramble happy path only
      T10  apps/web and packages/ui have no tests
      T11  harness step timings, coverage reporting, turbo cache staleness
+     T12  mobile web: all startup requests sometimes aborted — cause unknown
 
 P5 — BLOCKED OR DEFERRED (no action available yet)
      D19  dev-loop fixes landed; three follow-ups, one gated on D6
@@ -424,7 +425,7 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         exited" (log: address already in use) instead of a false green; ports
         free → e2e:fast passes all checks.
 
-[ ] T7. (INTEGRATION) CI NEVER RUNS E2E; ALL 700 API TESTS USE EF INMEMORY (2026-10-03).
+[x] T7. (INTEGRATION) CI NEVER RUNS E2E; ALL 700 API TESTS USE EF INMEMORY (2026-10-03).
         InMemory has no transactions, constraints or SQL translation. So
         migrations from zero, SELECT … FOR UPDATE on bids, unique constraints
         and query translation are checked only when someone runs `npm run e2e`
@@ -432,6 +433,18 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         Postgres (PostGIS) and Redis service containers. The harness hard-codes
         `docker exec gfp-postgres` / `gfp-redis`, so either run compose in CI or
         make the container names and connection strings configurable.
+        FIXED 2026-10-03: ci.yml `e2e` job ("End-to-End (harness)"), required
+        by all-checks-passed. It copies .env.example to .env.local for
+        placeholder secrets (the harness's DATABASE_URL/REDIS_URL win) and runs
+        `e2e-clean.js --fast --skip-gates` (other jobs run the gates; the API
+        build stays), uploading /tmp/gfp-e2e/*.log on failure. Harness changes
+        for a fresh runner: compose starts only postgres+redis, pg_isready goes
+        over TCP (the first-boot init server is socket-only), Redis is pinged
+        before FLUSHDB, the browser gets --no-sandbox under CI, and any uncaught
+        exception still tears down. Kept the compose container names: the
+        runner has Docker, so no configurability was needed.
+        VERIFIED locally: 10/10 CI-mode runs (1 visible T12 retry). The API unit
+        tests are still InMemory; this job is what covers real Postgres.
 
 [x] T8. (UI) NO TEST EVER LOADS THE MOBILE SCORER OR ADMIN IN A BROWSER (2026-10-03).
         The harness's own header records #56 (a hook below an early return
@@ -480,6 +493,34 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         - CI uses turbo remote cache and `test` declares no `inputs`. Probably
           correct, but a cache hit replays an old result; consider a scheduled
           `--force` run.
+
+[ ] T12. (UNEXPLAINED) EVERY REQUEST IN THE MOBILE WEB PAGE IS SOMETIMES ABORTED AT STARTUP (2026-10-03).
+        Found while building T7. In about 1 harness run in 8 (Windows, Edge 154,
+        headless), the T8 mobile scorecard check failed. VERIFIED by the
+        harness's page trace (puppeteer request/requestfailed/framenavigated):
+        - the scorecard starts its API calls (status, active, challenges, two
+          team /scorecard GETs) around +580ms;
+        - ~10ms later ALL of them fail with net::ERR_ABORTED, mid CORS preflight,
+          and so does the icon font from the static server (a different origin);
+          @expo/vector-icons' componentDidMount then throws "DOMException:
+          NetworkError: A network error occurred";
+        - no page reload happens. The "/" requests seen around then are
+          NetInfo's HEAD / reachability fetches, aborted by NetInfo itself.
+        RULED OUT: --no-sandbox, CI=true, the API (never saw the requests), the
+        bundle (correct EXPO_PUBLIC_API_URL). A standalone probe of the same
+        page under the same API never failed: 0/40 pages in one browser and
+        0/20 fresh browsers. So it depends on something specific to the
+        harness's process or timing that is still unidentified.
+        USER EFFECT IF IT IS REAL: on mobile web the network tier is `degraded`
+        (useNetworkTier.ts: type is never wifi/ethernet on web), so the score
+        poll runs every 60s. A golfer whose first fetches are aborted sees an
+        empty scorecard for up to a minute.
+        MITIGATION, NOT A FIX: the T8 check retries ONCE, only when API calls
+        were aborted AND no /scorecard response arrived. It prints a ⚠ line with
+        the trace and a "passed only after a retry" summary line.
+        NEXT: check CI logs for that ⚠. If Linux/Chrome hits it too, it is real:
+        capture a browser NetLog (--log-net-log) on a failing run, and consider
+        retrying aborted fetches in gfpFetch or an immediate re-pull on failure.
 
   [x] U1. STROKES NOW SUM INTO THE TEAM SCORE, PLUS HOLE COMPLETE / EDIT SCORE (2026-08-01) — new scores.completed_at; the admin transcribes paper cards, so completion had to be its own persisted state.
         STILL OPEN → CARVED OUT AS U8 (2026-09-23, since FIXED), because a `[x]` entry hid it: the per-golfer count means "shots of yours the team used", which sums to the team score in a SCRAMBLE by construction. Stroke and BestBall have each golfer playing their own ball, where the team gross is the relevant individual score, NOT a sum. Nobody has exercised admin entry on those formats — check before running a non-scramble event. U8 is in P0; the detail lives there now.
