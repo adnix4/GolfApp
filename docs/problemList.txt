@@ -45,7 +45,7 @@ P4 — FEATURES / POLISH
           it was pulled forward out of this tier, as the note said to. (b)-(m)
           remain, and are decisions or polish rather than defects.
      Test-structure review (2026-10-03) — work in this order:
-     T6   e2e harness can pass against an already-running dev API — PLANNED
+     [x] T6  harness refuses busy ports + requires its own servers 2026-10-03
      T5   CI never builds the admin/mobile web bundles — PLANNED
      T8   no UI is ever driven automatically (mobile scorer / admin smoke)
      T7   CI never runs e2e; API tests are EF InMemory only
@@ -397,7 +397,7 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         FIX: a CI job running `expo export --platform web` for admin and mobile
         that fails on a resolve error. Plan written 2026-10-03.
 
-[ ] T6. (E2E) THE HARNESS CAN PASS AGAINST AN ALREADY-RUNNING DEV API (2026-10-03).
+[x] T6. (E2E) THE HARNESS CAN PASS AGAINST AN ALREADY-RUNNING DEV API (2026-10-03).
         VERIFIED by reading scripts/e2e-clean.js: phaseBoot spawns
         `dotnet run`, then waitFor() accepts ANY server answering 404 on :5000
         (and 200 on :3000). If a dev API is already up, the harness's own API
@@ -407,8 +407,17 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         The run still prints "all passed". It does not destroy data (the clean
         phase drops only the e2e DB), but the green result is false and test
         orgs land in dev. The same applies to web on :3000.
-        FIX: fail fast if :5000 or :3000 is already listening, and confirm the
-        server that answers is the one the harness started. Plan written 2026-10-03.
+        FIXED 2026-10-03, two layers in scripts/e2e-clean.js:
+        - phasePorts runs FIRST (before clean/gates) and fails if :5000 or :3000
+          answers on 127.0.0.1 or ::1, naming the owning PID.
+        - Boot readiness (waitForOwn) needs OUR process alive AND its own log
+          line ("Now listening on: http://localhost:5000"; Next's
+          "Local: http://localhost:3000", because Next silently moves to :3001),
+          not just an HTTP answer.
+        VERIFIED: dummy 404 servers on both ports → fails in under 1s, exit 1, naming
+        the PID; preflight disabled + dummy on :5000 → "✗ API on :5000 / api
+        exited" (log: address already in use) instead of a false green; ports
+        free → e2e:fast passes all checks.
 
 [ ] T7. (INTEGRATION) CI NEVER RUNS E2E; ALL 700 API TESTS USE EF INMEMORY (2026-10-03).
         InMemory has no transactions, constraints or SQL translation. So

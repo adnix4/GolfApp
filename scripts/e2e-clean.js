@@ -24,6 +24,7 @@
 
 const { execSync, spawn } = require('node:child_process');
 const fs   = require('node:fs');
+const net  = require('node:net');
 const path = require('node:path');
 const os   = require('node:os');
 
@@ -157,6 +158,76 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => { if (!KEEP) stopAll(); process.exit(130); });
 }
 
+// ── port guard ────────────────────────────────────────────────────────────────
+// Boot only waits for SOMETHING to answer on :5000 / :3000. If a dev API or web
+// server is already there, ours fails to bind and the wait succeeds against the
+// dev one, so every phase runs against golf_fundraiser and still prints "all
+// passed" (T6). Refuse to start instead, before the clean phase spends minutes
+// and before dotnet clean trips the running API's MSB3021 build lock.
+const OWNED_PORTS = [[5000, 'API'], [3000, 'web']];
+
+function portAnswers(port, host) {
+  return new Promise(resolve => {
+    const sock = net.connect({ port, host });
+    const done = up => { sock.destroy(); resolve(up); };
+    sock.setTimeout(1000, () => done(false));
+    sock.once('connect', () => done(true));
+    sock.once('error', () => done(false));
+  });
+}
+
+function portOwner(port) {
+  try {
+    if (process.platform === 'win32') {
+      const line = run('netstat -ano -p tcp').split('\n')
+        .find(l => /LISTENING/.test(l) && new RegExp(`:${port}\\s`).test(l));
+      return line ? `PID ${line.trim().split(/\s+/).pop()}` : '';
+    }
+    const pid = run(`lsof -t -iTCP:${port} -sTCP:LISTEN`).trim().split('\n')[0];
+    return pid ? `PID ${pid}` : '';
+  } catch { return ''; }
+}
+
+async function phasePorts() {
+  phase('Port guard');
+  const busy = [];
+  for (const [port, name] of OWNED_PORTS) {
+    // The dev API binds 127.0.0.1 and ::1 separately; check both families.
+    if (await portAnswers(port, '127.0.0.1') || await portAnswers(port, '::1')) {
+      const owner = portOwner(port);
+      busy.push(`:${port} (${name}) is already in use${owner ? ` by ${owner}` : ''}`);
+    }
+  }
+  if (busy.length) {
+    fail('ports free', busy.join('\n') +
+      '\nStop your dev servers (or a previous --keep run) and re-run. The harness' +
+      '\nwould otherwise test THEM, against the dev database, and report a pass.');
+  }
+  pass('ports free', c.dim(OWNED_PORTS.map(([p]) => ':' + p).join(' ')));
+}
+
+// Ready means OUR process logged that it is serving the expected port, and is
+// still alive. An HTTP answer alone could come from someone else's server.
+function ownServiceReady(name, logLine) {
+  const svc = started.find(s => s.name === name);
+  if (svc.child.exitCode !== null) {
+    throw new Error(`${name} exited (code ${svc.child.exitCode}) — see ${svc.logPath}`);
+  }
+  return logLine.test(fs.readFileSync(svc.logPath, 'utf8'));
+}
+
+async function waitForOwn(name, logLine, httpCheck, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    // An exited service fails immediately; the bare waitFor would keep polling.
+    if (ownServiceReady(name, logLine)) {
+      try { if (await httpCheck()) return; } catch { /* not answering yet */ }
+    }
+    await sleep(2000);
+  }
+  throw new Error(`timed out waiting for ${name} after ${timeoutMs / 1000}s`);
+}
+
 // ── phases ────────────────────────────────────────────────────────────────────
 
 async function phaseClean() {
@@ -237,11 +308,18 @@ async function phaseBoot() {
     REDIS_URL:    E2E_REDIS_URL,
     ASPNETCORE_ENVIRONMENT: 'Development',
   });
-  await waitFor('API', async () => (await http(`${API}/pub/events/ZZZZZZZZ`)).status === 404, 240_000);
+  try {
+    await waitForOwn('api', /Now listening on: http:\/\/localhost:5000\b/,
+      async () => (await http(`${API}/pub/events/ZZZZZZZZ`)).status === 404, 240_000);
+  } catch (e) { fail('API on :5000', e.message); }
   pass('API on :5000');
 
   startService('web', 'npm', ['run', 'dev'], path.join(ROOT, 'apps/web'));
-  await waitFor('web', async () => (await http(WEB)).status === 200, 180_000);
+  // Next silently moves to :3001 when :3000 is taken, so require the exact port.
+  try {
+    await waitForOwn('web', /Local:\s+http:\/\/localhost:3000\b/,
+      async () => (await http(WEB)).status === 200, 180_000);
+  } catch (e) { fail('web on :3000', e.message); }
   pass('web on :3000');
 }
 
@@ -538,6 +616,7 @@ async function phaseTransactions(ctx) {
   const t0 = Date.now();
   console.log(c.hd(`\nGolf Fundraiser Pro — end-to-end on a clean build${FAST ? ' (--fast)' : ''}`));
   try {
+    await phasePorts();
     await phaseClean();
     await phaseGates();
     await phaseBoot();
