@@ -213,25 +213,25 @@ describe('checkConnectivity', () => {
 // ── registerPushToken ─────────────────────────────────────────────────────────
 
 describe('registerPushToken', () => {
-  it('sends POST to the push-token endpoint with the token', async () => {
+  it('sends POST to the push-token endpoint with the token and session', async () => {
     mockFetch.mockResolvedValueOnce(mockResponse({}, 200));
-    await registerPushToken('pl1', 'ExponentPushToken[abc123]');
+    await registerPushToken('pl1', 'ExponentPushToken[abc123]', 'sess-1');
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('/players/pl1/push-token');
     expect(opts.method).toBe('POST');
-    expect(JSON.parse(opts.body as string)).toMatchObject({ token: 'ExponentPushToken[abc123]' });
+    expect(JSON.parse(opts.body as string)).toMatchObject({ token: 'ExponentPushToken[abc123]', sessionToken: 'sess-1' });
   });
 
   it('sends null token to deregister', async () => {
     mockFetch.mockResolvedValueOnce(mockResponse({}, 200));
-    await registerPushToken('pl1', null);
+    await registerPushToken('pl1', null, 'sess-1');
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
     expect(body.token).toBeNull();
   });
 
   it('throws when the server returns an error', async () => {
     mockErr(500, { error: 'Internal error' });
-    await expect(registerPushToken('pl1', 'tok')).rejects.toThrow('Internal error');
+    await expect(registerPushToken('pl1', 'tok', 'sess-1')).rejects.toThrow('Internal error');
   });
 });
 
