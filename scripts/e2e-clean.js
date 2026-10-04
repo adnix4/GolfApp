@@ -18,6 +18,7 @@
  *   node scripts/e2e-clean.js              # full: clean, build, gates, drive
  *   node scripts/e2e-clean.js --fast       # skip the clean+reinstall
  *   node scripts/e2e-clean.js --keep       # leave services running at the end
+ *   node scripts/e2e-clean.js --fast --skip-gates   # CI: other jobs run the gates
  *
  * The browser UI smoke drives an installed Chromium-family browser (Edge or
  * Chrome are found automatically); point GFP_E2E_BROWSER at the executable to
@@ -50,9 +51,13 @@ const LOG_DIR = path.join(os.tmpdir(), 'gfp-e2e');
 const ARGS = process.argv.slice(2);
 const FAST = ARGS.includes('--fast');
 const KEEP = ARGS.includes('--keep');
+// CI already runs lint/type-check/vitest/dotnet test as separate jobs, so the
+// e2e job skips them. The API build stays: boot runs `dotnet run --no-build`.
+const SKIP_GATES = ARGS.includes('--skip-gates');
 
 const started = [];           // child processes we own and must stop
 const results = [];
+const retries = [];           // checks that passed only after a visible retry
 let phaseStart = Date.now();
 
 // ── output ────────────────────────────────────────────────────────────────────
@@ -70,7 +75,7 @@ function pass(name, detail = '') {
 }
 function fail(name, err) {
   results.push({ name, ok: false, ms: Date.now() - phaseStart, err: String(err) });
-  console.log(`  ${c.bad('✗')} ${name}\n${String(err).split('\n').slice(0, 25).map(l => '    ' + l).join('\n')}`);
+  console.log(`  ${c.bad('✗')} ${name}\n${String(err).split('\n').slice(0, 40).map(l => '    ' + l).join('\n')}`);
   throw new Error(name);
 }
 
@@ -78,7 +83,7 @@ function fail(name, err) {
 // and fetch() throw raw Errors, and a bare catch turned that into a green exit.
 function record(name, err) {
   results.push({ name, ok: false, ms: Date.now() - phaseStart, err: String(err) });
-  const detail = String(err).split('\n').slice(0, 25).map(l => '    ' + l).join('\n');
+  const detail = String(err).split('\n').slice(0, 40).map(l => '    ' + l).join('\n');
   console.log(`  ${c.bad('✗')} ${name}\n${detail}`);
 }
 
@@ -162,6 +167,14 @@ function stopAll() {
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => { if (!KEEP) stopAll(); process.exit(130); });
 }
+// An exception thrown inside an event callback (a puppeteer page listener, a
+// stream) never reaches main's try/finally, so teardown would be skipped and
+// the API/web/browser left holding their ports for the next run.
+process.on('uncaughtException', e => {
+  console.log(`\n  ${c.bad('✗')} uncaught exception\n${String(e.stack || e).split('\n').slice(0, 15).map(l => '    ' + l).join('\n')}`);
+  if (!KEEP) stopAll();
+  process.exit(1);
+});
 
 // ── port guard ────────────────────────────────────────────────────────────────
 // Boot only waits for SOMETHING to answer on :5000 / :3000. If a dev API or web
@@ -243,8 +256,14 @@ async function phaseClean() {
     // run from zero, so no leftover test event can make a broken query look
     // like it works — without touching the developer's own database. It used
     // to drop the whole volume, which on 2026-09-23 deleted a real account.
-    run('docker compose -f infra/docker-compose.yml up -d');
-    await waitFor('postgres', () => { run(`docker exec ${PG} pg_isready -U gfp`, { stdio: 'ignore' }); return true; }, 90_000);
+    // Only the two services the harness uses; pgadmin is a dev convenience and
+    // just another image to pull on a fresh CI runner.
+    run('docker compose -f infra/docker-compose.yml up -d postgres redis');
+    // -h 127.0.0.1, not the socket: on a FRESH volume the image runs init
+    // scripts on a temporary socket-only server, then restarts. A socket check
+    // passes during init and the DROP/CREATE below races the restart.
+    await waitFor('postgres', () => { run(`docker exec ${PG} pg_isready -h 127.0.0.1 -U gfp`, { stdio: 'ignore' }); return true; }, 120_000);
+    await waitFor('redis', () => run(`docker exec ${REDIS} redis-cli ping`).trim() === 'PONG', 60_000);
     run(`docker exec ${PG} psql -U gfp -d postgres -v ON_ERROR_STOP=1 ` +
         `-c "DROP DATABASE IF EXISTS ${E2E_DB} WITH (FORCE)" ` +
         `-c "CREATE DATABASE ${E2E_DB} OWNER gfp"`, { stdio: 'ignore' });
@@ -269,6 +288,7 @@ async function phaseClean() {
 
 async function phaseGates() {
   phase('Static gates');
+  if (SKIP_GATES) console.log(`  ${c.dim('--skip-gates: only the API build runs (CI runs the rest as separate jobs)')}`);
   // --force defeats the turbo cache: on a clean run these must actually
   // execute, or a 0.6s "pass" is just a replayed log from an earlier build.
   const f = FAST ? '' : ' -- --force';
@@ -281,6 +301,7 @@ async function phaseGates() {
     ['api tests',   'dotnet test apps/api-tests/WebAPI.Tests.csproj'],
   ];
   for (const [name, cmd] of gates) {
+    if (SKIP_GATES && name !== 'dotnet build') continue;
     phaseStart = Date.now();
     try { const out = run(cmd); pass(name, summarise(name, out)); }
     catch (e) { fail(name, (e.stdout || '') + (e.stderr || '')); }
@@ -509,7 +530,10 @@ async function launchBrowser(exe) {
   fs.rmSync(profile, { recursive: true, force: true });
   const args = ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
                 '--no-first-run', '--no-default-browser-check', 'about:blank'];
-  if (process.getuid?.() === 0) args.unshift('--no-sandbox');   // root in a CI container
+  // Chrome's sandbox needs unprivileged user namespaces, which ubuntu-24.04
+  // runners restrict via AppArmor; the pages are our own build, so in CI (or
+  // as root) run without it.
+  if (process.env.CI || process.getuid?.() === 0) args.unshift('--no-sandbox');
   const child = spawn(exe, args, { stdio: 'ignore', detached: process.platform !== 'win32' });
   started.push({ name: 'browser', child, logPath: null });
   const portFile = path.join(profile, 'DevToolsActivePort');
@@ -523,9 +547,25 @@ async function watchedPage(browser) {
   const page = await browser.newPage();
   await page.setViewport({ width: 420, height: 900 });
   const errors = [];
-  page.on('pageerror', e => errors.push(`pageerror: ${e.message.split('\n')[0]}`));
+  const t0 = Date.now();
+  const at = () => `+${Date.now() - t0}ms`;
+  page.on('pageerror', e => errors.push(`pageerror ${at()}: ${String(e.stack || e.message).split('\n').slice(0, 3).join(' | ')}`));
   page.on('console', m => { if (m.type() === 'error') errors.push(`console.error: ${m.text().slice(0, 200)}`); });
-  return { page, errors };
+  // Every API call the page makes (and every top-level navigation), so a
+  // failed check says whether the app never asked, asked and failed, or got
+  // an unexpected answer.
+  const api = [];
+  const short = u => u.replace('http://localhost:5000', '');
+  const ours = u => u.startsWith('http://localhost:5000');
+  page.on('request', r => { if (ours(r.url())) api.push(`${at()} → ${r.method()} ${short(r.url())}`); });
+  const stats = { abortedApi: 0, scorecardOk: false };
+  page.on('response', r => { if (ours(r.url()) && r.status() === 200 && /\/scorecard$/.test(r.url())) stats.scorecardOk = true; });
+  page.on('requestfailed', r => { if (ours(r.url()) && r.failure()?.errorText === 'net::ERR_ABORTED') stats.abortedApi++; });
+  page.on('response', r => { if (ours(r.url())) api.push(`${at()} ${r.status()} ${r.request().method()} ${short(r.url())}`); });
+  page.on('requestfailed', r => { if (ours(r.url())) api.push(`${at()} FAILED ${r.method()} ${short(r.url())} (${r.failure()?.errorText})`); });
+  page.on('framenavigated', f => { if (f === page.mainFrame()) api.push(`${at()} NAVIGATED ${f.url()}`); });
+  const trace = () => `Page activity (${api.length}):\n` + (api.slice(-18).join('\n') || '(none)');
+  return { page, errors, trace, stats };
 }
 
 async function phaseUi(ctx) {
@@ -549,29 +589,47 @@ async function phaseUi(ctx) {
 
     // Mobile scorer: seed the session /join returned, exactly where the web
     // db shim keeps it, then expect the scorecard to show the 9 synced holes.
-    {
+    //
+    // ONE visible retry, for one known pattern only (T12): roughly 1 run in 8
+    // on Windows/Edge, every request in the page is aborted ~10ms after the
+    // scorecard's first API calls (ERR_ABORTED on API and static assets alike;
+    // the icon font then throws NetworkError). Cause not yet found. Web polls
+    // every 60s, so the page never recovers inside the wait. Retry only when
+    // API calls were aborted AND no scorecard response arrived; print it as ⚠
+    // so it stays visible. Anything else, or a second failure, fails as before.
+    for (let attempt = 1; ; attempt++) {
       phaseStart = Date.now();
-      const { page, errors } = await watchedPage(browser);
+      const { page, errors, trace, stats } = await watchedPage(browser);
       await page.evaluateOnNewDocument((join, deviceId) => {
         localStorage.setItem('gfp:gfp:session', join);
         localStorage.setItem('gfp:gfp:deviceId', deviceId);
       }, JSON.stringify(ctx.join), ctx.deviceId);
       await page.goto('http://localhost:8200/', { waitUntil: 'networkidle2', timeout: 60_000 });
-      try {
-        await page.waitForSelector('[aria-label="Edit score for hole 1"]', { timeout: 30_000 });
-      } catch {
+      let shown = true;
+      try { await page.waitForSelector('[aria-label="Edit score for hole 1"]', { timeout: 30_000 }); }
+      catch { shown = false; }
+      if (!shown && attempt === 1 && stats.abortedApi > 0 && !stats.scorecardOk) {
+        console.log(`  ${c.bad('⚠')} mobile scorecard: first load's API requests were aborted (${stats.abortedApi}) — retrying once (T12)\n` +
+          trace().split('\n').map(l => '      ' + l).join('\n'));
+        retries.push('mobile scorecard');
+        await page.close();
+        continue;
+      }
+      if (!shown) {
         const text = (await page.evaluate(() => document.body.innerText)).slice(0, 300);
-        fail('mobile scorecard', `no completed hole 1 on ${page.url()}\n${text}\n${errors.join('\n')}`);
+        fail('mobile scorecard', `no completed hole 1 on ${page.url()}\n${trace()}\n${errors.join('\n')}\n${text}`);
       }
       if (errors.length) fail('mobile scorecard', errors.join('\n'));
-      pass('mobile scorecard renders the synced holes', c.dim(new URL(page.url()).pathname));
+      pass('mobile scorecard renders the synced holes',
+        c.dim(new URL(page.url()).pathname + (attempt > 1 ? ' (after 1 retry)' : '')));
       await page.close();
+      break;
     }
 
     // Admin: sign in through the real form and expect this run's event.
     {
       phaseStart = Date.now();
-      const { page, errors } = await watchedPage(browser);
+      const { page, errors, trace } = await watchedPage(browser);
       await page.goto('http://localhost:8081/login', { waitUntil: 'networkidle2', timeout: 60_000 });
       await page.type('input[placeholder="organizer@email.com"]', ctx.orgEmail);
       await page.type('input[placeholder="••••••••"]', ctx.orgPassword);
@@ -580,7 +638,7 @@ async function phaseUi(ctx) {
         await page.waitForFunction(name => document.body.innerText.includes(name), { timeout: 30_000 }, ctx.eventName);
       } catch {
         const text = (await page.evaluate(() => document.body.innerText)).slice(0, 300);
-        fail('admin sign-in', `"${ctx.eventName}" never appeared on ${page.url()}\n${text}\n${errors.join('\n')}`);
+        fail('admin sign-in', `"${ctx.eventName}" never appeared on ${page.url()}\n${trace()}\n${errors.join('\n')}\n${text}`);
       }
       if (errors.length) fail('admin sign-in', errors.join('\n'));
       pass('admin signs in and lists the event', c.dim(new URL(page.url()).pathname));
@@ -784,5 +842,7 @@ async function phaseTransactions(ctx) {
   console.log(`\n  ${failed.length ? c.bad(`${failed.length} failed`) : c.ok('all passed')} ` +
               c.dim(`in ${((Date.now() - t0) / 1000 / 60).toFixed(1)} min`));
   if (failed.length) console.log(c.dim(`  logs: ${LOG_DIR}`));
+  // A pass that needed a retry is still worth seeing in the summary (T12).
+  if (retries.length) console.log(`  ${c.bad('⚠')} passed only after a retry: ${retries.join(', ')} (see problemList T12)`);
   process.exit(failed.length ? 1 : 0);
 })();
