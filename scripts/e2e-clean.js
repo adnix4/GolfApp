@@ -46,6 +46,9 @@ const REDIS   = 'gfp-redis';
 const E2E_DB  = 'golf_fundraiser_e2e';
 const E2E_PG_URL    = `postgres://gfp:gfp_local@localhost:5432/${E2E_DB}`;
 const E2E_REDIS_URL = 'localhost:6379,defaultDatabase=1';  // SE.Redis syntax, not a redis:// path
+// The harness's own Stripe webhook secret: the API it starts verifies with it,
+// and phaseWebhooks signs with it, exactly as Stripe would. Never a real secret.
+const E2E_WHSEC = 'whsec_e2e_harness_only_not_a_real_secret';
 const LOG_DIR = path.join(os.tmpdir(), 'gfp-e2e');
 
 const ARGS = process.argv.slice(2);
@@ -336,6 +339,7 @@ async function phaseBoot() {
   startService('api', 'dotnet', ['run', '--no-build', '--project', 'apps/api/WebAPI.csproj'], ROOT, {
     DATABASE_URL: E2E_PG_URL,
     REDIS_URL:    E2E_REDIS_URL,
+    STRIPE_WEBHOOK_SECRET: E2E_WHSEC,
     ASPNETCORE_ENVIRONMENT: 'Development',
   });
   try {
@@ -1064,6 +1068,101 @@ async function phaseJoinCost(ctx) {
 //
 // Organizer registration, the other explicit transaction, is already exercised
 // by the first step of phaseTournament.
+// ── Stripe webhooks (T9) ──────────────────────────────────────────────────────
+// Features/Webhooks had 0% coverage, and it is what marks entry fees,
+// donations and auction charges paid. Events are built and signed the way
+// Stripe does it (Stripe-Signature: t=<unix>,v1=HMAC-SHA256(secret, "t.payload"));
+// Stripe.net 45 checks api_version, so it must be 2024-06-20.
+
+let stripeEventSeq = 0;
+function stripeEvent(type, pi, created = Math.floor(Date.now() / 1000)) {
+  const n = `${Date.now()}_${++stripeEventSeq}`;
+  return JSON.stringify({
+    id: `evt_e2e_${n}`, object: 'event', api_version: '2024-06-20', created, livemode: false,
+    pending_webhooks: 1, request: { id: null, idempotency_key: null }, type,
+    data: { object: { id: `pi_e2e_${n}`, object: 'payment_intent', currency: 'usd',
+                      amount_received: pi.status === 'succeeded' ? pi.amount : 0, ...pi } },
+  });
+}
+
+function stripeSignature(payload, secret = E2E_WHSEC, t = Math.floor(Date.now() / 1000)) {
+  const v1 = require('node:crypto').createHmac('sha256', secret).update(`${t}.${payload}`).digest('hex');
+  return `t=${t},v1=${v1}`;
+}
+
+function postWebhook(payload, signature) {
+  return http(`${API}/webhooks/stripe`, { method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(signature ? { 'Stripe-Signature': signature } : {}) },
+    body: payload });
+}
+
+async function phaseWebhooks(ctx) {
+  phase('Stripe webhooks');
+  const fees = async () => Object.fromEntries((await api('GET', `/events/${ctx.eventId}/players`, { token: ctx.token }))
+    .map(p => [p.id, p.entryFeePaidCents]));
+  const [a, b] = (ctx.join.team?.players ?? []).map(p => p.id);
+  if (!a || !b) fail('webhook setup', 'need two golfers on the joined team');
+  const before = await fees();
+  if (before[a] !== 0 || before[b] !== 0) fail('webhook setup', `golfers already paid: ${JSON.stringify(before)}`);
+
+  const entryFee = stripeEvent('payment_intent.succeeded', { amount: 10000, status: 'succeeded',
+    metadata: { entry_fee: 'true', player_ids: `${a},${b}`, fee_per_player: '5000', event_name: 'E2E' } });
+
+  // 1. The gate. Each of these is a forged "entry fee paid": none may land.
+  const noSig  = await postWebhook(entryFee, null);
+  const wrong  = await postWebhook(entryFee, stripeSignature(entryFee, 'whsec_attacker'));
+  const stale  = await postWebhook(entryFee, stripeSignature(entryFee, E2E_WHSEC, Math.floor(Date.now() / 1000) - 600));
+  const tamper = await postWebhook(entryFee.replace('"5000"', '"1"'), stripeSignature(entryFee));
+  const codes = [noSig, wrong, stale, tamper].map(r => r.status);
+  if (codes.some(c => c !== 400)) fail('forged webhooks refused', `expected 400 ×4 (no sig, wrong secret, stale, tampered), got ${codes}`);
+  const afterForgery = await fees();
+  if (afterForgery[a] !== 0 || afterForgery[b] !== 0) fail('forged webhooks refused', `a forgery marked golfers paid: ${JSON.stringify(afterForgery)}`);
+  pass('forged webhooks refused, nothing marked paid', c.dim('no sig · wrong secret · stale · tampered → 400'));
+
+  // 2. Entry fee: exactly the named golfers, once.
+  phaseStart = Date.now();
+  for (let i = 0; i < 2; i++) {   // Stripe retries deliveries: the second must change nothing
+    const r = await postWebhook(entryFee, stripeSignature(entryFee));
+    if (r.status !== 200) fail('entry-fee webhook', `delivery ${i + 1}: ${r.status} ${r.text}`);
+  }
+  const paid = await fees();
+  const others = Object.entries(paid).filter(([id]) => id !== a && id !== b);
+  if (paid[a] !== 5000 || paid[b] !== 5000 || others.some(([id, cents]) => cents !== before[id])) {
+    fail('entry-fee webhook', `expected ${a}/${b} = 5000 and nobody else, got ${JSON.stringify(paid)}`);
+  }
+  pass('entry fee marks exactly the named golfers, idempotently', c.dim('2 × $50 · redelivered'));
+
+  // 3. Donation: a public pledge becomes collected; Stripe's amount wins.
+  phaseStart = Date.now();
+  const pledge = await api('POST', `/pub/events/${ctx.code}/donate`, { body: {
+    donorName: 'Webhook Donor', donorEmail: `donor.${ctx.stamp}@example.com`, amountCents: 2500 } });
+  const donationEvt = stripeEvent('payment_intent.succeeded', { amount: 3000, status: 'succeeded',
+    metadata: { donation: 'true', donation_id: pledge.id, event_id: ctx.eventId, event_name: 'E2E' } });
+  const dr = await postWebhook(donationEvt, stripeSignature(donationEvt));
+  if (dr.status !== 200) fail('donation webhook', `${dr.status} ${dr.text}`);
+  const donation = (await api('GET', `/events/${ctx.eventId}/donations`, { token: ctx.token })).find(d => d.id === pledge.id);
+  if (donation?.amountCents !== 3000) fail('donation webhook', `expected Stripe's 3000¢ to replace the 2500¢ pledge, got ${JSON.stringify(donation)}`);
+  pass("donation collected at Stripe's amount", c.dim('pledged $25 → paid $30'));
+
+  // 4. Auction winner: end the auction (nothing charges on close), then the
+  //    charge's webhooks move the line Pending → Failed → Succeeded.
+  phaseStart = Date.now();
+  await api('POST', `/events/${ctx.eventId}/auction/end`, { token: ctx.token });
+  const line = async () => (await api('GET', `/events/${ctx.eventId}/auction/checkout/${ctx.joinPlayerId}`,
+    { token: ctx.token })).lines?.[0];
+  const won = await line();
+  if (!won || won.chargeStatus !== 'Pending') fail('auction winner', `expected a Pending line after close, got ${JSON.stringify(won)}`);
+  const states = [];
+  for (const [type, status] of [['payment_intent.payment_failed', 'requires_payment_method'], ['payment_intent.succeeded', 'succeeded']]) {
+    const evt = stripeEvent(type, { amount: won.amountCents, status, metadata: { winner_id: won.winnerId } });
+    const r = await postWebhook(evt, stripeSignature(evt));
+    if (r.status !== 200) fail('auction webhook', `${type}: ${r.status} ${r.text}`);
+    states.push((await line()).chargeStatus);
+  }
+  if (states.join() !== 'Failed,Succeeded') fail('auction webhook', `expected Failed then Succeeded, got ${states}`);
+  pass('auction charge follows its webhooks', c.dim('Pending → Failed → Succeeded'));
+}
+
 async function phaseTransactions(ctx) {
   phase('Explicit transactions (execution strategy)');
 
@@ -1126,6 +1225,7 @@ async function phaseTransactions(ctx) {
     await phaseWeb(ctx);
     await phaseJoinCost(ctx);
     await phaseTransactions(ctx);
+    await phaseWebhooks(ctx);
     await phaseFormats(ctx);
     await phaseConflict(ctx);
     await phaseAccounts(ctx);

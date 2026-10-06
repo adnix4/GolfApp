@@ -53,7 +53,7 @@ P4 — FEATURES / POLISH
      [x] T5  CI exports admin + mobile web bundles on every PR 2026-10-03
      [x] T8  e2e drives mobile scorecard + admin sign-in in a browser 2026-10-03
      [x] T7  CI runs the e2e harness (real Postgres/Redis + browser) 2026-10-03
-     T9   e2e: formats + conflict DONE 2026-10-03; webhooks/SignalR/league open
+     T9   e2e: formats + conflict 2026-10-03, Stripe webhooks 2026-10-04; SignalR/league open
      [x] T10 web + ui have tests (logic-level, node env) 2026-10-03
      [x] T11 lap timings; API coverage in CI; turbo staleness moot 2026-10-03
      [x] T12 harness-only: fresh Edge profile's extensions abort requests; flags fix 2026-10-03
@@ -589,8 +589,22 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         FOUND ON THE WAY (not a bug): the public leaderboard is a 2s-TTL Redis
         cache that nothing invalidates, so a read within 2s of a change is stale
         by design. The checks poll (boardRowUntil) instead of reading once.
-        STILL OPEN: Stripe webhooks (signable locally, see the verify skill),
-        the SignalR leaderboard push, and a league round from pairings to close.
+        STRIPE WEBHOOKS DONE 2026-10-04 ("Stripe webhooks" phase). The harness
+        starts the API with its own STRIPE_WEBHOOK_SECRET and signs events the
+        way Stripe does (t=…,v1=HMAC-SHA256; api_version 2024-06-20):
+        - forgeries refused: no signature, wrong secret, a 10-minute-old
+          timestamp, and a tampered body all get 400, and none marks anyone paid;
+        - entry fee: exactly the two named golfers are marked $50, and a
+          redelivered event changes nothing;
+        - donation: a public pledge of $25 is collected at Stripe's $30;
+        - auction: after the auction ends (nothing charges on close) the
+          winner's line goes Pending → Failed → Succeeded with its webhooks.
+        VERIFIED: removing signature verification from the controller fails the
+        forgery check (400,200,200,200).
+        Note: these run in the e2e job, so the T11 coverage table (unit tests
+        only) still shows Features/Webhooks at 0%.
+        STILL OPEN: the SignalR leaderboard push, and a league round from
+        pairings to close.
 
 [x] T10. (COVERAGE) apps/web AND packages/ui HAVE NO TESTS (2026-10-03).
         apps/web has 29 source files and no `test` script. packages/ui has 13
