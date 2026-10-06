@@ -570,6 +570,33 @@ async function boardRowUntil(code, ok, timeoutMs = 6000) {
   return row;
 }
 
+// The runbook's no-signal fallback (problemList D22): the phone's QR scorecard,
+// scanned at the desk. Uses the contract fixture the phone's own builder
+// produces (apps/api-tests/Fixtures/qr-payload-v1.txt), re-targeted at this
+// run's event and team, so the server reads the phone's exact format against
+// real Postgres. Both parts of the two-part card, then the leaderboard.
+async function phaseQrTransfer(ctx) {
+  phase('QR scorecard transfer');
+  const e = await setupScoringEvent(ctx, 'Scramble', ['Qr Golfer', 'Qr Partner']);
+  const fixture = fs.readFileSync(path.join(ROOT, 'apps/api-tests/Fixtures/qr-payload-v1.txt'), 'utf8')
+    .split(/\r?\n/).filter(Boolean);
+  let imported = 0;
+  for (const part of fixture) {
+    const card = JSON.parse(Buffer.from(part, 'base64').toString('utf8'));
+    card.ec = e.code; card.tid = e.teamId;
+    const r = await api('POST', `/events/${e.eventId}/scores/qr-collect`, { token: ctx.token,
+      body: { payload: Buffer.from(JSON.stringify(card), 'utf8').toString('base64') } });
+    imported += r.scoresImported;
+  }
+  if (imported !== 6) fail('QR import', `expected 6 holes from the two-part card, got ${imported}`);
+  // 4+5+3+4+6+4 = 26 on pars 4,5,3,4,4,3 = 23 → +3 thru 6.
+  const row = await boardRowUntil(e.code, r => r.holesComplete === 6 && r.grossTotal === 26);
+  if (!row || row.holesComplete !== 6 || row.grossTotal !== 26 || row.toPar !== 3) {
+    fail('QR import on the board', `expected +3 · 26 · thru 6, got ${JSON.stringify(row)}`);
+  }
+  pass("phone's two-part QR card imports and scores", c.dim('6 holes · +3 · 26'));
+}
+
 async function phaseConflict(ctx) {
   phase('Score conflict round-trip');
   phaseStart = Date.now();
@@ -1228,6 +1255,7 @@ async function phaseTransactions(ctx) {
     await phaseWebhooks(ctx);
     await phaseFormats(ctx);
     await phaseConflict(ctx);
+    await phaseQrTransfer(ctx);
     await phaseAccounts(ctx);
     await phaseUi(ctx);
     await phaseVenueNat(ctx);

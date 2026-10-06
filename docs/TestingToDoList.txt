@@ -1,0 +1,130 @@
+# Testing To-Do List
+
+Unit-testing evaluation of 2026-10-05, and the tasks it produced. Mark [x]
+when a task is done, with the date and what verified it. Numbers (TT1, TT2, …)
+are stable; refer to them in commits. Broader test-structure items (T5–T12)
+live in docs/problemList.txt.
+
+## Checklist (work top-down)
+
+Security-sensitive code with no unit tests
+[x] TT1  QR scorecard signing: QrService + ScoreService QR import (valid,
+         tampered, wrong key, malformed). 0% today, no test anywhere.
+         Writing these tests found QR transfer broken end to end (problemList
+         D22). The user chose to drop the signature (golfers enter their own
+         scores); fixed 2026-10-05.
+         DONE 2026-10-05: 15 API tests (Scores/QrCollectTests: the phone's own
+         two-part payload imports every hole; leftover sig ignored; bad Base64,
+         bad JSON, unknown version, other event, bad/foreign team, other org,
+         wrong event status; out-of-range holes skipped; same score confirms;
+         different score flagged as a conflict) + 4 mobile tests
+         (qrPayload.test.ts) + the shared fixture contract + an e2e step.
+         Breaking the format on either side fails a test.
+[x] TT2  ExceptionHandlingMiddleware: exception → status mapping, no stack
+         traces or internals leaked in responses. 4% today.
+         DONE 2026-10-05: 12 tests (Middleware/ExceptionHandlingMiddlewareTests);
+         coverage 4% → 99%. Two fixes the tests found:
+         - UnauthorizedAccessException (thrown by 5 controllers when a signed-in
+           account has no org claim, e.g. a SuperAdmin) fell through to a 500;
+           now 403 FORBIDDEN with a fixed message.
+         - An exception after the response had started tried to rewrite the
+           status and threw a second exception hiding the first; now it is
+           logged and rethrown.
+         Both new tests fail against the old middleware.
+[x] TT3  EventValidators + TeamValidators: input validation rules. 0% today
+         (only SponsorValidator is tested).
+         DONE 2026-10-05: 51 tests (Validators/EventValidatorTests,
+         TeamValidatorTests); coverage EventValidators 0% → 94%,
+         TeamValidators 0% → 100%. Bug found and fixed: a team registration
+         with "email": null threw a NullReferenceException inside the
+         duplicate-email rule, so the PUBLIC registration endpoint returned a
+         500 instead of a 400. The rule now skips missing emails (the per-player
+         rule reports them) and trims before comparing.
+         Noted, not changed: UpdateEventRequestValidator declares a
+         ValidTransitions table that nothing uses; the real status rules are in
+         EventStatusRules.cs. Safe to delete in a cleanup.
+
+Money paths
+[ ] TT4  Stripe wrapper: put the 10 direct Stripe SDK constructions behind an
+         injectable interface, then unit-test payment success/failure paths.
+[ ] TT5  AuctionService closing and charging gaps (42% of 833 lines).
+
+Orchestration
+[ ] TT6  Mobile session.tsx (389 lines): extract the pull/merge/poll
+         sequencing into a testable module and test it.
+[ ] TT7  Admin auth.tsx, eventContext.tsx, dialog.tsx: no tests.
+[ ] TT8  Large admin screens (teams.tsx 1,114 lines, event overview 924):
+         extract the logic they hold and test it, as was done for the ticker
+         (tickerCells.ts) and the logo frame (logoBackground.ts).
+
+Minor
+[ ] TT9  LeagueService at 33% (its engines are well tested; the service
+         orchestration is not).
+[ ] TT10 apps/mobile webDb tests wait 2ms so timestamps differ; use a frozen
+         clock (vi.setSystemTime) to make them deterministic.
+[ ] TT11 The CI coverage table counts unit tests only, so code covered by the
+         e2e job (e.g. Stripe webhooks) still shows 0%. Decide whether to
+         merge e2e coverage or just keep it in mind when reading the table.
+[ ] TT12 QrService player check-in token (keyed with the server secret, so it
+         IS security): compare signatures in constant time instead of !=, and
+         decode base64 without the fixed "==" padding. Small; no tests today.
+
+## The evaluation (2026-10-05)
+
+### Method
+- API: coverlet over all 727 xUnit tests, summarised by area and by file
+  (scripts/coverage-summary.js plus a per-file pass), EF migrations excluded.
+- JS: for every logic module (lib/, src/*.ts, lib/*.tsx) in each workspace,
+  checked whether any test imports it.
+- Quality: scanned every suite for skipped/focused tests, tests with fewer
+  assertions than cases, real sleeps, and wall-clock dependence; read the
+  payments tests against the service's methods.
+
+### Numbers
+- API: 727 tests, all passing. Line coverage 51.6% excluding migrations
+  (6,880 of 13,324 lines; 9,266 migration lines excluded).
+  After TT2/TT3 (2026-10-05): 790 tests, 54.3%.
+- JS: about 644 tests. apps/mobile 215 (10k source lines), apps/admin 198
+  (18k), packages/shared-types 163, packages/theme 42, apps/web 20,
+  packages/ui 6.
+
+### What's in good shape
+- No skipped or focused tests anywhere; no sleeps in C#; every JS test file
+  has at least as many assertions as test cases; the C# suite averages about
+  1.9 assertions per test.
+- Core logic is tested directly: scoring formats, event status machine, bid
+  rules and proxy bidding, score conflict rules, the league engines
+  (handicap, pairing, standings, skins), rate-limit keys, the golfer
+  session-token check.
+- Authorization is tested deliberately ("wrong token", "other org", "other
+  event") across payments, push tokens, staff invites and password reset.
+- Recent tests were checked by breaking the code on purpose and watching them
+  fail.
+- EF InMemory can't do transactions, row locks or real migrations; the e2e job
+  covers those against real Postgres in CI.
+
+### Least-covered API files (60+ lines, migrations excluded)
+    0%  QrService.cs (331)                 0%  EventValidators.cs (147)
+    0%  StripeWebhookController.cs (143)*  0%  RealTimeService.cs (128)
+    0%  LeaderboardBroadcaster.cs (86)     0%  TeamValidators.cs (84)
+    4%  ExceptionHandlingMiddleware.cs (98)
+   26%  PaymentsService.cs (271)          33%  LeagueService.cs (972)
+   42%  AuctionService.cs (833)           48%  EventService.cs (869)
+  * covered by the e2e job since #109; the table counts unit tests only.
+  Controllers, Program.cs and DI wiring are 0% by design (tests target
+  services; e2e covers the wiring).
+
+### Why Payments is low
+The guard paths are well tested. The happy paths call Stripe's SDK, which the
+code constructs directly (`new PaymentIntentService()` and similar, 10 places),
+so nothing can stand in for Stripe in a unit test. ApplyEntryFeePaymentAsync is
+unit-tested; ApplyDonationPaymentAsync is covered only by the e2e webhook
+phase.
+
+### JS modules with no test
+- apps/mobile: lib/session.tsx (389), lib/useNetworkTier.ts (29)
+- apps/admin: lib/auth.tsx (112), lib/dialog.tsx (200),
+  lib/eventContext.tsx (110), lib/emailHtml.ts (164), lib/upload.ts (83),
+  plus small helpers (confirmAction, responsive, useDocumentTitle)
+- packages/shared-types: logo.ts (99), tournamentHubEvents.ts (75)
+- Admin screens (about 14k lines) are reached only by the e2e browser checks.
