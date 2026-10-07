@@ -59,6 +59,15 @@ public class ExceptionHandlingMiddleware
         }
         catch (Exception ex)
         {
+            // Once the response has started (headers sent, streaming), the
+            // status and body can't be replaced; trying would throw a second
+            // exception that hides this one. Let the server abort it instead.
+            if (context.Response.HasStarted)
+            {
+                _logger.LogError(ex, "Exception after the response started for {Method} {Path}",
+                    context.Request.Method, context.Request.Path);
+                throw;
+            }
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -84,6 +93,13 @@ public class ExceptionHandlingMiddleware
 
             ValidationException validation =>
                 (HttpStatusCode.BadRequest, "VALIDATION_ERROR", validation.Message),
+            // Several controllers throw this when a signed-in account has no org
+            // claim (a SuperAdmin calling an org endpoint). That's a permission
+            // problem, not a server fault: 403 like ForbiddenException, with a
+            // fixed message rather than the exception's internal one (TT2).
+            UnauthorizedAccessException =>
+                (HttpStatusCode.Forbidden, "FORBIDDEN",
+                    "You do not have permission to perform this action."),
 
             // ── EF CORE / POSTGRES EXCEPTIONS ────────────────────────────
             // EF Core throws DbUpdateException when a DB constraint is violated.

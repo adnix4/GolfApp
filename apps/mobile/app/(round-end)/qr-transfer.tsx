@@ -9,71 +9,7 @@ import * as Brightness from 'expo-brightness';
 import QRCode from 'react-native-qrcode-svg';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
-
-// ── QR PAYLOAD BUILDER ────────────────────────────────────────────────────────
-
-interface QrScore {
-  h: number;         // holeNumber
-  g: number;         // grossScore
-  p: number | null;  // putts
-}
-
-interface QrPayload {
-  v:      number;      // schema version
-  ec:     string;      // eventCode
-  tid:    string;      // teamId
-  tn:     string;      // teamName
-  did:    string;      // deviceId
-  ts:     number;      // Unix timestamp
-  part?:  number;      // 1 or 2 (split only)
-  total?: number;      // 2 (split only)
-  sig:    string;      // HMAC-SHA256 hex
-  scores: QrScore[];
-}
-
-// HMAC-SHA256 via Web Crypto API (available in Hermes, RN 0.73+)
-async function hmacSha256(key: string, message: string): Promise<string> {
-  const subtle = (globalThis.crypto as any).subtle;
-  const enc    = (globalThis as any).TextEncoder
-    ? new (globalThis as any).TextEncoder()
-    : { encode: (s: string) => new Uint8Array(s.split('').map((c: string) => c.charCodeAt(0))) };
-
-  const cryptoKey = await subtle.importKey(
-    'raw', enc.encode(key),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false, ['sign'],
-  );
-  const sigBuf = await subtle.sign('HMAC', cryptoKey, enc.encode(message));
-  return Array.from(new Uint8Array(sigBuf) as unknown as number[])
-    .map((b: number) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-// UTF-8 safe base64 — handles team names with accented characters
-function toBase64(str: string): string {
-  const encoded = encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) =>
-    String.fromCharCode(parseInt(p1, 16)),
-  );
-  // btoa is a global in RN; declare inline to satisfy TypeScript
-  return (globalThis as any).btoa(encoded);
-}
-
-async function buildPayload(
-  eventCode: string, teamId: string, teamName: string,
-  deviceId: string, scores: QrScore[], part?: number, total?: number,
-): Promise<string> {
-  const base: Omit<QrPayload, 'sig'> = {
-    v: 1, ec: eventCode, tid: teamId, tn: teamName, did: deviceId,
-    ts: Math.floor(Date.now() / 1000), scores,
-    ...(part !== undefined ? { part, total } : {}),
-  };
-  const sig  = await hmacSha256(eventCode + teamId, JSON.stringify(base));
-  const full = { ...base, sig };
-  return toBase64(JSON.stringify(full));
-}
-
-// Threshold: if raw JSON > 1200 chars, split into two QR codes
-const SPLIT_THRESHOLD = 1200;
+import { buildQrPayloads, type QrScore } from '@/lib/qrPayload';
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
 
@@ -119,28 +55,11 @@ export default function QrTransferScreen() {
         g: s.grossScore,
         p: s.putts,
       }));
-
-      // Test full payload size
-      const testPayload = JSON.stringify({
-        v: 1, ec: event.eventCode, tid: team.id, tn: team.name,
-        did: deviceId, ts: 0, scores, sig: '',
-      });
-
-      if (testPayload.length <= SPLIT_THRESHOLD) {
-        // Single QR
-        const qr = await buildPayload(event.eventCode, team.id, team.name, deviceId, scores);
-        setQrValues([qr]);
-      } else {
-        // Split into two parts
-        const mid    = Math.ceil(scores.length / 2);
-        const part1  = scores.slice(0, mid);
-        const part2  = scores.slice(mid);
-        const [qr1, qr2] = await Promise.all([
-          buildPayload(event.eventCode, team.id, team.name, deviceId, part1, 1, 2),
-          buildPayload(event.eventCode, team.id, team.name, deviceId, part2, 2, 2),
-        ]);
-        setQrValues([qr1, qr2]);
-      }
+      // One QR, or two when the card is long (see lib/qrPayload.ts, D22).
+      setQrValues(buildQrPayloads({
+        eventCode: event.eventCode, teamId: team.id, teamName: team.name,
+        deviceId, scores, ts: Math.floor(Date.now() / 1000),
+      }));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to generate QR code.');
     } finally {

@@ -23,10 +23,19 @@ public class RegisterTeamRequestValidator : AbstractValidator<RegisterTeamReques
 
         // No duplicate emails within the same registration request
         // (prevents the same person registering twice in one submission)
+        // Skips missing emails (and null entries): JSON "email": null arrives as
+        // null despite the non-nullable type, and lowercasing it threw, turning
+        // a bad public registration into a 500 (TestingToDoList TT3). The
+        // per-player rule below already reports the missing email as a 400.
         RuleFor(x => x.Players)
             .Must(players =>
-                players.Select(p => p.Email.ToLowerInvariant()).Distinct().Count()
-                == players.Count)
+            {
+                var emails = players
+                    .Where(p => !string.IsNullOrWhiteSpace(p?.Email))
+                    .Select(p => p!.Email.Trim().ToLowerInvariant())
+                    .ToList();
+                return emails.Distinct().Count() == emails.Count;
+            })
             .When(x => x.Players.Count > 1)
             .WithMessage("Duplicate email addresses are not allowed within a team registration.");
 

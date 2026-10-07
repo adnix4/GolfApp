@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -409,16 +408,20 @@ public class ScoreService
     // ── QR COLLECT ────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Admin submits a QR-scanned scorecard at the 18th green.
-    /// Decodes and verifies the HMAC-SHA256 signature, then imports all hole scores.
+    /// Admin submits a QR-scanned scorecard at the 18th green: the fallback when
+    /// a team had no signal. Checks the payload's structure, then imports the
+    /// hole scores.
     ///
-    /// PAYLOAD FORMAT (spec Phase 2 §5.2):
-    ///   Base64-encoded JSON: { v, ec, tid, tn, did, ts, sig, scores:[{h,g,p?}] }
-    ///   sig = HMAC-SHA256(key="{event_code}:{team_id}", msg=canonical_payload_without_sig)
+    /// PAYLOAD FORMAT v1 (built by apps/mobile/src/lib/qrPayload.ts):
+    ///   Base64 (UTF-8) of JSON { v, ec, tid, tn, did, ts, part?, total?, scores:[{h,g,p}] }
+    ///   Each part of a two-part card imports on its own.
     ///
-    /// CANONICAL MESSAGE:
-    ///   "{v}|{ec}|{tid}|{did}|{ts}|{scores_compact_json}"
-    ///   scores_compact_json = compact JSON array, sorted by hole number ascending.
+    /// NO SIGNATURE, by design (problemList D22). The old HMAC was keyed with
+    /// public values (event code + team id), so it stopped nothing; the phone and
+    /// this method computed it differently, so every real import was rejected.
+    /// Golfers enter their own scores; the QR only has to carry them. A leftover
+    /// "sig" field from an old payload is ignored. The shared fixture
+    /// apps/api-tests/Fixtures/qr-payload-v1.txt keeps the two sides in step.
     /// </summary>
     public async Task<QrCollectResponse> QrCollectAsync(
         Guid orgId, Guid eventId,
@@ -475,38 +478,7 @@ public class ScoreService
         if (team is null)
             throw new NotFoundException("Team", teamId);
 
-        // ── 4. VERIFY HMAC SIGNATURE ─────────────────────────────────────────
-        // Key: UTF-8("{event_code}:{team_id}")
-        // Message: "{v}|{ec}|{tid}|{did}|{ts}|{scores_compact_json}"
-        var scoresForSig = (payload.Scores ?? [])
-            .OrderBy(s => s.H)
-            .Select(s => s.P.HasValue
-                ? $"{{\"h\":{s.H},\"g\":{s.G},\"p\":{s.P}}}"
-                : $"{{\"h\":{s.H},\"g\":{s.G}}}")
-            .ToList();
-        var scoresJson = "[" + string.Join(",", scoresForSig) + "]";
-
-        var message = $"{payload.V}|{payload.Ec}|{payload.Tid}|{payload.Did}|{payload.Ts}|{scoresJson}";
-        var keyStr  = $"{evt.EventCode}:{payload.Tid}";
-
-        var keyBytes     = Encoding.UTF8.GetBytes(keyStr);
-        var messageBytes = Encoding.UTF8.GetBytes(message);
-        var expectedSig  = Convert.ToHexString(
-            HMACSHA256.HashData(keyBytes, messageBytes)).ToLowerInvariant();
-
-        if (!CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(expectedSig),
-                Encoding.UTF8.GetBytes((payload.Sig ?? string.Empty).ToLowerInvariant())))
-        {
-            _logger.LogWarning(
-                "QR signature mismatch for event {EventId} team {TeamId} device {Did}",
-                eventId, teamId, payload.Did);
-            throw new ValidationException(
-                "QR signature is invalid. This scorecard may have been tampered with. " +
-                "Please manually verify and enter scores for this team.");
-        }
-
-        // ── 5. IMPORT SCORES ─────────────────────────────────────────────────
+        // ── 4. IMPORT SCORES ─────────────────────────────────────────────────
         var existing = await _db.Scores
             .Where(s => s.EventId == eventId && s.TeamId == teamId)
             .ToDictionaryAsync(s => (int)s.HoleNumber, ct);
@@ -631,7 +603,6 @@ public class ScoreService
         [System.Text.Json.Serialization.JsonPropertyName("tn")]     public string? Tn    { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("did")]    public string? Did   { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("ts")]     public long   Ts     { get; init; }
-        [System.Text.Json.Serialization.JsonPropertyName("sig")]    public string? Sig   { get; init; }
         [System.Text.Json.Serialization.JsonPropertyName("scores")] public List<QrPayloadScore>? Scores { get; init; }
     }
 

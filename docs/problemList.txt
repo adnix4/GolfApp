@@ -30,6 +30,7 @@ P1 — PILOT PATH (external lead times first; D1 gates D3 and D10)
           error monitoring, uptime still need accounts/hosting
      [x] D20 staff invites (EventStaff / co-organizer) 2026-10-04
      [x] D21 password reset 2026-10-04 (email delivery itself still D1)
+     [x] D22 QR scorecard transfer works: signature dropped by decision 2026-10-05
 
 P2 — CORRECTNESS THE ORGANIZER WILL HIT ON THE DAY  (tier clear)
      [x] U5  auto-assigned on the Active transition 2026-08-01
@@ -338,6 +339,57 @@ their standing decisions are in the section above.
         password and refresh token dead; new password signs in).
         STILL DEPENDS ON D1: real email delivery. Until then a second organizer
         (D20) is the fallback, as the runbook says.
+
+[x] D22. QR SCORECARD TRANSFER IS BROKEN, AND ITS SIGNATURE CAN'T STOP FORGERY (2026-10-05)
+        Found while writing unit tests for it (docs/TestingToDoList.txt TT1).
+        QR transfer is the runbook's fallback when a team had no signal: the
+        phone shows its scorecard as a QR code, the desk scans it on QR Import.
+        (1) BROKEN: the phone and the API sign differently.
+            Phone, apps/mobile/app/(round-end)/qr-transfer.tsx:70:
+              key = eventCode + teamId; message = JSON.stringify(payload)
+            API, apps/api/Features/Scores/ScoreService.cs:489-490:
+              key = "{eventCode}:{teamId}";
+              message = "v|ec|tid|did|ts|<scores, compact, by hole>"
+            Also: missing putts are "p":null on the phone but omitted on the
+            server. VERIFIED 2026-10-05 with a throwaway test through the real
+            QrCollectAsync: a payload built exactly as the phone builds it is
+            REJECTED ("QR signature is invalid… may have been tampered with");
+            one built the server's way is accepted. So every real QR import
+            fails. The Phase 2 spec gives the key (event_code + team_id, no
+            colon) but never defines the message, which is how the two drifted.
+            No test on either side, and nothing checks one against the other.
+        (2) FORGEABLE: the key is built from the event code (shared with every
+            golfer) and the team id (public: leaderboard and join responses).
+            Anyone can sign any scores they like, so the check catches
+            corruption, not tampering, despite its error message. A golfer
+            could show the desk a crafted QR with better scores.
+        DECISION NEEDED: fix (1) by making both sides agree on one documented
+        format, with a shared test vector run on both sides. For (2), the
+        golfer's /join session token is a per-golfer secret the phone and the
+        server both hold; keying the HMAC with it would make the signature
+        real. That changes the phone and the API together.
+        Related, smaller (QrService player check-in token, which IS keyed with
+        the server secret): it compares signatures with != instead of a
+        constant-time compare, and its base64 decode always appends "==",
+        which only works because the payload length never changes.
+        FIXED 2026-10-05. USER DECISION: no signature. Golfers enter their own
+        scores, so the QR only has to carry them reliably between the phone and
+        the server; security is not the goal (and the old key was public anyway).
+        - Phone: the builder moved to apps/mobile/src/lib/qrPayload.ts; no HMAC,
+          so no dependency on Web Crypto (crypto.subtle, which Hermes likely
+          lacks). Format v1: Base64 (UTF-8) JSON
+          { v, ec, tid, tn, did, ts, part?, total?, scores:[{h,g,p}] }.
+        - API: QrCollectAsync no longer checks a signature; a leftover "sig" is
+          ignored. Every structural check stays (Base64, JSON, version, event
+          code, team in event, event status, hole and score ranges, conflicts).
+        - CONTRACT: apps/api-tests/Fixtures/qr-payload-v1.txt is written by the
+          phone's real builder. The mobile test checks the builder still
+          produces it byte for byte; the API test imports it. VERIFIED: renaming
+          a field on either side fails a test.
+        - e2e "QR scorecard transfer": the two-part fixture, re-targeted at the
+          run's event, imports 6 holes on real Postgres and scores +3 thru 6.
+        Supersedes the Phase 2 spec line "signs with HMAC-SHA256" (the spec file
+        is not edited). The check-in token issues above are TestingToDoList TT12.
 
 [ ] D7. APP STORE LINKS — FINISH WHEN THE APP GOES LIVE (added 2026-07-31)
         The web app already has the "Get the App" UI in place; it is running in
