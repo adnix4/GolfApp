@@ -37,6 +37,12 @@
  * Expo moves a target within the same SDK (57 moved react-native 0.86.2 ->
  * 0.86.3 with no SDK bump) and our pin silently goes stale.
  *
+ * Cooldown grace: when that stale pin's only fix is a release younger than
+ * COOLDOWN_HOURS, the repo's own rule forbids installing it yet, so the gate
+ * WARNS (⏳, and `coolingDown` in --json) instead of failing. Ahead-of-target or
+ * out-of-family drift, and drift with a mature fix available, still fail. See
+ * cooldownGrace(). The lookup uses `npm view`; if it fails, no grace is given.
+ *
  * Network: SDK data comes from api.expo.dev. If it is unreachable the SDK and
  * runtime sections degrade to a warning and --assert-pins passes rather than
  * failing CI on a network blip; everything else still runs offline.
@@ -428,6 +434,58 @@ function fmtAge(hours) {
  * An unknown publish date is treated as NOT mature (fail closed): a version we
  * can't date doesn't get to skip the cooldown.
  */
+/**
+ * Is this drift only waiting out the cooldown? (Pin gate vs. cooldown policy.)
+ *
+ * When Expo moves an SDK target (say expo-router ~57.0.24 -> ~57.0.25), the
+ * live pin gate fails every PR at once, yet this repo's own rule forbids
+ * installing the new release until it is COOLDOWN_HOURS old. Without this, CI
+ * is red for ~3 days after every Expo patch with no allowed fix.
+ *
+ * Grace applies ONLY when all of these hold, so real drift still fails:
+ *   - no manifest declares something the SDK doesn't target (badDecls empty);
+ *   - every installed copy is BEHIND the target, in the same major (and minor,
+ *     for ~ and exact targets). Ahead-of-target or out-of-family installs
+ *     (the PR #40 / PR #64 shapes) never qualify;
+ *   - EVERY published, non-prerelease version that satisfies the target is
+ *     younger than COOLDOWN_HOURS. If any one is mature, the fix is allowed
+ *     now, so the drift is real.
+ * Publish times come from `npm view`. If they can't be read, there is no
+ * evidence the release is new, so no grace (the gate fails as before).
+ *
+ * Returns { target, hours, eligibleIn } or null.
+ */
+function cooldownGrace(row) {
+  if (!row.diverged || row.badDecls.length > 0 || row.badInstalls.length === 0) return null;
+
+  const range = String(row.range).trim();
+  const op = (range[0] === '~' || range[0] === '^') ? range[0] : '=';
+  const floor = parseVersion(op === '=' ? range : range.slice(1));
+  if (!floor) return null;
+  const behind = (v) => {
+    const got = parseVersion(v);
+    if (!got || got[0] !== floor[0]) return false;
+    if (op !== '^' && got[1] !== floor[1]) return false;
+    return got[1] < floor[1] || (got[1] === floor[1] && got[2] < floor[2]);
+  };
+  if (!row.badInstalls.every((b) => behind(b.version))) return null;
+
+  const times = getPublishTimes(row.name);
+  if (!times) return null;
+  const candidates = [...times.entries()]
+    .filter(([v]) => !v.includes('-') && satisfiesSimple(v, range) === true);
+  if (candidates.length === 0) return null;
+  const ages = candidates.map(([v, d]) => ({ v, hours: (Date.now() - d.getTime()) / 36e5 }));
+  if (ages.some((a) => a.hours >= COOLDOWN_HOURS)) return null;
+
+  const oldest = ages.reduce((a, b) => (a.hours >= b.hours ? a : b));
+  return {
+    target: oldest.v,
+    hours: Math.floor(oldest.hours),
+    eligibleIn: Math.ceil(COOLDOWN_HOURS - oldest.hours),
+  };
+}
+
 function describeTarget(ver, times) {
   const when = times && times.get(ver);
   if (!when) return { mature: false, label: ver + ' (publish date unknown — held back)' };
@@ -451,7 +509,12 @@ async function main() {
 
   // Anything the SDK or the runtime dictates is NOT an ordinary update.
   const managed = new Set([].concat(sdkRows, runtimeRows).map((r) => r.name));
-  const divergences = [].concat(sdkRows, runtimeRows).filter((r) => r.diverged);
+  // Drift whose only fix is still inside the cooldown warns instead of failing
+  // (see cooldownGrace). Everything else that diverged is real drift.
+  const allDiverged = [].concat(sdkRows, runtimeRows).filter((r) => r.diverged);
+  for (const r of allDiverged) r.cooldown = cooldownGrace(r);
+  const coolingDown = allDiverged.filter((r) => r.cooldown);
+  const divergences = allDiverged.filter((r) => !r.cooldown);
 
   // --assert-pins is a pure lockfile+manifest audit, so skip the registry scan:
   // it makes the CI gate fast and independent of npm being reachable. The full
@@ -494,6 +557,10 @@ async function main() {
       sdkManaged: sdkRows,
       runtimeTracked: runtimeRows,
       divergences,
+      coolingDown: coolingDown.map((r) => ({
+        name: r.name, installed: r.installed, range: r.range,
+        target: r.cooldown.target, hours: r.cooldown.hours, eligibleIn: r.cooldown.eligibleIn,
+      })),
       actionable,
       heldBack,
       cooldownHours: COOLDOWN_HOURS,
@@ -526,9 +593,11 @@ async function main() {
   } else {
     console.log('• SDK-managed by Expo SDK ' + sdkMajor + ' — npm "latest" does NOT apply to these:');
     for (const r of sdkRows) {
-      const mark = r.okInstalled === false ? '✗' : (r.okInstalled === null ? '?' : '✓');
+      const mark = r.cooldown ? '⏳' : (r.okInstalled === false ? '✗' : (r.okInstalled === null ? '?' : '✓'));
       let note;
-      if (r.okInstalled === false) note = '  ← DRIFTED, SDK ' + sdkMajor + ' wants ' + r.range;
+      if (r.cooldown) note = '  SDK ' + sdkMajor + ' wants ' + r.range + '; ' + r.cooldown.target
+        + ' is ' + r.cooldown.hours + 'h old — held back by the ' + COOLDOWN_HOURS + 'h cooldown';
+      else if (r.okInstalled === false) note = '  ← DRIFTED, SDK ' + sdkMajor + ' wants ' + r.range;
       else if (r.okInstalled === null) note = '  (cannot compare against "' + r.range + '")';
       else note = ' (SDK target ' + r.range + ')';
       console.log('    ' + mark + ' ' + r.name + ' ' + r.installed + note);
@@ -585,8 +654,21 @@ async function main() {
 
   // 5. Pin gate.
   console.log('');
+  if (coolingDown.length > 0) {
+    console.log('⏳ Pin drift held back by the ' + COOLDOWN_HOURS + 'h cooldown (warning, not a failure):');
+    for (const r of coolingDown) {
+      console.log('    ' + r.name + ' — wants ' + r.range + ', installed ' + r.installed + '; '
+        + r.cooldown.target + ' is ' + r.cooldown.hours + 'h old, installable in ' + r.cooldown.eligibleIn + 'h.');
+    }
+    console.log('  Install these once they clear the cooldown (the weekly routine does). Until then CI passes.');
+    console.log('');
+  }
   if (divergences.length === 0) {
-    if (sdkPins) console.log('✓ Pin integrity: every SDK-managed and runtime-tracked package matches its target.');
+    if (sdkPins && coolingDown.length === 0) {
+      console.log('✓ Pin integrity: every SDK-managed and runtime-tracked package matches its target.');
+    } else if (sdkPins) {
+      console.log('✓ Pin integrity: no drift beyond the cooldown hold above.');
+    }
   } else {
     console.log('✗ Pin integrity: ' + divergences.length + ' package(s) have drifted from their target:');
     for (const d of divergences) {
