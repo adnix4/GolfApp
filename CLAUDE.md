@@ -30,6 +30,7 @@ making non-trivial changes in that area. Do not load all files at once.
 ## Key conventions
 
 - **Commits** — always ask the user for confirmation before running `git add` / `git commit`. Stage only relevant files (never `git add -A`), propose a commit message, and wait for approval before executing.
+  - **One exception: the scheduled weekly dependency routine** (unattended, so there is no one to ask). On a `deps/weekly-*` branch it may commit `package-lock.json` (and root `package.json` `overrides` fixes), push that branch, and open a PR without asking. It must never commit to `main`, never edit other `package.json` ranges, and never merge its own PR: branch protection requires CI and Vercel to pass, and the user merges.
 - **API auth** — organizer endpoints use JWT (`[Authorize(Policy = "OrgAdmin")]` or `"EventStaff"`); public/mobile endpoints are `[AllowAnonymous]`.
 - **Event status machine** — Draft → Registration → Active → Scoring → Completed (or Cancelled). Enforce via `EventStatusRules.cs`.
 - **Mobile offline** — scores queue in SQLite (`pending_scores`), synced by `backgroundSync.ts`. Don't assume connectivity.
