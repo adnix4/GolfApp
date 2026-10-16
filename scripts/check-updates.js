@@ -169,10 +169,16 @@ function satisfiesSimple(version, range) {
   return true;
 }
 
+// Why each failed fetchJson call failed, so "could not reach api.expo.dev" can
+// say whether it was DNS, a refused connection, a proxy 403 or a timeout. The
+// weekly routine's sandbox hit this three weeks running with no clue why.
+const fetchErrors = [];
+
 /** GET + parse JSON, returning null on any failure (timeout, non-200, bad body). */
 async function fetchJson(url) {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), NETWORK_TIMEOUT_MS);
+  const fail = (reason) => { fetchErrors.push(url + ': ' + reason); return null; };
   try {
     // 'connection: close' matters on Windows: a lingering keep-alive socket is
     // still closing when we exit, which trips a libuv assertion inside npm's
@@ -181,10 +187,18 @@ async function fetchJson(url) {
       signal: ctl.signal,
       headers: { accept: 'application/json', connection: 'close' },
     });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
+    if (!res.ok) return fail('HTTP ' + res.status + (res.statusText ? ' ' + res.statusText : ''));
+    try {
+      return await res.json();
+    } catch {
+      return fail('response was not JSON');
+    }
+  } catch (err) {
+    if (err && err.name === 'AbortError') return fail('timed out after ' + NETWORK_TIMEOUT_MS + 'ms');
+    // undici wraps the socket error: the useful part (ENOTFOUND, ECONNREFUSED,
+    // a TLS failure) is on err.cause, while err.message is just "fetch failed".
+    const cause = err && err.cause;
+    return fail((cause && (cause.code || cause.message)) || (err && err.message) || String(err));
   } finally {
     clearTimeout(timer);
   }
@@ -511,6 +525,10 @@ async function main() {
   const sdkMajor = detectExpoSdkMajor(lock);
   const sdkPins = await getSdkPins(sdkMajor);
   const sdkRows = sdkPins ? auditPins(sdkPins, declared, lock.packages || {}) : [];
+  // Both requests can succeed and still yield no pins (an API shape change).
+  const sdkError = sdkMajor && !sdkPins
+    ? (fetchErrors.length ? fetchErrors.join('; ') : 'api.expo.dev answered but listed no SDK ' + sdkMajor + ' pins')
+    : null;
   const runtimeRows = auditPins(getRuntimePins(lock, rootPkg), declared, lock.packages || {});
 
   // Anything the SDK or the runtime dictates is NOT an ordinary update.
@@ -563,6 +581,8 @@ async function main() {
     console.log(JSON.stringify({
       sdkMajor,
       sdkDataAvailable: !!sdkPins,
+      // Why sdkDataAvailable is false; null when it is true.
+      sdkError,
       mismatches,
       sdkManaged: sdkRows,
       runtimeTracked: runtimeRows,
@@ -602,6 +622,7 @@ async function main() {
     console.log('• SDK-managed pins: expo not found in the lockfile — skipped.');
   } else if (!sdkPins) {
     console.log('⚠ SDK-managed pins: could not reach api.expo.dev — cannot verify Expo SDK ' + sdkMajor + ' targets.');
+    console.log('  Reason: ' + sdkError);
     console.log('  Expo, React and React Native updates are withheld from the list below until this succeeds.');
   } else {
     console.log('• SDK-managed by Expo SDK ' + sdkMajor + ' — npm "latest" does NOT apply to these:');
