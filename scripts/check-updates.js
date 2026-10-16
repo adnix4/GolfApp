@@ -2,7 +2,8 @@
 /**
  * Dependency health check for the Golf Fundraiser Pro monorepo.
  *
- * Reports four things and exits non-zero if anything needs attention:
+ * Reports four things and exits non-zero if anything needs attention (plus an
+ * advisory when a newer Expo SDK exists — see getSdkUpgrade; never an error):
  *   1. Version mismatches  — a "watchlist" framework package (react,
  *      react-native, etc.) resolving to more than one version across the
  *      workspace. This is the class of bug that broke the web bundle
@@ -174,8 +175,16 @@ function satisfiesSimple(version, range) {
 // weekly routine's sandbox hit this three weeks running with no clue why.
 const fetchErrors = [];
 
+// One request per URL per run: the SDK-upgrade advisory re-reads versions/latest
+// after getSdkPins already fetched it, and a failure should be reported once.
+const jsonCache = new Map();
+function fetchJson(url) {
+  if (!jsonCache.has(url)) jsonCache.set(url, fetchJsonUncached(url));
+  return jsonCache.get(url);
+}
+
 /** GET + parse JSON, returning null on any failure (timeout, non-200, bad body). */
-async function fetchJson(url) {
+async function fetchJsonUncached(url) {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), NETWORK_TIMEOUT_MS);
   const fail = (reason) => { fetchErrors.push(url + ': ' + reason); return null; };
@@ -257,6 +266,64 @@ async function getSdkPins(sdkMajor) {
  * Bumping either to npm `latest` types the code against a runtime/library that
  * is not the one actually in use.
  */
+/**
+ * Advice only: is there an Expo SDK newer than the installed one, and what would
+ * moving to it take? React Native and React majors are reported through the SDK
+ * on purpose — npm's `latest` for react-native runs ahead of every SDK, so it is
+ * not an upgrade anyone can actually take. Returns null when the repo is on the
+ * newest SDK or the SDK list could not be read. Never installs anything.
+ */
+async function getSdkUpgrade(sdkMajor, declared, lock) {
+  if (!sdkMajor) return null;
+  const versions = await fetchJson(EXPO_VERSIONS_URL);
+  const all = versions && versions.data && versions.data.sdkVersions;
+  if (!all) return null;
+
+  const current = Number(sdkMajor);
+  let next = null;
+  let entry = null;
+  for (const [key, v] of Object.entries(all)) {
+    const major = Number(key.split('.')[0]);
+    if (!Number.isInteger(major) || major <= current || (v && v.beta)) continue;
+    if (next === null || major > next) { next = major; entry = v || {}; }
+  }
+  if (next === null) return null;
+
+  const lockPkgs = lock.packages || {};
+  const pins = await getSdkPins(String(next));
+  const moves = pins
+    ? auditPins(pins, declared, lockPkgs).filter((r) => r.diverged)
+      .map((r) => ({ name: r.name, installed: r.installed, target: r.range }))
+    : [];
+
+  const times = getPublishTimes('expo');
+  const released = times && times.get(next + '.0.0');
+  const patches = times
+    ? [...times.keys()].filter((v) => v.startsWith(next + '.') && !v.includes('-'))
+    : [];
+  const byVersion = (a, b) => {
+    const pa = parseVersion(a);
+    const pb = parseVersion(b);
+    return pa[0] - pb[0] || pa[1] - pb[1] || pa[2] - pb[2];
+  };
+  const installedVersion = (name) => {
+    const meta = lockPkgs['node_modules/' + name];
+    return (meta && meta.version) || null;
+  };
+
+  return {
+    from: String(sdkMajor),
+    to: String(next),
+    releasedAt: released ? released.toISOString() : null,
+    ageDays: released ? Math.floor((Date.now() - released.getTime()) / 864e5) : null,
+    latestPatch: patches.sort(byVersion).pop() || null,
+    reactNative: { from: installedVersion('react-native'), to: entry.facebookReactNativeVersion || null },
+    react: { from: installedVersion('react'), to: entry.facebookReactVersion || null },
+    releaseNotes: entry.releaseNoteUrl || null,
+    moves,
+  };
+}
+
 function getRuntimePins(lock, rootPkg) {
   const pins = new Map();
 
@@ -575,6 +642,10 @@ async function main() {
     });
   }
 
+  // Advisory only, so it rides with the registry scan and stays out of the
+  // fast --assert-pins gate. It never affects the exit code.
+  const sdkUpgrade = scanRegistry && sdkPins ? await getSdkUpgrade(sdkMajor, declared, lock) : null;
+
   const failed = mismatches.length > 0 || (ASSERT_PINS && divergences.length > 0);
 
   if (JSON_OUT) {
@@ -583,6 +654,8 @@ async function main() {
       sdkDataAvailable: !!sdkPins,
       // Why sdkDataAvailable is false; null when it is true.
       sdkError,
+      // A newer Expo SDK and what moving to it would change; null when none.
+      sdkUpgrade,
       mismatches,
       sdkManaged: sdkRows,
       runtimeTracked: runtimeRows,
@@ -639,6 +712,23 @@ async function main() {
         console.log('        ✗ ' + d.where + ' declares "' + d.range + '" — outside the SDK target');
       }
     }
+  }
+
+  // 2b. A newer SDK, as advice. Upgrading is a manual project, never automatic.
+  if (sdkUpgrade) {
+    const u = sdkUpgrade;
+    const age = u.ageDays === null ? 'release date unknown' : 'released ' + u.ageDays + 'd ago';
+    const jump = (label, j) => (j.to && j.from !== j.to ? label + ' ' + j.from + ' → ' + j.to : null);
+    console.log('');
+    console.log('• Expo SDK ' + u.to + ' is available (' + age
+      + (u.latestPatch ? ', latest ' + u.latestPatch : '') + ') — NOT applied:');
+    const jumps = [jump('React Native', u.reactNative), jump('React', u.react)].filter(Boolean);
+    console.log('    ' + jumps.concat(u.moves.length + ' SDK-managed package(s) would move').join(', ') + '.');
+    for (const m of u.moves) {
+      console.log('      ' + m.name + ' ' + m.installed + ' → ' + m.target);
+    }
+    if (u.releaseNotes) console.log('    Release notes: ' + u.releaseNotes);
+    console.log('    Preview: GFP_SDK_MAJOR=' + u.to + ' npm run check-updates');
   }
 
   // 3. Runtime-tracked pins.
