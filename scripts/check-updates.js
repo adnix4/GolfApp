@@ -88,6 +88,12 @@ const WATCHLIST = [
 // UPDATE_COOLDOWN_HOURS for a one-off looser/tighter window.
 const COOLDOWN_HOURS = Number(process.env.UPDATE_COOLDOWN_HOURS) || 72;
 
+// The families an Expo SDK pins: expo, expo-*, @expo/*, *-expo (babel-preset-expo,
+// jest-expo), react/react-dom, and anything React Native (react-native-*,
+// @react-native*/…, @stripe/stripe-react-native). Used only when api.expo.dev
+// is unreachable, to withhold these rather than guess.
+const SDK_FAMILY = /^(react|react-dom)$|(^|[-/])expo(-|$)|^@expo\/|react-native/;
+
 // Expo's own view of what an SDK targets. These two endpoints are the
 // authoritative source — npm's dist-tags are not. GFP_SDK_MAJOR overrides the
 // detected SDK, which is how the drift path gets exercised in testing.
@@ -509,6 +515,10 @@ async function main() {
 
   // Anything the SDK or the runtime dictates is NOT an ordinary update.
   const managed = new Set([].concat(sdkRows, runtimeRows).map((r) => r.name));
+  // Without api.expo.dev we don't know which packages the SDK pins, so withhold
+  // every package from the families it normally pins rather than let npm
+  // "latest" move them (the 2026-10-09 weekly run treated them as ordinary).
+  const sdkUnverifiable = (name) => !!sdkMajor && !sdkPins && SDK_FAMILY.test(name);
   // Drift whose only fix is still inside the cooldown warns instead of failing
   // (see cooldownGrace). Everything else that diverged is real drift.
   const allDiverged = [].concat(sdkRows, runtimeRows).filter((r) => r.diverged);
@@ -527,7 +537,7 @@ async function main() {
 
   for (const name of Object.keys(outdated).sort()) {
     const info = Array.isArray(outdated[name]) ? outdated[name][0] : outdated[name];
-    if (managed.has(name)) { suppressed.push(name); continue; }
+    if (managed.has(name) || sdkUnverifiable(name)) { suppressed.push(name); continue; }
     const times = getPublishTimes(name);
     const wantedT = info.wanted ? describeTarget(info.wanted, times) : null;
     const latestT = (info.latest && info.latest !== info.wanted)
@@ -563,6 +573,9 @@ async function main() {
       })),
       actionable,
       heldBack,
+      // Only filled when sdkDataAvailable is false: updates withheld because
+      // the SDK's targets for them could not be checked.
+      sdkUnverified: suppressed.filter(sdkUnverifiable),
       cooldownHours: COOLDOWN_HOURS,
       ok: !failed,
     }, null, 2));
@@ -589,7 +602,7 @@ async function main() {
     console.log('• SDK-managed pins: expo not found in the lockfile — skipped.');
   } else if (!sdkPins) {
     console.log('⚠ SDK-managed pins: could not reach api.expo.dev — cannot verify Expo SDK ' + sdkMajor + ' targets.');
-    console.log('  Treat every react/react-native/expo-* "update" below as UNVERIFIED until this succeeds.');
+    console.log('  Expo, React and React Native updates are withheld from the list below until this succeeds.');
   } else {
     console.log('• SDK-managed by Expo SDK ' + sdkMajor + ' — npm "latest" does NOT apply to these:');
     for (const r of sdkRows) {
@@ -647,7 +660,8 @@ async function main() {
   }
   if (suppressed.length > 0) {
     console.log('\n  ℹ ' + suppressed.length + ' package(s) hidden from the list above because their '
-      + 'version is dictated by the SDK or this repo runtime, not by npm:');
+      + 'version is dictated by the SDK or this repo runtime, not by npm'
+      + (sdkPins || !sdkMajor ? '' : ' (or the SDK could not be checked)') + ':');
     console.log('      ' + suppressed.join(', '));
     console.log('    npm reports newer versions for these. Installing one desyncs the app. Do not.');
   }
