@@ -22,6 +22,16 @@ public static class AccountLinks
         return env.IsDevelopment() ? "http://localhost:8081" : "https://app.golffundraiser.pro";
     }
 
+    /// <summary>
+    /// Base URL of the public Next.js site, for links golfers open: the join
+    /// nudge, reminders and team invite links. WEB_BASE_URL when set; otherwise
+    /// the local dev server, so a dev environment still produces clickable links.
+    /// </summary>
+    public static string WebBaseUrl(IConfiguration config) =>
+        config["WEB_BASE_URL"] is { Length: > 0 } configured
+            ? configured.TrimEnd('/')
+            : "http://localhost:3000";
+
     /// <summary>A new unguessable link token: 32 random bytes, base64url.</summary>
     public static string NewToken() =>
         Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))

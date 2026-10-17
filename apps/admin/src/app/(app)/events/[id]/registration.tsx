@@ -14,7 +14,7 @@ import {
   canCheckInWholeTeam, golfersWithoutCard,
 } from '@/lib/checkIn';
 import { AddCardModal, cardCaptureEnabled } from '@/components/AddCardModal';
-import { formatTime } from '@gfp/shared-types';
+import { formatTime, digitsOnly, fmtPhoneInput, validateGolfer, toPlayerInput } from '@gfp/shared-types';
 
 type Filter = 'all' | 'pending' | 'checked_in';
 
@@ -498,6 +498,7 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
   const [email,     setEmail]     = useState('');
+  const [phone,     setPhone]     = useState('');
   const [teamName,  setTeamName]  = useState('');
   const [handicap,  setHandicap]  = useState('');
   const [isGuest,   setIsGuest]   = useState(false);
@@ -528,16 +529,19 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
   }
 
   function reset() {
-    setFirstName(''); setLastName(''); setEmail('');
+    setFirstName(''); setLastName(''); setEmail(''); setPhone('');
     setTeamName(''); setHandicap(''); setIsGuest(false); setErr(null);
   }
 
   function handleClose() { reset(); onClose(); }
 
   async function handleSubmit() {
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      setErr('First name, last name, and email are required.'); return;
-    }
+    // Same fields and rules as every other registration form
+    // (packages/shared-types/src/registration.ts); desk entry, so phone is optional.
+    const golfer = { firstName, lastName, email, phone, handicap: isGuest ? '' : handicap };
+    const problem = validateGolfer(golfer);
+    if (problem) { setErr(problem); return; }
+    const player = toPlayerInput(golfer);
     setSaving(true); setErr(null);
     try {
       if (isGuest) {
@@ -545,9 +549,10 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
         // leaderboard, out of pairings, and out of the check-in counts that gate
         // Open Scoring. They still become a player row so they can bid.
         const guest = await playersApi.add(eventId, {
-          firstName: firstName.trim(),
-          lastName:  lastName.trim(),
-          email:     email.trim(),
+          firstName: player.firstName,
+          lastName:  player.lastName,
+          email:     player.email,
+          ...(player.phone ? { phone: player.phone } : {}),
           isAttendee: true,
         });
         reset();
@@ -555,11 +560,7 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
         return;
       }
       const name = teamName.trim() || `${lastName.trim()} Walk-up`;
-      const hcp  = handicap.trim() ? parseFloat(handicap) : undefined;
-      const { team } = await teamsApi.registerTeam(eventId, {
-        teamName: name,
-        players:  [{ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), handicap: hcp }],
-      });
+      const { team } = await teamsApi.registerTeam(eventId, { teamName: name, players: [player] });
       reset();
       onRegistered(team);
     } catch (e: any) {
@@ -633,10 +634,11 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
             <LabeledInput label="First Name *" value={firstName} onChangeText={setFirstName} placeholder="Jane" />
             <LabeledInput label="Last Name *"  value={lastName}  onChangeText={setLastName}  placeholder="Smith" />
             <LabeledInput label="Email *"      value={email}     onChangeText={setEmail}     placeholder="jane@example.com" keyboardType="email-address" autoCapitalize="none" />
+            <LabeledInput label="Phone"        value={phone}     onChangeText={v => setPhone(fmtPhoneInput(digitsOnly(v)))} placeholder="(555) 867-5309 — optional" keyboardType="phone-pad" />
             {!isGuest && (
               <>
                 <LabeledInput label="Team Name"    value={teamName}  onChangeText={setTeamName}  placeholder={lastName.trim() ? `${lastName.trim()} Walk-up` : 'Auto-filled from last name'} />
-                <LabeledInput label="Handicap"     value={handicap}  onChangeText={setHandicap}  placeholder="e.g. 12" keyboardType="numeric" />
+                <LabeledInput label="Handicap"     value={handicap}  onChangeText={setHandicap}  placeholder="e.g. 12 — optional" keyboardType="decimal-pad" />
               </>
             )}
           </ScrollView>

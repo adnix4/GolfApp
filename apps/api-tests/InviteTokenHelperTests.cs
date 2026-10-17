@@ -28,6 +28,20 @@ public class InviteTokenHelperTests
             precision: TimeSpan.FromSeconds(1));
     }
 
+    [Fact]
+    public void An_explicit_expiry_is_embedded_and_enforced()
+    {
+        // Team invites expire at the event's start, not a fixed window.
+        var start = DateTime.UtcNow.AddDays(21);
+        var teamId = Guid.NewGuid();
+        var (token, expiresAt) = InviteTokenHelper.Generate(teamId, Secret, start);
+
+        Assert.Equal(start, expiresAt, precision: TimeSpan.FromSeconds(1));
+        Assert.Equal(teamId, InviteTokenHelper.Validate(token, Secret, new DateTimeOffset(start.AddDays(-20))));
+        Assert.Throws<ValidationException>(() =>
+            InviteTokenHelper.Validate(token, Secret, new DateTimeOffset(start.AddSeconds(1))));
+    }
+
     // ── Expiry ──────────────────────────────────────────────────────────────
 
     [Fact]

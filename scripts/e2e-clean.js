@@ -754,6 +754,67 @@ async function phaseWeb(ctx) {
   pass('scores page renders the standings');
 }
 
+// ── team invite link ──────────────────────────────────────────────────────────
+// A captain registers part of a team on mobile/web and sends teammates a link.
+// That link was a relative path with the org GUID, and the web /join page threw
+// its token away, so no teammate could ever use it. Here: the link is absolute
+// and slugged, lasts until the event starts, previews by token alone, and a
+// teammate joining through it lands on that team with their phone + handicap.
+// The browser half (the link opening "Join <team>") is in the UI smoke.
+async function phaseTeamInvite(ctx) {
+  phase('Team invite link');
+  const startAt = new Date(Date.now() + 3 * 864e5);
+  const ev = await api('POST', '/events', { token: ctx.token, body: {
+    name: `E2E Invite ${ctx.stamp}`, format: 'Scramble', startType: 'Shotgun', holes: 18,
+    startAt: startAt.toISOString(), config: { maxTeams: 10 },
+  }});
+  await api('PATCH', `/events/${ev.id}`, { token: ctx.token, body: { status: 'Registration' } });
+
+  const teamName = 'Invite Crew';
+  const reg = await api('POST', `/events/${ev.id}/register/team`, { body: {
+    teamName, maxPlayers: 4,
+    players: [
+      { firstName: 'Cap', lastName: 'Tain', email: `e2e.inv.0.${ctx.stamp}@example.com`, phone: '5550000001', handicapIndex: 9.5 },
+      { firstName: 'Mate', lastName: 'One',  email: `e2e.inv.1.${ctx.stamp}@example.com` },
+    ],
+  }});
+  let link;
+  try { link = new URL(reg.inviteUrl); } catch { fail('invite link is absolute', `got ${JSON.stringify(reg.inviteUrl)}`); }
+  const wantPath = `/e/${ctx.orgSlug}/${ev.eventCode}/join`;
+  if (link.pathname !== wantPath) fail('invite link uses the org slug', `path ${link.pathname}, expected ${wantPath}`);
+  const token = link.searchParams.get('token');
+  if (!token) fail('invite link carries a token', reg.inviteUrl);
+  pass('invite link is absolute and slugged', c.dim(link.origin + link.pathname));
+
+  const lag = Math.abs(new Date(reg.inviteExpiresAt).getTime() - startAt.getTime());
+  if (!(lag < 2000)) fail('invite lasts until the event starts', `expires ${reg.inviteExpiresAt}, event starts ${startAt.toISOString()}`);
+  pass('invite lasts until the event starts', c.dim(reg.inviteExpiresAt));
+
+  const preview = await api('GET', `/events/${ev.id}/invite?token=${encodeURIComponent(token)}`);
+  if (preview.teamName !== teamName || preview.spotsRemaining !== 2) {
+    fail('invite preview by token', JSON.stringify(preview));
+  }
+  pass('preview by token alone', c.dim(`${preview.teamName} · ${preview.spotsRemaining} spots`));
+
+  await api('POST', `/events/${ev.id}/register/join`, { body: {
+    inviteToken: token,
+    player: { firstName: 'Late', lastName: 'Comer', email: `e2e.inv.2.${ctx.stamp}@example.com`, phone: '5550000002', handicapIndex: 17.3 },
+  }});
+  const team = await api('GET', `/events/${ev.id}/teams/${reg.team.id}`, { token: ctx.token });
+  const late = (team.players ?? []).find(p => p.lastName === 'Comer');
+  if ((team.players ?? []).length !== 3 || !late) fail('teammate joins through the link', JSON.stringify(team.players));
+  if (late.handicapIndex !== 17.3 || late.phone !== '5550000002') {
+    fail('joiner keeps phone + handicap', `handicapIndex ${late.handicapIndex}, phone ${late.phone}`);
+  }
+  const cap = team.players.find(p => p.lastName === 'Tain');
+  if (cap?.handicapIndex !== 9.5) fail('captain handicap stored', `handicapIndex ${cap?.handicapIndex}`);
+  const after = await api('GET', `/events/${ev.id}/invite?token=${encodeURIComponent(token)}`);
+  if (after.spotsRemaining !== 1) fail('open spots drop', JSON.stringify(after));
+  pass('teammate joins through the link with phone + handicap', c.dim('3 of 4 · 1 spot left'));
+
+  ctx.invite = { eventId: ev.id, code: ev.eventCode, token, teamName };
+}
+
 // Every request in this run comes from one address, which is exactly the shape
 // of a golf venue: one NAT, one public IP, the whole field behind it. That makes
 // this the only place the rate limiter can be tested — the API test project is
@@ -974,6 +1035,28 @@ async function phaseUi(ctx) {
       if (/\bLeagues\b/.test(nav)) fail('staff nav', 'a staff login is offered Leagues (organizer-only)');
       if (errors.length) fail('invite accepted in the browser', errors.join('\n'));
       pass('invite accepted in the browser → staff view of the event', c.dim(new URL(page.url()).pathname));
+      await page.close();
+    }
+
+    // Team invite: the captain's link (web /join?token=) must land on the
+    // event page with "Join <team>" open and the team shown — no code to paste.
+    if (ctx.invite) {
+      phaseStart = Date.now();
+      const { page, errors, trace } = await watchedPage(browser);
+      const link = `${WEB}/e/${ctx.orgSlug}/${ctx.invite.code}/join?token=${encodeURIComponent(ctx.invite.token)}`;
+      await page.goto(link, { waitUntil: 'networkidle2', timeout: 90_000 });
+      try {
+        await page.waitForFunction(
+          name => document.body.innerText.includes(`Join ${name}`) && /1 spot left/.test(document.body.innerText),
+          { timeout: 45_000 }, ctx.invite.teamName);
+      } catch {
+        const text = (await page.evaluate(() => document.body.innerText)).slice(0, 400);
+        fail('invite link opens Join <team>', `${page.url()}\n${trace()}\n${errors.join('\n')}\n${text}`);
+      }
+      const codeField = await page.$('input[placeholder="Paste your invite code"]');
+      if (codeField) fail('invite link opens Join <team>', 'the invite-code field is still asked for');
+      if (errors.length) fail('invite link opens Join <team>', errors.join('\n'));
+      pass('team invite link opens "Join <team>" with the team shown', c.dim(new URL(page.url()).pathname));
       await page.close();
     }
   } finally {
@@ -1250,6 +1333,7 @@ async function phaseTransactions(ctx) {
     const ctx = await phaseTournament();
     await phaseLogos(ctx);
     await phaseWeb(ctx);
+    await phaseTeamInvite(ctx);
     await phaseJoinCost(ctx);
     await phaseTransactions(ctx);
     await phaseWebhooks(ctx);

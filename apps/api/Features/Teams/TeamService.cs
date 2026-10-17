@@ -53,8 +53,11 @@ public class TeamService
     /// </summary>
     private readonly Emails.EmailService? _email;
 
-    /// <summary>Invite tokens expire after 48 hours.</summary>
-    private static readonly TimeSpan InviteTokenLifetime = TimeSpan.FromHours(48);
+    /// <summary>
+    /// How long an invite lasts when the event has no future start time yet
+    /// (a Draft with no date). See <see cref="InviteExpiry"/>.
+    /// </summary>
+    internal static readonly TimeSpan UndatedInviteLifetime = TimeSpan.FromDays(30);
 
     public TeamService(
         ApplicationDbContext db,
@@ -135,7 +138,7 @@ public class TeamService
         // Generate invite token (so teammates can join later if team isn't full)
         if (players.Count < maxPlayers)
         {
-            var (token, expiresAt) = GenerateInviteToken(team.Id);
+            var (token, expiresAt) = GenerateInviteToken(team.Id, evt);
             team.InviteToken      = token;
             team.InviteExpiresAt  = expiresAt;
         }
@@ -172,6 +175,7 @@ public class TeamService
         {
             Team                 = teamResp,
             InviteUrl            = team.InviteToken is not null ? inviteUrl : null,
+            InviteExpiresAt      = team.InviteExpiresAt,
             EntryFeeClientSecret = entryFeeClientSecret,
             EntryFeeCents        = entryFeeTotalCents,
             EntryFeePerPlayerCents = fee is > 0 ? fee : null,
@@ -213,8 +217,7 @@ public class TeamService
 
         if (team.InviteExpiresAt < DateTime.UtcNow)
             throw new ValidationException(
-                "This invite link has expired (links are valid for 48 hours). " +
-                "Please ask the team captain to regenerate the invite.");
+                "This invite link has expired. Please ask the team captain for a new one.");
 
         // Check team capacity
         if (team.Players.Count >= team.MaxPlayers)
@@ -239,10 +242,14 @@ public class TeamService
             CheckInStatus    = CheckInStatus.Pending,
         };
 
+        // Count before Add: EF fixup puts the new player into team.Players at Add,
+        // so counting after would close the link one golfer early.
+        var fillsTeam = team.Players.Count + 1 >= team.MaxPlayers;
+
         _db.Players.Add(player);
 
         // If team is now full, clear the invite token so it can't be used again
-        if (team.Players.Count + 1 >= team.MaxPlayers)
+        if (fillsTeam)
         {
             team.InviteToken     = null;
             team.InviteExpiresAt = null;
@@ -596,7 +603,7 @@ public class TeamService
     {
         var team = await _db.Teams
             .Include(t => t.Players)
-            .Include(t => t.Event)
+            .Include(t => t.Event).ThenInclude(e => e.Organization)
             .FirstOrDefaultAsync(t =>
                 t.Id == teamId &&
                 t.EventId == eventId &&
@@ -608,7 +615,7 @@ public class TeamService
         if (team.Players.Count >= team.MaxPlayers)
             throw new ValidationException("This team is already full — no invite needed.");
 
-        var (token, expiresAt) = GenerateInviteToken(team.Id);
+        var (token, expiresAt) = GenerateInviteToken(team.Id, team.Event);
         team.InviteToken      = token;
         team.InviteExpiresAt  = expiresAt;
 
@@ -856,7 +863,9 @@ public class TeamService
     private async Task<Event> GetOpenEventAsync(
         Guid orgId, Guid eventId, CancellationToken ct)
     {
+        // Organization for its slug: the invite link and the join email use it.
         var evt = await _db.Events
+            .Include(e => e.Organization)
             .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
 
         if (evt is null)
@@ -916,13 +925,23 @@ public class TeamService
 
     // Token generation and validation are now in InviteTokenHelper (pure, testable).
 
-    private (string token, DateTime expiresAt) GenerateInviteToken(Guid teamId)
+    private (string token, DateTime expiresAt) GenerateInviteToken(Guid teamId, Event evt)
     {
         var secret = _config["JWT_SECRET"]
             ?? throw new InvalidOperationException("JWT_SECRET not configured");
-        var (token, expiresAt) = InviteTokenHelper.Generate(teamId, secret);
-        return (token, expiresAt);
+        return InviteTokenHelper.Generate(teamId, secret, InviteExpiry(evt, DateTime.UtcNow));
     }
+
+    /// <summary>
+    /// A captain may register weeks out, so a teammate invite lasts until the
+    /// round starts rather than a fixed window. With no future start time (an
+    /// undated Draft) it falls back to <see cref="UndatedInviteLifetime"/>.
+    /// Registration status still gates joining, and a full team drops its token.
+    /// </summary>
+    internal static DateTime InviteExpiry(Event evt, DateTime nowUtc) =>
+        evt.StartAt is { } start && start > nowUtc
+            ? start
+            : nowUtc.Add(UndatedInviteLifetime);
 
     private Guid ValidateInviteToken(string token)
     {
@@ -946,9 +965,7 @@ public class TeamService
         // Draft events are the test/preview mode, seeded with fake addresses.
         if (evt.Status is EventStatus.Draft) return;
 
-        var webBaseUrl = _config["WEB_BASE_URL"] is { Length: > 0 } configured
-            ? configured
-            : "http://localhost:3000";
+        var webBaseUrl = Common.AccountLinks.WebBaseUrl(_config);
 
         var orgSlug = evt.Organization?.Slug ?? evt.OrgId.ToString();
         var joinUrl = Emails.JoinNudgeEmail.BuildJoinUrl(webBaseUrl, orgSlug, evt.EventCode);
@@ -975,12 +992,17 @@ public class TeamService
         }
     }
 
-    private static string BuildInviteUrl(Event evt, Team team)
+    /// <summary>
+    /// The link a captain sends to teammates. Absolute, because it leaves the
+    /// app (text message, email); the web /join page reads the token and opens
+    /// "Join a Team" pre-filled. Matches the Next.js route
+    /// /e/{orgSlug}/{eventCode}/join?token={inviteToken}.
+    /// </summary>
+    private string BuildInviteUrl(Event evt, Team team)
     {
-        // The public invite URL format matches the Next.js routing
-        // /e/{orgSlug}/{eventCode}/join?token={inviteToken}
-        return $"/e/{evt.Organization?.Slug ?? evt.OrgId.ToString()}/" +
-               $"{evt.EventCode}/join?token={team.InviteToken}";
+        var orgSlug = evt.Organization?.Slug ?? evt.OrgId.ToString();
+        return $"{Common.AccountLinks.WebBaseUrl(_config)}/e/{orgSlug}/{evt.EventCode}" +
+               $"/join?token={Uri.EscapeDataString(team.InviteToken ?? string.Empty)}";
     }
 
     private async Task<TeamResponse> GetTeamByIdInternalAsync(Guid teamId, CancellationToken ct)

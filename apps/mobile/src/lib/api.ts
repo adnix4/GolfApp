@@ -1,4 +1,4 @@
-import { ApiError } from '@gfp/shared-types';
+import { ApiError, type PlayerInput, type SkillLevel, type AgeGroup } from '@gfp/shared-types';
 import { useAuthStore } from './authStore';
 import { getDeviceId } from './store';
 
@@ -729,13 +729,8 @@ export async function fetchMemberSeasonSummary(
 
 // ── REGISTRATION ─────────────────────────────────────────────────────────────
 
-export interface PlayerInput {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone?: string;
-  handicapIndex?: number;
-}
+// The registration field set is defined once for all three apps.
+export type { PlayerInput, SkillLevel, AgeGroup };
 
 export interface RegistrationConfirmResponse {
   team: {
@@ -753,7 +748,10 @@ export interface RegistrationConfirmResponse {
     email: string;
     registrationType: string;
   };
-  inviteLink: string | null;
+  /** Absolute link the captain shares so teammates can join. Null once the team is full. */
+  inviteUrl?: string | null;
+  /** When inviteUrl stops working (ISO) — the event's start. */
+  inviteExpiresAt?: string | null;
   /** Stripe PaymentIntent client_secret for in-app entry fee payment. Null when the event is free. */
   entryFeeClientSecret?: string | null;
   /** Total due for this registration in cents (per-golfer fee × golfers registered). */
@@ -777,9 +775,6 @@ export async function registerTeam(
   }
   return res.json();
 }
-
-export type SkillLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Competitive';
-export type AgeGroup   = 'Under30'  | 'From30To50'   | 'Over50';
 
 export interface RegisterFreeAgentPayload {
   player:      PlayerInput;

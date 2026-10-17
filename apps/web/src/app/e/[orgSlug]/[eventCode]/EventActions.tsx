@@ -1,19 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   registerTeam,
   joinTeam,
   registerFreeAgent,
   submitDonation,
   createDonationIntent,
+  fetchInvitePreview,
   type RegisterTeamPayload,
   type JoinTeamPayload,
   type RegisterFreeAgentPayload,
   type DonatePayload,
   type RegistrationResult,
+  type InvitePreview,
 } from '@/lib/api';
-import { formatMoneyInput, dollarsToCents } from '@gfp/shared-types';
+import {
+  formatMoneyInput, dollarsToCents,
+  digitsOnly, fmtPhoneInput,
+  validateGolfer, validateRoster, toPlayerInput,
+  SKILL_LEVEL_OPTIONS, AGE_GROUP_OPTIONS, PAIRING_NOTE_MAX,
+  type GolferFields, type SkillLevel, type AgeGroup,
+} from '@gfp/shared-types';
 import EntryFeePayment, { DonationPayment, stripeEnabled, formatUsd } from './EntryFeePayment';
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
@@ -43,6 +51,22 @@ export default function EventRegistrationSection({
   entryFeeCents,
 }: RegistrationSectionProps) {
   const [mode, setMode] = useState<RegistrationMode>(null);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+
+  // A captain's invite link arrives as ?invite=… (via /join). Open "Join a
+  // Team" for that team straight away. Read client-side so the page stays static.
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('invite');
+    if (token) {
+      setInviteToken(token);
+      setMode('join');
+    }
+  }, []);
+
+  function closeModal() {
+    setMode(null);
+    setInviteToken(null);
+  }
 
   return (
     <section style={s.card} id="register">
@@ -62,9 +86,9 @@ export default function EventRegistrationSection({
       </div>
       <p style={s.ctaNote}>Contact {orgName} for more information.</p>
 
-      {mode === 'team'      && <RegisterTeamModal eventId={eventId} perGolferCents={entryFeeCents} onClose={() => setMode(null)} />}
-      {mode === 'join'      && <JoinTeamModal     eventId={eventId} perGolferCents={entryFeeCents} onClose={() => setMode(null)} />}
-      {mode === 'freeagent' && <FreeAgentModal    eventId={eventId} perGolferCents={entryFeeCents} onClose={() => setMode(null)} />}
+      {mode === 'team'      && <RegisterTeamModal eventId={eventId} perGolferCents={entryFeeCents} onClose={closeModal} />}
+      {mode === 'join'      && <JoinTeamModal     eventId={eventId} perGolferCents={entryFeeCents} onClose={closeModal} inviteToken={inviteToken} />}
+      {mode === 'freeagent' && <FreeAgentModal    eventId={eventId} perGolferCents={entryFeeCents} onClose={closeModal} />}
     </section>
   );
 }
@@ -188,7 +212,7 @@ function PostRegistration({ result, perGolferCents, onClose }: {
             Your entry fee of {formatUsd(total)} is due — the organizer will collect it before the event.
           </p>
         )}
-        {result.inviteUrl && <InviteShare url={result.inviteUrl} />}
+        {result.inviteUrl && <InviteShare url={result.inviteUrl} expiresAt={result.inviteExpiresAt ?? null} />}
         <AppPromo />
         <button onClick={onClose} style={s.submitBtn}>Close</button>
       </div>
@@ -196,13 +220,33 @@ function PostRegistration({ result, perGolferCents, onClose }: {
   );
 }
 
-function InviteShare({ url }: { url: string }) {
+/** "Mar 14, 2027" — rendered only after a submit, so there is nothing to hydrate. */
+function fmtInviteDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function InviteShare({ url, expiresAt }: { url: string; expiresAt: string | null }) {
   const [copied, setCopied] = useState(false);
+  // The OS share sheet (phones, most tablets) is how a captain actually sends
+  // this — into a group text. Desktop browsers without it keep Copy.
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+
+  function share() {
+    navigator.share({
+      title: 'Join my golf team',
+      text:  'Join my team for the tournament — sign up here:',
+      url,
+    }).catch(() => { /* dismissed the share sheet */ });
+  }
+
   return (
     <div style={s.inviteBox}>
-      <p style={s.inviteLabel}>Share this link so teammates can join (and pay) themselves:</p>
+      <p style={s.inviteLabel}>Invite your teammates — send them this link so they can join (and pay) themselves:</p>
       <div style={{ display: 'flex', gap: '0.5rem' }}>
         <input readOnly value={url} style={{ ...s.input, fontSize: '0.8rem' }} onFocus={e => e.target.select()} />
+        {canShare && (
+          <button type="button" style={s.copyBtn} onClick={share}>Share…</button>
+        )}
         <button
           type="button"
           style={s.copyBtn}
@@ -216,6 +260,9 @@ function InviteShare({ url }: { url: string }) {
           {copied ? '✓ Copied' : 'Copy'}
         </button>
       </div>
+      {expiresAt && (
+        <p style={s.inviteNote}>The link works until the tournament starts ({fmtInviteDate(expiresAt)}) or your team fills up.</p>
+      )}
     </div>
   );
 }
@@ -322,6 +369,48 @@ function StoreDialog({ live, onClose }: { live: boolean; onClose: () => void }) 
   );
 }
 
+// ── GOLFER FIELDS ─────────────────────────────────────────────────────────────
+// The same fields in every registration form, on every app — see
+// packages/shared-types/src/registration.ts for what each is for and the rules.
+
+const blankGolfer = (): GolferFields => ({ firstName: '', lastName: '', email: '', phone: '', handicap: '' });
+
+function isBlankGolfer(g: GolferFields): boolean {
+  return !g.firstName.trim() && !g.lastName.trim() && !g.email.trim()
+    && !digitsOnly(g.phone ?? '') && !(g.handicap ?? '').trim();
+}
+
+function GolferInputs({ golfer, onChange, phoneRequired, required = true }: {
+  golfer:        GolferFields;
+  onChange:      (next: GolferFields) => void;
+  phoneRequired: boolean;
+  /** Teammate rows the captain may leave empty don't mark the name/email required. */
+  required?:     boolean;
+}) {
+  const set = (field: keyof GolferFields, value: string) => onChange({ ...golfer, [field]: value });
+  return (
+    <div style={s.playerGrid}>
+      <Input value={golfer.firstName} onChange={e => set('firstName', e.target.value)} placeholder={`First name${required ? ' *' : ''}`} required={required} autoComplete="given-name" />
+      <Input value={golfer.lastName}  onChange={e => set('lastName',  e.target.value)} placeholder={`Last name${required ? ' *' : ''}`}  required={required} autoComplete="family-name" />
+      <Input value={golfer.email}     onChange={e => set('email',     e.target.value)} placeholder={`Email${required ? ' *' : ''}`}      required={required} type="email" autoComplete="email" style={{ ...s.input, gridColumn: '1 / -1' }} />
+      <Input
+        value={golfer.phone ?? ''}
+        onChange={e => set('phone', fmtPhoneInput(digitsOnly(e.target.value)))}
+        placeholder={phoneRequired ? 'Phone *' : 'Phone (optional)'}
+        required={phoneRequired}
+        type="tel" inputMode="tel" autoComplete="tel"
+      />
+      <Input
+        value={golfer.handicap ?? ''}
+        onChange={e => set('handicap', e.target.value)}
+        placeholder="Handicap (optional)"
+        inputMode="decimal"
+        title="Your handicap index, 0–54. Leave blank if you don't have one."
+      />
+    </div>
+  );
+}
+
 // ── REGISTER TEAM MODAL ───────────────────────────────────────────────────────
 
 interface RegistrationModalProps {
@@ -330,37 +419,36 @@ interface RegistrationModalProps {
   onClose:        () => void;
 }
 
+const TEAM_ROWS = 4;
+
 function RegisterTeamModal({ eventId, perGolferCents, onClose }: RegistrationModalProps) {
   const [teamName, setTeamName] = useState('');
-  const [players, setPlayers] = useState([
-    { firstName: '', lastName: '', email: '', handicap: '' },
-    { firstName: '', lastName: '', email: '', handicap: '' },
-    { firstName: '', lastName: '', email: '', handicap: '' },
-    { firstName: '', lastName: '', email: '', handicap: '' },
-  ]);
+  const [players,  setPlayers]  = useState<GolferFields[]>(() => Array.from({ length: TEAM_ROWS }, blankGolfer));
   const [saving, setSaving] = useState(false);
   const [done,   setDone]   = useState<RegistrationResult | null>(null);
   const [err,    setErr]    = useState<string | null>(null);
 
-  function updatePlayer(i: number, field: string, val: string) {
-    setPlayers(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: val } : p));
+  function updatePlayer(i: number, next: GolferFields) {
+    setPlayers(prev => prev.map((p, idx) => idx === i ? next : p));
+    setErr(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const activePlayers = players.filter(p => p.firstName.trim() && p.lastName.trim() && p.email.trim());
-    if (!teamName.trim() || activePlayers.length === 0) {
-      setErr('Team name and at least one player (first, last, email) are required.'); return;
-    }
+    if (!teamName.trim()) { setErr('Team name is required.'); return; }
+    // Player 1 (you) always counts; empty teammate rows are skipped, and a
+    // half-filled one is reported rather than silently dropped.
+    const roster = players.filter((p, i) => i === 0 || !isBlankGolfer(p));
+    const problem = validateRoster(roster, {
+      first:      { phoneRequired: true, label: 'You' },
+      otherLabel: i => `Player ${players.indexOf(roster[i]) + 1}`,
+    });
+    if (problem) { setErr(problem); return; }
+
     setSaving(true); setErr(null);
     const payload: RegisterTeamPayload = {
       teamName: teamName.trim(),
-      players:  activePlayers.map(p => ({
-        firstName: p.firstName.trim(),
-        lastName:  p.lastName.trim(),
-        email:     p.email.trim(),
-        ...(p.handicap.trim() ? { handicap: parseFloat(p.handicap) } : {}),
-      })),
+      players:  roster.map(toPlayerInput),
     };
     const result = await registerTeam(eventId, payload);
     setSaving(false);
@@ -372,21 +460,20 @@ function RegisterTeamModal({ eventId, perGolferCents, onClose }: RegistrationMod
 
   return (
     <Modal title="Register a Team" onClose={onClose}>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} noValidate>
         <FieldRow label="Team Name *">
-          <Input value={teamName} onChange={e => setTeamName(e.target.value)} placeholder="The Eagles" required />
+          <Input value={teamName} onChange={e => { setTeamName(e.target.value); setErr(null); }} placeholder="The Eagles" required maxLength={200} />
         </FieldRow>
 
-        <p style={s.sectionLabel}>Players (fill in the ones joining your team)</p>
+        <p style={s.sectionLabel}>Players</p>
+        <p style={s.hint}>
+          You&apos;re the captain. Add teammates now, or leave rows empty — after you register you&apos;ll
+          get a link to send them so they can sign themselves up.
+        </p>
         {players.map((p, i) => (
           <div key={i} style={s.playerBlock}>
-            <p style={s.playerNum}>Player {i + 1}{i === 0 ? ' *' : ''}</p>
-            <div style={s.playerGrid}>
-              <Input value={p.firstName} onChange={e => updatePlayer(i, 'firstName', e.target.value)} placeholder="First name" required={i === 0} />
-              <Input value={p.lastName}  onChange={e => updatePlayer(i, 'lastName',  e.target.value)} placeholder="Last name"  required={i === 0} />
-              <Input value={p.email}     onChange={e => updatePlayer(i, 'email',     e.target.value)} placeholder="Email"      required={i === 0} type="email" style={{ ...s.input, gridColumn: '1 / -1' }} />
-              <Input value={p.handicap}  onChange={e => updatePlayer(i, 'handicap',  e.target.value)} placeholder="Handicap (opt)" type="number" />
-            </div>
+            <p style={s.playerNum}>{i === 0 ? 'Player 1 — you (captain) *' : `Player ${i + 1}`}</p>
+            <GolferInputs golfer={p} onChange={next => updatePlayer(i, next)} phoneRequired={i === 0} required={i === 0} />
           </div>
         ))}
 
@@ -398,29 +485,39 @@ function RegisterTeamModal({ eventId, perGolferCents, onClose }: RegistrationMod
 }
 
 // ── JOIN TEAM MODAL ───────────────────────────────────────────────────────────
+// Opened by a captain's invite link (inviteToken set: the team is shown and no
+// code is asked for) or by the "Join a Team" button (paste the code).
 
-function JoinTeamModal({ eventId, perGolferCents, onClose }: RegistrationModalProps) {
-  const [token,     setToken]     = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName,  setLastName]  = useState('');
-  const [email,     setEmail]     = useState('');
-  const [handicap,  setHandicap]  = useState('');
-  const [saving,    setSaving]    = useState(false);
-  const [done,      setDone]      = useState<RegistrationResult | null>(null);
-  const [err,       setErr]       = useState<string | null>(null);
+function JoinTeamModal({ eventId, perGolferCents, onClose, inviteToken }: RegistrationModalProps & {
+  inviteToken: string | null;
+}) {
+  const [token,   setToken]   = useState(inviteToken ?? '');
+  const [golfer,  setGolfer]  = useState<GolferFields>(blankGolfer);
+  const [saving,  setSaving]  = useState(false);
+  const [done,    setDone]    = useState<RegistrationResult | null>(null);
+  const [err,     setErr]     = useState<string | null>(null);
+  const [preview, setPreview] = useState<InvitePreview | null>(null);
+  const [linkErr, setLinkErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!inviteToken) return;
+    let live = true;
+    fetchInvitePreview(eventId, inviteToken).then(r => {
+      if (!live) return;
+      if (r.ok) setPreview(r.preview);
+      else setLinkErr(r.message);
+    });
+    return () => { live = false; };
+  }, [eventId, inviteToken]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!token.trim()) { setErr('Enter the invite code from your team captain.'); return; }
+    const problem = validateGolfer(golfer, { phoneRequired: true });
+    if (problem) { setErr(problem); return; }
+
     setSaving(true); setErr(null);
-    const payload: JoinTeamPayload = {
-      inviteToken: token.trim(),
-      player: {
-        firstName: firstName.trim(),
-        lastName:  lastName.trim(),
-        email:     email.trim(),
-        ...(handicap.trim() ? { handicap: parseFloat(handicap) } : {}),
-      },
-    };
+    const payload: JoinTeamPayload = { inviteToken: token.trim(), player: toPlayerInput(golfer) };
     const result = await joinTeam(eventId, payload);
     setSaving(false);
     if (result.ok) setDone(result);
@@ -429,31 +526,88 @@ function JoinTeamModal({ eventId, perGolferCents, onClose }: RegistrationModalPr
 
   if (done) return <PostRegistration result={done} perGolferCents={perGolferCents} onClose={onClose} />;
 
+  const full = preview?.isFull ?? false;
+  const title = preview ? `Join ${preview.teamName}` : 'Join a Team';
+
   return (
-    <Modal title="Join a Team" onClose={onClose}>
-      <p style={s.hint}>Your team captain will have an invite link or code — paste the code here.</p>
-      <form onSubmit={handleSubmit}>
-        <FieldRow label="Invite Code *">
-          <Input value={token} onChange={e => setToken(e.target.value)} placeholder="Paste your invite code" required />
-        </FieldRow>
-        <FieldRow label="First Name *"><Input value={firstName} onChange={e => setFirstName(e.target.value)} required /></FieldRow>
-        <FieldRow label="Last Name *"> <Input value={lastName}  onChange={e => setLastName(e.target.value)}  required /></FieldRow>
-        <FieldRow label="Email *">     <Input value={email}     onChange={e => setEmail(e.target.value)}     required type="email" /></FieldRow>
-        <FieldRow label="Handicap">    <Input value={handicap}  onChange={e => setHandicap(e.target.value)}  type="number" placeholder="Optional" /></FieldRow>
-        {err && <ErrorMsg msg={err} />}
-        <SubmitRow saving={saving} label="Join Team" onCancel={onClose} />
-      </form>
+    <Modal title={title} onClose={onClose}>
+      {inviteToken && linkErr && (
+        <>
+          <ErrorMsg msg={linkErr} />
+          <p style={s.hint}>Ask your team captain to send you a new link, or register on your own.</p>
+          <div style={s.submitRow}>
+            <button type="button" onClick={onClose} style={s.cancelBtn}>Close</button>
+          </div>
+        </>
+      )}
+
+      {inviteToken && !linkErr && !preview && <p style={s.hint}>Checking your invite…</p>}
+
+      {preview && (
+        <div style={s.previewBox}>
+          <p style={s.previewTeam}>{preview.teamName}</p>
+          <p style={s.previewMeta}>
+            {preview.playerNames.length > 0 ? `With ${preview.playerNames.join(', ')}` : 'No players yet'}
+            {' · '}
+            {full ? 'Team is full' : `${preview.spotsRemaining} spot${preview.spotsRemaining === 1 ? '' : 's'} left`}
+          </p>
+        </div>
+      )}
+
+      {full && (
+        <div style={s.submitRow}>
+          <button type="button" onClick={onClose} style={s.cancelBtn}>Close</button>
+        </div>
+      )}
+
+      {(!inviteToken || (preview && !full)) && (
+        <form onSubmit={handleSubmit} noValidate>
+          {!inviteToken && (
+            <>
+              <p style={s.hint}>Your team captain has an invite link for you — open it to join their team. If you have the code instead, paste it here.</p>
+              <FieldRow label="Invite Code *">
+                <Input value={token} onChange={e => { setToken(e.target.value); setErr(null); }} placeholder="Paste your invite code" required />
+              </FieldRow>
+            </>
+          )}
+          <p style={s.sectionLabel}>Your details</p>
+          <GolferInputs golfer={golfer} onChange={next => { setGolfer(next); setErr(null); }} phoneRequired />
+          {err && <ErrorMsg msg={err} />}
+          <SubmitRow saving={saving} label="Join Team" onCancel={onClose} />
+        </form>
+      )}
     </Modal>
   );
 }
 
 // ── FREE AGENT MODAL ──────────────────────────────────────────────────────────
 
+function ChoiceChips<T extends string>({ options, value, onChange }: {
+  options:  { value: T; label: string }[];
+  value:    T | null;
+  onChange: (v: T | null) => void;
+}) {
+  return (
+    <div style={s.chipRow}>
+      {options.map(o => (
+        <button
+          key={o.value}
+          type="button"
+          aria-pressed={value === o.value}
+          onClick={() => onChange(value === o.value ? null : o.value)}
+          style={{ ...s.chip, ...(value === o.value ? s.chipOn : {}) }}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function FreeAgentModal({ eventId, perGolferCents, onClose }: RegistrationModalProps) {
-  const [firstName,   setFirstName]   = useState('');
-  const [lastName,    setLastName]    = useState('');
-  const [email,       setEmail]       = useState('');
-  const [handicap,    setHandicap]    = useState('');
+  const [golfer,      setGolfer]      = useState<GolferFields>(blankGolfer);
+  const [skillLevel,  setSkillLevel]  = useState<SkillLevel | null>(null);
+  const [ageGroup,    setAgeGroup]    = useState<AgeGroup | null>(null);
   const [pairingNote, setPairingNote] = useState('');
   const [saving,      setSaving]      = useState(false);
   const [done,        setDone]        = useState<RegistrationResult | null>(null);
@@ -461,14 +615,14 @@ function FreeAgentModal({ eventId, perGolferCents, onClose }: RegistrationModalP
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const problem = validateGolfer(golfer, { phoneRequired: true });
+    if (problem) { setErr(problem); return; }
+
     setSaving(true); setErr(null);
     const payload: RegisterFreeAgentPayload = {
-      player: {
-        firstName: firstName.trim(),
-        lastName:  lastName.trim(),
-        email:     email.trim(),
-        ...(handicap.trim() ? { handicap: parseFloat(handicap) } : {}),
-      },
+      player: toPlayerInput(golfer),
+      ...(skillLevel ? { skillLevel } : {}),
+      ...(ageGroup   ? { ageGroup }   : {}),
       ...(pairingNote.trim() ? { pairingNote: pairingNote.trim() } : {}),
     };
     const result = await registerFreeAgent(eventId, payload);
@@ -482,16 +636,23 @@ function FreeAgentModal({ eventId, perGolferCents, onClose }: RegistrationModalP
   return (
     <Modal title="I Need a Team" onClose={onClose}>
       <p style={s.hint}>Add yourself to the free agent list and the organizer will place you on a team.</p>
-      <form onSubmit={handleSubmit}>
-        <FieldRow label="First Name *"><Input value={firstName}   onChange={e => setFirstName(e.target.value)}   required /></FieldRow>
-        <FieldRow label="Last Name *"> <Input value={lastName}    onChange={e => setLastName(e.target.value)}    required /></FieldRow>
-        <FieldRow label="Email *">     <Input value={email}       onChange={e => setEmail(e.target.value)}       required type="email" /></FieldRow>
-        <FieldRow label="Handicap">    <Input value={handicap}    onChange={e => setHandicap(e.target.value)}    type="number" placeholder="Optional" /></FieldRow>
-        <FieldRow label="Notes">
+      <form onSubmit={handleSubmit} noValidate>
+        <p style={s.sectionLabel}>Your details</p>
+        <GolferInputs golfer={golfer} onChange={next => { setGolfer(next); setErr(null); }} phoneRequired />
+
+        <p style={s.sectionLabel}>Pairing preferences (optional)</p>
+        <FieldRow label="Skill Level">
+          <ChoiceChips options={SKILL_LEVEL_OPTIONS} value={skillLevel} onChange={setSkillLevel} />
+        </FieldRow>
+        <FieldRow label="Age Group">
+          <ChoiceChips options={AGE_GROUP_OPTIONS} value={ageGroup} onChange={setAgeGroup} />
+        </FieldRow>
+        <FieldRow label="Note to the Organizer">
           <textarea
             value={pairingNote}
             onChange={e => setPairingNote(e.target.value)}
-            placeholder="Any scheduling constraints or pairing preferences…"
+            maxLength={PAIRING_NOTE_MAX}
+            placeholder="e.g. I know the Johnson family — please pair me with them if possible."
             style={{ ...s.input, height: 72, resize: 'vertical' } as React.CSSProperties}
           />
         </FieldRow>
@@ -610,6 +771,13 @@ const s: Record<string, React.CSSProperties> = {
   feeDueNote: { fontSize: '0.875rem', color: '#8a6d1a', backgroundColor: '#fdf6e3', border: '1px solid #f0e2b6', borderRadius: 8, padding: '0.6rem 0.85rem', marginBottom: '1rem', textAlign: 'left' },
   inviteBox:   { textAlign: 'left', marginBottom: '1.25rem' },
   inviteLabel: { fontSize: '0.8rem', fontWeight: 600, color: '#555', margin: '0 0 0.4rem' },
+  inviteNote:  { fontSize: '0.75rem', color: '#6b7280', margin: '0.4rem 0 0' },
+  previewBox:  { backgroundColor: '#f6f7f6', border: '1px solid #e8e8e8', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1rem' },
+  previewTeam: { fontSize: '1rem', fontWeight: 800, color: 'var(--color-primary)', margin: '0 0 0.25rem' },
+  previewMeta: { fontSize: '0.85rem', color: '#4b5563', margin: 0, lineHeight: 1.5 },
+  chipRow:     { display: 'flex', flexWrap: 'wrap', gap: '0.4rem' },
+  chip:        { padding: '0.35rem 0.8rem', borderRadius: 999, border: '1.5px solid #ddd', background: 'none', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', color: '#4b5563' },
+  chipOn:      { backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary)', color: 'var(--color-on-primary, #fff)' },
   copyBtn:     { padding: '0.5rem 0.9rem', borderRadius: 7, border: '1.5px solid var(--color-primary)', backgroundColor: 'transparent', color: 'var(--color-primary)', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
   appPromo:     { textAlign: 'left', backgroundColor: '#f6f7f6', border: '1px solid #e8e8e8', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1.25rem' },
   appPromoText: { fontSize: '0.85rem', color: '#4b5563', lineHeight: 1.5, margin: 0 },
