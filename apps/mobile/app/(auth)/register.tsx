@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import {
-  View, Text, TextInput, Pressable, StyleSheet,
+  View, Text, TextInput, Pressable, StyleSheet, Share,
   ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -8,11 +8,16 @@ import {
   StripeProvider, CardField, useStripe, type CardFieldInput,
 } from '@stripe/stripe-react-native';
 import { useTheme } from '@gfp/ui';
-import { formatCentsShort, digitsOnly, fmtPhoneInput } from '@gfp/shared-types';
+import {
+  formatCentsShort, digitsOnly, fmtPhoneInput,
+  validateGolfer, validateRoster, toPlayerInput,
+  SKILL_LEVEL_OPTIONS as SKILL_OPTIONS, AGE_GROUP_OPTIONS as AGE_OPTIONS, PAIRING_NOTE_MAX,
+  type GolferFields,
+} from '@gfp/shared-types';
 import { GfpLogo } from '@/components/GfpLogo';
 import {
   registerTeam, registerFreeAgent, confirmEntryFee,
-  type PlayerInput, type SkillLevel, type AgeGroup,
+  type SkillLevel, type AgeGroup,
 } from '@/lib/api';
 
 const STRIPE_PK = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
@@ -20,22 +25,8 @@ const STRIPE_PK = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 const MAX_TEAMMATES = 3;
 type Step = 'form' | 'success';
 
-interface TeammateFields { firstName: string; lastName: string; email: string; }
-const emptyTeammate = (): TeammateFields => ({ firstName: '', lastName: '', email: '' });
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const SKILL_OPTIONS: { value: SkillLevel; label: string }[] = [
-  { value: 'Beginner',     label: 'Beginner'     },
-  { value: 'Intermediate', label: 'Intermediate' },
-  { value: 'Advanced',     label: 'Advanced'     },
-  { value: 'Competitive',  label: 'Competitive'  },
-];
-
-const AGE_OPTIONS: { value: AgeGroup; label: string }[] = [
-  { value: 'Under30',    label: 'Under 30' },
-  { value: 'From30To50', label: '30 – 50'  },
-  { value: 'Over50',     label: 'Over 50'  },
-];
+// Same fields as web and admin — see packages/shared-types/src/registration.ts.
+const emptyTeammate = (): GolferFields => ({ firstName: '', lastName: '', email: '', phone: '', handicap: '' });
 
 export default function RegisterScreen() {
   const theme  = useTheme();
@@ -56,7 +47,7 @@ export default function RegisterScreen() {
 
   // Team name — blank means free agent
   const [teamName,  setTeamName]  = useState('');
-  const [teammates, setTeammates] = useState<TeammateFields[]>([]);
+  const [teammates, setTeammates] = useState<GolferFields[]>([]);
 
   // Free-agent pairing prefs
   const [skillLevel,  setSkillLevel]  = useState<SkillLevel | null>(null);
@@ -70,6 +61,9 @@ export default function RegisterScreen() {
   const [entryFeeSecret,     setEntryFeeSecret]     = useState<string | null>(null);
   const [entryFeePaid,       setEntryFeePaid]       = useState(false);
   const [isFreeAgentSuccess, setIsFreeAgentSuccess] = useState(false);
+  const [inviteUrl,          setInviteUrl]          = useState<string | null>(null);
+  const [inviteExpiresAt,    setInviteExpiresAt]    = useState<string | null>(null);
+  const [spotsLeft,          setSpotsLeft]          = useState(0);
 
   // If no team name typed, treat as free agent
   const isFreeAgent = !teamName.trim();
@@ -78,33 +72,28 @@ export default function RegisterScreen() {
   const removeTeammate = useCallback((idx: number) => {
     setTeammates(p => p.filter((_, i) => i !== idx)); setError(null);
   }, []);
-  const updateTeammate = useCallback((idx: number, field: keyof TeammateFields, value: string) => {
+  const updateTeammate = useCallback((idx: number, field: keyof GolferFields, value: string) => {
     setTeammates(p => p.map((t, i) => i === idx ? { ...t, [field]: value } : t)); setError(null);
   }, []);
 
   async function handleRegister() {
-    const fn = firstName.trim();
-    const ln = lastName.trim();
-    const em = email.trim().toLowerCase();
+    // You are the organizer's contact for the team (or for yourself as a free
+    // agent), so your phone is required; teammates' is optional.
+    const me: GolferFields = { firstName, lastName, email, phone, handicap };
+    const myProblem = validateGolfer(me, { phoneRequired: true });
+    if (myProblem) { setError(myProblem); return; }
 
-    if (!fn) { setError('Your first name is required.');    return; }
-    if (!ln) { setError('Your last name is required.');     return; }
-    if (!em) { setError('Your email address is required.'); return; }
-    if (!EMAIL_RE.test(em)) { setError('Enter a valid email address.'); return; }
-
-    const ph = phone.trim();
-    if (ph && digitsOnly(ph).length !== 10) { setError('Phone number must be 10 digits.'); return; }
-
-    const hcp = handicap.trim() ? parseFloat(handicap.trim()) : undefined;
-    if (hcp !== undefined && (isNaN(hcp) || hcp < 0 || hcp > 54)) {
-      setError('Handicap must be a number between 0 and 54.'); return;
+    if (!isFreeAgent) {
+      const rosterProblem = validateRoster([me, ...teammates], {
+        first:      { phoneRequired: true },
+        otherLabel: i => `Teammate ${i}`,
+      });
+      if (rosterProblem) { setError(rosterProblem); return; }
     }
 
-    const player: PlayerInput = {
-      firstName: fn, lastName: ln, email: em,
-      phone: phone.trim() || undefined,
-      handicapIndex: hcp,
-    };
+    const player = toPlayerInput(me);
+    const fn = player.firstName;
+    const ln = player.lastName;
 
     setError(null);
     setSubmitting(true);
@@ -126,34 +115,16 @@ export default function RegisterScreen() {
         return;
       }
 
-      // Team registration — validate teammates
-      for (let i = 0; i < teammates.length; i++) {
-        const t = teammates[i];
-        const num = i + 1;
-        const tfn = t.firstName.trim(); const tln = t.lastName.trim(); const tem = t.email.trim().toLowerCase();
-        if (!tfn) { setError(`Teammate ${num}: first name is required.`);    return; }
-        if (!tln) { setError(`Teammate ${num}: last name is required.`);     return; }
-        if (!tem) { setError(`Teammate ${num}: email address is required.`); return; }
-        if (!EMAIL_RE.test(tem)) { setError(`Teammate ${num}: enter a valid email address.`); return; }
-        if (tem === em)          { setError(`Teammate ${num}: email must differ from yours.`); return; }
-        const earlier = teammates.slice(0, i).map(x => x.email.trim().toLowerCase());
-        if (earlier.includes(tem)) { setError(`Teammate ${num}: duplicate email address.`); return; }
-      }
-
-      const players: PlayerInput[] = [
-        player,
-        ...teammates.map(t => ({
-          firstName: t.firstName.trim(),
-          lastName:  t.lastName.trim(),
-          email:     t.email.trim().toLowerCase(),
-        })),
-      ];
+      const players = [player, ...teammates.map(toPlayerInput)];
 
       const result = await registerTeam(eventId, teamName.trim(), players);
       setConfirmedName(teamName.trim());
       setConfirmedPlayers(players.map(p => `${p.firstName} ${p.lastName}`));
       setEntryFeeCents(result.entryFeeCents ?? null);
       setEntryFeeSecret(result.entryFeeClientSecret ?? null);
+      setInviteUrl(result.inviteUrl ?? null);
+      setInviteExpiresAt(result.inviteExpiresAt ?? null);
+      setSpotsLeft(Math.max(0, (result.team.maxPlayers ?? 0) - players.length));
       setIsFreeAgentSuccess(false);
       setStep('success');
     } catch (e: unknown) {
@@ -206,6 +177,16 @@ export default function RegisterScreen() {
                 </Text>
               ))}
             </View>
+
+            {inviteUrl && (
+              <InviteTeammatesCard
+                url={inviteUrl}
+                expiresAt={inviteExpiresAt}
+                spotsLeft={spotsLeft}
+                teamName={confirmedName}
+                eventName={eventName}
+              />
+            )}
 
             {entryFeeCents != null && entryFeeCents > 0 && (
               entryFeePaid ? (
@@ -320,12 +301,10 @@ export default function RegisterScreen() {
             autoCapitalize="none" keyboardType="email-address" autoComplete="email" editable={!submitting}
           />
 
-          <Text style={[styles.label, { color: theme.colors.primary }]}>
-            Phone <Text style={styles.optional}>(optional)</Text>
-          </Text>
+          <Text style={[styles.label, { color: theme.colors.primary }]}>Phone *</Text>
           <TextInput
             style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
-            value={phone} onChangeText={v => setPhone(fmtPhoneInput(digitsOnly(v)))}
+            value={phone} onChangeText={v => { setPhone(fmtPhoneInput(digitsOnly(v))); setError(null); }}
             placeholder="(555) 867-5309" placeholderTextColor="#aaa"
             keyboardType="phone-pad" editable={!submitting}
           />
@@ -432,7 +411,7 @@ export default function RegisterScreen() {
               style={[styles.input, styles.textArea, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
               value={pairingNote} onChangeText={setPairingNote}
               placeholder="e.g. I know the Johnson family — please pair me with them if possible."
-              placeholderTextColor="#aaa" multiline numberOfLines={3} maxLength={500} editable={!submitting}
+              placeholderTextColor="#aaa" multiline numberOfLines={3} maxLength={PAIRING_NOTE_MAX} editable={!submitting}
             />
           </View>
         )}
@@ -480,8 +459,39 @@ export default function RegisterScreen() {
                   placeholder="teammate@example.com" placeholderTextColor="#aaa"
                   autoCapitalize="none" keyboardType="email-address" autoComplete="email" editable={!submitting}
                 />
+                <View style={styles.row}>
+                  <View style={styles.halfField}>
+                    <Text style={[styles.label, { color: theme.colors.primary }]}>
+                      Phone <Text style={styles.optional}>(optional)</Text>
+                    </Text>
+                    <TextInput
+                      style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+                      value={tm.phone ?? ''} onChangeText={v => updateTeammate(idx, 'phone', fmtPhoneInput(digitsOnly(v)))}
+                      placeholder="(555) 867-5309" placeholderTextColor="#aaa"
+                      keyboardType="phone-pad" editable={!submitting}
+                    />
+                  </View>
+                  <View style={styles.halfField}>
+                    <Text style={[styles.label, { color: theme.colors.primary }]}>
+                      Handicap <Text style={styles.optional}>(optional)</Text>
+                    </Text>
+                    <TextInput
+                      style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+                      value={tm.handicap ?? ''} onChangeText={v => updateTeammate(idx, 'handicap', v)}
+                      placeholder="e.g. 14.2" placeholderTextColor="#aaa"
+                      keyboardType="decimal-pad" editable={!submitting}
+                    />
+                  </View>
+                </View>
               </View>
             ))}
+
+            {teammates.length < MAX_TEAMMATES && (
+              <Text style={[styles.fieldHint, { color: theme.mutedText, marginBottom: 10 }]}>
+                Don&apos;t have everyone&apos;s details? After you register you&apos;ll get a link to send
+                the rest of your team so they can sign themselves up.
+              </Text>
+            )}
 
             {teammates.length < MAX_TEAMMATES && (
               <Pressable
@@ -513,6 +523,66 @@ export default function RegisterScreen() {
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
+  );
+}
+
+// ── INVITE TEAMMATES ─────────────────────────────────────────────────────────
+// The captain's link for teammates who weren't on the form. It opens the web
+// event page with "Join a Team" filled in for this team, where they enter
+// their own details and pay their own share. Share opens the OS share sheet
+// (text, email, WhatsApp…); on web it uses the browser's share or copies.
+
+interface InviteTeammatesCardProps {
+  url:       string;
+  expiresAt: string | null;
+  spotsLeft: number;
+  teamName:  string;
+  eventName: string;
+}
+
+function InviteTeammatesCard({ url, expiresAt, spotsLeft, teamName, eventName }: InviteTeammatesCardProps) {
+  const theme = useTheme();
+  const [shareError, setShareError] = useState<string | null>(null);
+
+  async function handleShare() {
+    setShareError(null);
+    const message = `Join my team "${teamName}" for ${eventName}: ${url}`;
+    try {
+      // iOS shows `url` as a link preview alongside the message; Android and
+      // web read the message, which already carries the link.
+      await Share.share(Platform.OS === 'ios' ? { message: `Join my team "${teamName}" for ${eventName}`, url } : { message });
+    } catch {
+      setShareError("Couldn't open sharing on this device — press and hold the link to copy it.");
+    }
+  }
+
+  const until = expiresAt
+    ? new Date(expiresAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
+
+  return (
+    <View style={[styles.inviteCard, { borderColor: theme.colors.primary + '55', backgroundColor: theme.colors.primary + '0d' }]}>
+      <Text style={[styles.inviteTitle, { color: theme.colors.primary }]}>Invite your teammates</Text>
+      <Text style={[styles.inviteText, { color: theme.mutedText }]}>
+        {spotsLeft > 0 ? `Your team has ${spotsLeft} open spot${spotsLeft === 1 ? '' : 's'}. ` : ''}
+        Send this link to the rest of your team so they can sign themselves up.
+      </Text>
+      <Text selectable style={[styles.inviteUrl, { color: theme.colors.primary }]}>{url}</Text>
+      <Pressable
+        style={({ pressed }) => [styles.shareBtn, { backgroundColor: theme.colors.primary, opacity: pressed ? 0.8 : 1 }]}
+        onPress={handleShare}
+        accessibilityRole="button"
+        accessibilityLabel="Share the team invite link"
+      >
+        <Text style={[styles.shareBtnText, { color: theme.buttonLabel }]}>Share Invite Link</Text>
+      </Pressable>
+      {shareError && <Text style={styles.feePayError}>{shareError}</Text>}
+      {until && (
+        <Text style={[styles.inviteNote, { color: theme.mutedText }]}>
+          Works until the tournament starts ({until}) or your team fills up.
+        </Text>
+      )}
+    </View>
   );
 }
 
@@ -684,6 +754,13 @@ const styles = StyleSheet.create({
   feePayBtnText:  { color: '#fff', fontWeight: '700', fontSize: 15 },
   feeSecureNote:  { fontSize: 11, color: '#aaa', textAlign: 'center', marginTop: 8 },
   rosterBox:      { borderRadius: 10, borderWidth: 1, padding: 14, marginTop: 14, gap: 4 },
+  inviteCard:     { borderRadius: 10, borderWidth: 1, padding: 14, marginTop: 14 },
+  inviteTitle:    { fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  inviteText:     { fontSize: 13, lineHeight: 19 },
+  inviteUrl:      { fontSize: 12, marginTop: 10, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  inviteNote:     { fontSize: 12, lineHeight: 17, marginTop: 8 },
+  shareBtn:       { borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 12 },
+  shareBtnText:   { fontSize: 15, fontWeight: '700' },
   rosterLabel:    { fontSize: 13, fontWeight: '700', marginBottom: 6 },
   rosterRow:      { fontSize: 14, lineHeight: 22 },
 });

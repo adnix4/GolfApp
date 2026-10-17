@@ -1,4 +1,4 @@
-import { ApiError, createApiClient, formatDate, formatTime } from '@gfp/shared-types';
+import { ApiError, createApiClient, formatDate, formatTime, type PlayerInput } from '@gfp/shared-types';
 import type { GFPTheme } from '@gfp/theme';
 import { storage } from './storage';
 import { uploadWithProgress, type UploadOptions } from './upload';
@@ -168,7 +168,7 @@ export const teamsApi = {
     request<Team>(`/api/v1/events/${eventId}/teams/${teamId}`),
 
   registerTeam: (eventId: string, payload: RegisterTeamPayload) =>
-    request<{ team: Team; inviteUrl: string | null; message: string }>(
+    request<{ team: Team; message: string }>(
       `/api/v1/events/${eventId}/register/team`,
       { method: 'POST', body: payload },
     ),
@@ -585,7 +585,8 @@ export interface UpdateCoursePayload {
 }
 export interface RegisterTeamPayload {
   teamName: string;
-  players: { firstName: string; lastName: string; email: string; handicap?: number }[];
+  /** Built with toPlayerInput() so the handicap goes out as handicapIndex. */
+  players: PlayerInput[];
 }
 export interface SubmitScorePayload {
   teamId: string; holeNumber: number; grossScore: number; putts?: number; deviceId?: string;
@@ -1047,7 +1048,8 @@ export const leagueApi = {
   getMembers: (leagueId: string, seasonId: string) =>
     request<LeagueMember[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/members`),
 
-  addMember: (leagueId: string, seasonId: string, payload: { firstName: string; lastName: string; email: string; handicapIndex?: number; flightId?: string; status?: string }) =>
+  // League play needs a handicap index — the API rejects a member without one.
+  addMember: (leagueId: string, seasonId: string, payload: { firstName: string; lastName: string; email: string; handicapIndex: number; flightId?: string; status?: string }) =>
     request<LeagueMember>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/members`, { method: 'POST', body: payload }),
 
   updateMember: (leagueId: string, seasonId: string, memberId: string, payload: Partial<{ flightId: string; handicapIndex: number; duesPaid: boolean; status: string }>) =>
@@ -1098,7 +1100,7 @@ export const leagueApi = {
   getAbsences: (leagueId: string, seasonId: string, roundId: string) =>
     request<RoundAbsence[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/absences`),
 
-  addSubstitute: (leagueId: string, seasonId: string, roundId: string, payload: { absentMemberId: string; firstName: string; lastName: string; email: string; handicapIndex?: number }) =>
+  addSubstitute: (leagueId: string, seasonId: string, roundId: string, payload: { absentMemberId: string; firstName: string; lastName: string; email: string; handicapIndex: number }) =>
     request<LeagueMember>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/substitutes`, {
       method: 'POST', body: payload,
     }),

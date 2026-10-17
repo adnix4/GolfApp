@@ -273,7 +273,7 @@ public class LeagueService
             FirstName     = req.FirstName,
             LastName      = req.LastName,
             Email         = req.Email,
-            HandicapIndex = req.HandicapIndex,
+            HandicapIndex = req.HandicapIndex!.Value, // required by AddMemberRequestValidator
             DuesPaid      = false,
             Status        = status,
             JoinedAt      = DateTime.UtcNow
@@ -985,7 +985,7 @@ public class LeagueService
             FirstName     = req.FirstName,
             LastName      = req.LastName,
             Email         = req.Email,
-            HandicapIndex = req.HandicapIndex,
+            HandicapIndex = req.HandicapIndex!.Value, // required by AddSubstituteRequestValidator
             Status        = MemberStatus.Sub,
             JoinedAt      = DateTime.UtcNow
         };

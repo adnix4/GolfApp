@@ -121,7 +121,12 @@ public record AddMemberRequest
     public string LastName     { get; init; } = string.Empty;
     [Required, MaxLength(254)]
     public string Email        { get; init; } = string.Empty;
-    public double HandicapIndex { get; init; }
+    /// <summary>
+    /// Required (see AddMemberRequestValidator). Nullable only so a missing value
+    /// is a 400 instead of binding to 0.0 — a scratch golfer, which would skew
+    /// net scoring, flights and pairings.
+    /// </summary>
+    public double? HandicapIndex { get; init; }
     public Guid?  FlightId     { get; init; }
     public Guid?  PlayerId     { get; init; }
     public string Status       { get; init; } = "Active";
@@ -190,7 +195,8 @@ public record AddSubstituteRequest
     public string LastName     { get; init; } = string.Empty;
     [Required, MaxLength(254)]
     public string Email        { get; init; } = string.Empty;
-    public double HandicapIndex { get; init; }
+    /// <summary>Required — same reason as <see cref="AddMemberRequest.HandicapIndex"/>.</summary>
+    public double? HandicapIndex { get; init; }
 }
 
 public record CreateRoundRequest

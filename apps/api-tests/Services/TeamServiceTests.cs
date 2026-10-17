@@ -30,12 +30,14 @@ public class TeamServiceTests
         public Guid EventId;
     }
 
-    private static Ctx Build(EventStatus status = EventStatus.Registration, string configJson = "{}")
+    private static Ctx Build(
+        EventStatus status = EventStatus.Registration, string configJson = "{}",
+        DateTime? startAt = null, string? webBaseUrl = null)
     {
         var db = InMemoryDbFactory.Create();
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["JWT_SECRET"] = Secret })
-            .Build();
+        var settings = new Dictionary<string, string?> { ["JWT_SECRET"] = Secret };
+        if (webBaseUrl is not null) settings["WEB_BASE_URL"] = webBaseUrl;
+        var config = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
         var orgId = Guid.NewGuid();
         var eventId = Guid.NewGuid();
         db.Organizations.Add(new Organization { Id = orgId, Name = "Acme", Slug = "acme" });
@@ -43,7 +45,7 @@ public class TeamServiceTests
         {
             Id = eventId, OrgId = orgId, Name = "Gala", EventCode = "GALA0001",
             Format = EventFormat.Scramble, StartType = EventStartType.Shotgun,
-            Holes = 18, Status = status, ConfigJson = configJson,
+            Holes = 18, Status = status, ConfigJson = configJson, StartAt = startAt,
         });
         db.SaveChanges();
         var payments = new PaymentsService(db, config, NullLogger<PaymentsService>.Instance);
@@ -71,6 +73,99 @@ public class TeamServiceTests
         Assert.NotNull(res.InviteUrl);
     }
 
+    // ── Invite link: shareable, and good until the round starts ─────────────────
+
+    [Fact]
+    public async Task Invite_url_is_absolute_and_uses_the_org_slug()
+    {
+        // It leaves the app in a text message, so a relative path or the org's
+        // GUID (the slug was never loaded) is useless to the teammate.
+        var c = Build(webBaseUrl: "https://golf.example.org/");
+        var res = await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "Linkers", MaxPlayers = 4, Players = new() { P("Capt") },
+        });
+
+        var token = c.Db.Teams.Single().InviteToken!;
+        Assert.Equal($"https://golf.example.org/e/acme/GALA0001/join?token={Uri.EscapeDataString(token)}", res.InviteUrl);
+    }
+
+    [Fact]
+    public async Task Invite_url_falls_back_to_the_local_web_server()
+    {
+        var c = Build();
+        var res = await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "Local", MaxPlayers = 4, Players = new() { P("Capt") },
+        });
+        Assert.StartsWith("http://localhost:3000/e/acme/GALA0001/join?token=", res.InviteUrl);
+    }
+
+    [Fact]
+    public async Task Invite_lasts_until_the_event_starts()
+    {
+        var start = DateTime.UtcNow.AddDays(21);
+        var c = Build(startAt: start);
+        var res = await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "EarlyBirds", MaxPlayers = 4, Players = new() { P("Capt") },
+        });
+
+        Assert.Equal(start, res.InviteExpiresAt!.Value, precision: TimeSpan.FromSeconds(1));
+        Assert.Equal(start, c.Db.Teams.Single().InviteExpiresAt!.Value, precision: TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public void Invite_expiry_falls_back_when_the_event_has_no_future_start()
+    {
+        var now = new DateTime(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc);
+        var fallback = now.Add(TeamService.UndatedInviteLifetime);
+
+        Assert.Equal(fallback, TeamService.InviteExpiry(new Event { StartAt = null }, now));
+        Assert.Equal(fallback, TeamService.InviteExpiry(new Event { StartAt = now.AddHours(-1) }, now));
+        Assert.Equal(now.AddDays(3), TeamService.InviteExpiry(new Event { StartAt = now.AddDays(3) }, now));
+    }
+
+    [Fact]
+    public async Task Invite_preview_by_token_shows_the_team_and_open_spots()
+    {
+        var c = Build();
+        await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "Previewed", MaxPlayers = 4, Players = new() { P("Capt"), P("Two") },
+        });
+        var token = c.Db.Teams.Single().InviteToken!;
+
+        var preview = await c.Svc.GetInvitePreviewAsync(c.EventId, token);
+
+        Assert.Equal("Previewed", preview.TeamName);
+        Assert.Equal(2, preview.SpotsRemaining);
+        Assert.False(preview.IsFull);
+        Assert.Equal(new[] { "P C.", "P T." }, preview.PlayerNames.OrderBy(n => n));
+    }
+
+    [Fact]
+    public async Task Join_keeps_the_joiners_phone_and_handicap()
+    {
+        var c = Build();
+        await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "Detailed", MaxPlayers = 4, Players = new() { P("Capt") },
+        });
+        var token = c.Db.Teams.Single().InviteToken!;
+
+        await c.Svc.JoinTeamAsync(c.OrgId, c.EventId, new JoinTeamRequest
+        {
+            InviteToken = token,
+            Player = new() { FirstName = "Jo", LastName = "Joiner", Email = "jo@x.com", Phone = "5558675309", HandicapIndex = 14.2 },
+        });
+
+        var jo = c.Db.Players.Single(p => p.Email == "jo@x.com");
+        Assert.Equal("5558675309", jo.Phone);
+        Assert.Equal(14.2, jo.HandicapIndex);
+        Assert.Equal(RegistrationType.IndividualJoin, jo.RegistrationType);
+    }
+
     [Fact]
     public async Task RegisterTeam_full_roster_has_no_invite()
     {
@@ -81,6 +176,7 @@ public class TeamServiceTests
         });
         Assert.False(res.Team.HasInviteLink);
         Assert.Null(res.InviteUrl);
+        Assert.Null(res.InviteExpiresAt);
     }
 
     [Fact]
@@ -209,6 +305,22 @@ public class TeamServiceTests
         await c.Svc.JoinTeamAsync(c.OrgId, c.EventId, new JoinTeamRequest { InviteToken = token, Player = P("Last") });
 
         Assert.Null(c.Db.Teams.Single().InviteToken); // cleared once full
+    }
+
+    [Fact]
+    public async Task JoinTeam_keeps_invite_while_spots_remain()
+    {
+        var c = Build();
+        await c.Svc.RegisterTeamAsync(c.OrgId, c.EventId, new RegisterTeamRequest
+        {
+            TeamName = "TwoOfFour", MaxPlayers = 4, Players = new() { P("Capt"), P("Mate") },
+        });
+        var token = c.Db.Teams.Single().InviteToken!;
+
+        await c.Svc.JoinTeamAsync(c.OrgId, c.EventId, new JoinTeamRequest { InviteToken = token, Player = P("Third") });
+
+        // 3 of 4 — the last golfer still needs the link
+        Assert.Equal(token, c.Db.Teams.Single().InviteToken);
     }
 
     [Fact]

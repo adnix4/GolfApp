@@ -17,6 +17,12 @@ import { useRouter } from 'next/navigation';
 //     dead-end pause, and they're the majority.
 // Detection is client-side (user agent) — the email's Register button and the
 // registration QR both land here, from any device.
+//
+// A captain's team invite link lands here too, as /join?token=…. That golfer
+// must register in the browser whatever the device (the scorer app can't join
+// a team), so the token goes straight through to the event page, which opens
+// "Join a Team" for that team. Read from the URL client-side so the page
+// itself stays static.
 
 interface SmartJoinProps {
   orgSlug:   string;
@@ -47,6 +53,7 @@ export default function SmartJoin({
   const router = useRouter();
   const [device,        setDevice]        = useState<Device | null>(null);
   const [appNotOpened,  setAppNotOpened]  = useState(false);
+  const [inviteUrl,     setInviteUrl]     = useState<string | null>(null);
   const appOpened = useRef(false);
 
   const deepLink = `gfp://join?preEventId=${encodeURIComponent(eventId)}`;
@@ -63,6 +70,14 @@ export default function SmartJoin({
   }
 
   useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('token');
+    if (token) {
+      const target = `/e/${orgSlug}/${eventCode}?invite=${encodeURIComponent(token)}#register`;
+      setInviteUrl(target);
+      router.replace(target);
+      return;
+    }
+
     const onHide = () => { appOpened.current = true; };
     document.addEventListener('visibilitychange', onHide);
 
@@ -84,7 +99,12 @@ export default function SmartJoin({
         <p style={s.eyebrow}>{orgName}</p>
         <h1 style={s.title}>{eventName}</h1>
 
-        {device === 'desktop' || device === null ? (
+        {inviteUrl ? (
+          <>
+            <p style={s.status}>Taking you to your team…</p>
+            <a href={inviteUrl} style={s.linkBtn}>Continue to join the team →</a>
+          </>
+        ) : device === 'desktop' || device === null ? (
           <>
             <p style={s.status}>Taking you to registration…</p>
             <a href={eventPageUrl} style={s.linkBtn}>Continue to the event page →</a>

@@ -6,7 +6,10 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { useTheme, StatusPill, FormModal } from '@gfp/ui';
-import { digitsOnly, fmtAgeGroup, fmtPhone, fmtPhoneInput, formatTime } from '@gfp/shared-types';
+import {
+  digitsOnly, fmtAgeGroup, fmtPhone, fmtPhoneInput, formatTime,
+  validateRoster, toPlayerInput, type GolferFields,
+} from '@gfp/shared-types';
 import {
   teamsApi, playersApi,
   type Team, type Player, type RegisterTeamPayload, type AddPlayerPayload,
@@ -203,7 +206,6 @@ export default function TeamsScreen() {
   const [showAdd,           setShowAdd]           = useState(false);
   const [editing,           setEditing]           = useState<Team | null>(null);
   const [removeTeamTarget,  setRemoveTeamTarget]  = useState<Team | null>(null);
-  const [inviteResult, setInviteResult] = useState<{ teamName: string; url: string | null } | null>(null);
 
   // Player add/edit state
   const [addPlayerTeam, setAddPlayerTeam] = useState<Team | null>(null);
@@ -253,10 +255,11 @@ export default function TeamsScreen() {
     }
   }, [id]);
 
-  function handleRegistered(team: Team, inviteUrl?: string | null) {
+  // No invite link here: the organizer is entering the team, so there is no
+  // captain to send one. Golfers get theirs when they register on mobile/web.
+  function handleRegistered(team: Team) {
     setTeams(prev => [...prev, team]);
     setShowAdd(false);
-    if (inviteUrl) setInviteResult({ teamName: team.name, url: inviteUrl });
   }
 
   function handleTeamUpdated(team: Team) {
@@ -355,22 +358,6 @@ export default function TeamsScreen() {
         </View>
       )}
 
-      {inviteResult && (
-        <View style={styles.inviteBox}>
-          <Text style={styles.inviteTitle}>Team "{inviteResult.teamName}" registered!</Text>
-          {inviteResult.url ? (
-            <>
-              <Text style={styles.inviteLabel}>Invite link for teammates:</Text>
-              <Text style={styles.inviteUrl} selectable>{inviteResult.url}</Text>
-            </>
-          ) : (
-            <Text style={styles.inviteLabel}>Team is full — no invite link needed.</Text>
-          )}
-          <Pressable onPress={() => setInviteResult(null)} style={{ marginTop: 8 }}>
-            <Text style={{ color: '#1a5276', fontSize: 12, fontWeight: '600' }}>Dismiss</Text>
-          </Pressable>
-        </View>
-      )}
 
       {loading ? (
         <View style={styles.center}>
@@ -742,18 +729,15 @@ interface RegisterTeamModalProps {
   visible:      boolean;
   eventId:      string;
   onClose:      () => void;
-  onRegistered: (team: Team, inviteUrl?: string | null) => void;
+  onRegistered: (team: Team) => void;
 }
 
-interface PlayerDraft {
-  firstName: string;
-  lastName:  string;
-  email:     string;
-  handicap:  string;
-}
+// Same fields as mobile and web (packages/shared-types/src/registration.ts).
+// Desk entry, so phone stays optional for every golfer here.
+type PlayerDraft = GolferFields;
 
 function blankPlayer(): PlayerDraft {
-  return { firstName: '', lastName: '', email: '', handicap: '' };
+  return { firstName: '', lastName: '', email: '', phone: '', handicap: '' };
 }
 
 function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: RegisterTeamModalProps) {
@@ -775,19 +759,24 @@ function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: Register
     setPlayers(prev => prev.filter((_, i) => i !== idx));
   }
 
+  // Rows the organizer added but left completely empty are skipped; anything
+  // half-filled is reported rather than silently dropped.
+  function roster(): PlayerDraft[] {
+    return players.filter(p =>
+      p.firstName.trim() || p.lastName.trim() || p.email.trim() ||
+      (p.phone ?? '').trim() || (p.handicap ?? '').trim());
+  }
+
   function validate(): boolean {
     if (!teamName.trim()) { setError('Team name is required.'); return false; }
     if (teamName.trim().length > 200) { setError('Team name must be 200 characters or fewer.'); return false; }
-    const validPlayers = players.filter(p => p.firstName.trim() && p.lastName.trim());
-    if (validPlayers.length === 0) { setError('At least one player with a first and last name is required.'); return false; }
-    for (const p of players) {
-      if (p.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email.trim())) {
-        setError(`"${p.email}" is not a valid email address.`); return false;
-      }
-      if (p.handicap.trim() && isNaN(Number(p.handicap))) {
-        setError('Handicap must be a number.'); return false;
-      }
-    }
+    const rows = roster();
+    if (rows.length === 0) { setError('Add at least one player.'); return false; }
+    const problem = validateRoster(rows, {
+      first:      { label: `Player ${players.indexOf(rows[0]) + 1}` },
+      otherLabel: i => `Player ${players.indexOf(rows[i]) + 1}`,
+    });
+    if (problem) { setError(problem); return false; }
     return true;
   }
 
@@ -796,19 +785,13 @@ function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: Register
     setError(null);
     setLoading(true);
     try {
-      const validPlayers = players.filter(p => p.firstName.trim() && p.lastName.trim());
       const payload: RegisterTeamPayload = {
         teamName: teamName.trim(),
-        players: validPlayers.map(p => ({
-          firstName: p.firstName.trim(),
-          lastName:  p.lastName.trim(),
-          email:     p.email.trim(),
-          ...(p.handicap.trim() ? { handicap: Number(p.handicap) } : {}),
-        })),
+        players:  roster().map(toPlayerInput),
       };
       const result = await teamsApi.registerTeam(eventId, payload);
       reset();
-      onRegistered(result.team, result.inviteUrl);
+      onRegistered(result.team);
     } catch (e: any) {
       setError(e.message ?? 'Registration failed.');
     } finally {
@@ -863,15 +846,23 @@ function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: Register
                 <TextInput
                   style={[styles.input, { borderColor: theme.colors.accent, marginTop: 6 }]}
                   value={p.email} onChangeText={v => updatePlayer(idx, 'email', v)}
-                  placeholder="email@example.com" placeholderTextColor="#999"
+                  placeholder="Email *" placeholderTextColor="#999"
                   keyboardType="email-address" autoCapitalize="none" editable={!loading}
                 />
-                <TextInput
-                  style={[styles.input, { borderColor: theme.colors.accent, marginTop: 6 }]}
-                  value={p.handicap} onChangeText={v => updatePlayer(idx, 'handicap', v)}
-                  placeholder="Handicap index (optional)" placeholderTextColor="#999"
-                  keyboardType="decimal-pad" editable={!loading}
-                />
+                <View style={[styles.nameRow, { marginTop: 6 }]}>
+                  <TextInput
+                    style={[styles.input, styles.halfInput, { borderColor: theme.colors.accent }]}
+                    value={p.phone ?? ''} onChangeText={v => updatePlayer(idx, 'phone', fmtPhoneInput(digitsOnly(v)))}
+                    placeholder="Phone (optional)" placeholderTextColor="#999"
+                    keyboardType="phone-pad" editable={!loading}
+                  />
+                  <TextInput
+                    style={[styles.input, styles.halfInput, { borderColor: theme.colors.accent }]}
+                    value={p.handicap ?? ''} onChangeText={v => updatePlayer(idx, 'handicap', v)}
+                    placeholder="Handicap (optional)" placeholderTextColor="#999"
+                    keyboardType="decimal-pad" editable={!loading}
+                  />
+                </View>
               </View>
             ))}
 
@@ -1051,13 +1042,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3, borderLeftColor: '#e74c3c',
   },
   errorText: { color: '#c0392b', fontSize: 14 },
-  inviteBox: {
-    backgroundColor: '#ebf5fb', borderRadius: 10, padding: 14, marginBottom: 14,
-    borderLeftWidth: 3, borderLeftColor: '#2980b9',
-  },
-  inviteTitle: { fontSize: 14, fontWeight: '700', color: '#1a5276', marginBottom: 6 },
-  inviteLabel: { fontSize: 13, color: '#1a5276', marginBottom: 4 },
-  inviteUrl:   { fontSize: 12, color: '#2980b9', fontFamily: 'monospace' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
   modalScroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   modal: { width: '100%', maxWidth: 500, backgroundColor: '#fff', borderRadius: 16, padding: 28 },

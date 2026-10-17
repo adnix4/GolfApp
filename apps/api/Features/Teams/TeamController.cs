@@ -12,6 +12,7 @@
 //   PATCH /api/v1/events/{eventId}/teams/{id}          — update team (admin)
 //   POST /api/v1/events/{eventId}/teams/{id}/invite/regenerate — new invite link
 //   GET  /api/v1/events/{eventId}/teams/{id}/invite    — invite preview (public)
+//   GET  /api/v1/events/{eventId}/invite?token=        — same, token only (the shared link)
 //
 //   GET  /api/v1/events/{eventId}/free-agents          — free agent board
 //   POST /api/v1/events/{eventId}/free-agents/assign   — manual assignment
@@ -116,6 +117,32 @@ public class TeamController : ControllerBase
     public async Task<ActionResult<TeamInvitePreviewResponse>> GetInvitePreview(
         [FromRoute] Guid eventId,
         [FromRoute] Guid teamId,
+        [FromQuery] string token,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return BadRequest(new ErrorResponse
+            {
+                Error = "An invite token is required.",
+                Code  = "VALIDATION_ERROR",
+            });
+
+        var response = await _teamService.GetInvitePreviewAsync(eventId, token, ct);
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Same preview, keyed by the token alone. The shared invite link carries
+    /// only the token (the team ID is signed inside it), so this is the route
+    /// the web join page calls.
+    /// </summary>
+    [HttpGet("api/v1/events/{eventId:guid}/invite")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(TeamInvitePreviewResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TeamInvitePreviewResponse>> GetInvitePreviewByToken(
+        [FromRoute] Guid eventId,
         [FromQuery] string token,
         CancellationToken ct)
     {

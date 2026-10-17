@@ -24,8 +24,10 @@
 //
 // INVITE TOKEN FLOW:
 //   1. Captain registers (Mode 1) → team created with InviteToken + InviteExpiresAt
-//   2. Captain shares the invite link: /e/{slug}/{code}/join?token={InviteToken}
-//   3. Teammate opens link → frontend calls GET /teams/{id}/invite to preview team
+//   2. Captain shares the invite link: {WEB_BASE_URL}/e/{slug}/{code}/join?token={InviteToken}
+//      (valid until the event starts)
+//   3. Teammate opens link → web opens "Join a Team" and calls
+//      GET /events/{id}/invite?token= to preview the team
 //   4. Teammate submits form → POST /events/{id}/register/join with the token
 //   5. Player added to team; if team is now full, InviteToken is cleared
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,7 +116,7 @@ public record JoinTeamRequest
     /// <summary>
     /// The invite token from the team's invite link query parameter.
     /// Format: HMAC-SHA256 signed token stored on the team record.
-    /// Expires after 48 hours.
+    /// Expires when the event starts (see TeamService.InviteExpiry).
     /// </summary>
     [Required]
     public string InviteToken { get; init; } = string.Empty;
@@ -299,7 +301,8 @@ public record PlayerResponse
 }
 
 /// <summary>
-/// Invite preview — returned by GET /teams/{id}/invite?token={token}
+/// Invite preview — returned by GET /teams/{id}/invite?token={token} and by the
+/// token-only GET /events/{id}/invite?token={token} the shared link uses.
 /// Lets the joining player see the team before committing.
 /// </summary>
 public record TeamInvitePreviewResponse
@@ -322,8 +325,13 @@ public record RegistrationConfirmResponse
     public TeamResponse Team         { get; init; } = new();
     /// <summary>The player that was just registered (for Mode 2 and 3).</summary>
     public PlayerResponse? Player    { get; init; }
-    /// <summary>Invite URL to share with teammates (Mode 1 only).</summary>
+    /// <summary>
+    /// Absolute invite URL the captain shares with teammates (Mode 1 only, and
+    /// only while the team has open spots).
+    /// </summary>
     public string? InviteUrl         { get; init; }
+    /// <summary>When <see cref="InviteUrl"/> stops working (the event's start). Null without a link.</summary>
+    public DateTime? InviteExpiresAt { get; init; }
     public string  Message           { get; init; } = string.Empty;
     /// <summary>Stripe PaymentIntent client_secret for entry fee collection. Null when event has no entry fee.</summary>
     public string? EntryFeeClientSecret { get; init; }

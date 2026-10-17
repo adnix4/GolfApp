@@ -14,18 +14,28 @@ namespace GolfFundraiserPro.Api.Features.Teams;
 /// </summary>
 public static class InviteTokenHelper
 {
+    /// <summary>
+    /// Default lifetime when the caller has no better expiry. Team invites pass an
+    /// explicit expiry instead (the event's start — see TeamService.InviteExpiry).
+    /// </summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromHours(48);
 
     /// <summary>
-    /// Generates a signed invite token.
+    /// Generates a signed invite token that expires <see cref="Lifetime"/> from now.
     /// Pass <paramref name="now"/> in tests to fix the clock.
     /// </summary>
     public static (string Token, DateTime ExpiresAt) Generate(
         Guid teamId, string secret, DateTimeOffset? now = null)
+        => Generate(teamId, secret, (now ?? DateTimeOffset.UtcNow).Add(Lifetime).UtcDateTime);
+
+    /// <summary>Generates a signed invite token that expires at <paramref name="expiresAtUtc"/>.</summary>
+    public static (string Token, DateTime ExpiresAt) Generate(
+        Guid teamId, string secret, DateTime expiresAtUtc)
     {
-        var at          = now ?? DateTimeOffset.UtcNow;
-        var expiresAt   = at.Add(Lifetime).UtcDateTime;
-        var expiresUnix = new DateTimeOffset(expiresAt, TimeSpan.Zero).ToUnixTimeSeconds();
+        // Whole seconds: the payload carries Unix seconds, so the stored expiry
+        // must match what Validate will read back out of the token.
+        var expiresUnix = new DateTimeOffset(DateTime.SpecifyKind(expiresAtUtc, DateTimeKind.Utc)).ToUnixTimeSeconds();
+        var expiresAt   = DateTimeOffset.FromUnixTimeSeconds(expiresUnix).UtcDateTime;
         var payload     = $"{teamId}:{expiresUnix}";
 
         var keyBytes   = Encoding.UTF8.GetBytes(secret);

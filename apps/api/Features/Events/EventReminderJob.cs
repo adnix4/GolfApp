@@ -136,12 +136,6 @@ public class EventReminderJob
         }
     }
 
-    /// <summary>
-    /// Public site origin for the links in the email. Falls back to the local
-    /// Next.js dev server so a dev environment produces clickable links.
-    /// </summary>
-    private string WebBaseUrl() =>
-        _config["WEB_BASE_URL"] is { Length: > 0 } configured
-            ? configured
-            : "http://localhost:3000";
+    /// <summary>Public site origin for the links in the email.</summary>
+    private string WebBaseUrl() => Common.AccountLinks.WebBaseUrl(_config);
 }

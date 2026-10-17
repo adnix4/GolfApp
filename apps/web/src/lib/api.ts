@@ -1,4 +1,4 @@
-import { resolveMediaUrl } from '@gfp/shared-types';
+import { resolveMediaUrl, type PlayerInput, type SkillLevel, type AgeGroup } from '@gfp/shared-types';
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 /** Organizer/admin app base URL for Sign-up / Log-in CTAs (separate app; a link, not SSO). */
@@ -332,20 +332,57 @@ export async function fetchPublicLeaderboard(eventCode: string): Promise<PublicL
 
 // ── REGISTRATION ──────────────────────────────────────────────────────────────
 
+// Players are built with toPlayerInput() (@gfp/shared-types) so the field
+// names — handicapIndex especially — match the API in every app.
 export interface RegisterTeamPayload {
   teamName: string;
-  players:  { firstName: string; lastName: string; email: string; handicap?: number }[];
+  players:  PlayerInput[];
 }
 
 export interface JoinTeamPayload {
   inviteToken: string;
-  player:      { firstName: string; lastName: string; email: string; handicap?: number };
+  player:      PlayerInput;
 }
 
 export interface RegisterFreeAgentPayload {
-  player:      { firstName: string; lastName: string; email: string; handicap?: number };
-  skillLevel?: string;
+  player:       PlayerInput;
+  skillLevel?:  SkillLevel;
+  ageGroup?:    AgeGroup;
   pairingNote?: string;
+}
+
+/** The team a shared invite link points at, shown before the golfer joins. */
+export interface InvitePreview {
+  teamId:         string;
+  teamName:       string;
+  eventName:      string;
+  /** First name + last initial only — the roster is not exposed before joining. */
+  playerNames:    string[];
+  spotsRemaining: number;
+  isFull:         boolean;
+}
+
+/**
+ * Looks up the team behind an invite token. Returns the API's message on
+ * failure (expired, already full, not valid) so the page can show it.
+ */
+export async function fetchInvitePreview(
+  eventId: string, token: string,
+): Promise<{ ok: true; preview: InvitePreview } | { ok: false; message: string }> {
+  try {
+    const res = await fetch(
+      `${BASE}/api/v1/events/${eventId}/invite?token=${encodeURIComponent(token)}`,
+      { headers: deviceHeaders(), cache: 'no-store' },
+    );
+    let data: any = null;
+    try { data = await res.json(); } catch { /* not JSON */ }
+    if (!res.ok) {
+      return { ok: false, message: data?.detail ?? data?.error ?? data?.title ?? 'This invite link is not valid.' };
+    }
+    return { ok: true, preview: data as InvitePreview };
+  } catch {
+    return { ok: false, message: "Couldn't check your invite link. Check your connection and try again." };
+  }
 }
 
 export interface RegistrationResult {
@@ -357,6 +394,8 @@ export interface RegistrationResult {
   entryFeeCents?:        number | null;
   /** Invite link for the captain to share (team registration only). */
   inviteUrl?:            string | null;
+  /** When the invite link stops working (ISO, the event's start). */
+  inviteExpiresAt?:      string | null;
 }
 
 async function postJson(url: string, body: unknown): Promise<{ ok: boolean; status: number; data: any }> {
@@ -372,11 +411,12 @@ async function postJson(url: string, body: unknown): Promise<{ ok: boolean; stat
 }
 
 /** Pull the entry-fee payment fields off a RegistrationConfirmResponse. */
-function paymentFields(data: any): Pick<RegistrationResult, 'entryFeeClientSecret' | 'entryFeeCents' | 'inviteUrl'> {
+function paymentFields(data: any): Pick<RegistrationResult, 'entryFeeClientSecret' | 'entryFeeCents' | 'inviteUrl' | 'inviteExpiresAt'> {
   return {
     entryFeeClientSecret: data?.entryFeeClientSecret ?? null,
     entryFeeCents:        data?.entryFeeCents ?? null,
     inviteUrl:            data?.inviteUrl ?? null,
+    inviteExpiresAt:      data?.inviteExpiresAt ?? null,
   };
 }
 

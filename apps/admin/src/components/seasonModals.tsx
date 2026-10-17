@@ -172,11 +172,13 @@ export interface AddMemberFields {
 }
 
 export function AddMemberModal({
-  visible, fields, saving, onChange, onCancel, onSave,
+  visible, fields, saving, error, onChange, onCancel, onSave,
 }: {
   visible:  boolean;
   fields:   AddMemberFields;
   saving:   boolean;
+  /** Inline validation or save error, shown above the buttons. */
+  error?:   string | null;
   onChange: (next: AddMemberFields) => void;
   onCancel: () => void;
   onSave:   () => void;
@@ -191,7 +193,7 @@ export function AddMemberModal({
           <Text style={[mStyles.modalTitle, { color: theme.colors.primary }]}>Add Member</Text>
           <View style={mStyles.row}>
             <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={[mStyles.label, { color: theme.mutedText }]}>First Name</Text>
+              <Text style={[mStyles.label, { color: theme.mutedText }]}>First Name *</Text>
               <TextInput
                 style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
                 value={fields.firstName} onChangeText={v => set('firstName', v)}
@@ -199,7 +201,7 @@ export function AddMemberModal({
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[mStyles.label, { color: theme.mutedText }]}>Last Name</Text>
+              <Text style={[mStyles.label, { color: theme.mutedText }]}>Last Name *</Text>
               <TextInput
                 style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
                 value={fields.lastName} onChangeText={v => set('lastName', v)}
@@ -207,18 +209,19 @@ export function AddMemberModal({
               />
             </View>
           </View>
-          <Text style={[mStyles.label, { color: theme.mutedText }]}>Email</Text>
+          <Text style={[mStyles.label, { color: theme.mutedText }]}>Email *</Text>
           <TextInput
             style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
             value={fields.email} onChangeText={v => set('email', v)} keyboardType="email-address"
             placeholderTextColor={theme.colors.accent}
           />
-          <Text style={[mStyles.label, { color: theme.mutedText }]}>Starting Handicap</Text>
+          <Text style={[mStyles.label, { color: theme.mutedText }]}>Starting Handicap Index *</Text>
           <TextInput
             style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-            value={fields.handicap} onChangeText={v => set('handicap', v)} keyboardType="numeric" placeholder="0"
+            value={fields.handicap} onChangeText={v => set('handicap', v)} keyboardType="decimal-pad" placeholder="e.g. 14.2 — required for league play"
             placeholderTextColor={theme.colors.accent}
           />
+          {error ? <Text style={mStyles.formError}>{error}</Text> : null}
           <View style={mStyles.modalActions}>
             <Pressable style={mStyles.cancelBtn} onPress={onCancel}>
               <Text style={{ color: theme.mutedText }}>Cancel</Text>
@@ -328,11 +331,13 @@ export interface AddSubFields {
 }
 
 export function AddSubModal({
-  visible, fields, saving, onChange, onCancel, onSave,
+  visible, fields, saving, error, onChange, onCancel, onSave,
 }: {
   visible:  boolean;
   fields:   AddSubFields;
   saving:   boolean;
+  /** Inline validation or save error, shown above the buttons. */
+  error?:   string | null;
   onChange: (next: AddSubFields) => void;
   onCancel: () => void;
   onSave:   () => void;
@@ -347,7 +352,7 @@ export function AddSubModal({
           <Text style={[mStyles.modalTitle, { color: theme.colors.primary }]}>Add Substitute</Text>
           <View style={mStyles.row}>
             <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={[mStyles.label, { color: theme.mutedText }]}>First Name</Text>
+              <Text style={[mStyles.label, { color: theme.mutedText }]}>First Name *</Text>
               <TextInput
                 style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
                 value={fields.firstName} onChangeText={v => set('firstName', v)}
@@ -355,7 +360,7 @@ export function AddSubModal({
               />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[mStyles.label, { color: theme.mutedText }]}>Last Name</Text>
+              <Text style={[mStyles.label, { color: theme.mutedText }]}>Last Name *</Text>
               <TextInput
                 style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
                 value={fields.lastName} onChangeText={v => set('lastName', v)}
@@ -363,18 +368,19 @@ export function AddSubModal({
               />
             </View>
           </View>
-          <Text style={[mStyles.label, { color: theme.mutedText }]}>Email</Text>
+          <Text style={[mStyles.label, { color: theme.mutedText }]}>Email *</Text>
           <TextInput
             style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
             value={fields.email} onChangeText={v => set('email', v)} keyboardType="email-address"
             placeholderTextColor={theme.colors.accent}
           />
-          <Text style={[mStyles.label, { color: theme.mutedText }]}>Handicap Index</Text>
+          <Text style={[mStyles.label, { color: theme.mutedText }]}>Handicap Index *</Text>
           <TextInput
             style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
-            value={fields.handicap} onChangeText={v => set('handicap', v)} keyboardType="numeric" placeholder="0"
+            value={fields.handicap} onChangeText={v => set('handicap', v)} keyboardType="decimal-pad" placeholder="e.g. 14.2 — required for league play"
             placeholderTextColor={theme.colors.accent}
           />
+          {error ? <Text style={mStyles.formError}>{error}</Text> : null}
           <View style={mStyles.modalActions}>
             <Pressable style={mStyles.cancelBtn} onPress={onCancel}>
               <Text style={{ color: theme.mutedText }}>Cancel</Text>
@@ -464,6 +470,7 @@ const mStyles = StyleSheet.create({
   input:         { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 14 },
   row:           { flexDirection: 'row' },
   modalActions:  { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 20 },
+  formError:     { color: '#dc2626', fontSize: 13, marginTop: 12 },
   cancelBtn:     { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   btn:           { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   pairingGroup:  { borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 8 },

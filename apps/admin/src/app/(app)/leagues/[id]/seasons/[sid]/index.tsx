@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { formatCentsShort, formatDateOnly } from '@gfp/shared-types';
+import { formatCentsShort, formatDateOnly, validateLeagueMember, toPlayerInput } from '@gfp/shared-types';
 import {
   leagueApi, SeasonDashboard, LeagueMember, LeagueRound,
   StandingRow, SkinRow, PairingGroup, HandicapHistoryRow, RoundAbsence,
@@ -46,7 +46,8 @@ export default function SeasonDashboardScreen() {
   const [overrideSaving, setOverrideSaving] = useState(false);
 
   const [showAddMember, setShowAddMember] = useState(false);
-  const [memberFields, setMemberFields]   = useState<AddMemberFields>({ firstName: '', lastName: '', email: '', handicap: '0' });
+  const [memberFields, setMemberFields]   = useState<AddMemberFields>({ firstName: '', lastName: '', email: '', handicap: '' });
+  const [memberErr, setMemberErr]         = useState<string | null>(null);
   const [mSaving, setMSaving]             = useState(false);
 
   const [showAddRound, setShowAddRound] = useState(false);
@@ -63,7 +64,8 @@ export default function SeasonDashboardScreen() {
 
   const [showSubModal, setShowSubModal]           = useState(false);
   const [subAbsentMemberId, setSubAbsentMemberId] = useState('');
-  const [subFields, setSubFields]                 = useState<AddSubFields>({ firstName: '', lastName: '', email: '', handicap: '0' });
+  const [subFields, setSubFields]                 = useState<AddSubFields>({ firstName: '', lastName: '', email: '', handicap: '' });
+  const [subErr, setSubErr]                       = useState<string | null>(null);
   const [subSaving, setSubSaving]                 = useState(false);
 
   const [syncSaving, setSyncSaving] = useState(false);
@@ -169,20 +171,23 @@ export default function SeasonDashboardScreen() {
     setShowHcModal(true);
   }
 
+  // League play needs a real handicap: a blank used to be saved as 0 (scratch).
   async function handleAddMember() {
-    if (!id || !sid || !memberFields.firstName || !memberFields.lastName || !memberFields.email) return;
+    if (!id || !sid) return;
+    const problem = validateLeagueMember(memberFields);
+    if (problem) { setMemberErr(problem); return; }
+    setMemberErr(null);
     setMSaving(true);
     try {
+      const p = toPlayerInput(memberFields);
       await leagueApi.addMember(id, sid, {
-        firstName: memberFields.firstName,
-        lastName:  memberFields.lastName,
-        email:     memberFields.email,
-        handicapIndex: parseFloat(memberFields.handicap) || 0,
+        firstName: p.firstName, lastName: p.lastName, email: p.email,
+        handicapIndex: p.handicapIndex!,
       });
       setShowAddMember(false);
-      setMemberFields({ firstName: '', lastName: '', email: '', handicap: '0' });
+      setMemberFields({ firstName: '', lastName: '', email: '', handicap: '' });
       await load();
-    } catch (e: unknown) { setError((e as Error).message); }
+    } catch (e: unknown) { setMemberErr((e as Error).message); }
     finally { setMSaving(false); }
   }
 
@@ -212,21 +217,22 @@ export default function SeasonDashboardScreen() {
 
   async function handleAddSub() {
     if (!id || !sid || !absenceRound || !subAbsentMemberId) return;
-    if (!subFields.firstName || !subFields.lastName || !subFields.email) return;
+    const problem = validateLeagueMember(subFields);
+    if (problem) { setSubErr(problem); return; }
+    setSubErr(null);
     setSubSaving(true);
     try {
+      const p = toPlayerInput(subFields);
       await leagueApi.addSubstitute(id, sid, absenceRound.id, {
         absentMemberId: subAbsentMemberId,
-        firstName: subFields.firstName,
-        lastName:  subFields.lastName,
-        email:     subFields.email,
-        handicapIndex: parseFloat(subFields.handicap) || 0,
+        firstName: p.firstName, lastName: p.lastName, email: p.email,
+        handicapIndex: p.handicapIndex!,
       });
       const updated = await leagueApi.getAbsences(id, sid, absenceRound.id);
       setAbsences(updated);
       setShowSubModal(false);
-      setSubFields({ firstName: '', lastName: '', email: '', handicap: '0' });
-    } catch (e: unknown) { setError((e as Error).message); }
+      setSubFields({ firstName: '', lastName: '', email: '', handicap: '' });
+    } catch (e: unknown) { setSubErr((e as Error).message); }
     finally { setSubSaving(false); }
   }
 
@@ -612,8 +618,9 @@ export default function SeasonDashboardScreen() {
         visible={showAddMember}
         fields={memberFields}
         saving={mSaving}
-        onChange={setMemberFields}
-        onCancel={() => setShowAddMember(false)}
+        error={memberErr}
+        onChange={next => { setMemberFields(next); setMemberErr(null); }}
+        onCancel={() => { setShowAddMember(false); setMemberErr(null); }}
         onSave={handleAddMember}
       />
 
@@ -634,8 +641,9 @@ export default function SeasonDashboardScreen() {
         visible={showSubModal}
         fields={subFields}
         saving={subSaving}
-        onChange={setSubFields}
-        onCancel={() => setShowSubModal(false)}
+        error={subErr}
+        onChange={next => { setSubFields(next); setSubErr(null); }}
+        onCancel={() => { setShowSubModal(false); setSubErr(null); }}
         onSave={handleAddSub}
       />
 
