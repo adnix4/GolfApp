@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { digitsOnly, fmtAgeGroup, fmtPhone, fmtPhoneInput } from '@gfp/shared-types';
+import { digitsOnly, fmtAgeGroup, fmtPhone, fmtPhoneInput, validateGolfer, toPlayerInput } from '@gfp/shared-types';
 import { playersApi, teamsApi, type Player, type Team, type AddPlayerPayload } from '@/lib/api';
 
 export default function FreeAgentsScreen() {
@@ -252,18 +252,12 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
 
   function reset() { setFirstName(''); setLastName(''); setEmail(''); setPhone(''); setHandicap(''); setError(null); }
 
+  const golfer = { firstName, lastName, email, phone, handicap };
+
+  // Same rules as every other golfer form: email required, phone optional at the desk.
   function validate(): boolean {
-    if (!firstName.trim()) { setError('First name is required.'); return false; }
-    if (!lastName.trim())  { setError('Last name is required.'); return false; }
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError(`"${email.trim()}" is not a valid email address.`); return false;
-    }
-    if (phone.trim() && digitsOnly(phone).length !== 10) {
-      setError('Phone number must be 10 digits.'); return false;
-    }
-    if (handicap.trim() && isNaN(Number(handicap))) {
-      setError('Handicap must be a number.'); return false;
-    }
+    const problem = validateGolfer(golfer);
+    if (problem) { setError(problem); return false; }
     return true;
   }
 
@@ -272,13 +266,7 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
     setError(null);
     setLoading(true);
     try {
-      const payload: AddPlayerPayload = {
-        firstName: firstName.trim(),
-        lastName:  lastName.trim(),
-        email:     email.trim() || undefined,
-        phone:     phone.trim() || undefined,
-        ...(handicap.trim() ? { handicapIndex: Number(handicap) } : {}),
-      };
+      const payload: AddPlayerPayload = toPlayerInput(golfer);
       const player = await playersApi.add(eventId, payload);
       reset();
       onAdded(player);
@@ -314,7 +302,7 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
           <TextInput
             style={[styles.input, { borderColor: '#ccc', marginTop: 8 }]}
             value={email} onChangeText={v => { setEmail(v); if (error) setError(null); }}
-            placeholder="email@example.com (optional)" placeholderTextColor="#999"
+            placeholder="email@example.com *" placeholderTextColor="#999"
             keyboardType="email-address" autoCapitalize="none" editable={!loading}
           />
           <TextInput
@@ -363,7 +351,9 @@ const styles = StyleSheet.create({
   refreshBtn: { paddingVertical: 6, paddingHorizontal: 12 },
   refreshText: { fontSize: 14, fontWeight: '600' },
   nameRow: { flexDirection: 'row', gap: 8 },
-  halfInput: { flex: 1 },
+  // minWidth 0: a web <input> won't shrink below its default ~20ch otherwise,
+  // so two side by side overflow the 420px modal.
+  halfInput: { flex: 1, minWidth: 0 },
   input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, backgroundColor: '#fafafa' },
 
   errorBox: { margin: 16, backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },

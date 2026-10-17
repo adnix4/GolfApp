@@ -1049,7 +1049,9 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
   input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, backgroundColor: '#fafafa' },
   nameRow: { flexDirection: 'row', gap: 8 },
-  halfInput: { flex: 1 },
+  // minWidth 0: a web <input> won't shrink below its default ~20ch otherwise,
+  // so two side by side overflow a narrow modal.
+  halfInput: { flex: 1, minWidth: 0 },
   playerForm: { borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 12, marginBottom: 10, gap: 6 },
   playerFormHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   playerFormTitle: { fontSize: 13, fontWeight: '700' },
