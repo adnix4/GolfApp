@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet, Share,
   ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform,
@@ -10,20 +10,28 @@ import {
 import { useTheme } from '@gfp/ui';
 import {
   formatCentsShort, digitsOnly, fmtPhoneInput,
-  validateGolfer, validateRoster, toPlayerInput,
+  validateGolfer, validateRoster, toPlayerInput, ApiError,
   SKILL_LEVEL_OPTIONS as SKILL_OPTIONS, AGE_GROUP_OPTIONS as AGE_OPTIONS, PAIRING_NOTE_MAX,
   type GolferFields,
 } from '@gfp/shared-types';
 import { GfpLogo } from '@/components/GfpLogo';
 import {
-  registerTeam, registerFreeAgent, confirmEntryFee,
-  type SkillLevel, type AgeGroup,
+  registerTeam, registerFreeAgent, joinTeam, fetchInvitePreview, confirmEntryFee,
+  type SkillLevel, type AgeGroup, type TeamInvitePreview,
 } from '@/lib/api';
+import { parseInviteToken } from '@/lib/inviteToken';
 
 const STRIPE_PK = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
 const MAX_TEAMMATES = 3;
 type Step = 'form' | 'success';
+// Start a team (captain), join a captain's team by invite, or no team yet (free agent).
+type Mode = 'team' | 'join' | 'freeAgent';
+const MODE_OPTIONS: { value: Mode; label: string }[] = [
+  { value: 'team',      label: 'Start a team' },
+  { value: 'join',      label: 'Join a team' },
+  { value: 'freeAgent', label: 'No team yet' },
+];
 
 // Same fields as web and admin — see packages/shared-types/src/registration.ts.
 const emptyTeammate = (): GolferFields => ({ firstName: '', lastName: '', email: '', phone: '', handicap: '' });
@@ -31,10 +39,15 @@ const emptyTeammate = (): GolferFields => ({ firstName: '', lastName: '', email:
 export default function RegisterScreen() {
   const theme  = useTheme();
   const router = useRouter();
-  const { eventId, eventName } =
-    useLocalSearchParams<{ eventId: string; eventName: string; freeAgentEnabled?: string }>();
+  // `invite` arrives from the captain's link via the web hand-off
+  // (gfp://register?eventId=…&invite=…), which doesn't know the event name.
+  const params = useLocalSearchParams<{
+    eventId: string; eventName?: string; freeAgentEnabled?: string; invite?: string;
+  }>();
+  const { eventId, freeAgentEnabled } = params;
 
   const [step,       setStep]       = useState<Step>('form');
+  const [mode,       setMode]       = useState<Mode>(params.invite ? 'join' : 'team');
   const [submitting, setSubmitting] = useState(false);
   const [error,      setError]      = useState<string | null>(null);
 
@@ -45,9 +58,15 @@ export default function RegisterScreen() {
   const [phone,     setPhone]     = useState('');
   const [handicap,  setHandicap]  = useState('');
 
-  // Team name — blank means free agent
+  // Starting a team
   const [teamName,  setTeamName]  = useState('');
   const [teammates, setTeammates] = useState<GolferFields[]>([]);
+
+  // Joining a team — the pasted invite and the team it points at
+  const [inviteInput,  setInviteInput]  = useState(params.invite ?? '');
+  const [preview,      setPreview]      = useState<TeamInvitePreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewing,   setPreviewing]   = useState(false);
 
   // Free-agent pairing prefs
   const [skillLevel,  setSkillLevel]  = useState<SkillLevel | null>(null);
@@ -64,9 +83,45 @@ export default function RegisterScreen() {
   const [inviteUrl,          setInviteUrl]          = useState<string | null>(null);
   const [inviteExpiresAt,    setInviteExpiresAt]    = useState<string | null>(null);
   const [spotsLeft,          setSpotsLeft]          = useState(0);
+  const [joinedTeam,         setJoinedTeam]         = useState(false);
 
-  // If no team name typed, treat as free agent
-  const isFreeAgent = !teamName.trim();
+  // The preview is the server's word for this eventId, so it wins: a deep link
+  // delivered to an already-open screen keeps that screen's old eventName.
+  const eventName   = preview?.eventName || params.eventName || 'this event';
+  const isFreeAgent = mode === 'freeAgent';
+  const inviteToken = parseInviteToken(inviteInput);
+
+  // A new invite link can arrive while this screen is already open (Android
+  // hands the deep link to the running screen), so follow it.
+  useEffect(() => {
+    if (!params.invite) return;
+    setMode('join');
+    setInviteInput(params.invite);
+    setError(null);
+  }, [params.invite]);
+
+  // Look the team up as soon as a whole token is pasted. The debounce keeps
+  // typing from firing a request per keystroke; a stale reply is dropped.
+  useEffect(() => {
+    setPreview(null);
+    setPreviewError(null);
+    if (mode !== 'join' || !inviteToken) { setPreviewing(false); return; }
+
+    let current = true;
+    setPreviewing(true);
+    const timer = setTimeout(() => {
+      fetchInvitePreview(eventId, inviteToken)
+        .then(p => { if (current) setPreview(p); })
+        .catch((e: unknown) => {
+          if (!current) return;
+          setPreviewError(e instanceof ApiError && e.status === 404
+            ? `This invite isn't for ${params.eventName || 'this event'}. Check you picked the right event.`
+            : e instanceof Error ? e.message : 'Couldn\'t check that invite. Please try again.');
+        })
+        .finally(() => { if (current) setPreviewing(false); });
+    }, 400);
+    return () => { current = false; clearTimeout(timer); };
+  }, [mode, inviteToken, eventId, params.eventName]);
 
   const addTeammate    = useCallback(() => setTeammates(p => [...p, emptyTeammate()]), []);
   const removeTeammate = useCallback((idx: number) => {
@@ -83,7 +138,16 @@ export default function RegisterScreen() {
     const myProblem = validateGolfer(me, { phoneRequired: true });
     if (myProblem) { setError(myProblem); return; }
 
-    if (!isFreeAgent) {
+    if (mode === 'team' && !teamName.trim()) { setError('Enter a name for your team.'); return; }
+    if (mode === 'join' && !preview) {
+      setError(previewError ?? (inviteToken
+        ? 'Still checking your invite — try again in a moment.'
+        : 'Paste the invite link or code your team captain sent you.'));
+      return;
+    }
+    if (mode === 'join' && preview?.isFull) { setError(`${preview.teamName} is already full.`); return; }
+
+    if (mode === 'team') {
       const rosterProblem = validateRoster([me, ...teammates], {
         first:      { phoneRequired: true },
         otherLabel: i => `Teammate ${i}`,
@@ -111,6 +175,18 @@ export default function RegisterScreen() {
         setEntryFeeCents(result.entryFeeCents ?? null);
         setEntryFeeSecret(result.entryFeeClientSecret ?? null);
         setIsFreeAgentSuccess(true);
+        setStep('success');
+        return;
+      }
+
+      if (mode === 'join' && preview && inviteToken) {
+        const result = await joinTeam(eventId, { inviteToken, player });
+        setConfirmedName(preview.teamName);
+        setConfirmedPlayers([...preview.playerNames, `${fn} ${ln}`]);
+        setEntryFeeCents(result.entryFeeCents ?? null);
+        setEntryFeeSecret(result.entryFeeClientSecret ?? null);
+        setIsFreeAgentSuccess(false);
+        setJoinedTeam(true);
         setStep('success');
         return;
       }
@@ -159,6 +235,11 @@ export default function RegisterScreen() {
                 <Text style={{ fontWeight: '700' }}>{eventName}</Text>.{'\n\n'}
                 The organizer will assign you to a team before the event starts.
               </Text>
+            ) : joinedTeam ? (
+              <Text style={[styles.sub, { color: theme.mutedText }]}>
+                You&apos;ve joined <Text style={{ fontWeight: '700' }}>{confirmedName}</Text> for{' '}
+                <Text style={{ fontWeight: '700' }}>{eventName}</Text>.
+              </Text>
             ) : (
               <Text style={[styles.sub, { color: theme.mutedText }]}>
                 <Text style={{ fontWeight: '700' }}>{confirmedName}</Text> has been added to{' '}
@@ -168,14 +249,20 @@ export default function RegisterScreen() {
 
             <View style={[styles.rosterBox, { backgroundColor: theme.colors.primary + '0d', borderColor: theme.colors.primary + '33' }]}>
               <Text style={[styles.rosterLabel, { color: theme.colors.primary }]}>
-                {confirmedPlayers.length === 1 ? '1 player registered' : `${confirmedPlayers.length} players registered`}
+                {joinedTeam
+                  ? `${confirmedPlayers.length} on the team`
+                  : confirmedPlayers.length === 1 ? '1 player registered' : `${confirmedPlayers.length} players registered`}
               </Text>
-              {confirmedPlayers.map((name, i) => (
-                <Text key={i} style={[styles.rosterRow, { color: theme.mutedText }]}>
-                  {!isFreeAgentSuccess && i === 0 ? '★ ' : '  '}{name}
-                  {!isFreeAgentSuccess && i === 0 ? ' (captain)' : ''}
-                </Text>
-              ))}
+              {confirmedPlayers.map((name, i) => {
+                const captain = !isFreeAgentSuccess && !joinedTeam && i === 0;
+                const you     = joinedTeam && i === confirmedPlayers.length - 1;
+                return (
+                  <Text key={i} style={[styles.rosterRow, { color: theme.mutedText }]}>
+                    {captain || you ? '★ ' : '  '}{name}
+                    {captain ? ' (captain)' : you ? ' (you)' : ''}
+                  </Text>
+                );
+              })}
             </View>
 
             {inviteUrl && (
@@ -217,7 +304,7 @@ export default function RegisterScreen() {
             )}
 
             <Text style={[styles.successNote, { color: theme.mutedText }]}>
-              {isFreeAgentSuccess
+              {isFreeAgentSuccess || joinedTeam
                 ? 'A confirmation email has been sent. You can join the scoring app on the day of the event using your email address.'
                 : 'Confirmation emails will be sent to all registered players. Everyone can join the scoring app using their email address on the day of the event.'}
             </Text>
@@ -324,35 +411,85 @@ export default function RegisterScreen() {
         <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Team</Text>
 
-          {/* Assignment notice */}
-          <View style={[styles.assignNotice, { backgroundColor: theme.colors.highlight, borderColor: theme.colors.primary + '44' }]}>
-            <Text style={[styles.assignNoticeText, { color: theme.colors.primary }]}>
-              Don't have a team yet? Leave the team name blank — you'll be added to the free agent pool and the organizer will assign you to a team before the event starts.
-            </Text>
+          <View style={[styles.chipRow, styles.modeRow]} accessibilityRole="radiogroup">
+            {MODE_OPTIONS.filter(opt => opt.value !== 'freeAgent' || freeAgentEnabled !== '0').map(opt => {
+              const on = mode === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  style={[
+                    styles.chip,
+                    { borderColor: theme.colors.accent },
+                    on && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+                  ]}
+                  onPress={() => { setMode(opt.value); setError(null); }}
+                  disabled={submitting}
+                  accessibilityRole="radio" accessibilityState={{ checked: on }}
+                >
+                  <Text style={[styles.chipText, { color: on ? theme.buttonLabel : theme.mutedText }]}>{opt.label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
 
-          <Text style={[styles.label, { color: theme.colors.primary }]}>
-            Team Name <Text style={styles.optional}>(leave blank to be assigned)</Text>
-          </Text>
-          <TextInput
-            style={[styles.input, { borderColor: isFreeAgent ? theme.colors.accent + '88' : theme.colors.accent, color: theme.colors.primary }]}
-            value={teamName} onChangeText={v => { setTeamName(v); setError(null); }}
-            placeholder="e.g. The Bogey Brothers"
-            placeholderTextColor="#aaa"
-            autoCapitalize="words" editable={!submitting}
-          />
-
-          {/* Status indicator */}
-          {isFreeAgent ? (
-            <View style={[styles.statusPill, { backgroundColor: theme.colors.highlight }]}>
-              <Text style={[styles.statusPillText, { color: theme.colors.primary }]}>
-                Free agent — you'll be assigned to a team by the organizer
+          {mode === 'team' && (
+            <>
+              <Text style={[styles.label, { color: theme.colors.primary }]}>Team Name *</Text>
+              <TextInput
+                style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+                value={teamName} onChangeText={v => { setTeamName(v); setError(null); }}
+                placeholder="e.g. The Bogey Brothers"
+                placeholderTextColor="#aaa"
+                autoCapitalize="words" editable={!submitting}
+              />
+              <Text style={[styles.fieldHint, { color: theme.mutedText }]}>
+                You&apos;ll be the captain. Add teammates below, or send them a link after you register.
               </Text>
-            </View>
-          ) : (
-            <View style={[styles.statusPill, { backgroundColor: '#e8f5e9' }]}>
-              <Text style={[styles.statusPillText, { color: '#2e7d32' }]}>
-                Creating team "{teamName.trim()}"
+            </>
+          )}
+
+          {mode === 'join' && (
+            <>
+              <Text style={[styles.label, { color: theme.colors.primary }]}>Invite Link or Code *</Text>
+              <TextInput
+                style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+                value={inviteInput} onChangeText={v => { setInviteInput(v); setError(null); }}
+                placeholder="Paste the link your captain sent you"
+                placeholderTextColor="#aaa"
+                autoCapitalize="none" autoCorrect={false} editable={!submitting}
+                accessibilityLabel="Invite link or code"
+              />
+              {inviteInput.trim() !== '' && !inviteToken && (
+                <Text style={[styles.fieldHint, { color: '#c0392b' }]}>
+                  That doesn&apos;t look like an invite. Paste the whole link from your captain.
+                </Text>
+              )}
+              {previewing && (
+                <Text style={[styles.fieldHint, { color: theme.mutedText }]}>Checking your invite…</Text>
+              )}
+              {previewError && (
+                <Text style={[styles.fieldHint, { color: '#c0392b' }]}>{previewError}</Text>
+              )}
+              {preview && (
+                <View style={[styles.rosterBox, { backgroundColor: theme.colors.primary + '0d', borderColor: theme.colors.primary + '33' }]}>
+                  <Text style={[styles.rosterLabel, { color: theme.colors.primary }]}>{preview.teamName}</Text>
+                  {preview.playerNames.map((name, i) => (
+                    <Text key={i} style={[styles.rosterRow, { color: theme.mutedText }]}>  {name}</Text>
+                  ))}
+                  <Text style={[styles.fieldHint, { color: preview.isFull ? '#c0392b' : theme.mutedText }]}>
+                    {preview.isFull
+                      ? 'This team is full.'
+                      : `${preview.spotsRemaining} spot${preview.spotsRemaining === 1 ? '' : 's'} left`}
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
+
+          {isFreeAgent && (
+            <View style={[styles.assignNotice, { backgroundColor: theme.colors.highlight, borderColor: theme.colors.primary + '44' }]}>
+              <Text style={[styles.assignNoticeText, { color: theme.colors.primary }]}>
+                You&apos;ll join the free agent pool, and the organizer will put you on a team before the event starts.
               </Text>
             </View>
           )}
@@ -416,8 +553,8 @@ export default function RegisterScreen() {
           </View>
         )}
 
-        {/* ── Teammates (shown when team name is entered) ── */}
-        {!isFreeAgent && (
+        {/* ── Teammates (captain only) ── */}
+        {mode === 'team' && (
           <>
             <View style={styles.teammatesHeader}>
               <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Teammates</Text>
@@ -518,7 +655,9 @@ export default function RegisterScreen() {
             : <Text style={styles.submitBtnText}>
                 {isFreeAgent
                   ? 'Register — I\'ll be assigned to a team'
-                  : `Register Team${teammates.length > 0 ? ` (${teammates.length + 1} players)` : ''}`}
+                  : mode === 'join'
+                    ? preview ? `Join ${preview.teamName}` : 'Join Team'
+                    : `Register Team${teammates.length > 0 ? ` (${teammates.length + 1} players)` : ''}`}
               </Text>}
         </Pressable>
       </ScrollView>
@@ -698,8 +837,7 @@ const styles = StyleSheet.create({
   assignNotice: { borderRadius: 10, padding: 12, marginBottom: 4, borderWidth: 1 },
   assignNoticeText: { fontSize: 13, lineHeight: 19 },
 
-  statusPill:     { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7, marginTop: 10 },
-  statusPillText: { fontSize: 13, fontWeight: '600' },
+  modeRow:        { marginTop: 0, marginBottom: 12 },
 
   row:       { flexDirection: 'row', gap: 12 },
   halfField: { flex: 1 },
