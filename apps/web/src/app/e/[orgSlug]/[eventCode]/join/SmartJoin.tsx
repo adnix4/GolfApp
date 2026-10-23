@@ -18,11 +18,13 @@ import { useRouter } from 'next/navigation';
 // Detection is client-side (user agent) — the email's Register button and the
 // registration QR both land here, from any device.
 //
-// A captain's team invite link lands here too, as /join?token=…. That golfer
-// must register in the browser whatever the device (the scorer app can't join
-// a team), so the token goes straight through to the event page, which opens
-// "Join a Team" for that team. Read from the URL client-side so the page
-// itself stays static.
+// A captain's team invite link lands here too, as /join?token=…. Read from the
+// URL client-side so the page itself stays static.
+//   • Desktop — straight through to the event page, which opens "Join a Team"
+//     for that team.
+//   • iOS / Android — the same choice as above: join in the browser (primary),
+//     or "have the app?" fires gfp://register?eventId=…&eventName=…&invite=…, which opens
+//     the scorer app's sign-up in Join mode with the invite filled in.
 
 interface SmartJoinProps {
   orgSlug:   string;
@@ -53,11 +55,15 @@ export default function SmartJoin({
   const router = useRouter();
   const [device,        setDevice]        = useState<Device | null>(null);
   const [appNotOpened,  setAppNotOpened]  = useState(false);
-  const [inviteUrl,     setInviteUrl]     = useState<string | null>(null);
+  const [inviteToken,   setInviteToken]   = useState<string | null>(null);
   const appOpened = useRef(false);
 
-  const deepLink = `gfp://join?preEventId=${encodeURIComponent(eventId)}`;
-  const eventPageUrl = `/e/${orgSlug}/${eventCode}#register`;
+  const deepLink = inviteToken
+    ? `gfp://register?eventId=${encodeURIComponent(eventId)}&eventName=${encodeURIComponent(eventName)}&invite=${encodeURIComponent(inviteToken)}`
+    : `gfp://join?preEventId=${encodeURIComponent(eventId)}`;
+  const eventPageUrl = inviteToken
+    ? `/e/${orgSlug}/${eventCode}?invite=${encodeURIComponent(inviteToken)}#register`
+    : `/e/${orgSlug}/${eventCode}#register`;
 
   function tryOpenApp() {
     setAppNotOpened(false);
@@ -71,12 +77,7 @@ export default function SmartJoin({
 
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get('token');
-    if (token) {
-      const target = `/e/${orgSlug}/${eventCode}?invite=${encodeURIComponent(token)}#register`;
-      setInviteUrl(target);
-      router.replace(target);
-      return;
-    }
+    if (token) setInviteToken(token);
 
     const onHide = () => { appOpened.current = true; };
     document.addEventListener('visibilitychange', onHide);
@@ -84,7 +85,11 @@ export default function SmartJoin({
     const d = detectDevice();
     setDevice(d);
     if (d === 'desktop') {
-      router.replace(eventPageUrl); // registration lives on the event page
+      // Registration lives on the event page. Built here, not from
+      // eventPageUrl: the token state above hasn't landed yet this render.
+      router.replace(token
+        ? `/e/${orgSlug}/${eventCode}?invite=${encodeURIComponent(token)}#register`
+        : eventPageUrl);
     }
     return () => document.removeEventListener('visibilitychange', onHide);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only by design (above): router is Next's stable instance and eventPageUrl is fixed for the page
@@ -99,23 +104,26 @@ export default function SmartJoin({
         <p style={s.eyebrow}>{orgName}</p>
         <h1 style={s.title}>{eventName}</h1>
 
-        {inviteUrl ? (
+        {device === 'desktop' || device === null ? (
           <>
-            <p style={s.status}>Taking you to your team…</p>
-            <a href={inviteUrl} style={s.linkBtn}>Continue to join the team →</a>
-          </>
-        ) : device === 'desktop' || device === null ? (
-          <>
-            <p style={s.status}>Taking you to registration…</p>
-            <a href={eventPageUrl} style={s.linkBtn}>Continue to the event page →</a>
+            <p style={s.status}>{inviteToken ? 'Taking you to your team…' : 'Taking you to registration…'}</p>
+            <a href={eventPageUrl} style={s.linkBtn}>
+              {inviteToken ? 'Continue to join the team →' : 'Continue to the event page →'}
+            </a>
           </>
         ) : (
           <>
-            <p style={s.status}>Register right here in your browser — it only takes a minute.</p>
+            <p style={s.status}>
+              {inviteToken
+                ? 'You’ve been invited to join a team. Join right here in your browser — it only takes a minute.'
+                : 'Register right here in your browser — it only takes a minute.'}
+            </p>
             <div style={s.btnCol}>
-              <a href={eventPageUrl} style={s.primaryBtn}>Continue to registration →</a>
+              <a href={eventPageUrl} style={s.primaryBtn}>
+                {inviteToken ? 'Join the team here →' : 'Continue to registration →'}
+              </a>
               <button onClick={tryOpenApp} style={s.outlineBtn}>
-                Already have the GFP Scorer app? Open it
+                {inviteToken ? 'Have the GFP Scorer app? Join there' : 'Already have the GFP Scorer app? Open it'}
               </button>
               {appNotOpened && (
                 storeUrl ? (
