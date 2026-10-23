@@ -16,7 +16,7 @@
     "@microsoft/signalr": "^8.0.0",
     "@stripe/react-stripe-js": "^6.7.0",
     "@stripe/stripe-js": "^9.9.0",
-    "next": "^16.0.0",
+    "next": "^16.4.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "sharp": "^0.35.3"
