@@ -91,10 +91,19 @@ handles client routing).
 ## Mobile (`apps/mobile`)
 
 - `EXPO_PUBLIC_API_URL=https://api.<domain>` at build time.
-- EAS builds: iOS requires Apple Developer Program; SDK 57 builds set
+- EAS builds: iOS requires Apple Developer Program; SDK 58 builds set
   **iOS 16.4 minimum** (drops older devices — confirm before release). The floor
-  did not move with the SDK 56 → 57 upgrade: ExpoModulesCore.podspec still
-  declares `:ios => '16.4'`, so the device-support commitment is unchanged.
+  did not move with the SDK 56 → 57 or 57 → 58 upgrades: ExpoModulesCore.podspec
+  still declares `:ios => '16.4'`, so the device-support commitment is unchanged.
+- iOS + Stripe: `@stripe/stripe-react-native` ≥ 0.77 resolves the Stripe iOS
+  SDK through Swift Package Manager and needs dynamic frameworks
+  (`use_frameworks! :linkage => :dynamic`, e.g. via `expo-build-properties`
+  `ios.useFrameworks: "dynamic"`). Not yet exercised — the first iOS build after
+  SDK 58 must confirm it.
+- Android release builds run R8 (SDK 58 default,
+  `android.enableMinifyInReleaseBuilds=true`). If a release build crashes on a
+  missing class that debug didn't, add a ProGuard keep rule via
+  `expo-build-properties` rather than turning R8 off.
 - Push notifications ride the EAS project credentials; verify a real push
   end-to-end during the dress rehearsal.
 - Expo Go is NOT viable for a real event — distribute installable builds

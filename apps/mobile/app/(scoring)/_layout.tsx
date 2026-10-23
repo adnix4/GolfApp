@@ -265,7 +265,8 @@ export default function ScoringLayout() {
           tabBarIconStyle:     { marginBottom: -2 },
           tabBarIcon: ({ color }) => {
             // Overridden per-screen below; this fallback should never render.
-            return <Ionicons name="ellipse-outline" size={22} color={color} />;
+            // Tabs pass a ColorValue (RN 0.88 types); our tint colors are strings.
+            return <Ionicons name="ellipse-outline" size={22} color={color as string} />;
           },
         }}
       >
@@ -278,7 +279,7 @@ export default function ScoringLayout() {
             tabBarLabel: 'Scorecard',
             href: isGuest ? null : undefined,
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'golf' : 'golf-outline'} size={22} color={color} />
+              <Ionicons name={focused ? 'golf' : 'golf-outline'} size={22} color={color as string} />
             ),
           }}
         />
@@ -288,7 +289,7 @@ export default function ScoringLayout() {
             title: 'Standings',
             tabBarLabel: 'Standings',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={22} color={color} />
+              <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={22} color={color as string} />
             ),
           }}
         />
@@ -299,7 +300,7 @@ export default function ScoringLayout() {
             tabBarLabel: 'Team',
             href: isGuest ? null : undefined,
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color} />
+              <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color as string} />
             ),
           }}
         />
@@ -309,7 +310,7 @@ export default function ScoringLayout() {
             title: 'Auction',
             tabBarLabel: 'Auction',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'pricetag' : 'pricetag-outline'} size={22} color={color} />
+              <Ionicons name={focused ? 'pricetag' : 'pricetag-outline'} size={22} color={color as string} />
             ),
           }}
         />
@@ -319,7 +320,7 @@ export default function ScoringLayout() {
             title: 'League',
             tabBarLabel: 'League',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'ribbon' : 'ribbon-outline'} size={22} color={color} />
+              <Ionicons name={focused ? 'ribbon' : 'ribbon-outline'} size={22} color={color as string} />
             ),
           }}
         />
@@ -332,7 +333,7 @@ export default function ScoringLayout() {
             title: 'Help',
             tabBarLabel: 'Help',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'help-circle' : 'help-circle-outline'} size={22} color={color} />
+              <Ionicons name={focused ? 'help-circle' : 'help-circle-outline'} size={22} color={color as string} />
             ),
           }}
         />

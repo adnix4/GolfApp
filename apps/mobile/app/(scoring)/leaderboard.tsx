@@ -344,7 +344,7 @@ export default function LeaderboardScreen() {
         <>
           {isStroke && individuals && <BoardToggle value={boardView} onChange={setBoardView} />}
           <FlatList
-            data={standings}
+            data={standings ?? undefined}
             keyExtractor={item => item.teamId}
             ListHeaderComponent={<TableHeader stableford={format === 'Stableford'} />}
             renderItem={({ item }) => <StandingRow entry={item} stableford={format === 'Stableford'} />}

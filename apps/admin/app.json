@@ -13,7 +13,14 @@
       "web"
     ],
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "asyncRoutes": {
+            "web": false
+          }
+        }
+      ],
       "@react-native-community/datetimepicker"
     ],
     "experiments": {

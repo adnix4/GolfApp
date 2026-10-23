@@ -8,7 +8,7 @@ import {
 
 // Usable height between the header and the nav bar, measured on the scroll
 // container. iPhone SE is the smallest phone the app supports (app.json sets no
-// floor, so it inherits SDK 57's iOS 16.4 target = iPhone 8 and later).
+// floor, so it inherits the Expo SDK's iOS 16.4 target = iPhone 8 and later).
 //
 // ~30px higher than they used to be: the hole counter and sync badge moved from
 // their own nav-bar row onto the header's event line, handing that space to the
