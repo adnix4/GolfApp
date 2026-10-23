@@ -31,6 +31,17 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "dynamic"
+          },
+          "android": {
+            "extraProguardRules": "# Stripe push provisioning is compileOnly (we don't issue cards) — see plugins/withAndroidBuildFixes.js\n-dontwarn com.stripe.android.pushProvisioning.**"
+          }
+        }
+      ],
       "./plugins/withAndroidBuildFixes"
     ],
     "ios": {

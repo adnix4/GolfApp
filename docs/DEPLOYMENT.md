@@ -95,15 +95,16 @@ handles client routing).
   **iOS 16.4 minimum** (drops older devices — confirm before release). The floor
   did not move with the SDK 56 → 57 or 57 → 58 upgrades: ExpoModulesCore.podspec
   still declares `:ios => '16.4'`, so the device-support commitment is unchanged.
-- iOS + Stripe: `@stripe/stripe-react-native` ≥ 0.77 resolves the Stripe iOS
-  SDK through Swift Package Manager and needs dynamic frameworks
-  (`use_frameworks! :linkage => :dynamic`, e.g. via `expo-build-properties`
-  `ios.useFrameworks: "dynamic"`). Not yet exercised — the first iOS build after
-  SDK 58 must confirm it.
+- iOS + Stripe: `@stripe/stripe-react-native` ≥ 0.78 resolves the Stripe iOS
+  SDK through Swift Package Manager and needs dynamic frameworks, so
+  `apps/mobile/app.json` sets `expo-build-properties` `ios.useFrameworks:
+  "dynamic"`. Not yet exercised — the first iOS build after SDK 58 must confirm
+  it (watch for pods that don't build as dynamic frameworks).
 - Android release builds run R8 (SDK 58 default,
   `android.enableMinifyInReleaseBuilds=true`). If a release build crashes on a
-  missing class that debug didn't, add a ProGuard keep rule via
-  `expo-build-properties` rather than turning R8 off.
+  missing class that debug didn't, add a ProGuard keep rule to
+  `expo-build-properties` `android.extraProguardRules` in `apps/mobile/app.json`
+  rather than turning R8 off.
 - Push notifications ride the EAS project credentials; verify a real push
   end-to-end during the dress rehearsal.
 - Expo Go is NOT viable for a real event — distribute installable builds

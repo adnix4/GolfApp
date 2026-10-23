@@ -12,28 +12,22 @@
 //    expo.android.cmakeObjectPathMax=0 keeps CMake's own default (250 on
 //    Windows), which hashes those paths. No effect on Linux/macOS (EAS).
 //
-// 2 + 3. Stripe push provisioning (release builds). @stripe/stripe-react-native
+// 2. Stripe push provisioning (release builds). @stripe/stripe-react-native
 //    ≥ 0.68 compiles against stripe-android-issuing-push-provisioning
 //    (compileOnly — never shipped), which needs Google's
 //    play-services-tapandpay, and that isn't on any public Maven repo. We
-//    don't issue cards, so:
-//    - release lint (lintVitalAnalyzeRelease) is skipped: it is the only task
-//      that tries to resolve that artifact, and fails on it;
-//    - R8 is told those classes are intentionally absent (-dontwarn), or it
-//      fails with "Missing class com.stripe.android.pushProvisioning.…".
-const {
-  withGradleProperties, withAppBuildGradle, withDangerousMod,
-} = require('expo/config-plugins');
-const fs = require('fs');
-const path = require('path');
+//    don't issue cards, so release lint (lintVitalAnalyzeRelease) is skipped:
+//    it is the only task that tries to resolve that artifact, and fails on it.
+//    R8 needs the matching -dontwarn, or it fails with "Missing class
+//    com.stripe.android.pushProvisioning.…"; that rule lives in app.json
+//    (expo-build-properties android.extraProguardRules), the documented home
+//    for ProGuard rules.
+//
+// Neither fix has an expo-build-properties option, hence this plugin.
+const { withGradleProperties, withAppBuildGradle } = require('expo/config-plugins');
 
 const CMAKE_KEY = 'expo.android.cmakeObjectPathMax';
 const LINT_LINE = '    lint { checkReleaseBuilds false } // see plugins/withAndroidBuildFixes.js';
-const R8_MARKER = '# Stripe push provisioning is compileOnly';
-const R8_RULES = `
-${R8_MARKER} (we don't issue cards) — see plugins/withAndroidBuildFixes.js
--dontwarn com.stripe.android.pushProvisioning.**
-`;
 
 function withCmakeObjectPathMax(config) {
   return withGradleProperties(config, cfg => {
@@ -52,15 +46,6 @@ function withoutReleaseLint(config) {
   });
 }
 
-function withStripeR8Rules(config) {
-  return withDangerousMod(config, ['android', cfg => {
-    const file = path.join(cfg.modRequest.platformProjectRoot, 'app', 'proguard-rules.pro');
-    const rules = fs.readFileSync(file, 'utf8');
-    if (!rules.includes(R8_MARKER)) fs.writeFileSync(file, rules + R8_RULES);
-    return cfg;
-  }]);
-}
-
 module.exports = function withAndroidBuildFixes(config) {
-  return withStripeR8Rules(withoutReleaseLint(withCmakeObjectPathMax(config)));
+  return withoutReleaseLint(withCmakeObjectPathMax(config));
 };
