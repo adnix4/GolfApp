@@ -1,6 +1,6 @@
-// Pulls a team invite token out of whatever the golfer pasted: the captain's
-// shared link (…/join?token=…), the web event page's link (…?invite=…), or the
-// bare token. Tokens are base64url(payload).base64url(signature) — see
+// Pulls a team invite token out of whatever the golfer pasted into a "Join a
+// Team" form (web and mobile): the captain's shared link (…/join?token=…), the
+// web event page's link (…?invite=…), or the bare token. Tokens are base64url(payload).base64url(signature) — see
 // apps/api/Features/Teams/InviteTokenHelper.cs.
 
 const TOKEN_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;

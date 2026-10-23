@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseInviteToken } from '../lib/inviteToken';
+import { parseInviteToken } from '../inviteToken';
 
 const TOKEN = 'YWJjMTIzOjE3OTk5OTk5OTk.Zm9vYmFyX2Jhei1xdXV4';
 

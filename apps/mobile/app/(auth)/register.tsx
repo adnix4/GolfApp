@@ -10,7 +10,7 @@ import {
 import { useTheme } from '@gfp/ui';
 import {
   formatCentsShort, digitsOnly, fmtPhoneInput,
-  validateGolfer, validateRoster, toPlayerInput, ApiError,
+  validateGolfer, validateRoster, toPlayerInput, parseInviteToken, ApiError,
   SKILL_LEVEL_OPTIONS as SKILL_OPTIONS, AGE_GROUP_OPTIONS as AGE_OPTIONS, PAIRING_NOTE_MAX,
   type GolferFields,
 } from '@gfp/shared-types';
@@ -19,7 +19,6 @@ import {
   registerTeam, registerFreeAgent, joinTeam, fetchInvitePreview, confirmEntryFee,
   type SkillLevel, type AgeGroup, type TeamInvitePreview,
 } from '@/lib/api';
-import { parseInviteToken } from '@/lib/inviteToken';
 
 const STRIPE_PK = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
