@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~57.0.10",
+    "@expo/metro-runtime": "~57.0.17",
     "@expo/vector-icons": "^15.0.2",
     "@gfp/shared-types": "*",
     "@gfp/theme": "*",
@@ -26,8 +26,8 @@
     "expo-background-fetch": "~57.0.10",
     "expo-battery": "~57.0.2",
     "expo-brightness": "~57.0.1",
-    "expo-constants": "~57.0.11",
-    "expo-linking": "~57.0.6",
+    "expo-constants": "~57.0.22",
+    "expo-linking": "~57.0.13",
     "expo-notifications": "~57.0.11",
     "expo-router": "~57.0.13",
     "expo-secure-store": "~57.0.1",
