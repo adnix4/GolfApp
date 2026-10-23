@@ -15,6 +15,7 @@ import {
   fetchPlayerBidHistory, fetchActiveAuctionSession,
   fetchEventStatus, EventNotFoundError,
   fetchMyCheckout, confirmMyCheckout,
+  fetchInvitePreview, joinTeam,
 } from '../lib/api';
 import type { PendingScore } from '../lib/api';
 
@@ -585,5 +586,41 @@ describe('fetchEventStatus — missing event', () => {
     const err = await fetchEventStatus('ABCD1234').catch(e => e);
     expect(err).toBeInstanceOf(Error);
     expect(err).not.toBeInstanceOf(EventNotFoundError);
+  });
+});
+
+// ── Joining a team by invite ──────────────────────────────────────────────────
+
+describe('fetchInvitePreview', () => {
+  it('looks the team up by token alone, URL-encoded', async () => {
+    mockOk({ teamId: 't1', teamName: 'Eagles', eventName: 'Open', playerNames: ['Ann Lee'], spotsRemaining: 2, isFull: false });
+    const preview = await fetchInvitePreview('ev-1', 'abc.d+f');
+    const [url] = mockFetch.mock.calls[0] as [string, RequestInit | undefined];
+    expect(url).toContain('/api/v1/events/ev-1/invite?token=abc.d%2Bf');
+    expect(preview.teamName).toBe('Eagles');
+  });
+
+  it('keeps the status so the screen can tell a wrong-event invite apart', async () => {
+    mockErr(404, { error: 'This invite link is not valid.' });
+    await expect(fetchInvitePreview('ev-1', 'x.y')).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('joinTeam', () => {
+  it('posts the invite token and the golfer to register/join', async () => {
+    mockOk({ team: { id: 't1' }, player: { id: 'p1' }, entryFeeCents: 5000 });
+    const player = { firstName: 'Bo', lastName: 'Ray', email: 'bo@example.com', phone: '5551234567', handicapIndex: 12.4 };
+    const result = await joinTeam('ev-1', { inviteToken: 'abc.def', player });
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/api/v1/events/ev-1/register/join');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({ inviteToken: 'abc.def', player });
+    expect(result.entryFeeCents).toBe(5000);
+  });
+
+  it('surfaces the server message (e.g. team full)', async () => {
+    mockErr(400, { error: 'This team is already full.' });
+    await expect(joinTeam('ev-1', { inviteToken: 'a.b', player: { firstName: 'A', lastName: 'B', email: 'a@b.co' } }))
+      .rejects.toThrow('This team is already full.');
   });
 });

@@ -776,6 +776,48 @@ export async function registerTeam(
   return res.json();
 }
 
+/** A captain's team, as shown to a golfer holding its invite (no emails pre-join). */
+export interface TeamInvitePreview {
+  teamId:         string;
+  teamName:       string;
+  eventName:      string;
+  playerNames:    string[];
+  spotsRemaining: number;
+  isFull:         boolean;
+}
+
+/** Looks up the team behind an invite token. 404 when the token isn't for this event; 400 once expired. */
+export async function fetchInvitePreview(eventId: string, token: string): Promise<TeamInvitePreview> {
+  const res = await gfpFetch(
+    `${BASE}/api/v1/events/${eventId}/invite?token=${encodeURIComponent(token)}`,
+  );
+  if (!res.ok) {
+    throw await apiFailure(res, 'Invite lookup failed');
+  }
+  return res.json();
+}
+
+export interface JoinTeamPayload {
+  inviteToken: string;
+  player:      PlayerInput;
+}
+
+/** Joins the invite's team as one more golfer. */
+export async function joinTeam(
+  eventId: string,
+  payload: JoinTeamPayload,
+): Promise<RegistrationConfirmResponse> {
+  const res = await gfpFetch(`${BASE}/api/v1/events/${eventId}/register/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw await apiFailure(res, 'Registration failed');
+  }
+  return res.json();
+}
+
 export interface RegisterFreeAgentPayload {
   player:      PlayerInput;
   skillLevel?: SkillLevel;

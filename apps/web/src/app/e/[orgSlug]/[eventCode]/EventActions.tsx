@@ -18,7 +18,7 @@ import {
 import {
   formatMoneyInput, dollarsToCents,
   digitsOnly, fmtPhoneInput,
-  validateGolfer, validateRoster, toPlayerInput,
+  validateGolfer, validateRoster, toPlayerInput, parseInviteToken,
   SKILL_LEVEL_OPTIONS, AGE_GROUP_OPTIONS, PAIRING_NOTE_MAX,
   type GolferFields, type SkillLevel, type AgeGroup,
 } from '@gfp/shared-types';
@@ -512,12 +512,15 @@ function JoinTeamModal({ eventId, perGolferCents, onClose, inviteToken }: Regist
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!token.trim()) { setErr('Enter the invite code from your team captain.'); return; }
+    if (!token.trim()) { setErr('Paste the invite link or code from your team captain.'); return; }
+    // Golfers paste the captain's whole link as often as the bare code.
+    const inviteCode = parseInviteToken(token);
+    if (!inviteCode) { setErr('That doesn’t look like an invite. Paste the whole link from your team captain.'); return; }
     const problem = validateGolfer(golfer, { phoneRequired: true });
     if (problem) { setErr(problem); return; }
 
     setSaving(true); setErr(null);
-    const payload: JoinTeamPayload = { inviteToken: token.trim(), player: toPlayerInput(golfer) };
+    const payload: JoinTeamPayload = { inviteToken: inviteCode, player: toPlayerInput(golfer) };
     const result = await joinTeam(eventId, payload);
     setSaving(false);
     if (result.ok) setDone(result);
@@ -564,9 +567,9 @@ function JoinTeamModal({ eventId, perGolferCents, onClose, inviteToken }: Regist
         <form onSubmit={handleSubmit} noValidate>
           {!inviteToken && (
             <>
-              <p style={s.hint}>Your team captain has an invite link for you — open it to join their team. If you have the code instead, paste it here.</p>
-              <FieldRow label="Invite Code *">
-                <Input value={token} onChange={e => { setToken(e.target.value); setErr(null); }} placeholder="Paste your invite code" required />
+              <p style={s.hint}>Your team captain has an invite link for you — open it to join their team, or paste the link or code here.</p>
+              <FieldRow label="Invite Link or Code *">
+                <Input value={token} onChange={e => { setToken(e.target.value); setErr(null); }} placeholder="Paste your invite link or code" required />
               </FieldRow>
             </>
           )}

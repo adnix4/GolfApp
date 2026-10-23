@@ -45,6 +45,7 @@ export * from './money';
 export * from './dateFormat';
 export * from './phone';
 export * from './registration';
+export * from './inviteToken';
 export * from './popup';
 export * from './eventOptions';
 export * from './formatScoring';
