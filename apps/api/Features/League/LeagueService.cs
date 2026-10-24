@@ -751,6 +751,7 @@ public class LeagueService
         await GetOwnedRoundAsync(leagueId, seasonId, roundId, ct);
 
         var scores = await _db.LeagueScores
+            .AsNoTracking()
             .Include(s => s.Member)
             .Where(s => s.RoundId == roundId)
             .ToListAsync(ct);
