@@ -6,8 +6,6 @@
   "scripts": {
     "dev": "expo start --port 8200",
     "build": "expo export --platform web",
-    "build:ios": "expo build:ios",
-    "build:android": "expo build:android",
     "lint": "eslint src app",
     "type-check": "tsc --noEmit",
     "test": "vitest run"

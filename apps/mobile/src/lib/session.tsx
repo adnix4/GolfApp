@@ -9,6 +9,8 @@ import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsynced
 import { attemptSync } from './backgroundSync';
 import { useNetworkTier, POLL_INTERVAL_MS, type NetworkTier } from './useNetworkTier';
 
+const SCORES_PULL_FRESH_MS = 10_000;
+
 interface SessionContextValue {
   session:            JoinEventResponse | null;
   deviceId:           string;
@@ -53,6 +55,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // the first poll after a session loads; a later change triggers one sponsor
   // refetch. null means "not yet observed this session".
   const lastSponsorsVersion = useRef<number | null>(null);
+  // When the team scorecard was last pulled from the server (poll or focus), so
+  // a scorecard focus right after a poll doesn't fetch the same card again.
+  const lastScoresPullMs = useRef(0);
 
   useEffect(() => {
     async function init() {
@@ -99,6 +104,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // Pull authoritative server scores so admin corrections / resolved
       // conflicts flow back into the local scorecard (preserving unsynced edits).
       const sc     = await fetchTeamScores(session.event.eventCode, session.team!.id);
+      if (sc) lastScoresPullMs.current = Date.now();
       const merged = sc ? await mergeServerScores(session.event.id, session.team!.id, sc.holes) : false;
       if (cancelled) return;
       if (synced || merged) {
@@ -177,6 +183,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const setSession = useCallback(async (data: JoinEventResponse) => {
     lastSponsorsVersion.current = null;   // new event → re-seed on next poll
+    lastScoresPullMs.current    = 0;      // new team card → pull on first focus
     setEndedNotice(null);
     try {
       await saveSession(data);
@@ -316,7 +323,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (unsynced.length === 0) { setSyncStatus('synced'); return null; }
       const result = await batchSync(
         session.event.id, session.team.id, deviceId, unsynced, session.sessionToken);
-      await markScoresSynced(session.event.id, session.team.id);
+      await markScoresSynced(session.event.id, session.team.id, unsynced);
       // Flip the badge green as soon as the server confirms, rather than waiting
       // for the next poll.
       setSyncedHoles(new Set(await loadSyncedHoleNumbers(session.event.id, session.team.id)));
@@ -331,11 +338,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // Pull the team's authoritative scorecard from the server and merge admin
   // corrections / resolved conflicts in. Called on a focus from the scorecard
   // screen for an immediate refresh (the foreground poll covers the rest).
+  // Skipped when the card was pulled in the last few seconds — switching tabs
+  // back to the scorecard otherwise refetched it every time.
   const refreshFromServer = useCallback(async (): Promise<void> => {
     if (!session?.team) return;
+    if (Date.now() - lastScoresPullMs.current < SCORES_PULL_FRESH_MS) return;
     const { event, team } = session;
     const sc = await fetchTeamScores(event.eventCode, team.id);
     if (!sc) return;
+    lastScoresPullMs.current = Date.now();
     const changed = await mergeServerScores(event.id, team.id, sc.holes);
     if (!changed) return;
     const [updated, completedNums, syncedNums] = await Promise.all([

@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── in-memory SQLite mock tailored to mergeServerScores ────────────────────────
 // Implements just enough of the SQLiteDatabase surface that mergeServerScores
-// and loadPendingScores touch: a getFirstAsync id-lookup, the merge
-// INSERT OR REPLACE, and the loadPendingScores list query.
+// and loadPendingScores touch: the per-team list query (shared by both), and
+// the merge INSERT OR REPLACE.
 
 type Row = {
   id: string; event_id: string; team_id: string; hole_number: number;
@@ -23,25 +23,14 @@ const { mockDb } = vi.hoisted(() => {
       // The merge upsert is the only INSERT mergeServerScores issues; its column
       // list includes "conflict", which the legacy upsert does not.
       if (s.includes('PENDING_SCORES') && s.includes('INSERT') && s.includes('CONFLICT')) {
-        const [id, event_id, team_id, hole_number, gross_score, putts, created_at, synced_at, completed_at, conflict] =
-          params as [string, string, string, number, number, number | null, string, string, string, number];
+        const [id, event_id, team_id, hole_number, gross_score, putts, player_shots, created_at, synced_at, completed_at, conflict] =
+          params as [string, string, string, number, number, number | null, string | null, string, string, string, number];
         scores.set(id, {
           id, event_id, team_id, hole_number, gross_score, putts,
-          player_shots: null, created_at, synced_at, completed_at,
+          player_shots, created_at, synced_at, completed_at,
           sync_attempts: 0, conflict,
         });
       }
-    }),
-
-    getFirstAsync: vi.fn().mockImplementation(async (sql: string, params: unknown[]) => {
-      const s = sql.toUpperCase();
-      if (s.includes('FROM PENDING_SCORES') && s.includes('WHERE ID')) {
-        const row = scores.get(params[0] as string);
-        return row
-          ? { gross_score: row.gross_score, conflict: row.conflict, synced_at: row.synced_at }
-          : null;
-      }
-      return null;
     }),
 
     getAllAsync: vi.fn().mockImplementation(async (sql: string, params: unknown[]) => {
@@ -51,10 +40,7 @@ const { mockDb } = vi.hoisted(() => {
         return [...scores.values()]
           .filter(r => r.event_id === eid && r.team_id === tid)
           .sort((a, b) => a.hole_number - b.hole_number)
-          .map(r => ({
-            hole_number: r.hole_number, gross_score: r.gross_score, putts: r.putts,
-            player_shots: r.player_shots, created_at: r.created_at, conflict: r.conflict,
-          }));
+          .map(r => ({ ...r }));
       }
       return [];
     }),
@@ -137,5 +123,29 @@ describe('mergeServerScores', () => {
       { holeNumber: 1, grossScore: 4, putts: null, isConflicted: false },
     ]);
     expect(changed).toBe(false);
+  });
+
+  it('keeps the per-player shot breakdown when only the conflict flag changes', async () => {
+    const shots = JSON.stringify({ p1: { drive: 1, approach: 1, putt: 2 } });
+    seed({ hole_number: 1, gross_score: 4, player_shots: shots });
+    await mergeServerScores('ev1', 'tm1', [
+      { holeNumber: 1, grossScore: 4, putts: null, isConflicted: true },
+    ]);
+    expect(mockDb._scores.get('tm1:1')!.player_shots).toBe(shots);
+  });
+
+  it('drops the shot breakdown when the admin changed the gross', async () => {
+    seed({ hole_number: 1, gross_score: 4, player_shots: JSON.stringify({ p1: { drive: 1, approach: 1, putt: 2 } }) });
+    await mergeServerScores('ev1', 'tm1', [
+      { holeNumber: 1, grossScore: 6, putts: null, isConflicted: false },
+    ]);
+    expect(mockDb._scores.get('tm1:1')!.player_shots).toBeNull();
+  });
+
+  it('reads existing rows once for the whole card, not once per hole', async () => {
+    for (let h = 1; h <= 18; h++) seed({ hole_number: h });
+    await mergeServerScores('ev1', 'tm1',
+      Array.from({ length: 18 }, (_, i) => ({ holeNumber: i + 1, grossScore: 4, putts: null, isConflicted: false })));
+    expect(mockDb.getAllAsync).toHaveBeenCalledTimes(1);
   });
 });

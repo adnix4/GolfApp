@@ -93,7 +93,7 @@ describe('attemptSync', () => {
     mockBatchSync.mockResolvedValueOnce({ accepted: 1, conflicts: 0, conflictDetails: [] });
     const result = await attemptSync();
     expect(result).toBe(true);
-    expect(mockMarkSynced).toHaveBeenCalledWith('ev1', 'tm1');
+    expect(mockMarkSynced).toHaveBeenCalledWith('ev1', 'tm1', SCORES);
   });
 
   it('returns true when the server reports conflicts (conflict = server resolved it)', async () => {

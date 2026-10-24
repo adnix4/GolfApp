@@ -52,11 +52,11 @@ const { mockDb } = vi.hoisted(() => {
         }
 
       } else if (s.includes('PENDING_SCORES') && s.includes('SYNCED_AT')) {
-        const [ts, eid, tid] = params as [string, string, string];
-        for (const row of scores.values()) {
-          if (row.event_id === eid && row.team_id === tid)
-            (row as Record<string, unknown>).synced_at = ts;
-        }
+        // markScoresSynced: one row, only if unchanged since it was sent.
+        const [ts, id, eid, createdAt] = params as [string, string, string, string];
+        const row = scores.get(id);
+        if (row && row.event_id === eid && row.created_at === createdAt && row.synced_at === null)
+          (row as Record<string, unknown>).synced_at = ts;
 
       } else if (s.includes('PENDING_SCORES') && s.includes('DELETE')) {
         const [eid, tid] = params as [string, string];
@@ -282,7 +282,7 @@ describe('loadUnsyncedScores', () => {
     await upsertPendingScore('ev1', 'tm1', { ...SCORE, holeNumber: 2 });
     await markHoleComplete('ev1', 'tm1', 1);
     await markHoleComplete('ev1', 'tm1', 2);
-    await markScoresSynced('ev1', 'tm1'); // marks all synced
+    await markScoresSynced('ev1', 'tm1', await loadUnsyncedScores('ev1', 'tm1'));
     // re-add hole 3 and complete it (unsynced)
     await upsertPendingScore('ev1', 'tm1', { ...SCORE, holeNumber: 3 });
     await markHoleComplete('ev1', 'tm1', 3);
@@ -305,8 +305,33 @@ describe('markScoresSynced', () => {
     await markHoleComplete('ev1', 'tm1', 1);
     await markHoleComplete('ev1', 'tm1', 2);
     expect(await loadUnsyncedScores('ev1', 'tm1')).toHaveLength(2);
-    await markScoresSynced('ev1', 'tm1');
+    await markScoresSynced('ev1', 'tm1', await loadUnsyncedScores('ev1', 'tm1'));
     expect(await loadUnsyncedScores('ev1', 'tm1')).toHaveLength(0);
+  });
+
+  // Regression: marking every row for the team flagged an in-progress hole as
+  // synced, so completing it later never queued it for upload.
+  it('leaves a hole that was not in the sent batch unsynced', async () => {
+    await upsertPendingScore('ev1', 'tm1', SCORE);
+    await markHoleComplete('ev1', 'tm1', 1);
+    const sent = await loadUnsyncedScores('ev1', 'tm1');
+    await upsertPendingScore('ev1', 'tm1', { ...SCORE, holeNumber: 2 }); // in progress
+    await markScoresSynced('ev1', 'tm1', sent);
+    await markHoleComplete('ev1', 'tm1', 2);
+    expect((await loadUnsyncedScores('ev1', 'tm1')).map(s => s.holeNumber)).toEqual([2]);
+  });
+
+  it('leaves a hole edited while the sync was in flight unsynced', async () => {
+    await upsertPendingScore('ev1', 'tm1', SCORE);
+    await markHoleComplete('ev1', 'tm1', 1);
+    const sent = await loadUnsyncedScores('ev1', 'tm1');
+    // Golfer re-enters hole 1 before the server responds.
+    await upsertPendingScore('ev1', 'tm1', { ...SCORE, grossScore: 6, clientTimestampMs: SCORE.clientTimestampMs + 1000 });
+    await markHoleComplete('ev1', 'tm1', 1);
+    await markScoresSynced('ev1', 'tm1', sent);
+    const unsynced = await loadUnsyncedScores('ev1', 'tm1');
+    expect(unsynced).toHaveLength(1);
+    expect(unsynced[0].grossScore).toBe(6);
   });
 
   it('does not affect a different team', async () => {
@@ -314,7 +339,7 @@ describe('markScoresSynced', () => {
     await upsertPendingScore('ev1', 'tm2', SCORE);
     await markHoleComplete('ev1', 'tm1', 1);
     await markHoleComplete('ev1', 'tm2', 1);
-    await markScoresSynced('ev1', 'tm1');
+    await markScoresSynced('ev1', 'tm1', await loadUnsyncedScores('ev1', 'tm1'));
     expect(await loadUnsyncedScores('ev1', 'tm2')).toHaveLength(1);
   });
 });
@@ -340,7 +365,7 @@ describe('incrementSyncAttempts', () => {
   it('does not increment already-synced rows', async () => {
     await upsertPendingScore('ev1', 'tm1', SCORE);
     await markHoleComplete('ev1', 'tm1', 1);
-    await markScoresSynced('ev1', 'tm1');
+    await markScoresSynced('ev1', 'tm1', await loadUnsyncedScores('ev1', 'tm1'));
     await incrementSyncAttempts('ev1', 'tm1');
     const row = mockDb._scores.get('tm1:1');
     expect(row?.sync_attempts).toBe(0); // stays 0 — synced row excluded

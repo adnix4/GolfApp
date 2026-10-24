@@ -76,7 +76,7 @@ describe('webDb pending_scores shim', () => {
     expect(await store.loadCompletedHoleNumbers(EVENT, TEAM)).toEqual([1]);
     expect((await store.loadUnsyncedScores(EVENT, TEAM)).map(s => s.holeNumber)).toEqual([1]);
 
-    await store.markScoresSynced(EVENT, TEAM);
+    await store.markScoresSynced(EVENT, TEAM, await store.loadUnsyncedScores(EVENT, TEAM));
     expect(await store.loadUnsyncedScores(EVENT, TEAM)).toHaveLength(0);
     // Still present for the scorecard.
     expect(await store.loadPendingScores(EVENT, TEAM)).toHaveLength(2);
@@ -175,8 +175,20 @@ describe('webDb pending_scores shim', () => {
     await store.markHoleComplete(EVENT, TEAM, 4);
 
     expect(await store.loadSyncedHoleNumbers(EVENT, TEAM)).toEqual([]);
-    await store.markScoresSynced(EVENT, TEAM);
+    await store.markScoresSynced(EVENT, TEAM, await store.loadUnsyncedScores(EVENT, TEAM));
     expect(await store.loadSyncedHoleNumbers(EVENT, TEAM)).toEqual([4]);
+  });
+
+  it('marks only the sent holes synced, not one still being entered', async () => {
+    const store = await import('../lib/store');
+    await store.upsertPendingScore(EVENT, TEAM, score(4, 5));
+    await store.markHoleComplete(EVENT, TEAM, 4);
+    const sent = await store.loadUnsyncedScores(EVENT, TEAM);
+    await store.upsertPendingScore(EVENT, TEAM, score(5, 3)); // in progress during the request
+    await store.markScoresSynced(EVENT, TEAM, sent);
+    await store.markHoleComplete(EVENT, TEAM, 5);
+
+    expect((await store.loadUnsyncedScores(EVENT, TEAM)).map(r => r.holeNumber)).toEqual([5]);
   });
 
   it('unrecognized SQL throws instead of silently no-oping', async () => {
