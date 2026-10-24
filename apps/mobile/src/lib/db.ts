@@ -216,6 +216,8 @@ export function getDb(): Promise<Db> {
         try { await db.runAsync('ALTER TABLE pending_scores ADD COLUMN approach_shots INTEGER', []); } catch { /* already exists */ }
         try { await db.runAsync('ALTER TABLE pending_scores ADD COLUMN completed_at TEXT', []); } catch { /* already exists */ }
         try { await db.runAsync('ALTER TABLE pending_scores ADD COLUMN conflict INTEGER NOT NULL DEFAULT 0', []); } catch { /* already exists */ }
+        // Every store.ts query filters on (event_id, team_id).
+        await db.execAsync('CREATE INDEX IF NOT EXISTS idx_pending_event_team ON pending_scores(event_id, team_id);');
         return db;
       })();
     }

@@ -59,7 +59,7 @@ export async function attemptSync(): Promise<boolean> {
 
     // Accept conflicts as "resolved by server" — mark synced so we don't retry
     if (result.accepted > 0 || result.conflicts > 0) {
-      await markScoresSynced(event.id, team.id);
+      await markScoresSynced(event.id, team.id, unsynced);
       consecutiveFails = 0;
       isSyncing = false;
       return true;

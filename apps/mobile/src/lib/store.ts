@@ -215,18 +215,26 @@ export async function loadSyncedHoleNumbers(
   return rows.map(r => r.hole_number);
 }
 
-// Called after a successful batch sync so the background task (1D) knows
-// which holes have already been confirmed by the server.
+// Called after a successful batch sync with exactly the rows that were sent.
+// Only those rows are marked, and only if unchanged since they were read:
+// created_at is the client timestamp of the last edit, so a hole re-entered
+// while the request was in flight keeps synced_at NULL and goes up next tick.
+// (Marking every row for the team used to flag in-progress holes as synced,
+// so completing them later never queued them.)
 export async function markScoresSynced(
   eventId: string,
   teamId:  string,
+  sent:    PendingScore[],
 ): Promise<void> {
-  const db = await getDb();
-  await db.runAsync(
-    `UPDATE pending_scores SET synced_at = ?
-      WHERE event_id = ? AND team_id = ?`,
-    [new Date().toISOString(), eventId, teamId],
-  );
+  const db  = await getDb();
+  const now = new Date().toISOString();
+  for (const s of sent) {
+    await db.runAsync(
+      `UPDATE pending_scores SET synced_at = ?
+        WHERE id = ? AND event_id = ? AND created_at = ? AND synced_at IS NULL`,
+      [now, `${teamId}:${s.holeNumber}`, eventId, new Date(s.clientTimestampMs).toISOString()],
+    );
+  }
 }
 
 // Merges authoritative server scores (admin corrections / resolved conflicts)
@@ -246,16 +254,25 @@ export async function mergeServerScores(
   const db = await getDb();
   let changed = false;
 
+  // One read for the whole team instead of a lookup per hole (this runs on
+  // every foreground poll).
+  const existingRows = await db.getAllAsync<{
+    hole_number:  number;
+    gross_score:  number;
+    player_shots: string | null;
+    conflict:     number | null;
+    synced_at:    string | null;
+  }>(
+    `SELECT hole_number, gross_score, player_shots, conflict, synced_at
+       FROM pending_scores
+      WHERE event_id = ? AND team_id = ?`,
+    [eventId, teamId],
+  );
+  const byHole = new Map(existingRows.map(r => [r.hole_number, r]));
+
   for (const h of holes) {
     const id = `${teamId}:${h.holeNumber}`;
-    const existing = await db.getFirstAsync<{
-      gross_score: number;
-      conflict:    number | null;
-      synced_at:   string | null;
-    }>(
-      'SELECT gross_score, conflict, synced_at FROM pending_scores WHERE id = ?',
-      [id],
-    );
+    const existing = byHole.get(h.holeNumber);
 
     // Protect an unpushed local edit — keep the golfer's value.
     if (existing && existing.synced_at === null) continue;
@@ -266,14 +283,20 @@ export async function mergeServerScores(
       continue;
     }
 
+    // Only the conflict flag moved: the golfer's per-player shot breakdown still
+    // adds up to this gross, so keep it. An admin-changed gross invalidates it.
+    const playerShots = existing && existing.gross_score === h.grossScore
+      ? existing.player_shots
+      : null;
+
     const now = new Date().toISOString();
     await db.runAsync(
       `INSERT OR REPLACE INTO pending_scores
          (id, event_id, team_id, hole_number, gross_score, putts,
           drive_shots, approach_shots, player_shots,
           created_at, synced_at, sync_attempts, completed_at, conflict)
-       VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, 0, ?, ?)`,
-      [id, eventId, teamId, h.holeNumber, h.grossScore, h.putts ?? null, now, now, now, newConflict],
+       VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, 0, ?, ?)`,
+      [id, eventId, teamId, h.holeNumber, h.grossScore, h.putts ?? null, playerShots, now, now, now, newConflict],
     );
     changed = true;
   }

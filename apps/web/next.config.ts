@@ -6,9 +6,6 @@ const nextConfig: NextConfig = {
   // Vercel build cannot resolve). tsconfig.json, used by `npm run type-check`
   // in CI, still covers the tests.
   typescript: { tsconfigPath: 'tsconfig.build.json' },
-  images: {
-    remotePatterns: [{ protocol: 'https', hostname: '**' }],
-  },
 };
 
 export default nextConfig;
