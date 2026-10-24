@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import {
   View, Text, Pressable, TextInput,
   StyleSheet, ActivityIndicator, ScrollView,
+  type TextInputInstance,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
@@ -19,7 +20,7 @@ export default function QrImportScreen() {
   const [loading,  setLoading]  = useState(false);
   const [result,   setResult]   = useState<QrCollectResult | null>(null);
   const [error,    setError]    = useState<string | null>(null);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
 
   function handlePayloadChange(text: string) {
     setPayload(text);

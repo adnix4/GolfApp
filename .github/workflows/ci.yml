@@ -260,7 +260,7 @@ jobs:
 
   # ── SDK PIN INTEGRITY ─────────────────────────────────────────────────────
   # Fails when a manifest pin or an installed version has drifted away from the
-  # version Expo SDK 57 actually targets, or away from the Node/React version
+  # version the installed Expo SDK actually targets, or away from the Node/React version
   # this repo runs. Targets are fetched live from api.expo.dev, so this needs no
   # hand-maintained table and cannot go stale.
   #

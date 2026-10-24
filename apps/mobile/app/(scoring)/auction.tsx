@@ -610,7 +610,7 @@ export default function AuctionScreen() {
                 Could not refresh your bids. Showing the last ones we loaded.
               </Text>
             </View>
-          ) : null}
+          ) : undefined}
           keyExtractor={i => `${i.auctionItemId}-${i.placedAt}`}
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           renderItem={({ item }) => (

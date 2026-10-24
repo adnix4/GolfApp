@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@microsoft/signalr": "^8.0.0",
-    "@types/react": "~19.2.10",
+    "@types/react": "~19.3.0",
     "react": "*",
     "typescript": "^6.0.3"
   }

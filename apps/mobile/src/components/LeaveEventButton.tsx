@@ -1,5 +1,5 @@
 import { Pressable, Text, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { confirmLeaveEvent, unsyncedHoleCount } from '@/lib/confirmLeave';
@@ -11,6 +11,7 @@ import { confirmLeaveEvent, unsyncedHoleCount } from '@/lib/confirmLeave';
  */
 export function LeaveEventButton() {
   const theme = useTheme();
+  const router = useRouter();
   const { clearSession, completedHoles, syncedHoles } = useSession();
 
   return (

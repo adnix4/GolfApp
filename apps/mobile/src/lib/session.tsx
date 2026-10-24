@@ -4,7 +4,7 @@ import React, {
 } from 'react';
 import type { JoinEventResponse, PendingScore, BatchSyncResponse, SponsorCacheDto } from './api';
 import { batchSync, fetchTeamScores, fetchEventStatus, fetchPublicSponsors, EventNotFoundError } from './api';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsyncedScores, upsertPendingScore, markScoresSynced, markHoleComplete, reopenHole as reopenStoredHole, loadCompletedHoleNumbers, loadSyncedHoleNumbers, clearPendingScores, mergeServerScores, getDeviceId } from './store';
 import { attemptSync } from './backgroundSync';
 import { useNetworkTier, POLL_INTERVAL_MS, type NetworkTier } from './useNetworkTier';
@@ -38,6 +38,7 @@ interface SessionContextValue {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [session,         setSessionState]    = useState<JoinEventResponse | null>(null);
   const [deviceId,        setDeviceId]        = useState('');
   const [loading,         setLoading]         = useState(true);
@@ -206,7 +207,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSyncStatus('idle');
     setEndedNotice('The event saved on this device is no longer available. Join an event to continue.');
     router.replace('/join');
-  }, []);
+  }, [router]);
 
   const dismissEndedNotice = useCallback(() => setEndedNotice(null), []);
 
