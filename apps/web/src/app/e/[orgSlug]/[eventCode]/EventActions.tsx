@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import {
   registerTeam,
   joinTeam,
@@ -22,7 +23,13 @@ import {
   SKILL_LEVEL_OPTIONS, AGE_GROUP_OPTIONS, PAIRING_NOTE_MAX,
   type GolferFields, type SkillLevel, type AgeGroup,
 } from '@gfp/shared-types';
-import EntryFeePayment, { DonationPayment, stripeEnabled, formatUsd } from './EntryFeePayment';
+import { stripeEnabled, formatUsd } from './stripeConfig';
+
+// The card forms (and the Stripe SDK behind them) load only when a payment
+// step actually renders: most visitors to an event page never pay.
+const EntryFeePayment = dynamic(() => import('./EntryFeePayment'), { ssr: false });
+const DonationPayment = dynamic(
+  () => import('./EntryFeePayment').then(m => m.DonationPayment), { ssr: false });
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
 
