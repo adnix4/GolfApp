@@ -4,6 +4,7 @@ import {
   ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useObserve } from 'expo-observe';
 import { useTheme } from '@gfp/ui';
 import { FORMAT_LABELS, formatDate } from '@gfp/shared-types';
 import { GfpLogo } from '@/components/GfpLogo';
@@ -28,6 +29,7 @@ export default function JoinScreen() {
   const router = useRouter();
   const { session, loading, deviceId, setSession, endedNotice, dismissEndedNotice } = useSession();
   const { preEventId } = useLocalSearchParams<{ preEventId?: string }>();
+  const { markInteractive } = useObserve();
 
   const [step,          setStep]          = useState<Step>('pick');
   const [events,        setEvents]        = useState<ActiveEventSummary[]>([]);
@@ -54,6 +56,12 @@ export default function JoinScreen() {
     if (!loading && session) router.replace('/scorecard');
   // eslint-disable-next-line react-hooks/exhaustive-deps -- expo-router's router is a module singleton, so its identity never changes
   }, [loading, session]);
+
+  // TTI for a golfer without a session: the event list is up and tappable.
+  // With a session this screen only redirects, and the scorecard marks instead.
+  useEffect(() => {
+    if (!loading && !session && !eventsLoading) markInteractive();
+  }, [loading, session, eventsLoading, markInteractive]);
 
   useEffect(() => {
     fetchActiveEvents().then(data => {
