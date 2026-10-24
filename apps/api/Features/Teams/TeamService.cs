@@ -385,6 +385,7 @@ public class TeamService
             throw new NotFoundException("Event", eventId);
 
         var teams = await _db.Teams
+            .AsNoTracking()
             .Include(t => t.Players)
             .Where(t => t.EventId == eventId)
             .OrderBy(t => t.Name)
@@ -567,6 +568,7 @@ public class TeamService
         var teamId = ValidateInviteToken(inviteToken);
 
         var team = await _db.Teams
+            .AsNoTracking()
             .Include(t => t.Players)
             .Include(t => t.Event)
             .FirstOrDefaultAsync(t => t.Id == teamId && t.EventId == eventId, ct);
@@ -648,6 +650,7 @@ public class TeamService
         // Fetch unfiltered, sort in memory — EF translates (int)SkillLevel to
         // skill_level::int which fails because the column stores text enum values.
         var agents = await _db.Players
+            .AsNoTracking()
             .Where(p =>
                 p.EventId == eventId &&
                 p.TeamId == null &&

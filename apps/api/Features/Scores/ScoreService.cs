@@ -149,6 +149,7 @@ public class ScoreService
             throw new NotFoundException("Event", eventId);
 
         var scores = await _db.Scores
+            .AsNoTracking()
             .Include(s => s.Team)
             .Where(s => s.EventId == eventId)
             .OrderBy(s => s.Team.Name)
@@ -168,6 +169,7 @@ public class ScoreService
         Guid orgId, Guid eventId, Guid teamId, CancellationToken ct = default)
     {
         var evt = await _db.Events
+            .AsNoTracking()
             .Include(e => e.Course)
                 .ThenInclude(c => c!.Holes.OrderBy(h => h.HoleNumber))
             .FirstOrDefaultAsync(e => e.Id == eventId && e.OrgId == orgId, ct);
@@ -176,12 +178,14 @@ public class ScoreService
             throw new NotFoundException("Event", eventId);
 
         var team = await _db.Teams
+            .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == teamId && t.EventId == eventId, ct);
 
         if (team is null)
             throw new NotFoundException("Team", teamId);
 
         var teamScores = await _db.Scores
+            .AsNoTracking()
             .Where(s => s.EventId == eventId && s.TeamId == teamId)
             .ToListAsync(ct);
 

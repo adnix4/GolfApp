@@ -191,15 +191,27 @@ public class QrService
             .Select(q => q.Token)
             .ToList();
 
-        var playerNamesByToken = new Dictionary<string, (Guid id, string name)>();
+        var playerIdByToken = new Dictionary<string, Guid>();
         foreach (var token in playerTokens)
         {
             var playerId = TryExtractPlayerIdFromToken(token);
-            if (playerId is null) continue;
+            if (playerId is not null) playerIdByToken[token] = playerId.Value;
+        }
 
-            var player = await _db.Players.FindAsync([playerId.Value], ct);
-            if (player is not null)
-                playerNamesByToken[token] = (player.Id, $"{player.FirstName} {player.LastName}");
+        // One query for the whole roster: a lookup per check-in QR was a round
+        // trip per golfer (144 for a full field).
+        var playerIds = playerIdByToken.Values.Distinct().ToList();
+        var namesById = await _db.Players
+            .AsNoTracking()
+            .Where(p => playerIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.FirstName, p.LastName })
+            .ToDictionaryAsync(p => p.Id, p => $"{p.FirstName} {p.LastName}", ct);
+
+        var playerNamesByToken = new Dictionary<string, (Guid id, string name)>();
+        foreach (var (token, playerId) in playerIdByToken)
+        {
+            if (namesById.TryGetValue(playerId, out var name))
+                playerNamesByToken[token] = (playerId, name);
         }
 
         return qrCodes.Select(q =>

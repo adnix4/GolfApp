@@ -99,6 +99,7 @@ public class SponsorService
         await VerifyEventOwnershipAsync(orgId, eventId, ct);
 
         var sponsors = await _db.Sponsors
+            .AsNoTracking()
             .Where(s => s.EventId == eventId)
             .OrderBy(s => s.Tier)
             .ThenBy(s => s.Name)
@@ -219,6 +220,7 @@ public class SponsorService
         await VerifyEventOwnershipAsync(orgId, eventId, ct);
 
         var challenges = await _db.HoleChallenges
+            .AsNoTracking()
             .Include(c => c.Sponsor)
             .Include(c => c.Results)
                 .ThenInclude(r => r.Team)
@@ -371,6 +373,7 @@ public class SponsorService
         await GetChallengeAsync(orgId, eventId, challengeId, ct);
 
         var results = await _db.ChallengeResults
+            .AsNoTracking()
             .Include(r => r.Team)
             .Where(r => r.ChallengeId == challengeId)
             .OrderBy(r => r.ResultValue)
@@ -383,6 +386,7 @@ public class SponsorService
             .ToList();
 
         var playerNames = await _db.Players
+            .AsNoTracking()
             .Where(p => playerIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => $"{p.FirstName} {p.LastName}", ct);
 
@@ -428,6 +432,7 @@ public class SponsorService
         await VerifyEventOwnershipAsync(orgId, eventId, ct);
 
         var donations = await _db.Donations
+            .AsNoTracking()
             .Where(d => d.EventId == eventId)
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync(ct);
