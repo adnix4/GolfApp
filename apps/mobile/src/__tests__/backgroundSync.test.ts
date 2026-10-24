@@ -38,13 +38,15 @@ vi.mock('expo-task-manager', () => ({
   isTaskRegisteredAsync:   vi.fn().mockResolvedValue(false),
 }));
 
-vi.mock('expo-background-fetch', () => ({
+vi.mock('expo-background-task', () => ({
   registerTaskAsync:   vi.fn().mockResolvedValue(undefined),
   unregisterTaskAsync: vi.fn().mockResolvedValue(undefined),
-  BackgroundFetchResult: { NewData: 'newData', NoData: 'noData', Failed: 'failed' },
+  BackgroundTaskResult: { Success: 1, Failed: 2 },
 }));
 
-import { attemptSync, registerBackgroundSync, TASK_NAME, __resetSyncState } from '../lib/backgroundSync';
+import {
+  attemptSync, defineBackgroundSyncTask, registerBackgroundSync, TASK_NAME, __resetSyncState,
+} from '../lib/backgroundSync';
 import * as TaskManager from 'expo-task-manager';
 
 const SESSION = {
@@ -165,7 +167,7 @@ describe('registerBackgroundSync', () => {
     (TaskManager.isTaskRegisteredAsync as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(true);
     await registerBackgroundSync();
-    const { registerTaskAsync } = await import('expo-background-fetch');
+    const { registerTaskAsync } = await import('expo-background-task');
     expect(registerTaskAsync).not.toHaveBeenCalled();
   });
 
@@ -173,17 +175,37 @@ describe('registerBackgroundSync', () => {
     (TaskManager.isTaskRegisteredAsync as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(false);
     await registerBackgroundSync();
-    const { registerTaskAsync } = await import('expo-background-fetch');
-    expect(registerTaskAsync).toHaveBeenCalledWith(TASK_NAME, expect.objectContaining({
-      minimumInterval: 30,
-      stopOnTerminate: false,
-    }));
+    const { registerTaskAsync } = await import('expo-background-task');
+    expect(registerTaskAsync).toHaveBeenCalledWith(TASK_NAME, { minimumInterval: 15 });
   });
 
   it('does not throw when registration fails (non-critical path)', async () => {
     (TaskManager.isTaskRegisteredAsync as ReturnType<typeof vi.fn>)
       .mockRejectedValueOnce(new Error('OS error'));
     await expect(registerBackgroundSync()).resolves.not.toThrow();
+  });
+});
+
+// ── defineBackgroundSyncTask ──────────────────────────────────────────────────
+
+describe('defineBackgroundSyncTask', () => {
+  async function runTask(): Promise<unknown> {
+    defineBackgroundSyncTask();
+    const [name, executor] = (TaskManager.defineTask as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(name).toBe(TASK_NAME);
+    return executor({ data: null, error: null, executionInfo: {} });
+  }
+
+  it('syncs and reports Success', async () => {
+    mockLoadUnsynced.mockResolvedValue(SCORES);
+    await expect(runTask()).resolves.toBe(1);
+    expect(mockBatchSync).toHaveBeenCalledTimes(1);
+  });
+
+  it('still reports Success when the send fails, so the OS keeps scheduling it', async () => {
+    mockLoadUnsynced.mockResolvedValue(SCORES);
+    mockBatchSync.mockRejectedValueOnce(new Error('offline'));
+    await expect(runTask()).resolves.toBe(1);
   });
 });
 

@@ -1,4 +1,4 @@
-// Minimal stub for expo-modules-core used by expo-task-manager and expo-background-fetch.
+// Minimal stub for expo-modules-core used by expo-task-manager and expo-background-task.
 // Only exports consumed by the GFP codebase are stubbed.
 export const LegacyEventEmitter = class {
   addListener() { return { remove() {} }; }
