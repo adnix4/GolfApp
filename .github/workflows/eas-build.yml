@@ -103,4 +103,4 @@ jobs:
       - name: Build submitted
         run: |
           echo "✅ EAS Build submitted for profile: ${{ steps.profile.outputs.profile }}"
-          echo "Monitor progress at: https://expo.dev/accounts/[your-account]/projects/golf-fundraiser-pro/builds"
+          echo "Monitor progress at: https://expo.dev/accounts/adamnix/projects/gfp-scorer/builds"

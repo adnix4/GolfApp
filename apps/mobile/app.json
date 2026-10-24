@@ -54,6 +54,18 @@
       "adaptiveIcon": {
         "backgroundColor": "#31572c"
       }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "cdbd213f-592f-42b7-a8f7-2723da7dda17"
+      }
+    },
+    "owner": "adamnix",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/cdbd213f-592f-42b7-a8f7-2723da7dda17"
     }
   }
 }

@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useObserve } from 'expo-observe';
 import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
 import { fetchPublicChallenges, type ChallengeCacheDto, type HoleCacheDto, type PlayerCacheDto, type PlayerShotBreakdown, type SponsorCacheDto } from '@/lib/api';
@@ -57,6 +58,7 @@ export default function ScorecardScreen() {
   } = useSession();
   // /scorecard?hole=N opens that hole (the round summary links here to edit).
   const { hole: holeParam } = useLocalSearchParams<{ hole?: string }>();
+  const { markInteractive } = useObserve();
 
   const [holeIndex,         setHoleIndex]         = useState(0);
   /** Hole reopened for editing whose score came from the organizer (no per-golfer shots on it). */
@@ -119,6 +121,12 @@ export default function ScorecardScreen() {
     if (!loading && !session) router.replace('/join');
   // eslint-disable-next-line react-hooks/exhaustive-deps -- expo-router's router is a module singleton, so its identity never changes
   }, [loading, session]);
+
+  // TTI for a returning golfer: the session restored and the card is past its spinner.
+  const cardReady = !loading && !!session?.team;
+  useEffect(() => {
+    if (cardReady) markInteractive();
+  }, [cardReady, markInteractive]);
 
   useEffect(() => {
     if (!session) return;
