@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
+import { runMigrations } from './dbMigrations';
 
 // ── Web shim ──────────────────────────────────────────────────────────────────
 // expo-sqlite is native-only. On web we back both tables with localStorage:
@@ -182,44 +183,14 @@ export function getDb(): Promise<Db> {
     } else {
       _dbPromise = (async () => {
         const db = await SQLite.openDatabaseAsync('gfp.db');
+        // WAL can't be switched inside a transaction, so it stays out of the migrations.
         await db.execAsync('PRAGMA journal_mode = WAL;');
-        await db.execAsync(`
-          CREATE TABLE IF NOT EXISTS event_cache (
-            key   TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-          );
-          CREATE TABLE IF NOT EXISTS pending_scores (
-            id             TEXT PRIMARY KEY,
-            event_id       TEXT NOT NULL,
-            team_id        TEXT NOT NULL,
-            hole_number    INTEGER NOT NULL,
-            gross_score    INTEGER NOT NULL,
-            putts          INTEGER,
-            drive_shots    INTEGER,
-            approach_shots INTEGER,
-            player_shots   TEXT,
-            created_at     TEXT NOT NULL,
-            synced_at      TEXT,
-            sync_attempts  INTEGER NOT NULL DEFAULT 0,
-            completed_at   TEXT,
-            conflict       INTEGER NOT NULL DEFAULT 0
-          );
-          CREATE TABLE IF NOT EXISTS leaderboard_cache (
-            key       TEXT PRIMARY KEY,
-            value     TEXT NOT NULL,
-            cached_at TEXT NOT NULL
-          );
-        `);
-        // Migrate existing DBs that predate the drive/approach columns.
-        // SQLite throws if the column already exists — that's fine, swallow it.
-        try { await db.runAsync('ALTER TABLE pending_scores ADD COLUMN drive_shots INTEGER', []); } catch { /* already exists */ }
-        try { await db.runAsync('ALTER TABLE pending_scores ADD COLUMN approach_shots INTEGER', []); } catch { /* already exists */ }
-        try { await db.runAsync('ALTER TABLE pending_scores ADD COLUMN completed_at TEXT', []); } catch { /* already exists */ }
-        try { await db.runAsync('ALTER TABLE pending_scores ADD COLUMN conflict INTEGER NOT NULL DEFAULT 0', []); } catch { /* already exists */ }
-        // Every store.ts query filters on (event_id, team_id).
-        await db.execAsync('CREATE INDEX IF NOT EXISTS idx_pending_event_team ON pending_scores(event_id, team_id);');
+        await runMigrations(db);
         return db;
       })();
+      // A failed open or migration must not stick for the rest of the session:
+      // the next getDb() call tries again instead of replaying the rejection.
+      _dbPromise.catch(() => { _dbPromise = null; });
     }
   }
   return _dbPromise;
