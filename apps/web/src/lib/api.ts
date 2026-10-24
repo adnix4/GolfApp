@@ -185,10 +185,14 @@ function normalizePublicEvent(e: PublicEventData): PublicEventData {
   };
 }
 
-/** All currently-open events across orgs (for the golfer "find your event" directory). */
+/**
+ * All currently-open events across orgs (for the golfer "find your event"
+ * directory). Fetched by the server page; a 30 s revalidate serves every
+ * visitor from one API read.
+ */
 export async function fetchActiveEvents(): Promise<ActiveEventSummary[]> {
   try {
-    const res = await fetch(`${BASE}/api/v1/pub/events/active`, { cache: 'no-store' });
+    const res = await fetch(`${BASE}/api/v1/pub/events/active`, { next: { revalidate: 30 } });
     if (!res.ok) return [];
     const events: ActiveEventSummary[] = await res.json();
     return events.map(e => ({ ...e, logoUrl: resolveUploadUrl(e.logoUrl) }));

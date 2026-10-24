@@ -4,19 +4,17 @@ import { useMemo, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { confirmEntryFee, confirmDonation } from '@/lib/api';
+import { PUBLISHABLE_KEY, stripeEnabled, formatUsd } from './stripeConfig';
 
 // ── STRIPE SETUP ──────────────────────────────────────────────────────────────
-// The publishable key is safe to expose; when it isn't configured the payment
-// step is skipped entirely and the organizer collects the fee offline.
+// This module is loaded with next/dynamic only when a card form is shown, and
+// Stripe.js is fetched on first use, so event pages where nobody pays never
+// download either.
 
-const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
-
-export const stripeEnabled = PUBLISHABLE_KEY !== '';
-
-const stripePromise = stripeEnabled ? loadStripe(PUBLISHABLE_KEY) : null;
-
-export function formatUsd(cents: number): string {
-  return (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+let stripePromise: ReturnType<typeof loadStripe> | null = null;
+function getStripe() {
+  if (!stripeEnabled) return null;
+  return (stripePromise ??= loadStripe(PUBLISHABLE_KEY));
 }
 
 // ── PAYMENT STEP ──────────────────────────────────────────────────────────────
@@ -53,10 +51,11 @@ function StripePayment({ clientSecret, ...form }: StripePaymentProps) {
     };
   }, []);
 
-  if (!stripePromise) return null; // callers gate on stripeEnabled; belt and braces
+  const stripe = getStripe();
+  if (!stripe) return null; // callers gate on stripeEnabled; belt and braces
 
   return (
-    <Elements stripe={stripePromise} options={{ clientSecret, appearance }}>
+    <Elements stripe={stripe} options={{ clientSecret, appearance }}>
       <PayForm {...form} />
     </Elements>
   );

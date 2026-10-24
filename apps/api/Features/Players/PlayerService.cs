@@ -96,6 +96,7 @@ public class PlayerService
         await VerifyEventOwnershipAsync(orgId, eventId, ct);
 
         var players = await _db.Players
+            .AsNoTracking()
             .Where(p => p.EventId == eventId)
             .OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
             .ToListAsync(ct);
