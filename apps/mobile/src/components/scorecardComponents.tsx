@@ -20,6 +20,7 @@ import { useSession } from '@/lib/session';
 import type { ThemeContextValue } from '@gfp/ui';
 import type { ChallengeCacheDto, HoleCacheDto, SponsorCacheDto } from '@/lib/api';
 import { formatToPar, toParColor } from '@/lib/toPar';
+import { tickHaptic } from '@/lib/haptics';
 
 // ── HOLE INFO CHIP ────────────────────────────────────────────────────────────
 
@@ -362,7 +363,7 @@ export function ShotColumn({
         <Text style={[shotColStyles.label, { color: theme.mutedText, fontSize: size.labelFont }]}>{label}</Text>
       )}
       <Pressable
-        onPress={onIncrement}
+        onPress={() => { tickHaptic(); onIncrement(); }}
         disabled={disabled}
         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         style={({ pressed }) => [
@@ -383,7 +384,7 @@ export function ShotColumn({
         {value > 0 ? value : '—'}
       </Text>
       <Pressable
-        onPress={onDecrement}
+        onPress={() => { tickHaptic(); onDecrement(); }}
         disabled={disabled || value <= 0}
         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         style={({ pressed }) => [

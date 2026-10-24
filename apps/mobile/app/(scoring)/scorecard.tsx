@@ -19,6 +19,7 @@ import {
   teamHoleGross, teamHolePar, teamStablefordPoints, aceGolferIds, countingPlayerId,
   type HoleShots,
 } from '@gfp/shared-types';
+import { holeCompleteHaptic } from '@/lib/haptics';
 
 /** Per-golfer strokes on a hole — the shape the format rules read (U8). */
 function strokesByPlayer(
@@ -382,6 +383,7 @@ export default function ScorecardScreen() {
     setCompleting(true);
     try {
       await completeHole(currentHoleNumber);
+      holeCompleteHaptic();
       // Scramble: the team ball in one. Every other format: any golfer's own
       // ball in one — the aggregate row can't show it (U8).
       const ace = format === 'Scramble'
