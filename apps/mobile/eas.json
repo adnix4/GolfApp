@@ -11,17 +11,11 @@
     },
     "preview": {
       "distribution": "internal",
-      "channel": "preview",
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.staging.golffundraiser.pro"
-      }
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production",
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.golffundraiser.pro"
-      }
+      "channel": "production"
     }
   },
   "submit": {
