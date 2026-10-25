@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
+import { useTeamList } from '@/lib/queries';
 import { useTheme, StatusPill, FormModal } from '@gfp/ui';
 import {
   digitsOnly, fmtAgeGroup, fmtPhone, fmtPhoneInput, formatTime,
@@ -197,12 +198,14 @@ export default function TeamsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
 
-  const [teams,             setTeams]             = useState<Team[]>([]);
+  const teamList = useTeamList(id);
+  const { items: teams, setItems: setTeams, loading } = teamList;
   const { event } = useEventDetail();
   const eventName   = event.name;
   const eventStatus = event.status;
-  const [loading,           setLoading]           = useState(true);
-  const [error,             setError]             = useState<string | null>(null);
+  const [actionError,       setError]             = useState<string | null>(null);
+  const error = actionError
+    ?? (teamList.error ? (teamList.error.message || 'Failed to load teams.') : null);
   const [showAdd,           setShowAdd]           = useState(false);
   const [editing,           setEditing]           = useState<Team | null>(null);
   const [removeTeamTarget,  setRemoveTeamTarget]  = useState<Team | null>(null);
@@ -211,20 +214,6 @@ export default function TeamsScreen() {
   const [addPlayerTeam, setAddPlayerTeam] = useState<Team | null>(null);
   const [editingPlayer, setEditingPlayer] = useState<{ player: Player; team: Team } | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setTeams(await teamsApi.list(id));
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to load teams.');
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
-
   const handleCheckIn = useCallback(async (teamId: string) => {
     try {
       const updated = await teamsApi.checkIn(id, teamId);
@@ -232,7 +221,7 @@ export default function TeamsScreen() {
     } catch (e: any) {
       setError(e.message ?? 'Check-in failed.');
     }
-  }, [id]);
+  }, [id, setTeams]);
 
   // Per-golfer check-in. The server promotes the team to Complete once the last
   // golfer is in, so mirror that locally rather than refetching the whole list.
@@ -253,7 +242,7 @@ export default function TeamsScreen() {
     } catch (e: any) {
       setError(e.message ?? 'Check-in failed.');
     }
-  }, [id]);
+  }, [id, setTeams]);
 
   // No invite link here: the organizer is entering the team, so there is no
   // captain to send one. Golfers get theirs when they register on mobile/web.
@@ -307,7 +296,7 @@ export default function TeamsScreen() {
     } catch (e: any) {
       setError(e.message ?? 'Failed to remove player.');
     }
-  }, [id]);
+  }, [id, setTeams]);
 
   // Stable handlers for the FlatList row. Wrapping in useCallback lets the
   // memoized TeamRow skip its render when only an unrelated piece of parent

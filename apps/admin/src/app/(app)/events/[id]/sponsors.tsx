@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, Pressable, FlatList, Modal, TextInput,
   StyleSheet, ActivityIndicator, ScrollView,
@@ -7,6 +7,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useTheme, AdaptiveLogoFrame, MoneyInput } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { sponsorsApi, type Sponsor, type CreateSponsorPayload, type SponsorPlacements } from '@/lib/api';
+import { useSponsorList } from '@/lib/queries';
 import { UPLOAD_ABORTED } from '@/lib/upload';
 import { UploadProgress } from '@/components/UploadProgress';
 import { confirmAction } from '@/lib/confirmAction';
@@ -84,25 +85,13 @@ export default function SponsorsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
 
-  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState<string | null>(null);
+  const sponsorList = useSponsorList(id);
+  const { items: sponsors, setItems: setSponsors, loading } = sponsorList;
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError
+    ?? (sponsorList.error ? (sponsorList.error.message || 'Failed to load sponsors.') : null);
   const [showAdd,  setShowAdd]  = useState(false);
   const [editing,  setEditing]  = useState<Sponsor | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setSponsors(await sponsorsApi.list(id));
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to load sponsors.');
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
 
   function handleDelete(sponsor: Sponsor) {
     confirmAction(

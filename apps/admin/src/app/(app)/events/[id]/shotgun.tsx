@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, Pressable, TextInput, FlatList,
   StyleSheet, ActivityIndicator,
@@ -6,7 +6,8 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { useTheme } from '@gfp/ui';
-import { eventsApi, teamsApi, type Team } from '@/lib/api';
+import { eventsApi } from '@/lib/api';
+import { useTeamList } from '@/lib/queries';
 import { useResponsive } from '@/lib/responsive';
 import { autoAssignHoles, validateShotgunAssignments } from '@/lib/shotgunUtils';
 
@@ -17,32 +18,27 @@ export default function ShotgunScreen() {
   const { pagePadding } = useResponsive();
 
   const { event } = useEventDetail();
-  const [teams,    setTeams]    = useState<Team[]>([]);
-  const [loading,  setLoading]  = useState(true);
+  const teamList = useTeamList(id);
+  const { items: teams, setItems: setTeams, loading } = teamList;
   const [saving,   setSaving]   = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError
+    ?? (teamList.error ? (teamList.error.message || 'Failed to load.') : null);
   const [success,  setSuccess]  = useState(false);
 
   // Local assignment state: teamId → hole number string
   const [assignments, setAssignments] = useState<Record<string, string>>({});
 
-  const load = useCallback(async () => {
-    setLoading(true); setError(null); setSuccess(false);
-    try {
-      const ts = await teamsApi.list(id);
-      setTeams(ts);
-      // Pre-populate from existing assignments
-      const init: Record<string, string> = {};
-      ts.forEach(t => { if (t.startingHole != null) init[t.id] = String(t.startingHole); });
-      setAssignments(init);
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to load.');
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
+  // Pre-populate from existing assignments once the roster first arrives. A
+  // background refresh later must not overwrite holes the organizer is typing.
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (seeded.current || loading) return;
+    seeded.current = true;
+    const init: Record<string, string> = {};
+    teams.forEach(t => { if (t.startingHole != null) init[t.id] = String(t.startingHole); });
+    setAssignments(init);
+  }, [teams, loading]);
 
   // Auto-assign: distribute teams evenly across holes 1..event.holes
   function handleAutoAssign() {
@@ -69,6 +65,9 @@ export default function ShotgunScreen() {
         .filter(t => assignments[t.id])
         .map(t => ({ teamId: t.id, startingHole: parseInt(assignments[t.id], 10) }));
       await eventsApi.assignShotgun(id, payload);
+      // Other tabs (Teams, Print Kit's tee sheet) read startingHole from the cache.
+      const saved = new Map(payload.map(p => [p.teamId, p.startingHole]));
+      setTeams(prev => prev.map(t => saved.has(t.id) ? { ...t, startingHole: saved.get(t.id)! } : t));
       setSuccess(true);
     } catch (e: any) {
       setError(e.message ?? 'Save failed.');
