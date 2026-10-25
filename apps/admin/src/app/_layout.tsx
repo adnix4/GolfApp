@@ -6,6 +6,7 @@ import { ECO_GREEN_DEFAULT, type GFPTheme } from '@gfp/theme';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { orgApi } from '@/lib/api';
 import { DialogHost } from '@/lib/dialog';
+import { QueryProvider } from '@/lib/queries';
 
 // Root safety net (problemList A4): an uncaught render throw anywhere in the
 // dashboard shows a branded retry card instead of a blank screen.
@@ -77,9 +78,11 @@ function AuthGate() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <OrgThemeWrapper>
-        <AuthGate />
-      </OrgThemeWrapper>
+      <QueryProvider>
+        <OrgThemeWrapper>
+          <AuthGate />
+        </OrgThemeWrapper>
+      </QueryProvider>
     </AuthProvider>
   );
 }
