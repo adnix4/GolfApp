@@ -10,7 +10,7 @@
  * takes the item now and settles on the way out.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, FlatList, TextInput, ActivityIndicator, ScrollView,
 } from 'react-native';
@@ -21,6 +21,7 @@ import {
   type CheckoutDeskRow, type CheckoutCart, type SettlementMethod,
 } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
+import { useCheckoutDesk } from '@/lib/queries';
 import { confirmAction } from '@/lib/confirmAction';
 import { formatCents, settleCopy, paidLabel, CHECK_NUMBER_INPUT } from '@/lib/auctionEnd';
 import { AddCardModal, cardCaptureEnabled } from '@/components/AddCardModal';
@@ -44,9 +45,11 @@ export default function AuctionCheckoutScreen() {
   const theme = useTheme();
   const { isMobile, pagePadding } = useResponsive();
 
-  const [rows,    setRows]    = useState<CheckoutDeskRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
+  const desk = useCheckoutDesk(eventId);
+  const { items: rows, setItems: setRows, loading } = desk;
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError
+    ?? (desk.error ? (desk.error.message || 'Failed to load the checkout queue.') : null);
   const [search,  setSearch]  = useState('');
 
   // The open row is tracked apart from its cart so it can expand (with a
@@ -63,15 +66,6 @@ export default function AuctionCheckoutScreen() {
   // toggleCart reads the open row after an await, when its closure is stale.
   const openRef = useRef<string | null>(null);
   openRef.current = openPlayerId;
-
-  const load = useCallback(async () => {
-    setLoading(true); setError(null);
-    try { setRows(await checkoutApi.getDesk(eventId)); }
-    catch (e: any) { setError(e.message ?? 'Failed to load the checkout queue.'); }
-    finally { setLoading(false); }
-  }, [eventId]);
-
-  useEffect(() => { load(); }, [load]);
 
   /**
    * Re-pulls the queue after a change in the open cart — quietly (no
