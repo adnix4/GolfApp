@@ -5,7 +5,9 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { ScoreCard, useTheme } from '@gfp/ui';
-import { teamsApi, scoresApi, eventsApi, testDataApi, challengesApi, type Team, type Scorecard, type LeaderboardEntry, type HoleChallenge } from '@/lib/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { scoresApi, testDataApi, type Scorecard } from '@/lib/api';
+import { eventKeys, useTeams, useLeaderboard, useChallenges } from '@/lib/queries';
 import { useResponsive } from '@/lib/responsive';
 import { resolveGrossScore, needsAceConfirmation, aceGolferIds } from '@/lib/scoring';
 import { countingPlayerId, isOwnBallFormat, stablefordPoints, FORMAT_LABELS } from '@gfp/shared-types';
@@ -20,40 +22,38 @@ export default function ScoringScreen() {
   const cardWidth = isMobile ? Math.floor((width - 40) / 2) : 200;
 
   const { event, setEvent } = useEventDetail();
-  const [teams,        setTeams]        = useState<Team[]>([]);
-  const [leaderboard,  setLeaderboard]  = useState<LeaderboardEntry[]>([]);
-  const [challenges,   setChallenges]   = useState<HoleChallenge[]>([]);
+  const queryClient  = useQueryClient();
+  const teamsQuery   = useTeams(id);
+  // The progress bar and challenge badges are secondary: if either fails it
+  // reads as empty rather than blocking score entry.
+  const leaderboard  = useLeaderboard(id).data ?? [];
+  const challenges   = useChallenges(id).data ?? [];
+  const teams        = teamsQuery.data ?? [];
+  const loading      = teamsQuery.isPending;
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [scorecard,    setScorecard]    = useState<Scorecard | null>(null);
   const [playerShotsByHole, setPlayerShotsByHole] = useState<Record<number, Record<string, number>>>({});
-  const [loading,      setLoading]      = useState(true);
   const [saving,       setSaving]       = useState<number | null>(null);
-  const [error,        setError]        = useState<string | null>(null);
+  const [actionError,  setError]        = useState<string | null>(null);
+  const error = actionError
+    ?? (teamsQuery.error ? (teamsQuery.error.message || 'Failed to load data.') : null);
   const [togglingTest, setTogglingTest] = useState(false);
   const [showToggleWarning, setShowToggleWarning] = useState(false);
   /** Hole awaiting hole-in-one confirmation before it is marked complete. */
   const [pendingAce, setPendingAce] = useState<number | null>(null);
 
+  // Open on the first team once the roster arrives.
+  const firstTeamId = teams[0]?.id ?? null;
   useEffect(() => {
-    async function init() {
-      try {
-        const [t, lb, ch] = await Promise.all([
-          teamsApi.list(id),
-          eventsApi.getLeaderboard(id).catch(() => [] as LeaderboardEntry[]),
-          challengesApi.list(id).catch(() => [] as HoleChallenge[]),
-        ]);
-        setTeams(t);
-        setLeaderboard(lb);
-        setChallenges(ch);
-        if (t.length > 0) setSelectedTeam(t[0].id);
-      } catch (e: any) {
-        setError(e.message ?? 'Failed to load data.');
-      } finally {
-        setLoading(false);
-      }
-    }
-    init();
-  }, [id]);
+    if (selectedTeam === null && firstTeamId) setSelectedTeam(firstTeamId);
+  }, [firstTeamId, selectedTeam]);
+
+  // Re-read the card after a save, and let the progress bar (and the
+  // Leaderboard tab, which shares the cache) pick up the change.
+  async function reloadAfterSave(teamId: string) {
+    queryClient.invalidateQueries({ queryKey: eventKeys.leaderboard(id) });
+    await loadScorecard(teamId);
+  }
 
   const loadScorecard = useCallback(async (teamId: string) => {
     try {
@@ -94,7 +94,7 @@ export default function ScoringScreen() {
       } else {
         await scoresApi.submit(id, { teamId: selectedTeam, holeNumber, grossScore });
       }
-      await loadScorecard(selectedTeam);
+      await reloadAfterSave(selectedTeam);
     } catch (e: any) {
       setError(e.message ?? 'Failed to save score.');
     } finally {
@@ -127,7 +127,7 @@ export default function ScoringScreen() {
           ? JSON.stringify(newHoleShots)
           : undefined,
       });
-      await loadScorecard(selectedTeam);
+      await reloadAfterSave(selectedTeam);
     } catch (e: any) {
       setError(e.message ?? 'Failed to save player shots.');
     } finally {
@@ -161,7 +161,7 @@ export default function ScoringScreen() {
     setError(null);
     try {
       await scoresApi.setHoleComplete(id, selectedTeam, holeNumber, complete);
-      await loadScorecard(selectedTeam);
+      await reloadAfterSave(selectedTeam);
     } catch (e: any) {
       setError(e.message ?? 'Failed to update hole status.');
     } finally {
@@ -177,7 +177,7 @@ export default function ScoringScreen() {
     if (!conflicted) return;
     try {
       await scoresApi.resolveConflict(id, conflicted.id, score);
-      if (selectedTeam) await loadScorecard(selectedTeam);
+      if (selectedTeam) await reloadAfterSave(selectedTeam);
     } catch (e: any) {
       setError(e.message ?? 'Failed to resolve conflict.');
     }

@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator, FlatList,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
+import { useLeaderboard, useIndividualLeaderboard } from '@/lib/queries';
 import { useTheme } from '@gfp/ui';
-import { eventsApi, type LeaderboardEntry, type IndividualLeaderboardEntry } from '@/lib/api';
 import { FORMAT_LABELS } from '@gfp/shared-types';
 import { useResponsive } from '@/lib/responsive';
 
@@ -28,36 +28,24 @@ export default function LeaderboardScreen() {
   const { pagePadding } = useResponsive();
 
   const { event, refresh } = useEventDetail();
-  const [entries,   setEntries]   = useState<LeaderboardEntry[]>([]);
-  const [golfers,   setGolfers]   = useState<IndividualLeaderboardEntry[]>([]);
+  const board      = useLeaderboard(id);
+  const individual = useIndividualLeaderboard(id);
+  const entries = board.data ?? [];
+  // The golfer board is a bonus view; if it fails, it reads as empty.
+  const golfers = individual.data ?? [];
   // Stroke Play is scored per golfer (Rule 3.3, U8), so that board leads; the
   // team aggregate stays one tap away.
   const [view,      setView]      = useState<'golfers' | 'teams'>('golfers');
-  const [loading,   setLoading]   = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error,     setError]     = useState<string | null>(null);
+  const loading = board.isPending;
+  const error   = board.error ? (board.error.message || 'Failed to load leaderboard.') : null;
 
-  const load = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true); else setRefreshing(true);
-    setError(null);
-    try {
-      // The event itself comes from the layout; a manual refresh re-pulls it too.
-      const [board, individuals] = await Promise.all([
-        eventsApi.getLeaderboard(id),
-        eventsApi.getIndividualLeaderboard(id).catch(() => [] as IndividualLeaderboardEntry[]),
-        silent ? refresh() : null,
-      ]);
-      setEntries(board);
-      setGolfers(individuals);
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to load leaderboard.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [id, refresh]);
-
-  useEffect(() => { load(); }, [load]);
+  // The event itself comes from the layout; a manual refresh re-pulls it too.
+  async function handleRefresh() {
+    setRefreshing(true);
+    await Promise.all([board.refetch(), individual.refetch(), refresh().catch(() => {})]);
+    setRefreshing(false);
+  }
 
   const isStableford = event?.format === 'Stableford';
   const isStroke     = event?.format === 'Stroke';
@@ -80,7 +68,7 @@ export default function LeaderboardScreen() {
         </View>
         <Pressable
           style={[styles.refreshBtn, { borderColor: theme.colors.action }]}
-          onPress={() => load(true)}
+          onPress={handleRefresh}
           disabled={refreshing}
         >
           {refreshing
