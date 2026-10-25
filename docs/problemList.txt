@@ -65,7 +65,7 @@ P4 — FEATURES / POLISH
      [x] T12 harness-only: fresh Edge profile's extensions abort requests; flags fix 2026-10-03
      Expo-skills / efficiency review (2026-10-24) — Tiers 1-2 shipped, see E-entries:
      E1   React Query for the remaining admin screens (event tabs done #131/#132;
-          Auction Items + Live Auction 2026-10-24; Fundraising is next)
+          Auction Items + Live Auction, Fundraising 2026-10-24)
      E2   spacing / radius / type tokens in packages/theme
      E3   split the two largest screens (admin teams.tsx, mobile scorecard.tsx)
      E4   iOS App Clip for the join link — after D5 (needs Apple + a shipped app)
@@ -650,6 +650,17 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
             rendered with no spinner and no requests, and the stage matched the
             server's session. The "SignalR updates" note was wrong: the admin
             app has no SignalR connection, so there is nothing to wire in.
+        [x] Fundraising 2026-10-24: totals and failed charges are cached
+            (eventKeys.fundraising / failedCharges) with staleTime 0 ON PURPOSE:
+            money moves from screens outside this cache (Checkout, golfers'
+            bids and donations), so a revisit shows the last numbers at once and
+            always refetches behind them. Refresh / recharge / waive / clear
+            test data invalidate the whole event (refetching what's on screen)
+            and re-pull the event. VERIFIED in Edge: revisit = no spinner + one
+            refetch of each; Refresh = one request each, no duplicates.
+        Remaining, in order: Challenges, Checkout, Overview (keep its gates
+        on-demand), Email Builder; then events list, leagues, Settings,
+        SuperAdmin, accept-invite.
         LEAVE ALONE: Print Kit and the Overview's Mark Complete / Open Scoring
         gates fetch on demand ON PURPOSE (they must be fresh at the moment of
         the decision); the event itself stays in eventContext.tsx, which orders

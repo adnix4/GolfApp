@@ -19,6 +19,7 @@ import {
   eventsApi, teamsApi, playersApi, challengesApi, sponsorsApi, auctionApi,
   type LeaderboardEntry, type IndividualLeaderboardEntry, type Team, type Player,
   type HoleChallenge, type Sponsor, type AuctionItem, type AuctionSession,
+  type FundraisingTotals, type FailedCharge,
 } from '@/lib/api';
 
 export const queryClient = new QueryClient({
@@ -44,6 +45,8 @@ export const eventKeys = {
   challenges:  (eventId: string) => ['event', eventId, 'challenges'] as const,
   auctionItems:   (eventId: string) => ['event', eventId, 'auction', 'items'] as const,
   auctionSession: (eventId: string) => ['event', eventId, 'auction', 'session'] as const,
+  failedCharges:  (eventId: string) => ['event', eventId, 'auction', 'failed-charges'] as const,
+  fundraising:    (eventId: string) => ['event', eventId, 'fundraising'] as const,
 };
 
 /** A list setter with useState's shape, written through to the cache. */
@@ -104,6 +107,27 @@ export function useAuctionSession(eventId: string) {
   return useQuery<AuctionSession | null>({
     queryKey: eventKeys.auctionSession(eventId),
     queryFn:  () => auctionApi.getActiveSession(eventId).catch(() => null),
+  });
+}
+
+// Money totals move from screens that don't share this cache (Checkout, the
+// golfers' own bids and donations), so these always refetch on mount: a
+// revisit shows the last numbers at once and corrects them behind.
+
+export function useFundraising(eventId: string) {
+  return useQuery<FundraisingTotals>({
+    queryKey:  eventKeys.fundraising(eventId),
+    queryFn:   () => eventsApi.getFundraising(eventId),
+    staleTime: 0,
+  });
+}
+
+/** Auction winners whose charge failed. A failed lookup reads as none, as the screen always treated it. */
+export function useFailedCharges(eventId: string) {
+  return useQuery<FailedCharge[]>({
+    queryKey:  eventKeys.failedCharges(eventId),
+    queryFn:   () => auctionApi.getFailedCharges(eventId).catch(() => [] as FailedCharge[]),
+    staleTime: 0,
   });
 }
 

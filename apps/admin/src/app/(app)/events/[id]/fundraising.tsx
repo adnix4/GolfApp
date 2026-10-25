@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
@@ -6,7 +6,9 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { useTheme } from '@gfp/ui';
 import { formatCents } from '@gfp/shared-types';
-import { eventsApi, testDataApi, auctionApi, type FundraisingTotals, type FailedCharge } from '@/lib/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { testDataApi, auctionApi } from '@/lib/api';
+import { eventKeys, useFailedCharges, useFundraising } from '@/lib/queries';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 
 const formatCurrency = formatCents;
@@ -15,43 +17,44 @@ export default function FundraisingScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
 
-  const [totals,        setTotals]        = useState<FundraisingTotals | null>(null);
   const { event, refresh } = useEventDetail();
-  const [failedCharges, setFailedCharges] = useState<FailedCharge[]>([]);
-  const [loading,       setLoading]       = useState(true);
-  const [error,         setError]         = useState<string | null>(null);
+  const client       = useQueryClient();
+  const totalsQuery  = useFundraising(id);
+  const chargesQuery = useFailedCharges(id);
+  const totals        = totalsQuery.data ?? null;
+  const failedCharges = chargesQuery.data ?? [];
+  const loading       = totalsQuery.isPending;
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError
+    ?? (totalsQuery.error ? (totalsQuery.error.message || 'Failed to load fundraising data.') : null);
   const [chargeWorking, setChargeWorking] = useState<string | null>(null);
   const [refreshing,    setRefreshing]    = useState(false);
   const [clearing,      setClearing]      = useState(false);
   const [showClearWarning, setShowClearWarning] = useState(false);
 
-  const load = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
+  // After a change: refetch this screen's numbers, mark the event's other
+  // lists stale (a recharge settles a lot; clearing test data removes teams,
+  // players and bids), and re-pull the event so the test-mode bar and counts
+  // update.
+  async function load() {
+    setRefreshing(true);
     setError(null);
     try {
-      // The event comes from the layout; after a change (silent reload) re-pull
-      // it too, so the test-mode bar and counts update.
-      const [t, fc] = await Promise.all([
-        eventsApi.getFundraising(id),
-        auctionApi.getFailedCharges(id).catch(() => [] as FailedCharge[]),
-        silent ? refresh() : null,
-      ]);
-      setTotals(t);
-      setFailedCharges(fc);
+      // Invalidating refetches the queries on screen and leaves the rest for
+      // their next visit.
+      await Promise.all([client.invalidateQueries({ queryKey: eventKeys.all(id) }), refresh()]);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load fundraising data.');
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, [id, refresh]);
+  }
 
   async function recharge(winnerId: string) {
     setChargeWorking(winnerId);
     try {
       await auctionApi.rechargeWinner(winnerId);
-      await load(true);
+      await load();
     } catch (e: any) {
       setError(e.message ?? 'Recharge failed.');
     } finally {
@@ -63,7 +66,7 @@ export default function FundraisingScreen() {
     setChargeWorking(winnerId);
     try {
       await auctionApi.waiveWinner(winnerId);
-      await load(true);
+      await load();
     } catch (e: any) {
       setError(e.message ?? 'Waive failed.');
     } finally {
@@ -71,14 +74,12 @@ export default function FundraisingScreen() {
     }
   }
 
-  useEffect(() => { load(); }, [load]);
-
   async function handleClearTestData() {
     setShowClearWarning(false);
     setClearing(true); setError(null);
     try {
       await testDataApi.clearAll(id);
-      await load(true);
+      await load();
     } catch (e: any) {
       setError(e.message ?? 'Failed to clear test data.');
     } finally {
@@ -113,7 +114,7 @@ export default function FundraisingScreen() {
           )}
           <Pressable
             style={[styles.refreshBtn, { borderColor: theme.colors.action }]}
-            onPress={() => load(true)}
+            onPress={() => load()}
             disabled={refreshing || clearing}
           >
             {refreshing
