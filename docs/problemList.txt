@@ -66,7 +66,7 @@ P4 — FEATURES / POLISH
      Expo-skills / efficiency review (2026-10-24) — Tiers 1-2 shipped, see E-entries:
      E1   React Query for the remaining admin screens (event tabs done #131/#132;
           Auction Items + Live Auction, Fundraising, Challenges, Checkout,
-          Overview 2026-10-24, Email Builder, events list 2026-10-25;
+          Overview 2026-10-24, Email Builder, events list, leagues 2026-10-25;
           event tabs all done)
      E2   spacing / radius / type tokens in packages/theme
      E3   split the two largest screens (admin teams.tsx, mobile scorecard.tsx)
@@ -702,8 +702,20 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
             VERIFIED in Edge: back from an event shows the list with no
             spinner and one refetch; a rename made inside shows after it; an
             opened registration stays opened on revisit.
-        Remaining, in order: leagues (list, league, season), Settings,
-        SuperAdmin, accept-invite.
+        [x] Leagues 2026-10-25: leagueKeys (list, seasons, dashboard) with
+            useLeagueList/useSeasonList/useSeasonDashboard. The league layout's
+            tab-title name reads the cached list (no extra request). Every
+            league mutation invalidates leagueKeys.all, since member/round
+            changes move counts on the league and season screens too; the
+            season dashboard no longer flashes a full spinner after each one.
+            Found on the way: QueryProvider cleared the cache on a page load
+            (user null -> restored), so the first screen fetched twice. It now
+            clears only when leaving a signed-in user.
+            VERIFIED in Edge: league screen fetched only its seasons; sync
+            toggle with no spinner; a member added then showed "1 member" on
+            Back; Leagues list on reload 1 GET (2 before); sign out -> sign in
+            as another org showed none of the first org's leagues.
+        Remaining, in order: Settings, SuperAdmin, accept-invite.
         LEAVE ALONE: Print Kit and the Overview's Mark Complete / Open Scoring
         gates fetch on demand ON PURPOSE (they must be fresh at the moment of
         the decision); the event itself stays in eventContext.tsx, which orders

@@ -1,11 +1,13 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, FlatList, Pressable, TextInput, Modal,
   ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { leagueApi, SeasonSummary } from '@/lib/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { leagueApi } from '@/lib/api';
+import { leagueKeys, useSeasonList } from '@/lib/queries';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useLeagueName } from './_layout';
 import { DateTimeField } from '@/components/DateTimeField';
@@ -17,9 +19,13 @@ export default function LeagueDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const [seasons, setSeasons]       = useState<SeasonSummary[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const seasonList  = useSeasonList(id ?? '');
+  const seasons     = seasonList.data ?? [];
+  const loading     = seasonList.isPending;
+  const [actionError, setError]     = useState<string | null>(null);
+  const error = actionError
+    ?? (seasonList.error ? (seasonList.error.message || 'Failed to load seasons.') : null);
   const [showCreate, setShowCreate] = useState(false);
 
   const [sName, setSName]     = useState('');
@@ -30,21 +36,6 @@ export default function LeagueDetailScreen() {
   const [counted, setCounted] = useState('0');
   const [method, setMethod]   = useState('TotalNet');
   const [saving, setSaving]   = useState(false);
-
-  const load = useCallback(async () => {
-    if (!id) return;
-    try {
-      setLoading(true);
-      setError(null);
-      setSeasons(await leagueApi.getSeasons(id));
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
 
   const leagueName = useLeagueName();
   useDocumentTitle(leagueName ? `${leagueName} - Seasons` : 'GFP Leagues');
@@ -66,7 +57,7 @@ export default function LeagueDetailScreen() {
       });
       setShowCreate(false);
       resetForm();
-      await load();
+      await queryClient.invalidateQueries({ queryKey: leagueKeys.all });
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {

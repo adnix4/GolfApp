@@ -1,11 +1,13 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, Pressable, TextInput, StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme, AsyncSection, FormModal, PrimaryButton, MoneyInput } from '@gfp/ui';
 import { dollarsToCents } from '@gfp/shared-types';
-import { leagueApi, LeagueSummary } from '@/lib/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { leagueApi } from '@/lib/api';
+import { leagueKeys, useLeagueList } from '@/lib/queries';
 import { useResponsive } from '@/lib/responsive';
 
 const FORMATS    = ['Stableford', 'Stroke', 'Match'];
@@ -16,9 +18,13 @@ export default function LeaguesScreen() {
   const router     = useRouter();
   const { isMobile } = useResponsive();
 
-  const [leagues, setLeagues]       = useState<LeagueSummary[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const leagueList  = useLeagueList();
+  const leagues     = leagueList.data ?? [];
+  const loading     = leagueList.isPending;
+  const [actionError, setError]     = useState<string | null>(null);
+  const error = actionError
+    ?? (leagueList.error ? (leagueList.error.message || 'Failed to load leagues.') : null);
   const [showCreate, setShowCreate] = useState(false);
 
   const [name, setName]         = useState('');
@@ -28,19 +34,11 @@ export default function LeaguesScreen() {
   const [dues, setDues]         = useState('');
   const [saving, setSaving]     = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setLeagues(await leagueApi.list());
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
+  const { refetch } = leagueList;
+  const load = useCallback(() => {
+    setError(null);
+    refetch();
+  }, [refetch]);
 
   async function handleCreate() {
     if (!name.trim()) return;
@@ -56,7 +54,7 @@ export default function LeaguesScreen() {
       setShowCreate(false);
       setName(''); setFormat('Stableford'); setHcSystem('Club');
       setHcCap('36'); setDues('');
-      await load();
+      await queryClient.invalidateQueries({ queryKey: leagueKeys.all });
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
