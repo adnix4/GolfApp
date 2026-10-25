@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, TextInput,
   ScrollView, ActivityIndicator,
@@ -6,18 +6,30 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme, MoneyInput } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
+import { useQueryClient } from '@tanstack/react-query';
 import { auctionApi, type AuctionItem, type AuctionSession } from '@/lib/api';
+import { eventKeys, useAuctionItemList, useAuctionSession } from '@/lib/queries';
 import { confirmAction } from '@/lib/confirmAction';
 
 export default function LiveAuctionScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
 
-  const [items,     setItems]     = useState<AuctionItem[]>([]);
-  const [session,   setSession]   = useState<AuctionSession | null>(null);
-  const [loading,   setLoading]   = useState(true);
+  // Lots come from the same cache as the Auction Items tab, so switching
+  // between the two is one request, not two.
+  const itemList    = useAuctionItemList(eventId);
+  const sessionData = useAuctionSession(eventId);
+  const client      = useQueryClient();
+  const items   = itemList.items.filter(i => i.auctionType === 'Live' || i.auctionType === 'DonationLive');
+  const session = sessionData.data ?? null;
+  const loading = itemList.loading || sessionData.isPending;
+  const setSession = (s: AuctionSession | null) =>
+    client.setQueryData(eventKeys.auctionSession(eventId), s);
+
   const [working,   setWorking]   = useState(false);
-  const [error,     setError]     = useState<string | null>(null);
+  const [actionError, setError]   = useState<string | null>(null);
+  const error = actionError
+    ?? (itemList.error ? (itemList.error.message || 'Failed to load live auction data.') : null);
   const [success,   setSuccess]   = useState<string | null>(null);
   const [calledAmt, setCalledAmt] = useState('');
 
@@ -25,27 +37,21 @@ export default function LiveAuctionScreen() {
     ? items.find(i => i.id === session.currentItemId) ?? null
     : null;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [itemData, sessionData] = await Promise.all([
-        auctionApi.getItems(eventId),
-        auctionApi.getActiveSession(eventId).catch(() => null),
-      ]);
-      setItems(itemData.filter(i => i.auctionType === 'Live' || i.auctionType === 'DonationLive'));
-      setSession(sessionData);
-      if (sessionData) {
-        setCalledAmt(centsToMoneyValue(sessionData.currentCalledAmountCents));
-      }
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to load live auction data.');
-    } finally {
-      setLoading(false);
-    }
-  }, [eventId]);
+  // Seed the called amount once per visit, from the first session we have
+  // (cached or fetched). A background refresh must not overwrite what the
+  // host is typing; the host's own actions set it explicitly below.
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (seeded.current || sessionData.isPending) return;
+    seeded.current = true;
+    if (session) setCalledAmt(centsToMoneyValue(session.currentCalledAmountCents));
+  }, [session, sessionData.isPending]);
 
-  useEffect(() => { load(); }, [load]);
+  async function load() {
+    const [, fresh] = await Promise.all([itemList.refetch(), sessionData.refetch()]);
+    const s = fresh.data ?? null;
+    if (s) setCalledAmt(centsToMoneyValue(s.currentCalledAmountCents));
+  }
 
   function clearFeedback() { setError(null); setSuccess(null); }
 
