@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, ScrollView, Pressable, RefreshControl,
   ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { useTheme, StatusPill } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
-import { superAdminApi, OrgSummary, AllEventSummary } from '@/lib/api';
+import { useAllOrganizations, useAllEvents } from '@/lib/queries';
 import { formatDate } from '@gfp/shared-types';
 
 // Super-admin uses a different palette than the organizer event view —
@@ -25,32 +25,21 @@ export default function SuperAdminDashboard() {
   const theme = useTheme();
   const { isMobile, pagePadding } = useResponsive();
 
-  const [orgs,       setOrgs]       = useState<OrgSummary[]>([]);
-  const [events,     setEvents]     = useState<AllEventSummary[]>([]);
-  const [loading,    setLoading]    = useState(true);
+  const orgList   = useAllOrganizations();
+  const eventList = useAllEvents();
+  const orgs      = orgList.data ?? [];
+  const events    = eventList.data ?? [];
+  const loading   = orgList.isPending || eventList.isPending;
+  const error     = orgList.error || eventList.error
+    ? 'Failed to load data. Please try again.' : null;
   const [refreshing, setRefreshing] = useState(false);
-  const [error,      setError]      = useState<string | null>(null);
   const [tab,        setTab]        = useState<'orgs' | 'events'>('orgs');
 
-  const load = useCallback(async (refresh = false) => {
-    if (refresh) setRefreshing(true); else setLoading(true);
-    setError(null);
-    try {
-      const [o, e] = await Promise.all([
-        superAdminApi.listOrganizations(),
-        superAdminApi.listAllEvents(),
-      ]);
-      setOrgs(o);
-      setEvents(e);
-    } catch {
-      setError('Failed to load data. Please try again.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
+  async function refresh() {
+    setRefreshing(true);
+    await Promise.all([orgList.refetch(), eventList.refetch()]);
+    setRefreshing(false);
+  }
 
   const totalEvents  = events.length;
   const activeEvents = events.filter(e => e.status === 'Active').length;
@@ -68,7 +57,7 @@ export default function SuperAdminDashboard() {
     <ScrollView
       style={[styles.page, { backgroundColor: theme.pageBackground }]}
       contentContainerStyle={{ padding: pagePadding, paddingBottom: 60 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
     >
       {/* Header */}
       <Text style={[styles.pageTitle, { color: theme.colors.primary }]}>Platform Overview</Text>

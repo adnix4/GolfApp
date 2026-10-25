@@ -64,10 +64,10 @@ P4 — FEATURES / POLISH
      [x] T11 lap timings; API coverage in CI; turbo staleness moot 2026-10-03
      [x] T12 harness-only: fresh Edge profile's extensions abort requests; flags fix 2026-10-03
      Expo-skills / efficiency review (2026-10-24) — Tiers 1-2 shipped, see E-entries:
-     E1   React Query for the remaining admin screens (event tabs done #131/#132;
+     [x] E1 React Query for the remaining admin screens (event tabs #131/#132;
           Auction Items + Live Auction, Fundraising, Challenges, Checkout,
-          Overview 2026-10-24, Email Builder, events list, leagues 2026-10-25;
-          event tabs all done)
+          Overview 2026-10-24, Email Builder, events list, leagues, SuperAdmin
+          2026-10-25; Settings + accept-invite left on purpose)
      E2   spacing / radius / type tokens in packages/theme
      E3   split the two largest screens (admin teams.tsx, mobile scorecard.tsx)
      E4   iOS App Clip for the join link — after D5 (needs Apple + a shipped app)
@@ -633,7 +633,7 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
       ~100 of 500 and kept search focus, identical to the rewrite. No benefit.
   DEVICE CHECKS for #127-#130 are listed under D5 — none has run on a phone.
 
-[ ] E1. REACT QUERY FOR THE REST OF THE ADMIN SCREENS
+[x] E1. REACT QUERY FOR THE REST OF THE ADMIN SCREENS — DONE 2026-10-25
         Still on hand-rolled useState + useEffect fetch, so each shows a full
         spinner on every visit: event tabs Overview (index), Fundraising,
         Challenges, Auction Items, Live Auction, Checkout, Email Builder; plus
@@ -715,7 +715,17 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
             toggle with no spinner; a member added then showed "1 member" on
             Back; Leagues list on reload 1 GET (2 before); sign out -> sign in
             as another org showed none of the first org's leagues.
-        Remaining, in order: Settings, SuperAdmin, accept-invite.
+        [x] SuperAdmin 2026-10-25: useAllOrganizations / useAllEvents on
+            superAdminKeys, staleTime 0 (every org writes to them); pull to
+            refresh refetches both. VERIFIED in Edge: Help -> Organizations
+            shows the lists with no spinner, and an event created meanwhile
+            appears in "All Events" after the background refetch.
+        LEFT ON PURPOSE (decided 2026-10-25):
+          Settings — an edit form seeded from the server. Seeding it from a
+            cached copy could put old values in the fields and a Save would
+            write them back over a newer change; it fetches fresh per visit.
+          accept-invite — a signed-out, one-time page for one token; nothing
+            to share or revisit, and the cache is per signed-in user.
         LEAVE ALONE: Print Kit and the Overview's Mark Complete / Open Scoring
         gates fetch on demand ON PURPOSE (they must be fresh at the moment of
         the decision); the event itself stays in eventContext.tsx, which orders
