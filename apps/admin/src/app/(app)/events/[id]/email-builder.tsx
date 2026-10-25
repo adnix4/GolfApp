@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ScrollView,
   TextInput, ActivityIndicator, Platform,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
-import { emailBuilderApi, type EmailBuilderData } from '@/lib/api';
+import { emailBuilderApi } from '@/lib/api';
+import { useEmailBuilderData } from '@/lib/queries';
 import {
   buildEmailHtml, formatFee,
   DEFAULT_SECTIONS, SECTION_LABELS, type SectionId,
@@ -18,24 +19,17 @@ export default function EmailBuilderScreen() {
   const theme  = useTheme();
   const eventId = id as string;
 
-  const [builderData, setBuilderData] = useState<EmailBuilderData | null>(null);
-  const [loading,     setLoading]     = useState(true);
+  const builderQuery = useEmailBuilderData(eventId);
+  const builderData  = builderQuery.data ?? null;
+  const loading      = builderQuery.isPending;
   const [sections,    setSections]    = useState<SectionId[]>(DEFAULT_SECTIONS);
-  const [subject,     setSubject]     = useState('');
+  // Null until the organizer types one: the default follows the event's name.
+  const [subjectEdit, setSubjectEdit] = useState<string | null>(null);
+  const subject = subjectEdit ?? (builderData ? `You're invited: ${builderData.eventName}` : '');
   const [toAddress,   setToAddress]   = useState('');
   const [sending,     setSending]     = useState(false);
   const [sendStatus,  setSendStatus]  = useState<'idle' | 'sent' | 'error'>('idle');
   const [sendError,   setSendError]   = useState<string | null>(null);
-
-  useEffect(() => {
-    emailBuilderApi.getData(eventId)
-      .then(d => {
-        setBuilderData(d);
-        setSubject(`You're invited: ${d.eventName}`);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [eventId]);
 
   const moveSection = useCallback((index: number, direction: 'up' | 'down') => {
     setSections(prev => {
@@ -184,7 +178,7 @@ export default function EmailBuilderScreen() {
           <TextInput
             style={[styles.input, { borderColor: '#ddd', color: theme.colors.primary }]}
             value={subject}
-            onChangeText={v => { setSubject(v); if (sendError) setSendError(null); }}
+            onChangeText={v => { setSubjectEdit(v); if (sendError) setSendError(null); }}
             placeholder="Email subject"
           />
 

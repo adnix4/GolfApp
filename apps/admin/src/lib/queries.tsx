@@ -16,10 +16,10 @@ import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import {
-  eventsApi, teamsApi, playersApi, challengesApi, sponsorsApi, auctionApi, checkoutApi,
+  eventsApi, teamsApi, playersApi, challengesApi, sponsorsApi, auctionApi, checkoutApi, emailBuilderApi,
   type LeaderboardEntry, type IndividualLeaderboardEntry, type Team, type Player,
   type HoleChallenge, type Sponsor, type AuctionItem, type AuctionSession,
-  type FundraisingTotals, type FailedCharge, type CheckoutDeskRow,
+  type FundraisingTotals, type FailedCharge, type CheckoutDeskRow, type EmailBuilderData,
 } from '@/lib/api';
 
 export const queryClient = new QueryClient({
@@ -48,6 +48,7 @@ export const eventKeys = {
   failedCharges:  (eventId: string) => ['event', eventId, 'auction', 'failed-charges'] as const,
   fundraising:    (eventId: string) => ['event', eventId, 'fundraising'] as const,
   checkoutDesk:   (eventId: string) => ['event', eventId, 'auction', 'checkout'] as const,
+  emailBuilder:   (eventId: string) => ['event', eventId, 'email-builder'] as const,
 };
 
 /** A list setter with useState's shape, written through to the cache. */
@@ -144,6 +145,19 @@ export function useCheckoutDesk(eventId: string) {
   return useEditableList<CheckoutDeskRow>(
     eventId, eventKeys.checkoutDesk(eventId), () => checkoutApi.getDesk(eventId),
     { staleTime: 0, refetchOnWindowFocus: false });
+}
+
+/**
+ * What the Email Builder renders: the event, course, branding and sponsors in
+ * one payload. Settings and the Overview edit those without touching this key,
+ * so it refetches on every mount; a revisit shows the last preview at once.
+ */
+export function useEmailBuilderData(eventId: string) {
+  return useQuery<EmailBuilderData>({
+    queryKey:  eventKeys.emailBuilder(eventId),
+    queryFn:   () => emailBuilderApi.getData(eventId),
+    staleTime: 0,
+  });
 }
 
 /** Challenges as the Challenges tab edits them; Scoring reads the same key. */
