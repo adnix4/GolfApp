@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import {
   View, Text, Pressable, FlatList, TextInput,
   StyleSheet, ActivityIndicator,
@@ -16,6 +16,8 @@ import { pickerValuesToIso, toPickerDate, validatePickerDateTime } from '@/lib/d
 import { DateTimePairField } from '@/components/DateTimePairField';
 import { eventStatusColor } from '@/lib/eventStatus';
 import { friendlyApiError } from '@/lib/errors';
+import { useQueryClient } from '@tanstack/react-query';
+import { eventKeys, useEventList } from '@/lib/queries';
 
 // ── Row component (memoized) ──────────────────────────────────────────────────
 // Hoisted so the FlatList renderItem closure doesn't recreate the row tree on
@@ -100,27 +102,20 @@ const EventRow = memo(function EventRow({
 export default function EventsScreen() {
   const theme  = useTheme();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
-  const [events,     setEvents]     = useState<EventSummary[]>([]);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState<string | null>(null);
+  const eventList = useEventList();
+  const { items: events, setItems: setEvents, loading, refetch } = eventList;
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError
+    ?? (eventList.error ? (eventList.error.message || 'Failed to load events.') : null);
   const [showCreate, setShowCreate] = useState(false);
   const [openingReg, setOpeningReg] = useState<string | null>(null); // eventId being advanced
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(() => {
     setError(null);
-    try {
-      const data = await eventsApi.list();
-      setEvents(data);
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to load events.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
+    refetch();
+  }, [refetch]);
 
   function handleCreated(event: EventSummary) {
     setShowCreate(false);
@@ -138,12 +133,13 @@ export default function EventsScreen() {
     try {
       const updated = await eventsApi.update(item.id, { status: 'Registration' });
       setEvents(prev => prev.map(e => e.id === item.id ? { ...e, status: updated.status } : e));
+      queryClient.invalidateQueries({ queryKey: eventKeys.all(item.id) });
     } catch (e: any) {
       setError(e.message ?? 'Failed to open registration.');
     } finally {
       setOpeningReg(null);
     }
-  }, [router]);
+  }, [router, setEvents, queryClient]);
 
   const handleOpenEvent = useCallback((eventId: string) => {
     router.push(`/(app)/events/${eventId}` as any);

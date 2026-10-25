@@ -20,6 +20,7 @@ import {
   type LeaderboardEntry, type IndividualLeaderboardEntry, type Team, type Player,
   type HoleChallenge, type Sponsor, type AuctionItem, type AuctionSession,
   type FundraisingTotals, type FailedCharge, type CheckoutDeskRow, type EmailBuilderData,
+  type EventSummary,
 } from '@/lib/api';
 
 export const queryClient = new QueryClient({
@@ -49,6 +50,11 @@ export const eventKeys = {
   fundraising:    (eventId: string) => ['event', eventId, 'fundraising'] as const,
   checkoutDesk:   (eventId: string) => ['event', eventId, 'auction', 'checkout'] as const,
   emailBuilder:   (eventId: string) => ['event', eventId, 'email-builder'] as const,
+};
+
+/** Lists above any one event, keyed outside ['event', id]. */
+export const orgKeys = {
+  events: ['events'] as const,
 };
 
 /** A list setter with useState's shape, written through to the cache. */
@@ -191,6 +197,31 @@ export function useChallenges(eventId: string) {
     queryKey: eventKeys.challenges(eventId),
     queryFn:  () => challengesApi.list(eventId),
   });
+}
+
+/**
+ * The organizer's events. Every event screen changes a row here (its name,
+ * status, date, team count) without touching this key, so it refetches on
+ * each mount; returning to the list shows the last rows at once.
+ */
+export function useEventList() {
+  const query  = useQuery<EventSummary[]>({
+    queryKey:  orgKeys.events,
+    queryFn:   () => eventsApi.list(),
+    staleTime: 0,
+  });
+  const client = useQueryClient();
+  const setItems = useCallback<SetList<EventSummary>>(next => {
+    client.setQueryData<EventSummary[]>(orgKeys.events, prev =>
+      typeof next === 'function' ? next(prev ?? []) : next);
+  }, [client]);
+  return {
+    items:   query.data ?? [],
+    setItems,
+    loading: query.isPending,
+    error:   query.error,
+    refetch: query.refetch,
+  };
 }
 
 /**

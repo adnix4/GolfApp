@@ -66,7 +66,8 @@ P4 — FEATURES / POLISH
      Expo-skills / efficiency review (2026-10-24) — Tiers 1-2 shipped, see E-entries:
      E1   React Query for the remaining admin screens (event tabs done #131/#132;
           Auction Items + Live Auction, Fundraising, Challenges, Checkout,
-          Overview 2026-10-24, Email Builder 2026-10-25; event tabs all done)
+          Overview 2026-10-24, Email Builder, events list 2026-10-25;
+          event tabs all done)
      E2   spacing / radius / type tokens in packages/theme
      E3   split the two largest screens (admin teams.tsx, mobile scorecard.tsx)
      E4   iOS App Clip for the join link — after D5 (needs Apple + a shipped app)
@@ -693,8 +694,16 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
             one, so a rename shows up and a typed subject is never overwritten.
             VERIFIED in Edge: revisit shows the preview with no spinner and one
             background refetch; a rename made elsewhere updates the subject.
-        Remaining, in order: events list, leagues, Settings, SuperAdmin,
-        accept-invite.
+        [x] Events list 2026-10-25: useEventList on orgKeys.events (outside
+            ['event', id]), staleTime 0 since every event screen changes a row
+            (name, status, date, team count) without touching it. Create and
+            Open Registration write the row into the cache; Open Registration
+            also invalidates that event's lists.
+            VERIFIED in Edge: back from an event shows the list with no
+            spinner and one refetch; a rename made inside shows after it; an
+            opened registration stays opened on revisit.
+        Remaining, in order: leagues (list, league, season), Settings,
+        SuperAdmin, accept-invite.
         LEAVE ALONE: Print Kit and the Overview's Mark Complete / Open Scoring
         gates fetch on demand ON PURPOSE (they must be fresh at the moment of
         the decision); the event itself stays in eventContext.tsx, which orders
