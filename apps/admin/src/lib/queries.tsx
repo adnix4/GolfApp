@@ -16,11 +16,12 @@ import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import {
-  eventsApi, teamsApi, playersApi, challengesApi, sponsorsApi, auctionApi, checkoutApi, emailBuilderApi, leagueApi,
+  eventsApi, teamsApi, playersApi, challengesApi, sponsorsApi, auctionApi, checkoutApi, emailBuilderApi, leagueApi, superAdminApi,
   type LeaderboardEntry, type IndividualLeaderboardEntry, type Team, type Player,
   type HoleChallenge, type Sponsor, type AuctionItem, type AuctionSession,
   type FundraisingTotals, type FailedCharge, type CheckoutDeskRow, type EmailBuilderData,
   type EventSummary, type LeagueSummary, type SeasonSummary, type SeasonDashboard,
+  type OrgSummary, type AllEventSummary,
 } from '@/lib/api';
 
 export const queryClient = new QueryClient({
@@ -67,6 +68,12 @@ export const leagueKeys = {
   list:      ['leagues', 'list'] as const,
   seasons:   (leagueId: string) => ['leagues', leagueId, 'seasons'] as const,
   dashboard: (leagueId: string, seasonId: string) => ['leagues', leagueId, 'seasons', seasonId] as const,
+};
+
+/** The platform-wide lists on the super-admin dashboard. */
+export const superAdminKeys = {
+  orgs:   ['super-admin', 'orgs'] as const,
+  events: ['super-admin', 'events'] as const,
 };
 
 /** A list setter with useState's shape, written through to the cache. */
@@ -258,6 +265,25 @@ export function useSeasonDashboard(leagueId: string, seasonId: string) {
     queryKey: leagueKeys.dashboard(leagueId, seasonId),
     queryFn:  () => leagueApi.getDashboard(leagueId, seasonId),
     enabled:  !!leagueId && !!seasonId,
+  });
+}
+
+// Every organization writes to these, so they refetch on each mount; a
+// revisit shows the last lists at once.
+
+export function useAllOrganizations() {
+  return useQuery<OrgSummary[]>({
+    queryKey:  superAdminKeys.orgs,
+    queryFn:   () => superAdminApi.listOrganizations(),
+    staleTime: 0,
+  });
+}
+
+export function useAllEvents() {
+  return useQuery<AllEventSummary[]>({
+    queryKey:  superAdminKeys.events,
+    queryFn:   () => superAdminApi.listAllEvents(),
+    staleTime: 0,
   });
 }
 
