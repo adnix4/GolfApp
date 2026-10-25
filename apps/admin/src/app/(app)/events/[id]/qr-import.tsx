@@ -5,14 +5,17 @@ import {
   type TextInputInstance,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '@gfp/ui';
 import { scoresApi, type QrCollectResult } from '@/lib/api';
+import { eventKeys } from '@/lib/queries';
 import { decodeQrPayload, type DecodedQrPayload as DecodedPreview } from '@/lib/qrUtils';
 import { formatDateTime } from '@gfp/shared-types';
 
 export default function QrImportScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
+  const queryClient = useQueryClient();
 
   const [payload,  setPayload]  = useState('');
   const [preview,  setPreview]  = useState<DecodedPreview | null>(null);
@@ -44,6 +47,8 @@ export default function QrImportScreen() {
     try {
       const res = await scoresApi.qrCollect(id, payload.trim());
       setResult(res);
+      // The Leaderboard and Scoring tabs read the board from the cache.
+      queryClient.invalidateQueries({ queryKey: eventKeys.leaderboard(id) });
       setPayload(''); setPreview(null); setDecodeErr(false);
     } catch (e: any) {
       setError(e.message ?? 'Import failed.');
