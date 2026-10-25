@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, Pressable, FlatList, Modal, ScrollView, TextInput,
   StyleSheet, ActivityIndicator,
@@ -6,36 +6,31 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { digitsOnly, fmtAgeGroup, fmtPhone, fmtPhoneInput, validateGolfer, toPlayerInput } from '@gfp/shared-types';
-import { playersApi, teamsApi, type Player, type Team, type AddPlayerPayload } from '@/lib/api';
+import { playersApi, type Player, type AddPlayerPayload } from '@/lib/api';
+import { useFreeAgentList, useTeamList } from '@/lib/queries';
 
 export default function FreeAgentsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
 
-  const [agents,   setAgents]   = useState<Player[]>([]);
-  const [teams,    setTeams]    = useState<Team[]>([]);
+  const agentList = useFreeAgentList(id);
+  const teamList  = useTeamList(id);
+  const { items: agents, setItems: setAgents } = agentList;
+  const teams   = teamList.items;
+  const loading = agentList.loading || teamList.loading;
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState<string | null>(null);
+  const [actionError, setError] = useState<string | null>(null);
+  const loadError = agentList.error ?? teamList.error;
+  const error = actionError
+    ?? (loadError ? (loadError.message || 'Failed to load free agents.') : null);
   const [modal,    setModal]    = useState<'assign' | 'add' | null>(null);
 
+  const { refetch: refetchAgents } = agentList;
+  const { refetch: refetchTeams }  = teamList;
   const load = useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      const [fa, ts] = await Promise.all([
-        playersApi.listFreeAgents(id),
-        teamsApi.list(id),
-      ]);
-      setAgents(fa);
-      setTeams(ts);
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to load free agents.');
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
+    setError(null);
+    await Promise.all([refetchAgents(), refetchTeams()]);
+  }, [refetchAgents, refetchTeams]);
 
   function toggleSelect(playerId: string) {
     setSelected(prev => {
@@ -52,6 +47,8 @@ export default function FreeAgentsScreen() {
     try {
       await Promise.all(ids.map(pid => playersApi.assignToTeam(id, pid, teamId)));
       setSelected(new Set());
+      // The assigned golfers leave this list and join a roster.
+      setAgents(prev => prev.filter(a => !ids.includes(a.id)));
       await load();
     } catch (e: any) {
       setError(e.message ?? 'Assignment failed.');

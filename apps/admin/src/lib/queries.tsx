@@ -12,12 +12,13 @@
  * After a mutation, invalidate the key it changed (e.g. a score save →
  * eventKeys.leaderboard(id)) instead of patching local state.
  */
-import { useEffect, useRef, type ReactNode } from 'react';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import {
-  eventsApi, teamsApi, challengesApi,
-  type LeaderboardEntry, type IndividualLeaderboardEntry, type Team, type HoleChallenge,
+  eventsApi, teamsApi, playersApi, challengesApi, sponsorsApi,
+  type LeaderboardEntry, type IndividualLeaderboardEntry, type Team, type Player,
+  type HoleChallenge, type Sponsor,
 } from '@/lib/api';
 
 export const queryClient = new QueryClient({
@@ -37,8 +38,59 @@ export const eventKeys = {
   leaderboard: (eventId: string) => ['event', eventId, 'leaderboard'] as const,
   individuals: (eventId: string) => ['event', eventId, 'leaderboard', 'individuals'] as const,
   teams:       (eventId: string) => ['event', eventId, 'teams'] as const,
+  players:     (eventId: string) => ['event', eventId, 'players'] as const,
+  freeAgents:  (eventId: string) => ['event', eventId, 'players', 'free-agents'] as const,
+  sponsors:    (eventId: string) => ['event', eventId, 'sponsors'] as const,
   challenges:  (eventId: string) => ['event', eventId, 'challenges'] as const,
 };
+
+/** A list setter with useState's shape, written through to the cache. */
+export type SetList<T> = (next: T[] | ((prev: T[]) => T[])) => void;
+
+/**
+ * A cached list a screen edits after its own mutations (check-in, add,
+ * remove). The setter writes into the cache, so every other tab reading the
+ * same key sees the change without a refetch. It also marks the event's
+ * other lists stale: rosters overlap (a player moved onto a team leaves the
+ * free-agent list; a new team joins the leaderboard), and refetching them on
+ * the next visit is cheaper than tracking which edit touches which list.
+ */
+function useEditableList<T>(eventId: string, queryKey: readonly unknown[], queryFn: () => Promise<T[]>) {
+  const query = useQuery<T[]>({ queryKey, queryFn });
+  const client = useQueryClient();
+  const keyId  = JSON.stringify(queryKey);
+  const setItems = useCallback<SetList<T>>(next => {
+    client.setQueryData<T[]>(JSON.parse(keyId), prev =>
+      typeof next === 'function' ? next(prev ?? []) : next);
+    client.invalidateQueries({
+      queryKey:  eventKeys.all(eventId),
+      predicate: q => JSON.stringify(q.queryKey) !== keyId,
+    });
+  }, [client, keyId, eventId]);
+  return {
+    items:   query.data ?? [],
+    setItems,
+    loading: query.isPending,
+    error:   query.error,
+    refetch: query.refetch,
+  };
+}
+
+export function useTeamList(eventId: string) {
+  return useEditableList<Team>(eventId, eventKeys.teams(eventId), () => teamsApi.list(eventId));
+}
+
+export function usePlayerList(eventId: string) {
+  return useEditableList<Player>(eventId, eventKeys.players(eventId), () => playersApi.list(eventId));
+}
+
+export function useFreeAgentList(eventId: string) {
+  return useEditableList<Player>(eventId, eventKeys.freeAgents(eventId), () => playersApi.listFreeAgents(eventId));
+}
+
+export function useSponsorList(eventId: string) {
+  return useEditableList<Sponsor>(eventId, eventKeys.sponsors(eventId), () => sponsorsApi.list(eventId));
+}
 
 export function useLeaderboard(eventId: string) {
   return useQuery<LeaderboardEntry[]>({

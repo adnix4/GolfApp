@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
+import { useTeamList, usePlayerList } from '@/lib/queries';
 import { useTheme } from '@gfp/ui';
 import { eventsApi, teamsApi, playersApi, type Team, type Player } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
@@ -24,8 +25,19 @@ export default function RegistrationScreen() {
 
   const { isMobile, pagePadding } = useResponsive();
 
-  const [teams,   setTeams]   = useState<Team[]>([]);
-  const [guests,  setGuests]  = useState<Player[]>([]);
+  const teamList   = useTeamList(id);
+  const playerList = usePlayerList(id);
+  const { items: teams, setItems: setTeams } = teamList;
+  // Guests are the team-less attendees — they never appear on a roster.
+  const guests     = playerList.items.filter(p => p.registrationType === 'Attendee');
+  const setPlayers = playerList.setItems;
+  const loading    = teamList.loading || playerList.loading;
+  const { refetch: refetchTeams }   = teamList;
+  const { refetch: refetchPlayers } = playerList;
+  const load = useCallback(async () => {
+    setError(null);
+    await Promise.all([refetchTeams(), refetchPlayers()]);
+  }, [refetchTeams, refetchPlayers]);
   const { event } = useEventDetail();
   const eventStatus = event.status;
   // A free event has no fee state worth showing (D16) — without this the screen
@@ -34,8 +46,10 @@ export default function RegistrationScreen() {
   // Fee lives in the raw event config — EventDetail has no typed field.
   const fee = event.config?.entryFeeCents;
   const entryFeeCents = typeof fee === 'number' ? fee : null;
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
+  const [actionError, setError] = useState<string | null>(null);
+  const loadError = teamList.error ?? playerList.error;
+  const error = actionError
+    ?? (loadError ? (loadError.message || 'Failed to load teams.') : null);
   const [filter,  setFilter]  = useState<Filter>('all');
   const [busy,       setBusy]       = useState<Record<string, boolean>>({});
   const [walkUpOpen, setWalkUpOpen] = useState(false);
@@ -46,23 +60,6 @@ export default function RegistrationScreen() {
   // Check-in is Active/Scoring only server-side; without the event status this
   // screen would render Check In buttons that 400 once the round ends.
   const checkInOpen = eventStatus === 'Active' || eventStatus === 'Scoring';
-
-  const load = useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      const [teamList, players] = await Promise.all([
-        teamsApi.list(id),
-        playersApi.list(id),
-      ]);
-      setTeams(teamList);
-      // Guests are the team-less attendees — they never appear on a roster.
-      setGuests(players.filter(p => p.registrationType === 'Attendee'));
-    }
-    catch (e: any) { setError(e.message ?? 'Failed to load teams.'); }
-    finally { setLoading(false); }
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
 
   async function handleCheckIn(teamId: string) {
     setBusy(b => ({ ...b, [teamId + '_ci']: true }));
@@ -80,7 +77,7 @@ export default function RegistrationScreen() {
     setError(null);
     try {
       const updated = await playersApi.checkIn(id, guest.id);
-      setGuests(prev => prev.map(g => g.id === updated.id ? updated : g));
+      setPlayers(prev => prev.map(g => g.id === updated.id ? updated : g));
     } catch (e: any) { setError(e.message ?? 'Check-in failed.'); }
     finally { setBusy(b => ({ ...b, [guest.id + '_ci']: false })); }
   }
@@ -159,7 +156,7 @@ export default function RegistrationScreen() {
         eventId={id}
         onClose={() => setWalkUpOpen(false)}
         onRegistered={team => { setTeams(prev => [...prev, team]); setWalkUpOpen(false); }}
-        onGuestRegistered={guest => { setGuests(prev => [...prev, guest]); setWalkUpOpen(false); }}
+        onGuestRegistered={guest => { setPlayers(prev => [...prev, guest]); setWalkUpOpen(false); }}
       />
 
       {/* Header */}
