@@ -43,7 +43,8 @@
         }
       ],
       "./plugins/withAndroidBuildFixes",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-background-task"
     ],
     "ios": {
       "bundleIdentifier": "pro.golffundraiser.scorer",

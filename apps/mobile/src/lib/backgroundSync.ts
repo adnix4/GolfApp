@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as TaskManager  from 'expo-task-manager';
-import * as BackgroundFetch from 'expo-background-fetch';
+import * as BackgroundTask from 'expo-background-task';
 import {
   getDeviceId, loadSession,
   loadUnsyncedScores, markScoresSynced, incrementSyncAttempts,
@@ -84,10 +84,10 @@ export async function attemptSync(): Promise<boolean> {
 export function defineBackgroundSyncTask(): void {
   if (Platform.OS === 'web') return;
   TaskManager.defineTask(TASK_NAME, async () => {
-    const synced = await attemptSync();
-    return synced
-      ? BackgroundFetch.BackgroundFetchResult.NewData
-      : BackgroundFetch.BackgroundFetchResult.NoData;
+    // attemptSync never throws: "nothing to send" and "send failed, back off"
+    // both end the run normally. Failed is for a task that crashed.
+    await attemptSync();
+    return BackgroundTask.BackgroundTaskResult.Success;
   });
 }
 
@@ -101,16 +101,15 @@ export async function registerBackgroundSync(): Promise<void> {
   try {
     const registered = await TaskManager.isTaskRegisteredAsync(TASK_NAME);
     if (registered) return;
-    await BackgroundFetch.registerTaskAsync(TASK_NAME, {
-      minimumInterval: 30,    // 30 s floor; iOS/Android may enforce longer intervals
-      stopOnTerminate: false, // keep running after the user swipes the app away
-      startOnBoot:     false,
-    });
+    // Minutes, and 15 is the floor on both platforms. The OS treats it as a
+    // minimum and batches wakeups (iOS often into overnight windows), so this
+    // is a backstop: the in-app foreground timer does the round-time syncing.
+    await BackgroundTask.registerTaskAsync(TASK_NAME, { minimumInterval: 15 });
   } catch {
     // Not critical — in-app foreground timer handles the common case
   }
 }
 
 export async function unregisterBackgroundSync(): Promise<void> {
-  try { await BackgroundFetch.unregisterTaskAsync(TASK_NAME); } catch { /* not critical */ }
+  try { await BackgroundTask.unregisterTaskAsync(TASK_NAME); } catch { /* not critical */ }
 }
