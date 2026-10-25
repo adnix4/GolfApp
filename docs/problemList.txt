@@ -20,12 +20,15 @@ P0 — BREAKS A LIVE EVENT, SMALL FIX, DO FIRST
 P1 — PILOT PATH (external lead times first; D1 gates D3 and D10)
      D1   accounts / domain / Apple / Stripe / email — start now, rest waits
      [x] D2  already complete — verified 2026-08-01, nothing to write
-     D3   staging environment
+     D3   staging environment — hosting DEFERRED by user 2026-10-24 (no URLs
+          yet; Railway Hobby priced, not bought). Development continues locally.
      D4   dress rehearsal — the pilot succeeds or fails here
      D5   mobile distribution (EAS / TestFlight) — push hardening + push-token
-          auth fix DONE 2026-10-04; now carries two verifications
-          nothing else can do: SDK 57 on real hardware, and the outbid push
-          end-to-end. D4 needs a build from here, so in practice D5 gates it.
+          auth fix DONE 2026-10-04; EAS project linked + eas.json 2026-10-24
+          (#128). Now carries the device verifications nothing else can do:
+          SDK 58 on real hardware, the outbid push end-to-end, and the native
+          changes of 2026-10-24 (OTA updates, Observe, haptics, background
+          task, SQLite migrations). D4 needs a build from here, so D5 gates it.
      D6   pilot ops — runbook drafted 2026-10-04 (docs/PilotRunbook.md); backups,
           error monitoring, uptime still need accounts/hosting
      [x] D20 staff invites (EventStaff / co-organizer) 2026-10-04
@@ -45,6 +48,9 @@ P4 — FEATURES / POLISH
      [x] U3  }  TV mode, on the existing socket 2026-08-01
      U6   evaluate buy-it-now — what triggers it, what it bills, and whether it
           belongs on a proxy lot at all. Decision needed, not a coded fix.
+     D23  player check-in QR generation 500s on Postgres (token 142 chars,
+          column 128). No screen calls it today, so nothing breaks yet — fix
+          before anything (Print Kit, D10) starts generating player QRs.
      U7   follow-ups from the 2026-08-02/03 work (sponsors, ticker, TV branding,
           bid confirmation). (a) was the security item and is FIXED 2026-08-15 —
           it was pulled forward out of this tier, as the note said to. (b)-(m)
@@ -58,6 +64,11 @@ P4 — FEATURES / POLISH
      [x] T10 web + ui have tests (logic-level, node env) 2026-10-03
      [x] T11 lap timings; API coverage in CI; turbo staleness moot 2026-10-03
      [x] T12 harness-only: fresh Edge profile's extensions abort requests; flags fix 2026-10-03
+     Expo-skills / efficiency review (2026-10-24) — Tiers 1-2 shipped, see E-entries:
+     E1   React Query for the remaining admin screens (event tabs done #131/#132)
+     E2   spacing / radius / type tokens in packages/theme
+     E3   split the two largest screens (admin teams.tsx, mobile scorecard.tsx)
+     E4   iOS App Clip for the join link — after D5 (needs Apple + a shipped app)
 
 P5 — BLOCKED OR DEFERRED (no action available yet)
      D19  dev-loop fixes landed; three follow-ups, one gated on D6
@@ -121,6 +132,7 @@ their standing decisions are in the section above.
           The SDK 56 → 57 upgrade (2026-08-15) did NOT move this floor —
           ExpoModulesCore.podspec still declares :ios => '16.4' — so the
           device-support commitment is unchanged from what was scoped here.
+          Re-checked at SDK 58 (2026-10-24): the podspec still says 16.4.
         - Stripe live account activation (business verification lead time) —
           or run the pilot in test mode and use the cash mark-paid-at-check-in
           path for real fees.
@@ -159,6 +171,20 @@ their standing decisions are in the section above.
         fails, /join included. Decide before first deploy: set the startup flag,
         or add a migration step to the workflow. This is a standing rule now,
         not a one-off: any future migration inherits it.
+        HOSTING DEFERRED 2026-10-24 (user decision: "skip the railway step for
+        now"). Nothing in development is blocked: API, admin, web and mobile web
+        all run locally, and a dev build on a phone can point at the PC's LAN IP
+        (EXPO_PUBLIC_API_URL=http://192.168.x.x:5000, see .env.example). Blocked
+        until hosting exists: preview/production builds testers use off the home
+        network, real push/email/Stripe webhooks against a public URL, D4 and
+        the pilot. Stopgap if a tester build is needed first: a tunnel (ngrok /
+        Cloudflare Tunnel) to the local API. When it is bought, Railway's Hobby
+        plan ($5/mo + usage, est. $5-15/mo) is enough; the free tier is not
+        (0.5 GB RAM per service, no custom domain). Use a PostGIS template
+        (ideally Postgres 16 / PostGIS 3.4, matching infra/docker-compose.yml)
+        and give the API a volume for DATA_PROTECTION_KEYS_PATH. eas.json no
+        longer carries placeholder API URLs (#128): set EXPO_PUBLIC_API_URL per
+        EAS environment once a URL exists (see D5).
 
 [ ] D4. DRESS REHEARSAL on staging (the pilot succeeds or fails here)
         - /seed-demo-event full lifecycle against staging.
@@ -184,6 +210,37 @@ their standing decisions are in the section above.
         web, not that the app runs on a handset. Whatever else D5 delivers, the
         first EAS build is the outstanding verification for an upgrade already
         sitting on main.
+        STILL TRUE AT SDK 58 (2026-10-23), with one correction: eas.json now
+        exists (below), but no EAS build has run yet, so no native code from
+        SDK 57 or 58 has executed on a device.
+
+        EAS SET UP 2026-10-24 (PRs #128-#130):
+        - Project @adamnix/gfp-scorer (owner adamnix, projectId cdbd213f-592f-
+          42b7-a8f7-2723da7dda17) — `eas init` wrote extra.eas.projectId into
+          apps/mobile/app.json, so (a) below is RESOLVED.
+        - apps/mobile/eas.json: development (dev client, internal), preview
+          (internal), production (autoIncrement); channels match the profile
+          names; appVersionSource remote. eas-build.yml points at it.
+        - expo-updates (runtimeVersion policy appVersion), expo-dev-client,
+          expo-observe (launch/route metrics + Observe.reportError in the root
+          ErrorBoundary), expo-haptics on the score steppers, expo-background-
+          task replacing the deprecated expo-background-fetch (15 min floor),
+          and numbered SQLite migrations (PRAGMA user_version, one transaction
+          per step) for the offline score queue.
+        BEFORE THE FIRST BUILD (user actions; a build spends EAS credits):
+        - `npx eas-cli env:create --environment preview|production` for
+          EXPO_PUBLIC_API_URL (needs D3 hosting, or a tunnel/LAN URL for a
+          preview) and EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY. Never commit the key.
+        - Make sure the EXPO_TOKEN GitHub secret belongs to the adamnix account.
+        - First build, e.g. `eas build --profile preview --platform android`.
+        ON THE DEVICE, IN ADDITION TO THE PUSH STEPS BELOW:
+        - install over an older build with unsynced scores: the migration must
+          keep them, and the app must open (a failed open now retries);
+        - background sync fires while the app is backgrounded (OS decides when,
+          15 min at best; the in-app timer still covers an open round);
+        - an `eas update` to the preview channel arrives within two cold
+          launches; Observe shows launch and route metrics;
+        - haptics on +/- and Complete Hole (silent on most Android hardware).
 
         WHAT "PUSH CREDENTIALS VERIFIED END-TO-END" ACTUALLY HAS TO CHECK (traced
         2026-08-15, prompted by noticing no notifications in web mode — that part
@@ -193,7 +250,8 @@ their standing decisions are in the section above.
         SendOutbidNotificationAsync (:1115) → PushNotificationService →
         https://exp.host/--/api/v2/push/send. Nothing is missing in the code. Two
         things are unverified, and they compound:
-        (a) NO EAS projectId ANYWHERE YET. pushNotifications.ts:43 calls
+        (a) [RESOLVED 2026-10-24 — `eas init` added extra.eas.projectId; see the
+            EAS note above.] NO EAS projectId ANYWHERE YET. pushNotifications.ts:43 calls
             getExpoPushTokenAsync() with no argument. SDK 57 resolves the id from
             options.projectId, Constants.easConfig?.projectId, or
             Constants.expoConfig?.extra?.eas?.projectId, else it throws
@@ -391,6 +449,33 @@ their standing decisions are in the section above.
         Supersedes the Phase 2 spec line "signs with HMAC-SHA256" (the spec file
         is not edited). The check-in token issues above are TestingToDoList TT12.
 
+[ ] D23. PLAYER CHECK-IN QR GENERATION FAILS ON POSTGRES (found 2026-10-24)
+        VERIFIED 2026-10-24 against the local API on real Postgres: POST
+        /api/v1/events/{id}/qr/generate with player check-in requested returns
+        500, Npgsql 22001 "value too long for type character varying(128)".
+        CAUSE: QrService.BuildPlayerCheckinToken (QrService.cs:392) builds
+        base64url("{playerId}:{eventId}") + "." + base64url(HMAC-SHA256). The
+        payload is 73 bytes → 98 chars, the signature 43, so every token is 142
+        chars. QrCode.Token is [MaxLength(128)] (Domain/Entities/
+        AllEntities.cs:1714), so the INSERT fails. EF InMemory ignores
+        MaxLength, which is why QrServiceTests (#125) passes on the same path.
+        IMPACT TODAY: none visible. Nothing in admin, mobile or web calls this
+        endpoint, and registration does NOT generate a check-in QR (the
+        "called automatically during registration" comment on
+        GeneratePlayerCheckinQrAsync, QrService.cs:110, is stale). Event-level
+        QRs (join, leaderboard, donation) are short and work.
+        FIX OPTIONS (decision needed):
+        (1) widen the column, e.g. varchar(256). Needs a HAND-WRITTEN migration
+            (ef migrations is broken here) plus the D3 rule that something must
+            run migrations on deploy. Simplest.
+        (2) shorten the token: the two GUIDs as 32 raw bytes (43 chars) and a
+            truncated MAC (e.g. 16 bytes, 22 chars) ≈ 66 chars. No migration,
+            denser QR (the column comment's reason for 128), but it changes the
+            token format, so any printed codes must be regenerated.
+        Fix TT12 (TestingToDoList: constant-time compare, padding-free base64
+        decode) in the same change, and add a Postgres-backed check (e2e) so
+        InMemory can't hide it again.
+
 [ ] D7. APP STORE LINKS — FINISH WHEN THE APP GOES LIVE (added 2026-07-31)
         The web app already has the "Get the App" UI in place; it is running in
         a deliberate pre-launch mode until the store listings exist.
@@ -484,7 +569,8 @@ their standing decisions are in the section above.
           AdaptiveLogoFrame). Metro falls back correctly. SUPERSEDED 2026-10-03
           (#97): both metro configs now resolve node-vibrant/browser straight to
           dist/esm/browser.js, which silences it. Remove that redirect once
-          upstream fixes its exports map (4.0.4 was still latest on 2026-10-03).
+          upstream fixes its exports map (4.0.4 was still latest on 2026-10-03,
+          and again on 2026-10-24 — keep the redirect).
         - "apps/admin must declare react-native-image-colors, it only resolves
           via mobile's hoisted copy" was WRONG and is now closed (2026-08-18).
           packages/ui — the only package that imports it (AdaptiveLogoFrame.tsx
@@ -526,6 +612,77 @@ their standing decisions are in the section above.
           in the clean-build e2e. NOT re-checked: whether expo-doctor is now
           21/21 — that was the stated reason to leave the pin visible, so
           confirm it before assuming this closed the last check.
+          CONFIRMED 2026-10-24 (SDK 58): expo-doctor fails exactly one check in
+          mobile and admin, dependency versions, and only for Expo patches still
+          inside the repo's 72h cooldown (expo-router, expo-sqlite), which the
+          weekly routine installs once they age out. TypeScript is not flagged.
+
+## Expo-skills & efficiency review (2026-10-24)
+Prompted by https://docs.expo.dev/skills/ — which Expo skills apply here, and
+what in the program could be faster or leaner. Tiers 1-2 and part of Tier 3
+shipped the same day; the open remainder is E1-E4. Mark [x] when done.
+
+SHIPPED 2026-10-24 (one line each; detail is in the PR):
+  [x] #124 mobile sync: markScoresSynced marks only the rows it sent (a score
+      edited mid-sync is no longer marked synced unsent); mergeServerScores
+      reads in one query; idx_pending_event_team; a pull-freshness guard;
+      dead build scripts and web images.remotePatterns removed.
+  [x] #125 API: QrService batched (no per-player query); AsNoTracking on the
+      Score/Team/Sponsor/Player/League read paths.
+  [x] #126 web: Stripe.js loads only on pages that pay; /events is server-
+      rendered with 30 s revalidation.
+  [x] #127 mobile: haptics on the score steppers and Complete Hole.
+  [x] #128 EAS project, eas.json, expo-updates, dev client, EAS Observe (see D5).
+  [x] #129 mobile: numbered SQLite migrations (PRAGMA user_version), one
+      transaction per step; a failed DB open retries instead of sticking.
+  [x] #130 mobile: expo-background-fetch (deprecated) → expo-background-task.
+  [x] #131/#132 admin: React Query cache for the event tabs (Leaderboard,
+      Scoring, Teams, Registration, Free Agents, Shotgun, Sponsors). Revisited
+      tabs render from cache in single-digit ms; one team-list fetch served a
+      9-tab walk. Local edits write into the cache and mark the event's other
+      lists stale (apps/admin/src/lib/queries.tsx).
+  DROPPED: converting the admin Checkout desk to a page-level FlatList. Measured
+      on react-native-web with 500 rows: the existing layout already rendered
+      ~100 of 500 and kept search focus, identical to the rewrite. No benefit.
+  DEVICE CHECKS for #127-#130 are listed under D5 — none has run on a phone.
+
+[ ] E1. REACT QUERY FOR THE REST OF THE ADMIN SCREENS
+        Still on hand-rolled useState + useEffect fetch, so each shows a full
+        spinner on every visit: event tabs Overview (index), Fundraising,
+        Challenges, Auction Items, Live Auction, Checkout, Email Builder; plus
+        events list, leagues (list, league, season), Settings, SuperAdmin,
+        accept-invite. Follow queries.tsx: keys under eventKeys, editable lists
+        via useEditableList so existing setState-style updates keep working.
+        Most value first: Auction Items + Live Auction (same lots, plus SignalR
+        updates that should write into the cache), then Fundraising.
+        LEAVE ALONE: Print Kit and the Overview's Mark Complete / Open Scoring
+        gates fetch on demand ON PURPOSE (they must be fresh at the moment of
+        the decision); the event itself stays in eventContext.tsx, which orders
+        background refreshes against Saves.
+
+[ ] E2. DESIGN TOKENS: SPACING, RADIUS, TYPE IN packages/theme
+        packages/theme/src/index.ts has colour tokens and the theming contract
+        only — no spacing, radius or type scale. Counted 2026-10-24 across admin
+        + mobile .tsx: ~1,670 literal padding/margin/gap values and ~630 hex
+        colours outside the theme. Add a small scale (e.g. space 4/8/12/16/24/32,
+        radius 6/8/12/16, type 12/13/15/17/22), then migrate the screens with
+        the most literals first. Keep the theming contract rules
+        (buttonLabel/ctaLabel/mutedText, accent is decorative) — the expo
+        design-system skill is the reference. Polish, not a defect.
+
+[ ] E3. SPLIT THE TWO LARGEST SCREENS
+        apps/admin/src/app/(app)/events/[id]/teams.tsx (~1,000 lines: screen,
+        row, three modals) and apps/mobile/app/(scoring)/scorecard.tsx (~1,000
+        lines). Move the modals/rows into components/ files with no behaviour
+        change; teams.tsx's memoized TeamRow and stable handlers must survive.
+        Do E3 before E2 touches either file, so the diffs stay readable.
+
+[ ] E4. iOS APP CLIP FOR THE JOIN LINK — AFTER D5
+        A golfer scanning the event QR could score without installing the full
+        app. Needs the Apple Developer account (D1), a shipped parent app
+        (D5, bundle pro.golffundraiser.scorer), an apple-app-site-association
+        file on the web domain (D3), and a scoped-down join + scorecard target.
+        The expo-app-clip skill covers it. Not before the pilot.
 
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done.
@@ -533,6 +690,9 @@ Captured while filling API test-coverage holes. Mark [x] when done.
 [ ] T4. (COVERAGE, low ROI) Thin services still without direct tests: QrService,
         EmailService, EmailBuilderService, PushNotificationService, TestDataService.
         Mostly IO / formatting / orchestration — low payoff; defer.
+        QrService: partially covered since 2026-10-24 (#125, QrServiceTests:
+        GetAll names every player check-in QR in one batched query). It runs
+        on InMemory, which ignores MaxLength — see D23 for what that hid.
         EventService: partially covered — EventServiceTests now exercises the
         public sponsor read path (GetPublicSponsorsAsync: tier/name ordering,
         hole-number extraction, version pass-through, Draft/Cancelled/unknown →
