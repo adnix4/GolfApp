@@ -597,6 +597,35 @@ async function phaseQrTransfer(ctx) {
   pass("phone's two-part QR card imports and scores", c.dim('6 holes · +3 · 26'));
 }
 
+// D23: the 142-char check-in token 500'd on Postgres's varchar(128) while EF
+// InMemory (unit tests) ignored the limit. This runs it on the real column.
+async function phaseCheckinQr(ctx) {
+  phase('Player check-in QR');
+  const e = await setupScoringEvent(ctx, 'Scramble', ['Chk Golfer', 'Chk Partner']);
+  for (let i = 0; i < 2; i++) {   // the second run replaces, never duplicates
+    const gen = await api('POST', `/events/${e.eventId}/qr/generate`, { token: ctx.token,
+      body: { types: ['PlayerCheckin'] } });
+    if (gen.count !== 2) fail('check-in QR generate', JSON.stringify(gen));
+  }
+  const all = (await api('GET', `/events/${e.eventId}/qr`, { token: ctx.token }))
+    .filter(q => q.qrType === 'PlayerCheckin');
+  if (all.length !== 2 || all.some(q => !q.playerId || q.token.length > 128)) {
+    fail('check-in QRs stored', JSON.stringify(all.map(q => [q.playerName, q.token.length])));
+  }
+  const mine = all.find(q => q.playerId === e.playerIds[0]);
+  const scan = (t, expect) => api('GET', `/pub/qr/scan?token=${encodeURIComponent(t)}`, { expect });
+  const first = await scan(mine.token);
+  const again = await scan(mine.token);
+  if (first.action !== 'checked_in' || first.playerName !== 'Chk Golfer' || again.action !== 'already_in') {
+    fail('check-in QR scan', JSON.stringify({ first, again }));
+  }
+  // Flip the signature's FIRST char: its last char carries unused padding bits.
+  const [pay, sig] = mine.token.split('.');
+  await scan(`${pay}.${sig[0] === 'A' ? 'B' : 'A'}${sig.slice(1)}`, [400]);
+  pass('player check-in QR generates, scans and rejects a forgery',
+    c.dim(`${mine.token.length} chars · checked_in · already_in · 400`));
+}
+
 async function phaseConflict(ctx) {
   phase('Score conflict round-trip');
   phaseStart = Date.now();
@@ -1340,6 +1369,7 @@ async function phaseTransactions(ctx) {
     await phaseFormats(ctx);
     await phaseConflict(ctx);
     await phaseQrTransfer(ctx);
+    await phaseCheckinQr(ctx);
     await phaseAccounts(ctx);
     await phaseUi(ctx);
     await phaseVenueNat(ctx);
