@@ -65,9 +65,10 @@ Minor
 [ ] TT11 The CI coverage table counts unit tests only, so code covered by the
          e2e job (e.g. Stripe webhooks) still shows 0%. Decide whether to
          merge e2e coverage or just keep it in mind when reading the table.
-[ ] TT12 QrService player check-in token (keyed with the server secret, so it
+[x] TT12 QrService player check-in token (keyed with the server secret, so it
          IS security): compare signatures in constant time instead of !=, and
          decode base64 without the fixed "==" padding. Small; no tests today.
+         DONE 2026-10-24 with D23 (problemList); QrServiceTests covers it.
 
 ## The evaluation (2026-10-05)
 

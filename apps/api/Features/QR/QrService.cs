@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using QRCoder;
 using GolfFundraiserPro.Api.Common.Middleware;
@@ -107,7 +108,7 @@ public class QrService
 
     /// <summary>
     /// Generates or replaces the PlayerCheckin QR for a single player.
-    /// Called automatically during registration.
+    /// Called from GenerateAsync when player check-in QRs are requested.
     /// </summary>
     public async Task<QrCode> GeneratePlayerCheckinQrAsync(
         Event evt, Domain.Entities.Player player, CancellationToken ct = default)
@@ -390,27 +391,28 @@ public class QrService
 
     /// <summary>
     /// Builds a signed HMAC PlayerCheckin token.
-    /// Format: base64url(playerId:eventId).base64url(HMAC-SHA256)
+    /// Format: base64url(playerId ‖ eventId).base64url(HMAC-SHA256[..16]) —
+    /// the two GUIDs as 32 raw bytes (43 chars) and a 128-bit truncated MAC
+    /// (22 chars), 66 chars in all. QrCode.Token is varchar(128) and a short
+    /// token keeps the printed QR sparse (D23).
     /// </summary>
-    private string BuildPlayerCheckinToken(Guid playerId, Guid eventId)
+    private string BuildPlayerCheckinToken(Guid playerId, Guid eventId) =>
+        BuildPlayerCheckinToken(playerId, eventId, CheckinSecret());
+
+    internal static string BuildPlayerCheckinToken(Guid playerId, Guid eventId, string secret)
     {
-        var payload  = $"{playerId}:{eventId}";
-        var secret   = _config["JWT_SECRET"]
-            ?? throw new InvalidOperationException("JWT_SECRET not configured");
+        var payBytes = new byte[32];
+        playerId.TryWriteBytes(payBytes.AsSpan(0, 16));
+        eventId.TryWriteBytes(payBytes.AsSpan(16, 16));
 
-        var keyBytes  = Encoding.UTF8.GetBytes(secret);
-        var payBytes  = Encoding.UTF8.GetBytes(payload);
-        var hmac      = HMACSHA256.HashData(keyBytes, payBytes);
-
-        var payB64  = Convert.ToBase64String(payBytes)
-            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
-        var sigB64  = Convert.ToBase64String(hmac)
-            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
-
-        return $"{payB64}.{sigB64}";
+        return $"{WebEncoders.Base64UrlEncode(payBytes)}." +
+               WebEncoders.Base64UrlEncode(CheckinMac(secret, payBytes));
     }
 
-    private (Guid playerId, Guid eventId) ParsePlayerCheckinToken(string token)
+    private (Guid playerId, Guid eventId) ParsePlayerCheckinToken(string token) =>
+        ParsePlayerCheckinToken(token, CheckinSecret());
+
+    internal static (Guid playerId, Guid eventId) ParsePlayerCheckinToken(string token, string secret)
     {
         try
         {
@@ -418,34 +420,29 @@ public class QrService
             if (parts.Length != 2)
                 throw new ValidationException("Invalid check-in token.");
 
-            var payBytes = Convert.FromBase64String(
-                parts[0].Replace('-', '+').Replace('_', '/') + "==");
-            var payload  = Encoding.UTF8.GetString(payBytes).Split(':');
-
-            if (payload.Length != 2)
+            var payBytes = WebEncoders.Base64UrlDecode(parts[0]);
+            var sigBytes = WebEncoders.Base64UrlDecode(parts[1]);
+            if (payBytes.Length != 32 || sigBytes.Length != CheckinMacBytes)
                 throw new ValidationException("Invalid check-in token format.");
 
-            var playerId = Guid.Parse(payload[0]);
-            var eventId  = Guid.Parse(payload[1]);
-
-            // Verify HMAC
-            var secret   = _config["JWT_SECRET"]
-                ?? throw new InvalidOperationException("JWT_SECRET not configured");
-            var keyBytes = Encoding.UTF8.GetBytes(secret);
-            var expected = HMACSHA256.HashData(keyBytes, payBytes);
-            var expB64   = Convert.ToBase64String(expected)
-                .Replace('+', '-').Replace('/', '_').TrimEnd('=');
-
-            if (expB64 != parts[1])
+            if (!CryptographicOperations.FixedTimeEquals(CheckinMac(secret, payBytes), sigBytes))
                 throw new ValidationException("Check-in token signature is invalid.");
 
-            return (playerId, eventId);
+            return (new Guid(payBytes.AsSpan(0, 16)), new Guid(payBytes.AsSpan(16, 16)));
         }
         catch (Exception ex) when (ex is not ValidationException)
         {
             throw new ValidationException("This check-in QR code is not valid.");
         }
     }
+
+    private const int CheckinMacBytes = 16;
+
+    private static byte[] CheckinMac(string secret, byte[] payBytes) =>
+        HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), payBytes)[..CheckinMacBytes];
+
+    private string CheckinSecret() =>
+        _config["JWT_SECRET"] ?? throw new InvalidOperationException("JWT_SECRET not configured");
 
     private Guid? TryExtractPlayerIdFromToken(string token)
     {

@@ -48,9 +48,8 @@ P4 — FEATURES / POLISH
      [x] U3  }  TV mode, on the existing socket 2026-08-01
      U6   evaluate buy-it-now — what triggers it, what it bills, and whether it
           belongs on a proxy lot at all. Decision needed, not a coded fix.
-     D23  player check-in QR generation 500s on Postgres (token 142 chars,
-          column 128). No screen calls it today, so nothing breaks yet — fix
-          before anything (Print Kit, D10) starts generating player QRs.
+     [x] D23 check-in token shortened to 66 chars (fits varchar(128), no
+          migration); TT12 fixed with it; e2e checks it on Postgres 2026-10-24
      U7   follow-ups from the 2026-08-02/03 work (sponsors, ticker, TV branding,
           bid confirmation). (a) was the security item and is FIXED 2026-08-15 —
           it was pulled forward out of this tier, as the note said to. (b)-(m)
@@ -449,32 +448,17 @@ their standing decisions are in the section above.
         Supersedes the Phase 2 spec line "signs with HMAC-SHA256" (the spec file
         is not edited). The check-in token issues above are TestingToDoList TT12.
 
-[ ] D23. PLAYER CHECK-IN QR GENERATION FAILS ON POSTGRES (found 2026-10-24)
-        VERIFIED 2026-10-24 against the local API on real Postgres: POST
-        /api/v1/events/{id}/qr/generate with player check-in requested returns
-        500, Npgsql 22001 "value too long for type character varying(128)".
-        CAUSE: QrService.BuildPlayerCheckinToken (QrService.cs:392) builds
-        base64url("{playerId}:{eventId}") + "." + base64url(HMAC-SHA256). The
-        payload is 73 bytes → 98 chars, the signature 43, so every token is 142
-        chars. QrCode.Token is [MaxLength(128)] (Domain/Entities/
-        AllEntities.cs:1714), so the INSERT fails. EF InMemory ignores
-        MaxLength, which is why QrServiceTests (#125) passes on the same path.
-        IMPACT TODAY: none visible. Nothing in admin, mobile or web calls this
-        endpoint, and registration does NOT generate a check-in QR (the
-        "called automatically during registration" comment on
-        GeneratePlayerCheckinQrAsync, QrService.cs:110, is stale). Event-level
-        QRs (join, leaderboard, donation) are short and work.
-        FIX OPTIONS (decision needed):
-        (1) widen the column, e.g. varchar(256). Needs a HAND-WRITTEN migration
-            (ef migrations is broken here) plus the D3 rule that something must
-            run migrations on deploy. Simplest.
-        (2) shorten the token: the two GUIDs as 32 raw bytes (43 chars) and a
-            truncated MAC (e.g. 16 bytes, 22 chars) ≈ 66 chars. No migration,
-            denser QR (the column comment's reason for 128), but it changes the
-            token format, so any printed codes must be regenerated.
-        Fix TT12 (TestingToDoList: constant-time compare, padding-free base64
-        decode) in the same change, and add a Postgres-backed check (e2e) so
-        InMemory can't hide it again.
+[x] D23. PLAYER CHECK-IN QR GENERATION FAILED ON POSTGRES — fixed 2026-10-24 by
+        option (2): the token is base64url(playerId ‖ eventId as 32 raw bytes)
+        + "." + base64url(HMAC-SHA256 truncated to 16 bytes) = 66 chars, so it
+        fits QrCode.Token varchar(128) with no migration. No codes had ever been
+        stored (every insert failed), so nothing needed regenerating. TT12 done
+        in the same change (FixedTimeEquals, WebEncoders base64url decode, exact
+        byte lengths). Unit tests assert the length against the MaxLength
+        attribute (InMemory ignores it); e2e "Player check-in QR" generates
+        twice, scans (checked_in, already_in) and expects 400 for a forgery on
+        real Postgres. NOTE for a future forgery test: the signature's LAST
+        base64url char carries 4 unused bits, so flip an earlier char.
 
 [ ] D7. APP STORE LINKS — FINISH WHEN THE APP GOES LIVE (added 2026-07-31)
         The web app already has the "Get the App" UI in place; it is running in
