@@ -16,9 +16,9 @@ import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import {
-  eventsApi, teamsApi, playersApi, challengesApi, sponsorsApi,
+  eventsApi, teamsApi, playersApi, challengesApi, sponsorsApi, auctionApi,
   type LeaderboardEntry, type IndividualLeaderboardEntry, type Team, type Player,
-  type HoleChallenge, type Sponsor,
+  type HoleChallenge, type Sponsor, type AuctionItem, type AuctionSession,
 } from '@/lib/api';
 
 export const queryClient = new QueryClient({
@@ -42,6 +42,8 @@ export const eventKeys = {
   freeAgents:  (eventId: string) => ['event', eventId, 'players', 'free-agents'] as const,
   sponsors:    (eventId: string) => ['event', eventId, 'sponsors'] as const,
   challenges:  (eventId: string) => ['event', eventId, 'challenges'] as const,
+  auctionItems:   (eventId: string) => ['event', eventId, 'auction', 'items'] as const,
+  auctionSession: (eventId: string) => ['event', eventId, 'auction', 'session'] as const,
 };
 
 /** A list setter with useState's shape, written through to the cache. */
@@ -90,6 +92,19 @@ export function useFreeAgentList(eventId: string) {
 
 export function useSponsorList(eventId: string) {
   return useEditableList<Sponsor>(eventId, eventKeys.sponsors(eventId), () => sponsorsApi.list(eventId));
+}
+
+/** Every lot, all types: Auction Items lists them, Live Auction filters to Live. */
+export function useAuctionItemList(eventId: string) {
+  return useEditableList<AuctionItem>(eventId, eventKeys.auctionItems(eventId), () => auctionApi.getItems(eventId));
+}
+
+/** The live session, or null when none is running. A failed lookup also reads as none, as the screen always treated it. */
+export function useAuctionSession(eventId: string) {
+  return useQuery<AuctionSession | null>({
+    queryKey: eventKeys.auctionSession(eventId),
+    queryFn:  () => auctionApi.getActiveSession(eventId).catch(() => null),
+  });
 }
 
 export function useLeaderboard(eventId: string) {

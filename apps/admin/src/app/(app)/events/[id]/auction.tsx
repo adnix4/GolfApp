@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, FlatList, TextInput,
   Modal, ScrollView, ActivityIndicator, Image,
@@ -8,6 +8,7 @@ import { useTheme, MoneyInput } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue, formatDateTime } from '@gfp/shared-types';
 import { auctionApi, resolveUrl, type AuctionItem, type CreateAuctionItemPayload } from '@/lib/api';
 import { bidIncrementWarning } from '@/lib/auctionSetup';
+import { useAuctionItemList } from '@/lib/queries';
 import {
   auctionStatusColor, auctionStatusLabel, isAuctionStatusFinal,
   endAuctionCopy, endAuctionResult,
@@ -75,9 +76,11 @@ export default function AuctionScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
 
-  const [items,     setItems]     = useState<AuctionItem[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState<string | null>(null);
+  const itemList = useAuctionItemList(eventId);
+  const { items, loading, refetch } = itemList;
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError
+    ?? (itemList.error ? (itemList.error.message || 'Failed to load auction items.') : null);
   const [showModal, setShowModal] = useState(false);
   const [editItem,  setEditItem]  = useState<AuctionItem | null>(null);
   const [form,      setForm]      = useState<AuctionForm>(emptyForm());
@@ -90,19 +93,9 @@ export default function AuctionScreen() {
   const [endNotice, setEndNotice] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setItems(await auctionApi.getItems(eventId));
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to load auction items.');
-    } finally {
-      setLoading(false);
-    }
-  }, [eventId]);
-
-  useEffect(() => { load(); }, [load]);
+  // After a change the list refetches behind what's on screen; the spinner
+  // is only for the first load.
+  const load = () => refetch();
 
   // Ending the auction is irreversible and closes every lot at once, so ask the
   // server what it would do first and put those numbers in the confirm. The
