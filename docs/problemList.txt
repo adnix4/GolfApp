@@ -66,7 +66,7 @@ P4 — FEATURES / POLISH
      Expo-skills / efficiency review (2026-10-24) — Tiers 1-2 shipped, see E-entries:
      E1   React Query for the remaining admin screens (event tabs done #131/#132;
           Auction Items + Live Auction, Fundraising, Challenges, Checkout,
-          Overview 2026-10-24)
+          Overview 2026-10-24, Email Builder 2026-10-25; event tabs all done)
      E2   spacing / radius / type tokens in packages/theme
      E3   split the two largest screens (admin teams.tsx, mobile scorecard.tsx)
      E4   iOS App Clip for the join link — after D5 (needs Apple + a shipped app)
@@ -686,8 +686,15 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
             the same gap for the leaderboard and now invalidates it.
             RULE: any screen that changes event data must invalidate the keys
             it touches, whether or not that screen reads the cache itself.
-        Remaining, in order: Email Builder; then events list, leagues,
-        Settings, SuperAdmin, accept-invite.
+        [x] Email Builder 2026-10-25: useEmailBuilderData on
+            eventKeys.emailBuilder, staleTime 0 (Settings/Overview edit the
+            event, branding and course without touching this key). The default
+            subject is derived from the event name until the organizer types
+            one, so a rename shows up and a typed subject is never overwritten.
+            VERIFIED in Edge: revisit shows the preview with no spinner and one
+            background refetch; a rename made elsewhere updates the subject.
+        Remaining, in order: events list, leagues, Settings, SuperAdmin,
+        accept-invite.
         LEAVE ALONE: Print Kit and the Overview's Mark Complete / Open Scoring
         gates fetch on demand ON PURPOSE (they must be fresh at the moment of
         the decision); the event itself stays in eventContext.tsx, which orders
