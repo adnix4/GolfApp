@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, Pressable, FlatList, Modal, TextInput,
   StyleSheet, ActivityIndicator, Image,
@@ -8,6 +8,7 @@ import { useEventDetail } from '@/lib/eventContext';
 import { useTheme, MoneyInput } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { challengesApi, type HoleChallenge } from '@/lib/api';
+import { useChallengeList } from '@/lib/queries';
 
 const COMMON_CHALLENGES = [
   'Closest to Pin',
@@ -22,25 +23,14 @@ export default function ChallengesScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
 
-  const [challenges, setChallenges] = useState<HoleChallenge[]>([]);
+  const challengeList = useChallengeList(id);
+  const { items: challenges, setItems: setChallenges, loading } = challengeList;
   const holeCount = useEventDetail().event.holes;
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState<string | null>(null);
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError
+    ?? (challengeList.error ? (challengeList.error.message || 'Failed to load challenges.') : null);
   const [editing,    setEditing]    = useState<HoleChallenge | null>(null);  // null = add new
   const [showForm,   setShowForm]   = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      setChallenges(await challengesApi.list(id));
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to load challenges.');
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
 
   async function handleDelete(holeNumber: number) {
     try {
