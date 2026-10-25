@@ -65,7 +65,8 @@ P4 — FEATURES / POLISH
      [x] T12 harness-only: fresh Edge profile's extensions abort requests; flags fix 2026-10-03
      Expo-skills / efficiency review (2026-10-24) — Tiers 1-2 shipped, see E-entries:
      E1   React Query for the remaining admin screens (event tabs done #131/#132;
-          Auction Items + Live Auction, Fundraising, Challenges 2026-10-24)
+          Auction Items + Live Auction, Fundraising, Challenges, Checkout
+          2026-10-24)
      E2   spacing / radius / type tokens in packages/theme
      E3   split the two largest screens (admin teams.tsx, mobile scorecard.tsx)
      E4   iOS App Clip for the join link — after D5 (needs Apple + a shipped app)
@@ -662,7 +663,18 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
             key Scoring already read, so an add/edit/delete shows on Scoring
             without a refetch. VERIFIED in Edge: Challenges -> Scoring made 0
             challenge requests; a revisit rendered with no spinner.
-        Remaining, in order: Checkout, Overview (keep its gates
+        [x] Checkout 2026-10-24: the desk queue is an editable list
+            (eventKeys.checkoutDesk), staleTime 0 like the totals, and
+            refetchOnWindowFocus OFF ON PURPOSE: refreshInPlace keeps rows where
+            the desk clicked them while a cart is open, and a tab-focus refetch
+            would re-sort the queue under it. Settling writes the queue into the
+            cache, which marks Fundraising and the lots stale. VERIFIED in Edge
+            with three awarded winners: revisit = no spinner + one refetch;
+            settling cash kept the row order; a tab-focus event made 0 desk
+            requests (control: 1 with the flag removed, so the check is real).
+            NOTE for tests: TanStack v5 listens for visibilitychange on WINDOW;
+            dispatching it on document does nothing.
+        Remaining, in order: Overview (keep its gates
         on-demand), Email Builder; then events list, leagues, Settings,
         SuperAdmin, accept-invite.
         LEAVE ALONE: Print Kit and the Overview's Mark Complete / Open Scoring

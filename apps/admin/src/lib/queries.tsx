@@ -16,10 +16,10 @@ import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import {
-  eventsApi, teamsApi, playersApi, challengesApi, sponsorsApi, auctionApi,
+  eventsApi, teamsApi, playersApi, challengesApi, sponsorsApi, auctionApi, checkoutApi,
   type LeaderboardEntry, type IndividualLeaderboardEntry, type Team, type Player,
   type HoleChallenge, type Sponsor, type AuctionItem, type AuctionSession,
-  type FundraisingTotals, type FailedCharge,
+  type FundraisingTotals, type FailedCharge, type CheckoutDeskRow,
 } from '@/lib/api';
 
 export const queryClient = new QueryClient({
@@ -47,6 +47,7 @@ export const eventKeys = {
   auctionSession: (eventId: string) => ['event', eventId, 'auction', 'session'] as const,
   failedCharges:  (eventId: string) => ['event', eventId, 'auction', 'failed-charges'] as const,
   fundraising:    (eventId: string) => ['event', eventId, 'fundraising'] as const,
+  checkoutDesk:   (eventId: string) => ['event', eventId, 'auction', 'checkout'] as const,
 };
 
 /** A list setter with useState's shape, written through to the cache. */
@@ -60,8 +61,11 @@ export type SetList<T> = (next: T[] | ((prev: T[]) => T[])) => void;
  * free-agent list; a new team joins the leaderboard), and refetching them on
  * the next visit is cheaper than tracking which edit touches which list.
  */
-function useEditableList<T>(eventId: string, queryKey: readonly unknown[], queryFn: () => Promise<T[]>) {
-  const query = useQuery<T[]>({ queryKey, queryFn });
+function useEditableList<T>(
+  eventId: string, queryKey: readonly unknown[], queryFn: () => Promise<T[]>,
+  options: { staleTime?: number; refetchOnWindowFocus?: boolean } = {},
+) {
+  const query = useQuery<T[]>({ queryKey, queryFn, ...options });
   const client = useQueryClient();
   const keyId  = JSON.stringify(queryKey);
   const setItems = useCallback<SetList<T>>(next => {
@@ -129,6 +133,17 @@ export function useFailedCharges(eventId: string) {
     queryFn:   () => auctionApi.getFailedCharges(eventId).catch(() => [] as FailedCharge[]),
     staleTime: 0,
   });
+}
+
+/**
+ * The checkout queue. Money, so it refetches on every mount like the totals
+ * above. Not on window focus: the desk keeps rows where they were clicked
+ * while a cart is open, and a focus refetch would re-sort the queue under it.
+ */
+export function useCheckoutDesk(eventId: string) {
+  return useEditableList<CheckoutDeskRow>(
+    eventId, eventKeys.checkoutDesk(eventId), () => checkoutApi.getDesk(eventId),
+    { staleTime: 0, refetchOnWindowFocus: false });
 }
 
 /** Challenges as the Challenges tab edits them; Scoring reads the same key. */
