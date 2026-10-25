@@ -131,6 +131,11 @@ export function useFailedCharges(eventId: string) {
   });
 }
 
+/** Challenges as the Challenges tab edits them; Scoring reads the same key. */
+export function useChallengeList(eventId: string) {
+  return useEditableList<HoleChallenge>(eventId, eventKeys.challenges(eventId), () => challengesApi.list(eventId));
+}
+
 export function useLeaderboard(eventId: string) {
   return useQuery<LeaderboardEntry[]>({
     queryKey: eventKeys.leaderboard(eventId),
