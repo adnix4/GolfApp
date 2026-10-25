@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, Pressable,
   ActivityIndicator, ScrollView, StyleSheet,
@@ -7,7 +7,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { formatCentsShort, formatDateOnly, validateLeagueMember, toPlayerInput } from '@gfp/shared-types';
 import {
-  leagueApi, SeasonDashboard, LeagueMember, LeagueRound,
+  leagueApi, LeagueMember, LeagueRound,
   StandingRow, SkinRow, PairingGroup, HandicapHistoryRow, RoundAbsence,
 } from '@/lib/api';
 import {
@@ -18,6 +18,8 @@ import {
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { validatePickerDateTime } from '@/lib/dateTime';
 import { useLeagueName } from '../../_layout';
+import { useQueryClient } from '@tanstack/react-query';
+import { leagueKeys, useSeasonDashboard } from '@/lib/queries';
 
 type Tab = 'overview' | 'roster' | 'rounds' | 'handicaps' | 'standings' | 'skins';
 
@@ -27,9 +29,13 @@ export default function SeasonDashboardScreen() {
   const { id, sid } = useLocalSearchParams<{ id: string; sid: string }>();
 
   const [tab, setTab]             = useState<Tab>('overview');
-  const [dashboard, setDashboard] = useState<SeasonDashboard | null>(null);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState<string | null>(null);
+  const queryClient   = useQueryClient();
+  const dashboardData = useSeasonDashboard(id ?? '', sid ?? '');
+  const dashboard     = dashboardData.data ?? null;
+  const loading       = dashboardData.isPending;
+  const [actionError, setError]   = useState<string | null>(null);
+  const error = actionError
+    ?? (dashboardData.error ? (dashboardData.error.message || 'Failed to load the season.') : null);
 
   const [selRound, setSelRound]     = useState<LeagueRound | null>(null);
   const [pairings, setPairings]     = useState<PairingGroup[]>([]);
@@ -70,20 +76,9 @@ export default function SeasonDashboardScreen() {
 
   const [syncSaving, setSyncSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!id || !sid) return;
-    try {
-      setLoading(true);
-      setError(null);
-      setDashboard(await leagueApi.getDashboard(id, sid));
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [id, sid]);
-
-  useEffect(() => { load(); }, [load]);
+  // After a change: refetch this season behind what it shows (no spinner) and
+  // mark the league's other cached screens stale, since counts move too.
+  const markLeagueStale = () => queryClient.invalidateQueries({ queryKey: leagueKeys.all });
 
   const leagueName  = useLeagueName();
   const seasonName  = dashboard?.season.name;
@@ -109,13 +104,13 @@ export default function SeasonDashboardScreen() {
 
   async function handleOpenScoring(round: LeagueRound) {
     if (!id || !sid) return;
-    try { await leagueApi.openScoring(id, sid, round.id); await load(); }
+    try { await leagueApi.openScoring(id, sid, round.id); await markLeagueStale(); }
     catch (e: unknown) { setError((e as Error).message); }
   }
 
   async function handleCloseRound(round: LeagueRound) {
     if (!id || !sid) return;
-    try { await leagueApi.closeRound(id, sid, round.id); await load(); }
+    try { await leagueApi.closeRound(id, sid, round.id); await markLeagueStale(); }
     catch (e: unknown) { setError((e as Error).message); }
   }
 
@@ -147,7 +142,7 @@ export default function SeasonDashboardScreen() {
     try {
       await leagueApi.createRound(id, sid, { roundDate: rDate, notes: rNotes || undefined });
       setShowAddRound(false); setRDate(''); setRNotes(''); setRDateErr(undefined);
-      await load();
+      await markLeagueStale();
     } catch (e: unknown) { setError((e as Error).message); }
     finally { setRSaving(false); }
   }
@@ -158,7 +153,7 @@ export default function SeasonDashboardScreen() {
     try {
       await leagueApi.overrideHandicap(id, sid, selMember.id, parseFloat(overrideIdx), overrideReason);
       setShowOverride(false); setOverrideIdx(''); setOverrideReason('');
-      await load();
+      await markLeagueStale();
     } catch (e: unknown) { setError((e as Error).message); }
     finally { setOverrideSaving(false); }
   }
@@ -186,7 +181,7 @@ export default function SeasonDashboardScreen() {
       });
       setShowAddMember(false);
       setMemberFields({ firstName: '', lastName: '', email: '', handicap: '' });
-      await load();
+      await markLeagueStale();
     } catch (e: unknown) { setMemberErr((e as Error).message); }
     finally { setMSaving(false); }
   }
@@ -210,7 +205,7 @@ export default function SeasonDashboardScreen() {
       const a = await leagueApi.reportAbsence(id, sid, absenceRound.id, selAbsenceMemberId);
       setAbsences(prev => [...prev, a]);
       setSelAbsenceMemberId('');
-      await load();
+      await markLeagueStale();
     } catch (e: unknown) { setError((e as Error).message); }
     finally { setAbsenceLoading(false); }
   }
@@ -241,7 +236,7 @@ export default function SeasonDashboardScreen() {
     setSyncSaving(true);
     try {
       await leagueApi.updateSeasonSync(id, sid, !dashboard.season.syncHandicapToPlayer);
-      await load();
+      await markLeagueStale();
     } catch (e: unknown) { setError((e as Error).message); }
     finally { setSyncSaving(false); }
   }
@@ -591,7 +586,7 @@ export default function SeasonDashboardScreen() {
           if (!id || !sid || !selRound) return;
           await leagueApi.savePairings(id, sid, selRound.id,
             pairings.map(g => ({ memberIds: g.memberIds })), true);
-          setSelRound(null); setPairings([]); await load();
+          setSelRound(null); setPairings([]); await markLeagueStale();
         }}
       />
 

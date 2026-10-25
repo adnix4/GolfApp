@@ -16,11 +16,11 @@ import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import {
-  eventsApi, teamsApi, playersApi, challengesApi, sponsorsApi, auctionApi, checkoutApi, emailBuilderApi,
+  eventsApi, teamsApi, playersApi, challengesApi, sponsorsApi, auctionApi, checkoutApi, emailBuilderApi, leagueApi,
   type LeaderboardEntry, type IndividualLeaderboardEntry, type Team, type Player,
   type HoleChallenge, type Sponsor, type AuctionItem, type AuctionSession,
   type FundraisingTotals, type FailedCharge, type CheckoutDeskRow, type EmailBuilderData,
-  type EventSummary,
+  type EventSummary, type LeagueSummary, type SeasonSummary, type SeasonDashboard,
 } from '@/lib/api';
 
 export const queryClient = new QueryClient({
@@ -55,6 +55,18 @@ export const eventKeys = {
 /** Lists above any one event, keyed outside ['event', id]. */
 export const orgKeys = {
   events: ['events'] as const,
+};
+
+/**
+ * League play. Rounds, members and handicaps move a league's counts and its
+ * seasons' standings together, so a league mutation invalidates leagueKeys.all
+ * rather than picking keys.
+ */
+export const leagueKeys = {
+  all:       ['leagues'] as const,
+  list:      ['leagues', 'list'] as const,
+  seasons:   (leagueId: string) => ['leagues', leagueId, 'seasons'] as const,
+  dashboard: (leagueId: string, seasonId: string) => ['leagues', leagueId, 'seasons', seasonId] as const,
 };
 
 /** A list setter with useState's shape, written through to the cache. */
@@ -224,6 +236,31 @@ export function useEventList() {
   };
 }
 
+/** The org's leagues; the league layout reads it too, for the tab title. */
+export function useLeagueList() {
+  return useQuery<LeagueSummary[]>({
+    queryKey: leagueKeys.list,
+    queryFn:  () => leagueApi.list(),
+  });
+}
+
+export function useSeasonList(leagueId: string) {
+  return useQuery<SeasonSummary[]>({
+    queryKey: leagueKeys.seasons(leagueId),
+    queryFn:  () => leagueApi.getSeasons(leagueId),
+    enabled:  !!leagueId,
+  });
+}
+
+/** One season's roster, rounds, handicaps and standings. */
+export function useSeasonDashboard(leagueId: string, seasonId: string) {
+  return useQuery<SeasonDashboard>({
+    queryKey: leagueKeys.dashboard(leagueId, seasonId),
+    queryFn:  () => leagueApi.getDashboard(leagueId, seasonId),
+    enabled:  !!leagueId && !!seasonId,
+  });
+}
+
 /**
  * Provides the client and empties it whenever the signed-in user changes, so
  * one organizer's cached rosters never render for the next one on a shared
@@ -234,7 +271,10 @@ export function QueryProvider({ children }: { children: ReactNode }) {
   const userId   = user ? `${user.orgId}:${user.email}` : null;
   const previous = useRef(userId);
   useEffect(() => {
-    if (previous.current !== userId) queryClient.clear();
+    // Only when leaving a signed-in user (sign-out, or another account). A
+    // page load restores the session from null, and clearing then would
+    // throw away the first screen's request and fetch it again.
+    if (previous.current !== null && previous.current !== userId) queryClient.clear();
     previous.current = userId;
   }, [userId]);
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
