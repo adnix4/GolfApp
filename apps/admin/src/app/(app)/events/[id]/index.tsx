@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView, Modal, TextInput,
 } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEventDetail } from '@/lib/eventContext';
+import { eventKeys } from '@/lib/queries';
 import { useTheme, StatusPill, MoneyInput } from '@gfp/ui';
 import {
   FORMAT_OPTIONS, FORMAT_LABELS,
@@ -62,6 +64,13 @@ export default function EventOverviewScreen() {
   const [checkingTeams, setCheckingTeams] = useState(false);
   const [checkingScores, setCheckingScores] = useState(false);
 
+  // Every change made here reaches the other tabs' cached lists: a status
+  // change can stamp starting holes (U5) or clear test data, seeding adds
+  // teams and players, and the format, holes or course change what the
+  // leaderboard computes. Mark them stale so the next visit refetches.
+  const queryClient = useQueryClient();
+  const markListsStale = () => queryClient.invalidateQueries({ queryKey: eventKeys.all(event.id) });
+
   async function handleStatusChange(newStatus: string) {
 
     // If moving to Registration and test data exists → warn first
@@ -95,7 +104,7 @@ export default function EventOverviewScreen() {
 
   async function doStatusChange(newStatus: string) {
     setUpdating(true); setError(null);
-    try { setEvent(await eventsApi.update(event.id, { status: newStatus })); }
+    try { setEvent(await eventsApi.update(event.id, { status: newStatus })); markListsStale(); }
     catch (e: any) { setError(e.message ?? 'Failed to update status.'); }
     finally { setUpdating(false); }
   }
@@ -153,6 +162,7 @@ export default function EventOverviewScreen() {
     setSeeding(true); setError(null);
     try {
       await testDataApi.seed(event.id);
+      markListsStale();
       await refresh();
     } catch (e: any) { setError(e.message ?? 'Failed to seed test data.'); }
     finally { setSeeding(false); }
@@ -335,14 +345,14 @@ export default function EventOverviewScreen() {
         visible={showEdit}
         event={event}
         onClose={() => setShowEdit(false)}
-        onSaved={updated => { setEvent(updated); setShowEdit(false); }}
+        onSaved={updated => { setEvent(updated); markListsStale(); setShowEdit(false); }}
       />
       <AttachCourseModal
         visible={showCourse}
         eventId={event.id}
         course={event.course}
         onClose={() => setShowCourse(false)}
-        onAttached={updated => { setEvent(updated); setShowCourse(false); }}
+        onAttached={updated => { setEvent(updated); markListsStale(); setShowCourse(false); }}
       />
       <TestDataWarningModal
         visible={showTestWarning}
