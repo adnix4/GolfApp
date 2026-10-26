@@ -19,6 +19,7 @@ import {
   StyleSheet, Text, type StyleProp, type ViewStyle,
 } from 'react-native';
 import { useTheme } from './ThemeProvider';
+import { radius } from '@gfp/theme';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -139,7 +140,7 @@ export function DangerButton(props: Omit<ButtonProps, 'variant'>) {
 
 const styles = StyleSheet.create({
   btn: {
-    borderRadius: 12,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },

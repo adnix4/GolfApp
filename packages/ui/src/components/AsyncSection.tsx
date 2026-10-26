@@ -23,6 +23,7 @@
 import React, { type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from './ThemeProvider';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export interface AsyncSectionProps {
   loading?: boolean;
@@ -96,32 +97,32 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing[6],
   },
   emptyText: {
-    fontSize: 15,
+    fontSize: fontSize.lg,
     textAlign: 'center',
     maxWidth: 320,
   },
   errorBox: {
     backgroundColor: '#fdf2f2',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: radius.md,
+    padding: spacing[3],
+    marginBottom: spacing[3],
     borderLeftWidth: 3,
     borderLeftColor: '#e74c3c',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing[3],
   },
   errorText: {
     color: '#c0392b',
-    fontSize: 14,
+    fontSize: fontSize.md,
     flex: 1,
   },
   retryText: {
-    fontSize: 14,
+    fontSize: fontSize.md,
     fontWeight: '600',
   },
 });

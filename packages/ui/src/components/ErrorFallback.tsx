@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export interface ErrorFallbackProps {
   /** The error caught by the route's ErrorBoundary. */
@@ -48,23 +49,23 @@ export function ErrorFallback({ error, retry, title, message }: ErrorFallbackPro
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#f4f7de' },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[6], backgroundColor: '#f4f7de' },
   card: {
-    width: '100%', maxWidth: 420, backgroundColor: '#fff', borderRadius: 16,
-    padding: 28, alignItems: 'center', borderWidth: 1, borderColor: '#e0e6c8',
+    width: '100%', maxWidth: 420, backgroundColor: '#fff', borderRadius: radius.xl,
+    padding: spacing[8], alignItems: 'center', borderWidth: 1, borderColor: '#e0e6c8',
   },
-  emoji:    { fontSize: 40, marginBottom: 8 },
-  title:    { fontSize: 20, fontWeight: '800', color: '#31572c', textAlign: 'center' },
-  message:  { fontSize: 14, color: '#555', textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  emoji:    { fontSize: 40, marginBottom: spacing[2] },
+  title:    { fontSize: fontSize.xxl, fontWeight: '800', color: '#31572c', textAlign: 'center' },
+  message:  { fontSize: fontSize.md, color: '#555', textAlign: 'center', marginTop: spacing[2], lineHeight: 20 },
   errorBox: {
     maxHeight: 96, alignSelf: 'stretch', backgroundColor: '#f8f8f4',
-    borderRadius: 8, marginTop: 16,
+    borderRadius: radius.md, marginTop: spacing[4],
   },
-  errorBoxContent: { padding: 10 },
-  errorText: { fontSize: 12, color: '#8a5a44', fontFamily: 'monospace' as never },
+  errorBoxContent: { padding: spacing[3] },
+  errorText: { fontSize: fontSize.xs, color: '#8a5a44', fontFamily: 'monospace' as never },
   retryBtn: {
-    marginTop: 18, backgroundColor: '#31572c', borderRadius: 10,
-    paddingVertical: 12, paddingHorizontal: 36, minHeight: 44, justifyContent: 'center',
+    marginTop: spacing[5], backgroundColor: '#31572c', borderRadius: radius.lg,
+    paddingVertical: spacing[3], paddingHorizontal: spacing[10], minHeight: 44, justifyContent: 'center',
   },
-  retryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  retryText: { color: '#fff', fontSize: fontSize.xl, fontWeight: '700' },
 });

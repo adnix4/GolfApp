@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { readableTextOn } from '@gfp/theme';
+import { readableTextOn, radius, spacing, fontSize } from '@gfp/theme';
 import { useTheme } from './ThemeProvider';
 
 const MIN_TOUCH_TARGET         = 56;
@@ -214,9 +214,9 @@ export function ScoreCard({
 const styles = StyleSheet.create({
   card: {
     borderWidth: 2,
-    borderRadius: 16,
-    marginVertical: 8,
-    marginHorizontal: 4,
+    borderRadius: radius.xl,
+    marginVertical: spacing[2],
+    marginHorizontal: spacing[1],
     boxShadow: '0px 2px 12px rgba(0, 0, 0, 0.07)',
     elevation: 2,
   },
@@ -224,53 +224,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing[2],
   },
   holeLabel: {
-    fontSize: 16,
+    fontSize: fontSize.xl,
     fontWeight: '700',
   },
   parLabel: {
-    fontSize: 14,
+    fontSize: fontSize.md,
     fontWeight: '500',
   },
   challengeBadge: {
     borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    marginBottom: 8,
-    gap: 2,
+    borderRadius: radius.lg,
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[2],
+    marginBottom: spacing[2],
+    gap: spacing[0.5],
   },
   challengeSponsorLogo: {
     width: '100%',
     height: 24,
-    marginBottom: 2,
+    marginBottom: spacing[0.5],
   },
   challengeSponsor: {
-    fontSize: 10,
+    fontSize: fontSize.xxs,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
   challengeDesc: {
-    fontSize: 11,
+    fontSize: fontSize.xxs,
     fontWeight: '600',
     lineHeight: 15,
   },
   challengePrize: {
-    fontSize: 10,
+    fontSize: fontSize.xxs,
     fontWeight: '600',
   },
   conflictBanner: {
     backgroundColor: '#fdf2e3',
-    borderRadius: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginBottom: 10,
+    borderRadius: radius.lg,
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[3],
+    marginBottom: spacing[3],
   },
   conflictText: {
-    fontSize: 12,
+    fontSize: fontSize.xs,
     color: '#e67e22',
     fontWeight: '600',
     textAlign: 'center',
@@ -305,8 +305,8 @@ const styles = StyleSheet.create({
     lineHeight: 44,
   },
   relativeScore: {
-    fontSize: 16,
+    fontSize: fontSize.xl,
     fontWeight: '600',
-    marginTop: 2,
+    marginTop: spacing[0.5],
   },
 });

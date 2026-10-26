@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { radius, spacing } from '@gfp/theme';
 
 export interface StatusPillProps {
   /** Background color (a hex like '#27ae60' or theme.colors.*). */
@@ -60,16 +61,16 @@ export function StatusPill({
 
 const styles = StyleSheet.create({
   pill: {
-    borderRadius: 999,
+    borderRadius: radius.full,
     alignSelf: 'flex-start',
   },
   smPad: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
   },
   mdPad: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
   },
   label: {
     fontWeight: '700',

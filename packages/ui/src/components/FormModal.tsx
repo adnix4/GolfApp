@@ -23,6 +23,7 @@ import {
   StyleSheet, Text, View,
 } from 'react-native';
 import { useTheme } from './ThemeProvider';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export interface FormModalProps {
   visible: boolean;
@@ -130,47 +131,47 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: spacing[4],
   },
   modal: {
     width: '100%',
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 28,
+    borderRadius: radius.xl,
+    padding: spacing[8],
     boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.15)',
     elevation: 12,
   },
   title: {
-    fontSize: 20,
+    fontSize: fontSize.xxl,
     fontWeight: '800',
-    marginBottom: 14,
+    marginBottom: spacing[4],
   },
   actions: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
+    gap: spacing[3],
+    marginTop: spacing[6],
   },
   cancelBtn: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 12,
+    borderRadius: radius.lg,
+    paddingVertical: spacing[3],
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelText: {
-    fontSize: 15,
+    fontSize: fontSize.lg,
     fontWeight: '600',
   },
   submitBtn: {
     flex: 2,
-    borderRadius: 12,
-    paddingVertical: 12,
+    borderRadius: radius.lg,
+    paddingVertical: spacing[3],
     alignItems: 'center',
     justifyContent: 'center',
   },
   submitText: {
-    fontSize: 15,
+    fontSize: fontSize.lg,
     fontWeight: '700',
   },
   disabled: {
