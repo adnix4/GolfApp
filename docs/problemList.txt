@@ -69,8 +69,8 @@ P4 — FEATURES / POLISH
           Overview 2026-10-24, Email Builder, events list, leagues, SuperAdmin
           2026-10-25; Settings + accept-invite left on purpose)
      [x] E2 spacing / radius / type tokens in packages/theme 2026-10-25
-          (teams.tsx + scorecard.tsx wait for E3; hex colours not started)
-     E3   split the two largest screens (admin teams.tsx, mobile scorecard.tsx)
+          (teams.tsx + scorecard.tsx done after E3 2026-10-26; hex colours not started)
+     [x] E3 split the two largest screens (admin teams.tsx, mobile scorecard.tsx) 2026-10-26
      E4   iOS App Clip for the join link — after D5 (needs Apple + a shipped app)
 
 P5 — BLOCKED OR DEFERRED (no action available yet)
@@ -755,7 +755,8 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
         LEFT LITERAL ON PURPOSE: 0/1 (hairlines), negatives, spacing > 48,
         fontSize >= 32 (hero numerals), one 24 radius on a scorecard modal.
         NOT TOUCHED: admin teams.tsx and mobile scorecard.tsx (E3 splits them
-        first, per the note below; run the same scales over them after), and
+        first, per the note below; run the same scales over them after; DONE
+        2026-10-26 with E3: 213 more literals, 60 snapped), and
         the ~630 hex colours, which are a separate pass (semantic colour
         tokens for the fixed error/warning/success greys).
         VERIFIED: theme/ui/admin/mobile type-check, lint, 497 tests green.
@@ -766,12 +767,37 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
         (e.g. registration player rows ~2px taller, mobile input text 16->17).
         Not checked on a phone (D5).
 
-[ ] E3. SPLIT THE TWO LARGEST SCREENS
+[x] E3. SPLIT THE TWO LARGEST SCREENS — DONE 2026-10-26
         apps/admin/src/app/(app)/events/[id]/teams.tsx (~1,000 lines: screen,
         row, three modals) and apps/mobile/app/(scoring)/scorecard.tsx (~1,000
         lines). Move the modals/rows into components/ files with no behaviour
         change; teams.tsx's memoized TeamRow and stable handlers must survive.
         Do E3 before E2 touches either file, so the diffs stay readable.
+        DONE 2026-10-26: teams.tsx 1,089 -> 246 lines. TeamRow (still memo),
+        RegisterTeamModal, EditTeamModal, PlayerFormModal (there were four
+        modals, not three) and ConfirmRemoveTeamModal now live in
+        apps/admin/src/components/teams/, with the shared form styles in
+        formStyles.ts. State and the useCallback handlers stay in the screen,
+        so a row still re-renders only when its own team changes. Moved
+        verbatim (line-multiset check against the original); four unused
+        confirmModal* styles dropped.
+        scorecard.tsx 1,104 -> 443 lines. ScorecardSummary (pre-scoring
+        table), ScoringHeader, HoleSponsorBadge, HoleChipsRow, HoleNotices,
+        PlayerShotsCard and HoleNavBar now live in
+        apps/mobile/src/components/scorecard/ and only render props; all
+        state, sync and scoring logic stays in the screen. strokesByPlayer
+        moved to src/lib/holeUtils.ts.
+        Then the E2 scales were run over both screens and the new files, as a
+        separate commit.
+        VERIFIED: admin + mobile type-check, lint, 445 tests green. Web
+        exports of main and of the split (before scales) screenshotted in Edge
+        on 7 views (Teams, Register Team, Edit Team, Edit Player, scoring
+        view, pre-scoring summary, summary column tip): 0 pixels differ.
+        Scoring driven on the split build: Next -> hole 2, Edit Score reopens
+        the hole and shows the organizer-edit notice, Drive + sets 1, Complete
+        Hole enables and completing brings Edit Score back. With the scales,
+        same layouts, slightly different padding (e.g. summary rows a few px
+        tighter as 9 -> 8). Not checked on a phone (D5).
 
 [ ] E4. iOS APP CLIP FOR THE JOIN LINK — AFTER D5
         A golfer scanning the event QR could score without installing the full
