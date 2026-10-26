@@ -9,6 +9,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTheme } from '@gfp/ui';
 import { DateTimeField } from './DateTimeField';
 import type { PickerErrors } from '@/lib/dateTime';
+import { fontSize, spacing } from '@gfp/theme';
 
 const ERROR_RED = '#e74c3c';
 
@@ -75,17 +76,17 @@ export function DateTimePairField({
 }
 
 const styles = StyleSheet.create({
-  row:     { flexDirection: 'row', gap: 12, marginBottom: 4 },
+  row:     { flexDirection: 'row', gap: spacing[3], marginBottom: spacing[1] },
   dateCol: { flex: 3 },
   timeCol: { flex: 2 },
   subLabel: {
-    fontSize: 11,
+    fontSize: fontSize.xxs,
     fontWeight: '600',
     color: '#888',
-    marginBottom: 4,
+    marginBottom: spacing[1],
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  error: { fontSize: 12, color: ERROR_RED, marginTop: 4, marginLeft: 2 },
-  clear: { fontSize: 12, fontWeight: '600', marginTop: 6, textDecorationLine: 'underline' },
+  error: { fontSize: fontSize.xs, color: ERROR_RED, marginTop: spacing[1], marginLeft: spacing[0.5] },
+  clear: { fontSize: fontSize.xs, fontWeight: '600', marginTop: spacing[2], textDecorationLine: 'underline' },
 });

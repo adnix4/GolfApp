@@ -11,6 +11,7 @@ import { scoresApi, type QrCollectResult } from '@/lib/api';
 import { eventKeys } from '@/lib/queries';
 import { decodeQrPayload, type DecodedQrPayload as DecodedPreview } from '@/lib/qrUtils';
 import { formatDateTime } from '@gfp/shared-types';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function QrImportScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
@@ -169,32 +170,32 @@ function PreviewRow({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   page:    { flex: 1, backgroundColor: '#f7f8fa' },
-  content: { padding: 28, gap: 16, maxWidth: 680, width: '100%', alignSelf: 'center' },
+  content: { padding: spacing[8], gap: spacing[4], maxWidth: 680, width: '100%', alignSelf: 'center' },
 
-  title:    { fontSize: 22, fontWeight: '800', marginBottom: 4 },
-  subtitle: { fontSize: 14, lineHeight: 20, marginBottom: 4 },
+  title:    { fontSize: fontSize.title, fontWeight: '800', marginBottom: spacing[1] },
+  subtitle: { fontSize: fontSize.md, lineHeight: 20, marginBottom: spacing[1] },
 
-  inputCard: { backgroundColor: '#fff', borderWidth: 2, borderRadius: 12, padding: 4, minHeight: 100 },
-  input:     { fontSize: 14, padding: 12, minHeight: 88, textAlignVertical: 'top', fontFamily: 'monospace' },
-  clearBtn:  { alignSelf: 'flex-end', paddingHorizontal: 12, paddingBottom: 8 },
-  clearText: { fontSize: 12, color: '#999', fontWeight: '600' },
+  inputCard: { backgroundColor: '#fff', borderWidth: 2, borderRadius: radius.lg, padding: spacing[1], minHeight: 100 },
+  input:     { fontSize: fontSize.md, padding: spacing[3], minHeight: 88, textAlignVertical: 'top', fontFamily: 'monospace' },
+  clearBtn:  { alignSelf: 'flex-end', paddingHorizontal: spacing[3], paddingBottom: spacing[2] },
+  clearText: { fontSize: fontSize.xs, color: '#999', fontWeight: '600' },
 
-  previewCard:  { borderWidth: 1.5, borderRadius: 10, padding: 14, gap: 6 },
-  previewTitle: { fontSize: 14, fontWeight: '800', marginBottom: 4 },
-  previewRow:   { flexDirection: 'row', gap: 8 },
-  previewLabel: { fontSize: 13, fontWeight: '600', color: '#555', width: 100 },
-  previewValue: { fontSize: 13, color: '#222', flex: 1 },
+  previewCard:  { borderWidth: 1.5, borderRadius: radius.lg, padding: spacing[4], gap: spacing[2] },
+  previewTitle: { fontSize: fontSize.md, fontWeight: '800', marginBottom: spacing[1] },
+  previewRow:   { flexDirection: 'row', gap: spacing[2] },
+  previewLabel: { fontSize: fontSize.sm, fontWeight: '600', color: '#555', width: 100 },
+  previewValue: { fontSize: fontSize.sm, color: '#222', flex: 1 },
 
-  decodeError:     { backgroundColor: '#fff8e1', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#f39c12' },
-  decodeErrorText: { color: '#7d6608', fontSize: 13, fontWeight: '600' },
+  decodeError:     { backgroundColor: '#fff8e1', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#f39c12' },
+  decodeErrorText: { color: '#7d6608', fontSize: fontSize.sm, fontWeight: '600' },
 
-  importBtn:     { borderRadius: 10, paddingVertical: 15, alignItems: 'center' },
-  importBtnText: { fontSize: 16, fontWeight: '800', color: '#fff' },
+  importBtn:     { borderRadius: radius.lg, paddingVertical: spacing[4], alignItems: 'center' },
+  importBtnText: { fontSize: fontSize.xl, fontWeight: '800', color: '#fff' },
 
-  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: 14 },
+  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
+  errorText: { color: '#c0392b', fontSize: fontSize.md },
 
-  resultCard:    { borderWidth: 1.5, borderRadius: 10, padding: 14, gap: 6, backgroundColor: '#fff' },
-  resultTitle:   { fontSize: 15, fontWeight: '800', marginBottom: 4 },
-  conflictLine:  { fontSize: 12, paddingLeft: 8 },
+  resultCard:    { borderWidth: 1.5, borderRadius: radius.lg, padding: spacing[4], gap: spacing[2], backgroundColor: '#fff' },
+  resultTitle:   { fontSize: fontSize.lg, fontWeight: '800', marginBottom: spacing[1] },
+  conflictLine:  { fontSize: fontSize.xs, paddingLeft: spacing[2] },
 });

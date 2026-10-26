@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { testDataApi, auctionApi } from '@/lib/api';
 import { eventKeys, useFailedCharges, useFundraising } from '@/lib/queries';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 const formatCurrency = formatCents;
 
@@ -137,8 +138,8 @@ export default function FundraisingScreen() {
       {error && (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
-          <Pressable onPress={() => load()} style={{ marginTop: 8 }}>
-            <Text style={{ color: '#c0392b', fontSize: 13, fontWeight: '600' }}>Retry</Text>
+          <Pressable onPress={() => load()} style={{ marginTop: spacing[2] }}>
+            <Text style={{ color: '#c0392b', fontSize: fontSize.sm, fontWeight: '600' }}>Retry</Text>
           </Pressable>
         </View>
       )}
@@ -250,21 +251,21 @@ export default function FundraisingScreen() {
               <Text style={[styles.sectionTitle, { color: '#e74c3c' }]}>
                 Failed Charges ({failedCharges.length})
               </Text>
-              <Text style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>
+              <Text style={{ fontSize: fontSize.sm, color: '#666', marginBottom: spacing[2] }}>
                 These auction winners were not charged successfully. Re-charge or waive each below.
               </Text>
               {failedCharges.map(fc => (
                 <View key={fc.winnerId} style={styles.failedChargeRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: '700', fontSize: 14, color: '#333' }}>{fc.itemTitle}</Text>
-                    <Text style={{ fontSize: 13, color: '#666' }}>
+                    <Text style={{ fontWeight: '700', fontSize: fontSize.md, color: '#333' }}>{fc.itemTitle}</Text>
+                    <Text style={{ fontSize: fontSize.sm, color: '#666' }}>
                       {fc.playerName} · {fc.playerEmail}
                     </Text>
-                    <Text style={{ fontSize: 13, color: '#e74c3c', fontWeight: '600' }}>
+                    <Text style={{ fontSize: fontSize.sm, color: '#e74c3c', fontWeight: '600' }}>
                       {formatCurrency(fc.amountCents)}
                     </Text>
                   </View>
-                  <View style={{ gap: 6 }}>
+                  <View style={{ gap: spacing[2] }}>
                     <Pressable
                       style={[styles.chargeBtn, { backgroundColor: theme.colors.primary }]}
                       onPress={() => recharge(fc.winnerId)}
@@ -294,38 +295,38 @@ export default function FundraisingScreen() {
 
 const styles = StyleSheet.create({
   page:    { flex: 1 },
-  content: { padding: 28, gap: 16 },
+  content: { padding: spacing[8], gap: spacing[4] },
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  title:         { fontSize: 22, fontWeight: '800' },
-  clearTestBtn:  { backgroundColor: '#e74c3c', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, alignItems: 'center' },
-  clearTestText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  headerActions: { flexDirection: 'row', gap: spacing[2], alignItems: 'center' },
+  title:         { fontSize: fontSize.title, fontWeight: '800' },
+  clearTestBtn:  { backgroundColor: '#e74c3c', borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[2], alignItems: 'center' },
+  clearTestText: { fontSize: fontSize.sm, fontWeight: '700', color: '#fff' },
   refreshBtn: {
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
     minWidth: 80,
     alignItems: 'center',
   },
-  refreshText: { fontSize: 14, fontWeight: '600' },
+  refreshText: { fontSize: fontSize.md, fontWeight: '600' },
   errorBox: {
-    backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12,
+    backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3],
     borderLeftWidth: 3, borderLeftColor: '#e74c3c',
   },
-  errorText: { color: '#c0392b', fontSize: 14 },
+  errorText: { color: '#c0392b', fontSize: fontSize.md },
   grandTotal: {
-    borderRadius: 16,
-    padding: 28,
+    borderRadius: radius.xl,
+    padding: spacing[8],
     alignItems: 'center',
   },
-  grandTotalLabel: { fontSize: 14, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 },
-  grandTotalAmount: { fontSize: 48, fontWeight: '800', marginTop: 8 },
+  grandTotalLabel: { fontSize: fontSize.md, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 },
+  grandTotalAmount: { fontSize: 48, fontWeight: '800', marginTop: spacing[2] },
   breakdown: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: spacing[3],
   },
   breakdownCard: {
     // Grow to share the row, but never narrower than this — five cards sit in
@@ -334,46 +335,46 @@ const styles = StyleSheet.create({
     flexBasis: 170,
     minWidth: 170,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 18,
+    borderRadius: radius.lg,
+    padding: spacing[5],
     backgroundColor: '#fff',
     alignItems: 'center',
   },
-  breakdownLabel:  { fontSize: 13, fontWeight: '500', marginBottom: 6 },
-  breakdownAmount: { fontSize: 24, fontWeight: '800' },
+  breakdownLabel:  { fontSize: fontSize.sm, fontWeight: '500', marginBottom: spacing[2] },
+  breakdownAmount: { fontSize: fontSize.title, fontWeight: '800' },
   section: {
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 18,
+    borderRadius: radius.lg,
+    padding: spacing[5],
     backgroundColor: '#fff',
-    gap: 8,
+    gap: spacing[2],
   },
-  sectionTitle: { fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  sectionTitle: { fontSize: fontSize.lg, fontWeight: '700', marginBottom: spacing[1] },
   progressRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  progressLabel: { fontSize: 14 },
-  progressPct: { fontSize: 14, fontWeight: '700' },
+  progressLabel: { fontSize: fontSize.md },
+  progressPct: { fontSize: fontSize.md, fontWeight: '700' },
   progressTrack: {
     height: 12,
-    borderRadius: 6,
+    borderRadius: radius.sm,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 6,
+    borderRadius: radius.sm,
   },
-  remainingText: { fontSize: 13 },
-  donationStat: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  remainingText: { fontSize: fontSize.sm },
+  donationStat: { flexDirection: 'row', alignItems: 'baseline', gap: spacing[2] },
   donationCount: { fontSize: 36, fontWeight: '800' },
-  donationLabel: { fontSize: 16 },
-  avgDonation:   { fontSize: 13 },
+  donationLabel: { fontSize: fontSize.xl },
+  avgDonation:   { fontSize: fontSize.sm },
   failedChargeRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    paddingVertical: spacing[3],
     borderTopWidth: 1, borderTopColor: '#f5e0e0',
   },
   chargeBtn: {
-    paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 8, alignItems: 'center', minWidth: 90,
+    paddingHorizontal: spacing[3], paddingVertical: spacing[2],
+    borderRadius: radius.md, alignItems: 'center', minWidth: 90,
   },
-  chargeBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  chargeBtnText: { color: '#fff', fontSize: fontSize.sm, fontWeight: '700' },
 });

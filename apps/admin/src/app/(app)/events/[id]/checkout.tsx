@@ -25,6 +25,7 @@ import { useCheckoutDesk } from '@/lib/queries';
 import { confirmAction } from '@/lib/confirmAction';
 import { formatCents, settleCopy, paidLabel, CHECK_NUMBER_INPUT } from '@/lib/auctionEnd';
 import { AddCardModal, cardCaptureEnabled } from '@/components/AddCardModal';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 const METHODS: SettlementMethod[] = ['Card', 'Cash', 'Check'];
 
@@ -192,7 +193,7 @@ export default function AuctionCheckoutScreen() {
             <Text style={[styles.rowMeta, { color: theme.mutedText }]}>{cart.playerEmail}</Text>
           </View>
           <Pressable onPress={closeCart} accessibilityLabel="Close">
-            <Text style={{ color: theme.mutedText, fontSize: 20 }}>✕</Text>
+            <Text style={{ color: theme.mutedText, fontSize: fontSize.xxl }}>✕</Text>
           </Pressable>
         </View>
 
@@ -296,7 +297,7 @@ export default function AuctionCheckoutScreen() {
           <Text style={styles.settledNote}>Paid in full.</Text>
         )}
 
-        {cartBusy && <ActivityIndicator style={{ marginTop: 10 }} color={theme.colors.primary} />}
+        {cartBusy && <ActivityIndicator style={{ marginTop: spacing[3] }} color={theme.colors.primary} />}
       </View>
     );
   }
@@ -415,75 +416,75 @@ export default function AuctionCheckoutScreen() {
 const styles = StyleSheet.create({
   page:   { flex: 1, backgroundColor: '#f7f7f8' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title:  { fontSize: 20, fontWeight: '800' },
-  sub:    { fontSize: 13, marginTop: 4, marginBottom: 14, lineHeight: 18 },
+  title:  { fontSize: fontSize.xxl, fontWeight: '800' },
+  sub:    { fontSize: fontSize.sm, marginTop: spacing[1], marginBottom: spacing[4], lineHeight: 18 },
 
-  statsRow:  { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  statsRow:  { flexDirection: 'row', gap: spacing[3], marginBottom: spacing[4] },
   statsWrap: { flexWrap: 'wrap' },
-  statCard:  { flex: 1, minWidth: 110, backgroundColor: '#fff', borderRadius: 10, padding: 12 },
-  statValue: { fontSize: 20, fontWeight: '800' },
-  statLabel: { fontSize: 12, marginTop: 2 },
+  statCard:  { flex: 1, minWidth: 110, backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing[3] },
+  statValue: { fontSize: fontSize.xxl, fontWeight: '800' },
+  statLabel: { fontSize: fontSize.xs, marginTop: spacing[0.5] },
 
   search: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 8, backgroundColor: '#fff',
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, marginBottom: 12,
+    borderWidth: 1, borderColor: '#ddd', borderRadius: radius.md, backgroundColor: '#fff',
+    paddingHorizontal: spacing[3], paddingVertical: spacing[3], fontSize: fontSize.lg, marginBottom: spacing[3],
   },
 
-  rowWrap: { marginBottom: 8 },
+  rowWrap: { marginBottom: spacing[2] },
   row: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#fff', borderRadius: 10, padding: 14,
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing[4],
     borderWidth: 1.5, borderColor: 'transparent',
   },
   // The open row and its cart read as one card: shared border, joined edge.
   rowOpen:    { borderBottomWidth: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
-  chevron:    { fontSize: 16, width: 14, textAlign: 'center' },
+  chevron:    { fontSize: fontSize.xl, width: 14, textAlign: 'center' },
   rowDone:    { opacity: 0.6 },
-  rowName:    { fontSize: 15, fontWeight: '700', color: '#111' },
-  rowMeta:    { fontSize: 12, marginTop: 2 },
-  rowAmount:  { fontSize: 15, fontWeight: '800' },
-  rowDoneTag: { fontSize: 11, color: '#059669', fontWeight: '700', marginTop: 2 },
-  empty:      { textAlign: 'center', paddingVertical: 28, fontSize: 14 },
+  rowName:    { fontSize: fontSize.lg, fontWeight: '700', color: '#111' },
+  rowMeta:    { fontSize: fontSize.xs, marginTop: spacing[0.5] },
+  rowAmount:  { fontSize: fontSize.lg, fontWeight: '800' },
+  rowDoneTag: { fontSize: fontSize.xxs, color: '#059669', fontWeight: '700', marginTop: spacing[0.5] },
+  empty:      { textAlign: 'center', paddingVertical: spacing[8], fontSize: fontSize.md },
 
   cart:       {
-    backgroundColor: '#fff', padding: 16, borderWidth: 1.5, borderTopWidth: 0,
-    borderBottomLeftRadius: 10, borderBottomRightRadius: 10,
+    backgroundColor: '#fff', padding: spacing[4], borderWidth: 1.5, borderTopWidth: 0,
+    borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg,
   },
-  cartMsg:    { marginTop: 12, marginBottom: 0 },
-  cartHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  cartName:   { fontSize: 17, fontWeight: '800' },
-  line:       { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
-  lineTitle:  { fontSize: 14, fontWeight: '600', color: '#111' },
-  lineAmount: { fontSize: 14, fontWeight: '700', color: '#111' },
-  pickupBtn:  { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#6b7280' },
-  pickupBtnText: { fontSize: 12, fontWeight: '600', color: '#374151' },
+  cartMsg:    { marginTop: spacing[3], marginBottom: 0 },
+  cartHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing[3] },
+  cartName:   { fontSize: fontSize.xl, fontWeight: '800' },
+  line:       { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[3], borderTopWidth: 1, borderTopColor: '#f0f0f0' },
+  lineTitle:  { fontSize: fontSize.md, fontWeight: '600', color: '#111' },
+  lineAmount: { fontSize: fontSize.md, fontWeight: '700', color: '#111' },
+  pickupBtn:  { paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.sm, borderWidth: 1, borderColor: '#6b7280' },
+  pickupBtnText: { fontSize: fontSize.xs, fontWeight: '600', color: '#374151' },
 
-  totals:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, marginTop: 4, borderTopWidth: 2, borderTopColor: '#eee' },
-  totalLabel: { fontSize: 14, fontWeight: '600', color: '#374151' },
-  totalValue: { fontSize: 20, fontWeight: '800' },
+  totals:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing[3], marginTop: spacing[1], borderTopWidth: 2, borderTopColor: '#eee' },
+  totalLabel: { fontSize: fontSize.md, fontWeight: '600', color: '#374151' },
+  totalValue: { fontSize: fontSize.xxl, fontWeight: '800' },
 
-  checkRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
-  checkbox:  { width: 20, height: 20, borderRadius: 4, borderWidth: 1, borderColor: '#bbb', alignItems: 'center', justifyContent: 'center' },
-  checkMark: { color: '#fff', fontSize: 13, fontWeight: '800' },
-  checkLabel:{ fontSize: 13, color: '#374151' },
+  checkRow:  { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[3] },
+  checkbox:  { width: 20, height: 20, borderRadius: radius.xs, borderWidth: 1, borderColor: '#bbb', alignItems: 'center', justifyContent: 'center' },
+  checkMark: { color: '#fff', fontSize: fontSize.sm, fontWeight: '800' },
+  checkLabel:{ fontSize: fontSize.sm, color: '#374151' },
 
-  methodRow:     { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' },
-  methodBtn:     { flex: 1, minWidth: 120, paddingVertical: 11, borderRadius: 8, alignItems: 'center' },
-  methodBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  methodRow:     { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3], flexWrap: 'wrap' },
+  methodBtn:     { flex: 1, minWidth: 120, paddingVertical: spacing[3], borderRadius: radius.md, alignItems: 'center' },
+  methodBtnText: { color: '#fff', fontWeight: '700', fontSize: fontSize.md },
 
   cartWarning: {
     color: '#92400e', backgroundColor: '#fffbeb',
     borderLeftWidth: 3, borderLeftColor: '#f59e0b',
-    fontSize: 12, lineHeight: 17, marginTop: 10,
-    paddingVertical: 8, paddingHorizontal: 10, borderRadius: 4,
+    fontSize: fontSize.xs, lineHeight: 17, marginTop: spacing[3],
+    paddingVertical: spacing[2], paddingHorizontal: spacing[3], borderRadius: radius.xs,
   },
-  settledNote: { color: '#059669', fontSize: 14, fontWeight: '600', marginTop: 12 },
-  pledgeTag:   { fontSize: 11, fontWeight: '700', color: '#7c3aed', letterSpacing: 0.5 },
-  addCardBtn:  { marginTop: 10, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#6b7280', alignItems: 'center' },
-  addCardText: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  settledNote: { color: '#059669', fontSize: fontSize.md, fontWeight: '600', marginTop: spacing[3] },
+  pledgeTag:   { fontSize: fontSize.xxs, fontWeight: '700', color: '#7c3aed', letterSpacing: 0.5 },
+  addCardBtn:  { marginTop: spacing[3], paddingVertical: spacing[3], borderRadius: radius.md, borderWidth: 1, borderColor: '#6b7280', alignItems: 'center' },
+  addCardText: { fontSize: fontSize.sm, fontWeight: '600', color: '#374151' },
 
-  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: 14 },
-  noticeBox: { backgroundColor: '#ecfdf5', borderRadius: 8, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#10b981' },
-  noticeText:{ color: '#065f46', fontSize: 14 },
+  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
+  errorText: { color: '#c0392b', fontSize: fontSize.md },
+  noticeBox: { backgroundColor: '#ecfdf5', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#10b981' },
+  noticeText:{ color: '#065f46', fontSize: fontSize.md },
 });

@@ -16,6 +16,7 @@ import {
 } from '@/lib/checkIn';
 import { AddCardModal, cardCaptureEnabled } from '@/components/AddCardModal';
 import { formatTime, digitsOnly, fmtPhoneInput, validateGolfer, toPlayerInput } from '@gfp/shared-types';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 type Filter = 'all' | 'pending' | 'checked_in';
 
@@ -164,7 +165,7 @@ export default function RegistrationScreen() {
         <Text style={[styles.title, { color: theme.colors.primary }]}>
           Registration
         </Text>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flexDirection: 'row', gap: spacing[2] }}>
           <Pressable
             onPress={() => setWalkUpOpen(true)}
             style={[styles.walkUpBtn, { backgroundColor: theme.colors.action }]}
@@ -574,7 +575,7 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
               {isGuest ? 'Add Guest' : 'Walk-Up Registration'}
             </Text>
             <Pressable onPress={handleClose} style={styles.modalClose}>
-              <Text style={{ fontSize: 20, color: theme.mutedText }}>✕</Text>
+              <Text style={{ fontSize: fontSize.xxl, color: theme.mutedText }}>✕</Text>
             </Pressable>
           </View>
 
@@ -604,7 +605,7 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
             </Pressable>
 
             {walkUpsOff && isGuest && (
-              <Text style={[styles.guestToggleHint, { color: theme.mutedText, marginBottom: 12 }]}>
+              <Text style={[styles.guestToggleHint, { color: theme.mutedText, marginBottom: spacing[3] }]}>
                 Walk-up registration is off, so this adds a guest. Untick Guest to add a golfer.
               </Text>
             )}
@@ -682,79 +683,79 @@ function StatChip({ label, value, color, style }: { label: string; value: number
 
 const styles = StyleSheet.create({
   page:   { flex: 1, backgroundColor: '#f7f8fa' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 24, paddingBottom: 12 },
-  title:  { fontSize: 22, fontWeight: '800' },
-  refreshBtn:    { paddingVertical: 6, paddingHorizontal: 12 },
-  refreshText:   { fontSize: 14, fontWeight: '600' },
-  walkUpBtn:     { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 8 },
-  walkUpBtnText: { fontSize: 13, fontWeight: '700' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing[6], paddingBottom: spacing[3] },
+  title:  { fontSize: fontSize.title, fontWeight: '800' },
+  refreshBtn:    { paddingVertical: spacing[2], paddingHorizontal: spacing[3] },
+  refreshText:   { fontSize: fontSize.md, fontWeight: '600' },
+  walkUpBtn:     { paddingVertical: spacing[2], paddingHorizontal: spacing[4], borderRadius: radius.md },
+  walkUpBtnText: { fontSize: fontSize.sm, fontWeight: '700' },
 
   // Modal
   modalOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalCard:       { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36, boxShadow: '0px 0px 12px rgba(0, 0, 0, 0.15)' },
-  modalHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle:      { fontSize: 18, fontWeight: '800' },
-  modalClose:      { padding: 4 },
-  inputRow:        { marginBottom: 14 },
-  inputLabel:      { fontSize: 12, fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 5 },
-  textInput:       { borderWidth: 1.5, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, fontSize: 15, color: '#222', backgroundColor: '#fafafa' },
-  modalErr:        { color: '#c0392b', fontSize: 13, marginTop: 10, marginBottom: 4 },
-  walkUpOffBox:     { backgroundColor: '#fff8e1', borderColor: '#f39c12', borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12, gap: 10 },
-  walkUpOffText:    { color: '#6d4c00', fontSize: 13, lineHeight: 18 },
-  walkUpOffBtn:     { alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, minWidth: 140, alignItems: 'center' },
-  walkUpOffBtnText: { fontSize: 13, fontWeight: '700' },
-  modalActions:    { flexDirection: 'row', gap: 12, marginTop: 18 },
-  modalCancel:     { flex: 1, paddingVertical: 12, borderRadius: 8, borderWidth: 1.5, borderColor: '#ddd', alignItems: 'center' },
-  modalCancelText: { fontSize: 14, fontWeight: '700' },
-  modalSubmit:     { flex: 2, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center', minHeight: 44 },
-  modalSubmitText: { fontSize: 14, fontWeight: '800' },
+  modalCard:       { borderTopLeftRadius: radius.xxl, borderTopRightRadius: radius.xxl, padding: spacing[6], paddingBottom: spacing[10], boxShadow: '0px 0px 12px rgba(0, 0, 0, 0.15)' },
+  modalHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[5] },
+  modalTitle:      { fontSize: fontSize.xl, fontWeight: '800' },
+  modalClose:      { padding: spacing[1] },
+  inputRow:        { marginBottom: spacing[4] },
+  inputLabel:      { fontSize: fontSize.xs, fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: spacing[1] },
+  textInput:       { borderWidth: 1.5, borderColor: '#ddd', borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[2], fontSize: fontSize.lg, color: '#222', backgroundColor: '#fafafa' },
+  modalErr:        { color: '#c0392b', fontSize: fontSize.sm, marginTop: spacing[3], marginBottom: spacing[1] },
+  walkUpOffBox:     { backgroundColor: '#fff8e1', borderColor: '#f39c12', borderWidth: 1, borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], gap: spacing[3] },
+  walkUpOffText:    { color: '#6d4c00', fontSize: fontSize.sm, lineHeight: 18 },
+  walkUpOffBtn:     { alignSelf: 'flex-start', paddingVertical: spacing[2], paddingHorizontal: spacing[4], borderRadius: radius.md, minWidth: 140, alignItems: 'center' },
+  walkUpOffBtnText: { fontSize: fontSize.sm, fontWeight: '700' },
+  modalActions:    { flexDirection: 'row', gap: spacing[3], marginTop: spacing[5] },
+  modalCancel:     { flex: 1, paddingVertical: spacing[3], borderRadius: radius.md, borderWidth: 1.5, borderColor: '#ddd', alignItems: 'center' },
+  modalCancelText: { fontSize: fontSize.md, fontWeight: '700' },
+  modalSubmit:     { flex: 2, paddingVertical: spacing[3], borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', minHeight: 44 },
+  modalSubmitText: { fontSize: fontSize.md, fontWeight: '800' },
 
-  statsRow:       { flexDirection: 'row', paddingVertical: 14, gap: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e0e0e0' },
+  statsRow:       { flexDirection: 'row', paddingVertical: spacing[4], gap: spacing[4], borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e0e0e0' },
   statsRowMobile: { flexWrap: 'wrap', gap: 0 },
   statChip:       { alignItems: 'center', flex: 1 },
-  statHalf:       { flex: 0, width: '50%', paddingVertical: 10, paddingHorizontal: 8 },
-  statValue: { fontSize: 22, fontWeight: '900' },
-  statLabel: { fontSize: 11, fontWeight: '600', color: '#888', textTransform: 'uppercase', letterSpacing: 0.4 },
+  statHalf:       { flex: 0, width: '50%', paddingVertical: spacing[3], paddingHorizontal: spacing[2] },
+  statValue: { fontSize: fontSize.title, fontWeight: '900' },
+  statLabel: { fontSize: fontSize.xxs, fontWeight: '600', color: '#888', textTransform: 'uppercase', letterSpacing: 0.4 },
 
-  filterRow: { flexDirection: 'row', paddingHorizontal: 24, borderBottomWidth: 1 },
-  filterBtn: { paddingVertical: 12, paddingHorizontal: 4, marginRight: 24, borderBottomWidth: 3, borderBottomColor: 'transparent' },
-  filterText: { fontSize: 14 },
+  filterRow: { flexDirection: 'row', paddingHorizontal: spacing[6], borderBottomWidth: 1 },
+  filterBtn: { paddingVertical: spacing[3], paddingHorizontal: spacing[1], marginRight: spacing[6], borderBottomWidth: 3, borderBottomColor: 'transparent' },
+  filterText: { fontSize: fontSize.md },
 
-  errorBox: { margin: 16, backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: 14 },
+  errorBox: { margin: spacing[4], backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
+  errorText: { color: '#c0392b', fontSize: fontSize.md },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 15 },
+  emptyText: { fontSize: fontSize.lg },
 
-  list: { padding: 16, gap: 10 },
-  card: { backgroundColor: '#fff', borderWidth: 1, borderRadius: 12, padding: 14, gap: 10 },
-  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  teamName: { fontSize: 16, fontWeight: '700' },
-  meta: { fontSize: 13, marginTop: 2 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  statusText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  list: { padding: spacing[4], gap: spacing[3] },
+  card: { backgroundColor: '#fff', borderWidth: 1, borderRadius: radius.lg, padding: spacing[4], gap: spacing[3] },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3] },
+  teamName: { fontSize: fontSize.xl, fontWeight: '700' },
+  meta: { fontSize: fontSize.sm, marginTop: spacing[0.5] },
+  statusBadge: { paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.lg },
+  statusText: { fontSize: fontSize.xxs, fontWeight: '700', color: '#fff' },
 
-  cardActions: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  pill: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  pillText: { fontSize: 13, fontWeight: '600' },
-  actionBtn: { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6, minWidth: 110, alignItems: 'center', justifyContent: 'center' },
-  actionBtnText: { fontSize: 13, fontWeight: '700' },
+  cardActions: { flexDirection: 'row', gap: spacing[3], flexWrap: 'wrap' },
+  pill: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[1] },
+  pillText: { fontSize: fontSize.sm, fontWeight: '600' },
+  actionBtn: { borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[2], minWidth: 110, alignItems: 'center', justifyContent: 'center' },
+  actionBtnText: { fontSize: fontSize.sm, fontWeight: '700' },
 
-  cardlessHint: { fontSize: 12, marginTop: 8, fontStyle: 'italic' },
-  roster: { marginTop: 10, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e8e8e8', gap: 6 },
-  golferRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  golferName: { fontSize: 14, fontWeight: '600', flex: 1 },
-  cardTag: { fontSize: 12, fontWeight: '600', minWidth: 66 },
+  cardlessHint: { fontSize: fontSize.xs, marginTop: spacing[2], fontStyle: 'italic' },
+  roster: { marginTop: spacing[3], paddingTop: spacing[2], borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e8e8e8', gap: spacing[2] },
+  golferRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  golferName: { fontSize: fontSize.md, fontWeight: '600', flex: 1 },
+  cardTag: { fontSize: fontSize.xs, fontWeight: '600', minWidth: 66 },
   cardTagAction: { textDecorationLine: 'underline' },
-  golferDone: { fontSize: 12, fontWeight: '700', minWidth: 96, textAlign: 'right' },
-  golferBtn: { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 4, minWidth: 96, alignItems: 'center', justifyContent: 'center' },
-  golferBtnText: { fontSize: 12, fontWeight: '700' },
+  golferDone: { fontSize: fontSize.xs, fontWeight: '700', minWidth: 96, textAlign: 'right' },
+  golferBtn: { borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[1], minWidth: 96, alignItems: 'center', justifyContent: 'center' },
+  golferBtnText: { fontSize: fontSize.xs, fontWeight: '700' },
 
-  guestToggleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10 },
+  guestToggleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3], paddingVertical: spacing[3] },
   guestCheckbox: {
-    width: 22, height: 22, borderRadius: 5, borderWidth: 2,
+    width: 22, height: 22, borderRadius: radius.sm, borderWidth: 2,
     alignItems: 'center', justifyContent: 'center', marginTop: 1,
   },
-  guestCheckboxTick: { color: '#fff', fontSize: 14, fontWeight: '900', lineHeight: 16 },
-  guestToggleLabel: { fontSize: 14, fontWeight: '700' },
-  guestToggleHint:  { fontSize: 12, marginTop: 2, lineHeight: 16 },
+  guestCheckboxTick: { color: '#fff', fontSize: fontSize.md, fontWeight: '900', lineHeight: 16 },
+  guestToggleLabel: { fontSize: fontSize.md, fontWeight: '700' },
+  guestToggleHint:  { fontSize: fontSize.xs, marginTop: spacing[0.5], lineHeight: 16 },
 });

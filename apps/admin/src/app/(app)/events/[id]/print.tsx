@@ -5,7 +5,7 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { useTheme } from '@gfp/ui';
-import { ECO_GREEN_DEFAULT } from '@gfp/theme';
+import { ECO_GREEN_DEFAULT, spacing, fontSize, radius } from '@gfp/theme';
 import {
   eventsApi, teamsApi, sponsorsApi,
   type EventDetail, type Team, type LeaderboardEntry, type IndividualLeaderboardEntry, type Sponsor,
@@ -426,22 +426,22 @@ function buildTeeTimeHtml(event: EventDetail, teams: Team[]): string {
 }
 
 const styles = StyleSheet.create({
-  page:     { flex: 1, padding: 28, backgroundColor: '#f7f8fa' },
-  title:    { fontSize: 22, fontWeight: '800', marginBottom: 6 },
-  subtitle: { fontSize: 14, lineHeight: 20, marginBottom: 20 },
-  errorBox: { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c', marginBottom: 16 },
-  errorText:{ color: '#c0392b', fontSize: 14 },
+  page:     { flex: 1, padding: spacing[8], backgroundColor: '#f7f8fa' },
+  title:    { fontSize: fontSize.title, fontWeight: '800', marginBottom: spacing[2] },
+  subtitle: { fontSize: fontSize.md, lineHeight: 20, marginBottom: spacing[5] },
+  errorBox: { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c', marginBottom: spacing[4] },
+  errorText:{ color: '#c0392b', fontSize: fontSize.md },
 
-  cards: { gap: 14 },
+  cards: { gap: spacing[4] },
   card: {
-    flexDirection: 'row', alignItems: 'center', gap: 16,
-    backgroundColor: '#fff', borderRadius: 12, padding: 18,
+    flexDirection: 'row', alignItems: 'center', gap: spacing[4],
+    backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing[5],
     borderLeftWidth: 5,
     boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.06)', elevation: 2,
   },
   cardIcon:  { fontSize: 32 },
-  cardTitle: { fontSize: 16, fontWeight: '800', marginBottom: 4 },
-  cardDesc:  { fontSize: 13, color: '#666', lineHeight: 18 },
-  printBtn:  { paddingHorizontal: 18, paddingVertical: 11, borderRadius: 9, minWidth: 90, alignItems: 'center' },
-  printBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  cardTitle: { fontSize: fontSize.xl, fontWeight: '800', marginBottom: spacing[1] },
+  cardDesc:  { fontSize: fontSize.sm, color: '#666', lineHeight: 18 },
+  printBtn:  { paddingHorizontal: spacing[5], paddingVertical: spacing[3], borderRadius: radius.lg, minWidth: 90, alignItems: 'center' },
+  printBtnText: { fontSize: fontSize.md, fontWeight: '700', color: '#fff' },
 });

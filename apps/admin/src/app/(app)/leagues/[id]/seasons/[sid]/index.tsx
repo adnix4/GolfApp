@@ -20,6 +20,7 @@ import { validatePickerDateTime } from '@/lib/dateTime';
 import { useLeagueName } from '../../_layout';
 import { useQueryClient } from '@tanstack/react-query';
 import { leagueKeys, useSeasonDashboard } from '@/lib/queries';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 type Tab = 'overview' | 'roster' | 'rounds' | 'handicaps' | 'standings' | 'skins';
 
@@ -346,7 +347,7 @@ export default function SeasonDashboardScreen() {
                 onPress={handleToggleSync}
                 disabled={syncSaving}
               >
-                <Text style={{ color: dashboard.season.syncHandicapToPlayer ? theme.colors.surface : theme.mutedText, fontSize: 12, fontWeight: '600' }}>
+                <Text style={{ color: dashboard.season.syncHandicapToPlayer ? theme.colors.surface : theme.mutedText, fontSize: fontSize.xs, fontWeight: '600' }}>
                   {dashboard.season.syncHandicapToPlayer ? 'ON' : 'OFF'}
                 </Text>
               </Pressable>
@@ -375,7 +376,7 @@ export default function SeasonDashboardScreen() {
               </Text>
               <Pressable style={[styles.smallBtn, { backgroundColor: theme.colors.primary }]}
                 onPress={() => setShowAddMember(true)}>
-                <Text style={{ color: theme.colors.surface, fontSize: 13 }}>+ Add</Text>
+                <Text style={{ color: theme.colors.surface, fontSize: fontSize.sm }}>+ Add</Text>
               </Pressable>
             </View>
             {dashboard.roster.map(m => (
@@ -393,11 +394,11 @@ export default function SeasonDashboardScreen() {
                 <View style={styles.memberActions}>
                   <Pressable style={[styles.iconBtn, { borderColor: theme.colors.accent }]}
                     onPress={() => openHandicapHistory(m)}>
-                    <Text style={{ fontSize: 12, color: theme.colors.action }}>HC History</Text>
+                    <Text style={{ fontSize: fontSize.xs, color: theme.colors.action }}>HC History</Text>
                   </Pressable>
                   <Pressable style={[styles.iconBtn, { borderColor: theme.colors.accent }]}
                     onPress={() => { setSelMember(m); setOverrideIdx(m.handicapIndex.toString()); setShowOverride(true); }}>
-                    <Text style={{ fontSize: 12, color: theme.colors.primary }}>Override</Text>
+                    <Text style={{ fontSize: fontSize.xs, color: theme.colors.primary }}>Override</Text>
                   </Pressable>
                 </View>
               </View>
@@ -412,7 +413,7 @@ export default function SeasonDashboardScreen() {
               <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Round Manager</Text>
               <Pressable style={[styles.smallBtn, { backgroundColor: theme.colors.primary }]}
                 onPress={() => setShowAddRound(true)}>
-                <Text style={{ color: theme.colors.surface, fontSize: 13 }}>+ Round</Text>
+                <Text style={{ color: theme.colors.surface, fontSize: fontSize.sm }}>+ Round</Text>
               </Pressable>
             </View>
             {dashboard.rounds.map(r => (
@@ -432,31 +433,31 @@ export default function SeasonDashboardScreen() {
                     {r.status === 'Scheduled' && (
                       <Pressable style={[styles.actionBtn, { backgroundColor: theme.colors.primary + '22' }]}
                         onPress={() => handleGeneratePairings(r)} disabled={pairLoading}>
-                        <Text style={{ color: theme.colors.primary, fontSize: 12 }}>Generate Pairings</Text>
+                        <Text style={{ color: theme.colors.primary, fontSize: fontSize.xs }}>Generate Pairings</Text>
                       </Pressable>
                     )}
                     {(r.status === 'Scheduled' || r.status === 'Open') && (
                       <Pressable style={[styles.actionBtn, { backgroundColor: '#f59e0b22' }]}
                         onPress={() => handleOpenScoring(r)}>
-                        <Text style={{ color: '#d97706', fontSize: 12 }}>Open Scoring</Text>
+                        <Text style={{ color: '#d97706', fontSize: fontSize.xs }}>Open Scoring</Text>
                       </Pressable>
                     )}
                     {r.status === 'Scoring' && (
                       <Pressable style={[styles.actionBtn, { backgroundColor: '#16a34a22' }]}
                         onPress={() => handleCloseRound(r)}>
-                        <Text style={{ color: '#16a34a', fontSize: 12 }}>Close Round</Text>
+                        <Text style={{ color: '#16a34a', fontSize: fontSize.xs }}>Close Round</Text>
                       </Pressable>
                     )}
                     {r.status === 'Closed' && (
                       <Pressable style={[styles.actionBtn, { backgroundColor: '#6366f122' }]}
                         onPress={() => handleLoadSkins(r)}>
-                        <Text style={{ color: '#6366f1', fontSize: 12 }}>View Skins</Text>
+                        <Text style={{ color: '#6366f1', fontSize: fontSize.xs }}>View Skins</Text>
                       </Pressable>
                     )}
                     {(r.status === 'Scheduled' || r.status === 'Open') && (
                       <Pressable style={[styles.actionBtn, { backgroundColor: '#ef444422' }]}
                         onPress={() => handleOpenAbsences(r)}>
-                        <Text style={{ color: '#ef4444', fontSize: 12 }}>
+                        <Text style={{ color: '#ef4444', fontSize: fontSize.xs }}>
                           Absences{r.absenceCount > 0 ? ` (${r.absenceCount})` : ''}
                         </Text>
                       </Pressable>
@@ -464,7 +465,7 @@ export default function SeasonDashboardScreen() {
                     {r.pairingCount > 0 && (
                       <Pressable style={[styles.actionBtn, { backgroundColor: '#0ea5e922' }]}
                         onPress={() => handleDownloadPairingsPdf(r)}>
-                        <Text style={{ color: '#0ea5e9', fontSize: 12 }}>Print Pairings</Text>
+                        <Text style={{ color: '#0ea5e9', fontSize: fontSize.xs }}>Print Pairings</Text>
                       </Pressable>
                     )}
                   </View>
@@ -492,11 +493,11 @@ export default function SeasonDashboardScreen() {
                 <View style={styles.memberActions}>
                   <Pressable style={[styles.iconBtn, { borderColor: theme.colors.accent }]}
                     onPress={() => openHandicapHistory(m)}>
-                    <Text style={{ fontSize: 12, color: theme.colors.action }}>History</Text>
+                    <Text style={{ fontSize: fontSize.xs, color: theme.colors.action }}>History</Text>
                   </Pressable>
                   <Pressable style={[styles.iconBtn, { borderColor: theme.colors.accent }]}
                     onPress={() => { setSelMember(m); setOverrideIdx(m.handicapIndex.toString()); setShowOverride(true); }}>
-                    <Text style={{ fontSize: 12, color: '#f59e0b' }}>Override</Text>
+                    <Text style={{ fontSize: fontSize.xs, color: '#f59e0b' }}>Override</Text>
                   </Pressable>
                 </View>
               </View>
@@ -512,7 +513,7 @@ export default function SeasonDashboardScreen() {
               {dashboard.standings.length > 0 && (
                 <Pressable style={[styles.smallBtn, { backgroundColor: '#0ea5e9' }]}
                   onPress={handleDownloadStandingsPdf}>
-                  <Text style={{ color: '#fff', fontSize: 13 }}>Export PDF</Text>
+                  <Text style={{ color: '#fff', fontSize: fontSize.sm }}>Export PDF</Text>
                 </Pressable>
               )}
             </View>
@@ -524,7 +525,7 @@ export default function SeasonDashboardScreen() {
               <View>
                 <View style={[styles.tableRow, styles.tableHeader, { backgroundColor: theme.colors.primary + '11' }]}>
                   {['#', 'Name', 'Flight', 'HC', 'Pts', 'Net', 'Rnds'].map(h => (
-                    <Text key={h} style={[styles.tableCell, { color: theme.mutedText, fontWeight: '700', fontSize: 11 }]}>{h}</Text>
+                    <Text key={h} style={[styles.tableCell, { color: theme.mutedText, fontWeight: '700', fontSize: fontSize.xxs }]}>{h}</Text>
                   ))}
                 </View>
                 {dashboard.standings.map((s: StandingRow) => (
@@ -669,45 +670,45 @@ function roundStatusColor(s: string) {
 const styles = StyleSheet.create({
   root:          { flex: 1 },
   center:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header:        { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderBottomWidth: 1 },
-  title:         { flex: 1, fontSize: 18, fontWeight: '700' },
-  statusBadge:   { fontSize: 12 },
-  errorBanner:   { flexDirection: 'row', justifyContent: 'space-between', margin: 12, padding: 10, borderRadius: 8, backgroundColor: '#fef2f2' },
+  header:        { flexDirection: 'row', alignItems: 'center', gap: spacing[3], padding: spacing[4], borderBottomWidth: 1 },
+  title:         { flex: 1, fontSize: fontSize.xl, fontWeight: '700' },
+  statusBadge:   { fontSize: fontSize.xs },
+  errorBanner:   { flexDirection: 'row', justifyContent: 'space-between', margin: spacing[3], padding: spacing[3], borderRadius: radius.md, backgroundColor: '#fef2f2' },
   tabBar:        { maxHeight: 44, borderBottomWidth: 1 },
-  tabBtn:        { paddingHorizontal: 16, paddingVertical: 12 },
-  tabLabel:      { fontSize: 13, fontWeight: '600' },
-  content:       { padding: 16, paddingBottom: 40 },
-  section:       { gap: 8 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  sectionTitle:  { fontSize: 17, fontWeight: '700' },
-  subTitle:      { fontSize: 15, fontWeight: '600', marginTop: 12, marginBottom: 4 },
-  statsGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  statCard:      { flex: 1, minWidth: 80, borderRadius: 10, padding: 12, borderWidth: 1, alignItems: 'center' },
-  statVal:       { fontSize: 22, fontWeight: '700' },
-  statLabel:     { fontSize: 11, marginTop: 2 },
-  roundRow:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1 },
-  roundDate:     { fontSize: 14, fontWeight: '600' },
-  roundMeta:     { fontSize: 12 },
-  roundStatus:   { fontSize: 12, fontWeight: '600' },
-  roundCard:     { borderRadius: 10, borderWidth: 1, padding: 12, marginBottom: 8 },
-  roundCardTop:  { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
-  roundActions:  { flexDirection: 'row', gap: 8 },
-  actionBtn:     { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  memberRow:     { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 8, borderWidth: 1, marginBottom: 6 },
-  memberName:    { fontSize: 14, fontWeight: '600' },
-  memberMeta:    { fontSize: 12, marginTop: 2 },
-  memberActions: { flexDirection: 'row', gap: 6 },
-  iconBtn:       { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
-  smallBtn:      { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  tableRow:      { flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1 },
-  tableHeader:   { paddingVertical: 10, borderRadius: 6 },
-  tableCell:     { flex: 1, fontSize: 13, textAlign: 'center' },
-  emptyText:     { fontSize: 14, textAlign: 'center', paddingVertical: 24 },
-  skinRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1 },
-  skinHole:      { width: 60, fontSize: 14, fontWeight: '700' },
-  skinWinner:    { fontSize: 14 },
-  skinCarry:     { fontSize: 11, marginTop: 2 },
-  skinPot:       { fontSize: 14, fontWeight: '700' },
-  syncRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, marginBottom: 8 },
-  syncToggle:    { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, minWidth: 48, alignItems: 'center' },
+  tabBtn:        { paddingHorizontal: spacing[4], paddingVertical: spacing[3] },
+  tabLabel:      { fontSize: fontSize.sm, fontWeight: '600' },
+  content:       { padding: spacing[4], paddingBottom: spacing[10] },
+  section:       { gap: spacing[2] },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[1] },
+  sectionTitle:  { fontSize: fontSize.xl, fontWeight: '700' },
+  subTitle:      { fontSize: fontSize.lg, fontWeight: '600', marginTop: spacing[3], marginBottom: spacing[1] },
+  statsGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[3] },
+  statCard:      { flex: 1, minWidth: 80, borderRadius: radius.lg, padding: spacing[3], borderWidth: 1, alignItems: 'center' },
+  statVal:       { fontSize: fontSize.title, fontWeight: '700' },
+  statLabel:     { fontSize: fontSize.xxs, marginTop: spacing[0.5] },
+  roundRow:      { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], borderBottomWidth: 1 },
+  roundDate:     { fontSize: fontSize.md, fontWeight: '600' },
+  roundMeta:     { fontSize: fontSize.xs },
+  roundStatus:   { fontSize: fontSize.xs, fontWeight: '600' },
+  roundCard:     { borderRadius: radius.lg, borderWidth: 1, padding: spacing[3], marginBottom: spacing[2] },
+  roundCardTop:  { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing[2] },
+  roundActions:  { flexDirection: 'row', gap: spacing[2] },
+  actionBtn:     { paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.md },
+  memberRow:     { flexDirection: 'row', alignItems: 'center', padding: spacing[3], borderRadius: radius.md, borderWidth: 1, marginBottom: spacing[2] },
+  memberName:    { fontSize: fontSize.md, fontWeight: '600' },
+  memberMeta:    { fontSize: fontSize.xs, marginTop: spacing[0.5] },
+  memberActions: { flexDirection: 'row', gap: spacing[2] },
+  iconBtn:       { paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.sm, borderWidth: 1 },
+  smallBtn:      { paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.md },
+  tableRow:      { flexDirection: 'row', paddingVertical: spacing[2], borderBottomWidth: 1 },
+  tableHeader:   { paddingVertical: spacing[3], borderRadius: radius.sm },
+  tableCell:     { flex: 1, fontSize: fontSize.sm, textAlign: 'center' },
+  emptyText:     { fontSize: fontSize.md, textAlign: 'center', paddingVertical: spacing[6] },
+  skinRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], borderBottomWidth: 1 },
+  skinHole:      { width: 60, fontSize: fontSize.md, fontWeight: '700' },
+  skinWinner:    { fontSize: fontSize.md },
+  skinCarry:     { fontSize: fontSize.xxs, marginTop: spacing[0.5] },
+  skinPot:       { fontSize: fontSize.md, fontWeight: '700' },
+  syncRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], borderBottomWidth: 1, marginBottom: spacing[2] },
+  syncToggle:    { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.xxl, minWidth: 48, alignItems: 'center' },
 });

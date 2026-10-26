@@ -9,6 +9,7 @@ import { useTheme, MoneyInput } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { challengesApi, type HoleChallenge } from '@/lib/api';
 import { useChallengeList } from '@/lib/queries';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 const COMMON_CHALLENGES = [
   'Closest to Pin',
@@ -269,7 +270,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
             ))}
           </View>
           <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent, marginTop: 6 }]}
+            style={[styles.input, { borderColor: theme.colors.accent, marginTop: spacing[2] }]}
             value={description}
             onChangeText={setDescription}
             placeholder="Custom description…"
@@ -339,44 +340,44 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
 
 const styles = StyleSheet.create({
   page:   { flex: 1, backgroundColor: '#f7f8fa' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, paddingBottom: 16 },
-  title:  { fontSize: 22, fontWeight: '800' },
-  addBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 8 },
-  addBtnText: { fontSize: 14, fontWeight: '700' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  emptyText: { fontSize: 16, fontWeight: '600', marginBottom: 8, textAlign: 'center' },
-  emptyHint: { fontSize: 13, textAlign: 'center', opacity: 0.8 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing[6], paddingBottom: spacing[4] },
+  title:  { fontSize: fontSize.title, fontWeight: '800' },
+  addBtn: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
+  addBtnText: { fontSize: fontSize.md, fontWeight: '700' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[8] },
+  emptyText: { fontSize: fontSize.xl, fontWeight: '600', marginBottom: spacing[2], textAlign: 'center' },
+  emptyHint: { fontSize: fontSize.sm, textAlign: 'center', opacity: 0.8 },
 
-  errorBox: { margin: 16, backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: 14 },
+  errorBox: { margin: spacing[4], backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
+  errorText: { color: '#c0392b', fontSize: fontSize.md },
 
-  list: { padding: 16, gap: 10 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#fff', borderWidth: 1, borderRadius: 12, padding: 14 },
-  holeTag: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, alignItems: 'center', minWidth: 58 },
-  holeTagText: { fontSize: 12, fontWeight: '800', color: '#fff', textAlign: 'center' },
-  challengeName: { fontSize: 15, fontWeight: '700' },
-  sponsorLine: { fontSize: 13, marginTop: 2 },
-  sponsorLogo: { width: 80, height: 32, marginTop: 6 },
-  logoPreview: { width: 120, height: 48, marginTop: 8, borderRadius: 4, backgroundColor: '#f0f0f0' },
-  donationLine: { fontSize: 13, marginTop: 2 },
-  winnerLine: { fontSize: 13, fontWeight: '600', marginTop: 4 },
-  cardActions: { gap: 8 },
-  editBtn: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: '#3498db' },
-  editText: { fontSize: 12, fontWeight: '700' },
-  deleteBtn: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: '#e74c3c' },
-  deleteText: { fontSize: 12, fontWeight: '700', color: '#e74c3c' },
+  list: { padding: spacing[4], gap: spacing[3] },
+  card: { flexDirection: 'row', alignItems: 'center', gap: spacing[4], backgroundColor: '#fff', borderWidth: 1, borderRadius: radius.lg, padding: spacing[4] },
+  holeTag: { paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.md, alignItems: 'center', minWidth: 58 },
+  holeTagText: { fontSize: fontSize.xs, fontWeight: '800', color: '#fff', textAlign: 'center' },
+  challengeName: { fontSize: fontSize.lg, fontWeight: '700' },
+  sponsorLine: { fontSize: fontSize.sm, marginTop: spacing[0.5] },
+  sponsorLogo: { width: 80, height: 32, marginTop: spacing[2] },
+  logoPreview: { width: 120, height: 48, marginTop: spacing[2], borderRadius: radius.xs, backgroundColor: '#f0f0f0' },
+  donationLine: { fontSize: fontSize.sm, marginTop: spacing[0.5] },
+  winnerLine: { fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing[1] },
+  cardActions: { gap: spacing[2] },
+  editBtn: { paddingVertical: spacing[1], paddingHorizontal: spacing[3], borderRadius: radius.sm, borderWidth: 1, borderColor: '#3498db' },
+  editText: { fontSize: fontSize.xs, fontWeight: '700' },
+  deleteBtn: { paddingVertical: spacing[1], paddingHorizontal: spacing[3], borderRadius: radius.sm, borderWidth: 1, borderColor: '#e74c3c' },
+  deleteText: { fontSize: fontSize.xs, fontWeight: '700', color: '#e74c3c' },
 
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  modal: { width: '90%', maxWidth: 460, backgroundColor: '#fff', borderRadius: 16, padding: 24, gap: 4 },
-  modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 8 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', marginTop: 12, marginBottom: 6 },
-  input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, backgroundColor: '#fafafa' },
-  quickPicks: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  quickChip: { borderWidth: 1, borderColor: '#ccc', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
-  quickChipText: { fontSize: 13, fontWeight: '600' },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 16 },
-  cancelBtn: { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-  cancelText: { fontSize: 15, fontWeight: '600' },
-  saveBtn: { flex: 2, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-  saveBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  modal: { width: '90%', maxWidth: 460, backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[6], gap: spacing[1] },
+  modalTitle: { fontSize: fontSize.xxl, fontWeight: '800', marginBottom: spacing[2] },
+  fieldLabel: { fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing[3], marginBottom: spacing[2] },
+  input: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa' },
+  quickPicks: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  quickChip: { borderWidth: 1, borderColor: '#ccc', borderRadius: radius.xl, paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
+  quickChipText: { fontSize: fontSize.sm, fontWeight: '600' },
+  modalActions: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] },
+  cancelBtn: { flex: 1, borderWidth: 1, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center' },
+  cancelText: { fontSize: fontSize.lg, fontWeight: '600' },
+  saveBtn: { flex: 2, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center' },
+  saveBtnText: { fontSize: fontSize.lg, fontWeight: '700', color: '#fff' },
 });

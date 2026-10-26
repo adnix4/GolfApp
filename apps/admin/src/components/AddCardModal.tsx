@@ -24,6 +24,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { useTheme } from '@gfp/ui';
 import { paymentMethodApi } from '@/lib/api';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // The publishable key is safe to expose. With none configured the card button is
 // hidden entirely and the desk falls back to cash or check.
@@ -80,7 +81,7 @@ export function AddCardModal({ visible, eventId, playerId, playerName, onClose, 
           {loadError && <Text style={styles.error}>⚠️ {loadError}</Text>}
 
           {!clientSecret && !loadError && (
-            <ActivityIndicator style={{ marginVertical: 24 }} color={theme.colors.primary} />
+            <ActivityIndicator style={{ marginVertical: spacing[6] }} color={theme.colors.primary} />
           )}
 
           {clientSecret && stripePromise && (
@@ -144,7 +145,7 @@ function CardForm({ eventId, playerId, onSaved }: {
   }
 
   return (
-    <View style={{ marginTop: 8 }}>
+    <View style={{ marginTop: spacing[2] }}>
       <PaymentElement />
       {err && <Text style={styles.error}>⚠️ {err}</Text>}
       <Pressable
@@ -164,14 +165,14 @@ function CardForm({ eventId, playerId, onSaved }: {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  sheet:    { width: '100%', maxWidth: 460, backgroundColor: '#fff', borderRadius: 14, padding: 22 },
-  title:    { fontSize: 17, fontWeight: '800' },
-  sub:      { fontSize: 13, marginTop: 4, marginBottom: 12, lineHeight: 18 },
-  error:    { color: '#c0392b', fontSize: 13, marginTop: 10 },
-  saveBtn:  { marginTop: 16, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  saveText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  secure:   { fontSize: 11, textAlign: 'center', marginTop: 10 },
-  cancelBtn:  { marginTop: 14, alignItems: 'center' },
-  cancelText: { fontSize: 14 },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: spacing[5] },
+  sheet:    { width: '100%', maxWidth: 460, backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[6] },
+  title:    { fontSize: fontSize.xl, fontWeight: '800' },
+  sub:      { fontSize: fontSize.sm, marginTop: spacing[1], marginBottom: spacing[3], lineHeight: 18 },
+  error:    { color: '#c0392b', fontSize: fontSize.sm, marginTop: spacing[3] },
+  saveBtn:  { marginTop: spacing[4], paddingVertical: spacing[3], borderRadius: radius.md, alignItems: 'center' },
+  saveText: { color: '#fff', fontWeight: '700', fontSize: fontSize.lg },
+  secure:   { fontSize: fontSize.xxs, textAlign: 'center', marginTop: spacing[3] },
+  cancelBtn:  { marginTop: spacing[4], alignItems: 'center' },
+  cancelText: { fontSize: fontSize.md },
 });

@@ -8,6 +8,7 @@ import { useTheme } from '@gfp/ui';
 import { digitsOnly, fmtAgeGroup, fmtPhone, fmtPhoneInput, validateGolfer, toPlayerInput } from '@gfp/shared-types';
 import { playersApi, type Player, type AddPlayerPayload } from '@/lib/api';
 import { useFreeAgentList, useTeamList } from '@/lib/queries';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function FreeAgentsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
@@ -210,7 +211,7 @@ export default function FreeAgentsScreen() {
                 </Pressable>
               ))}
               {teams.length === 0 && (
-                <Text style={[styles.teamOptionMeta, { color: theme.mutedText, textAlign: 'center', padding: 16 }]}>
+                <Text style={[styles.teamOptionMeta, { color: theme.mutedText, textAlign: 'center', padding: spacing[4] }]}>
                   No teams available. Register a team first.
                 </Text>
               )}
@@ -280,8 +281,8 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
         <View style={styles.modalBox}>
           <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Add Free Agent</Text>
           {error && (
-            <View style={{ backgroundColor: '#fdf2f2', borderRadius: 8, padding: 10, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#e74c3c' }}>
-              <Text style={{ color: '#c0392b', fontSize: 13 }}>{error}</Text>
+            <View style={{ backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' }}>
+              <Text style={{ color: '#c0392b', fontSize: fontSize.sm }}>{error}</Text>
             </View>
           )}
           <View style={styles.nameRow}>
@@ -297,25 +298,25 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
             />
           </View>
           <TextInput
-            style={[styles.input, { borderColor: '#ccc', marginTop: 8 }]}
+            style={[styles.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
             value={email} onChangeText={v => { setEmail(v); if (error) setError(null); }}
             placeholder="email@example.com *" placeholderTextColor="#999"
             keyboardType="email-address" autoCapitalize="none" editable={!loading}
           />
           <TextInput
-            style={[styles.input, { borderColor: '#ccc', marginTop: 8 }]}
+            style={[styles.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
             value={phone}
             onChangeText={v => { setPhone(fmtPhoneInput(digitsOnly(v))); if (error) setError(null); }}
             placeholder="(555) 867-5309 (optional)" placeholderTextColor="#999"
             keyboardType="phone-pad" editable={!loading}
           />
           <TextInput
-            style={[styles.input, { borderColor: '#ccc', marginTop: 8 }]}
+            style={[styles.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
             value={handicap} onChangeText={v => { setHandicap(v.replace(/[^0-9.]/g, '')); if (error) setError(null); }}
             placeholder="Handicap index (optional)" placeholderTextColor="#999"
             keyboardType="decimal-pad" editable={!loading}
           />
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
+          <View style={{ flexDirection: 'row', gap: spacing[3], marginTop: spacing[5] }}>
             <Pressable
               style={[styles.cancelModalBtn, { flex: 1, borderColor: '#aaa' }]}
               onPress={() => { reset(); onClose(); }}
@@ -323,13 +324,13 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
               <Text style={[styles.cancelModalText, { color: '#888' }]}>Cancel</Text>
             </Pressable>
             <Pressable
-              style={[{ flex: 2, borderRadius: 8, paddingVertical: 12, alignItems: 'center' as const }, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
+              style={[{ flex: 2, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center' as const }, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
               onPress={handleSubmit}
               disabled={loading}
             >
               {loading
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Add</Text>}
+                : <Text style={{ fontSize: fontSize.lg, fontWeight: '700', color: '#fff' }}>Add</Text>}
             </Pressable>
           </View>
         </View>
@@ -340,47 +341,47 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
 
 const styles = StyleSheet.create({
   page:   { flex: 1, backgroundColor: '#f7f8fa' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, paddingBottom: 16 },
-  title:  { fontSize: 22, fontWeight: '800' },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  addBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  addBtnText: { fontSize: 13, fontWeight: '700' },
-  refreshBtn: { paddingVertical: 6, paddingHorizontal: 12 },
-  refreshText: { fontSize: 14, fontWeight: '600' },
-  nameRow: { flexDirection: 'row', gap: 8 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing[6], paddingBottom: spacing[4] },
+  title:  { fontSize: fontSize.title, fontWeight: '800' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  addBtn: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
+  addBtnText: { fontSize: fontSize.sm, fontWeight: '700' },
+  refreshBtn: { paddingVertical: spacing[2], paddingHorizontal: spacing[3] },
+  refreshText: { fontSize: fontSize.md, fontWeight: '600' },
+  nameRow: { flexDirection: 'row', gap: spacing[2] },
   // minWidth 0: a web <input> won't shrink below its default ~20ch otherwise,
   // so two side by side overflow the 420px modal.
   halfInput: { flex: 1, minWidth: 0 },
-  input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, backgroundColor: '#fafafa' },
+  input: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa' },
 
-  errorBox: { margin: 16, backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: 14 },
+  errorBox: { margin: spacing[4], backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
+  errorText: { color: '#c0392b', fontSize: fontSize.md },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 15 },
+  emptyText: { fontSize: fontSize.lg },
 
-  actionBar: { flexDirection: 'row', alignItems: 'center', padding: 12, paddingHorizontal: 20, gap: 12 },
-  actionBarText: { flex: 1, fontSize: 14, fontWeight: '600' },
-  assignBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  assignBtnText: { fontSize: 13, fontWeight: '700' },
-  clearBtn: { paddingHorizontal: 8, paddingVertical: 8 },
-  clearText: { fontSize: 13, fontWeight: '600' },
+  actionBar: { flexDirection: 'row', alignItems: 'center', padding: spacing[3], paddingHorizontal: spacing[5], gap: spacing[3] },
+  actionBarText: { flex: 1, fontSize: fontSize.md, fontWeight: '600' },
+  assignBtn: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
+  assignBtnText: { fontSize: fontSize.sm, fontWeight: '700' },
+  clearBtn: { paddingHorizontal: spacing[2], paddingVertical: spacing[2] },
+  clearText: { fontSize: fontSize.sm, fontWeight: '600' },
 
-  list: { padding: 16, gap: 8 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#fff', borderWidth: 1.5, borderRadius: 10, padding: 14 },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  checkmark: { color: '#fff', fontSize: 12, fontWeight: '800' },
-  agentName: { fontSize: 15, fontWeight: '700' },
-  agentMeta: { fontSize: 13, marginTop: 2 },
-  agentNote: { fontSize: 12, marginTop: 3, fontStyle: 'italic' },
+  list: { padding: spacing[4], gap: spacing[2] },
+  card: { flexDirection: 'row', alignItems: 'center', gap: spacing[4], backgroundColor: '#fff', borderWidth: 1.5, borderRadius: radius.lg, padding: spacing[4] },
+  checkbox: { width: 22, height: 22, borderRadius: radius.sm, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  checkmark: { color: '#fff', fontSize: fontSize.xs, fontWeight: '800' },
+  agentName: { fontSize: fontSize.lg, fontWeight: '700' },
+  agentMeta: { fontSize: fontSize.sm, marginTop: spacing[0.5] },
+  agentNote: { fontSize: fontSize.xs, marginTop: spacing[1], fontStyle: 'italic' },
 
   overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
-  modalBox:  { width: '90%', maxWidth: 420, backgroundColor: '#fff', borderRadius: 14, padding: 24, gap: 12 },
-  modalTitle:{ fontSize: 18, fontWeight: '800' },
-  modalSub:  { fontSize: 13 },
+  modalBox:  { width: '90%', maxWidth: 420, backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[6], gap: spacing[3] },
+  modalTitle:{ fontSize: fontSize.xl, fontWeight: '800' },
+  modalSub:  { fontSize: fontSize.sm },
   teamList:  { maxHeight: 280 },
-  teamOption:{ borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
-  teamOptionName: { fontSize: 15, fontWeight: '700' },
-  teamOptionMeta: { fontSize: 12, marginTop: 2 },
-  cancelModalBtn: { borderWidth: 1, borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginTop: 4 },
-  cancelModalText: { fontSize: 14, fontWeight: '600' },
+  teamOption:{ borderWidth: 1, borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[2] },
+  teamOptionName: { fontSize: fontSize.lg, fontWeight: '700' },
+  teamOptionMeta: { fontSize: fontSize.xs, marginTop: spacing[0.5] },
+  cancelModalBtn: { borderWidth: 1, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center', marginTop: spacing[1] },
+  cancelModalText: { fontSize: fontSize.md, fontWeight: '600' },
 });

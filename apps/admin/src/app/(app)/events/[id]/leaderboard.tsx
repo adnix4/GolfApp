@@ -8,6 +8,7 @@ import { useLeaderboard, useIndividualLeaderboard } from '@/lib/queries';
 import { useTheme } from '@gfp/ui';
 import { FORMAT_LABELS } from '@gfp/shared-types';
 import { useResponsive } from '@/lib/responsive';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 function formatScore(toPar: number): string {
   if (toPar === 0) return 'E';
@@ -226,44 +227,44 @@ const styles = StyleSheet.create({
   page:   { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 15 },
+  emptyText: { fontSize: fontSize.lg },
 
-  header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
-  title:       { fontSize: 22, fontWeight: '800' },
-  formatBadge: { fontSize: 13, marginTop: 2 },
+  header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[4] },
+  title:       { fontSize: fontSize.title, fontWeight: '800' },
+  formatBadge: { fontSize: fontSize.sm, marginTop: spacing[0.5] },
 
-  viewToggle:  { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  viewTab:     { borderWidth: 1.5, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6 },
-  viewTabText: { fontSize: 13, fontWeight: '700' },
+  viewToggle:  { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[3] },
+  viewTab:     { borderWidth: 1.5, borderRadius: radius.xl, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
+  viewTabText: { fontSize: fontSize.sm, fontWeight: '700' },
   golferCol:   { flexDirection: 'column', alignItems: 'flex-start', gap: 0 },
-  golferTeam:  { fontSize: 12 },
+  golferTeam:  { fontSize: fontSize.xs },
 
-  refreshBtn:  { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, minWidth: 80, alignItems: 'center' },
-  refreshText: { fontSize: 14, fontWeight: '600' },
+  refreshBtn:  { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[2], minWidth: 80, alignItems: 'center' },
+  refreshText: { fontSize: fontSize.md, fontWeight: '600' },
 
-  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: 14 },
+  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
+  errorText: { color: '#c0392b', fontSize: fontSize.md },
 
-  table:     { borderWidth: 1, borderRadius: 12, overflow: 'hidden', flex: 1 },
-  colHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1 },
+  table:     { borderWidth: 1, borderRadius: radius.lg, overflow: 'hidden', flex: 1 },
+  colHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], paddingHorizontal: spacing[3], borderBottomWidth: 1 },
 
-  row:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
+  row:    { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], paddingHorizontal: spacing[3], borderTopWidth: 1, borderTopColor: '#f0f0f0' },
   rowAlt: { backgroundColor: '#fafafa' },
 
   colRank:  { width: 36, alignItems: 'center' },
-  colName:  { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10 },
-  colScore: { width: 52, textAlign: 'right', fontSize: 12, fontWeight: '700' },
-  colNum:   { width: 48, textAlign: 'right', fontSize: 12, fontWeight: '700', marginLeft: 8 },
-  colThru:  { width: 44, textAlign: 'right', fontSize: 12, fontWeight: '700', marginLeft: 8 },
+  colName:  { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingHorizontal: spacing[3] },
+  colScore: { width: 52, textAlign: 'right', fontSize: fontSize.xs, fontWeight: '700' },
+  colNum:   { width: 48, textAlign: 'right', fontSize: fontSize.xs, fontWeight: '700', marginLeft: spacing[2] },
+  colThru:  { width: 44, textAlign: 'right', fontSize: fontSize.xs, fontWeight: '700', marginLeft: spacing[2] },
 
-  rankBadge: { fontSize: 13, fontWeight: '700', textAlign: 'center', width: 28 },
-  rank1: { color: '#d4af37', fontSize: 14 },
+  rankBadge: { fontSize: fontSize.sm, fontWeight: '700', textAlign: 'center', width: 28 },
+  rank1: { color: '#d4af37', fontSize: fontSize.md },
   rank2: { color: '#9e9e9e' },
   rank3: { color: '#cd7f32' },
 
-  teamName:   { fontSize: 15, fontWeight: '600', flex: 1 },
-  finishedTag:{ fontSize: 11, fontWeight: '700' },
-  scoreText:  { fontSize: 15, fontWeight: '800' },
-  numText:    { fontSize: 14, fontWeight: '600' },
-  thruText:   { fontSize: 14 },
+  teamName:   { fontSize: fontSize.lg, fontWeight: '600', flex: 1 },
+  finishedTag:{ fontSize: fontSize.xxs, fontWeight: '700' },
+  scoreText:  { fontSize: fontSize.lg, fontWeight: '800' },
+  numText:    { fontSize: fontSize.md, fontWeight: '600' },
+  thruText:   { fontSize: fontSize.md },
 });
