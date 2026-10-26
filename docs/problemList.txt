@@ -68,7 +68,8 @@ P4 — FEATURES / POLISH
           Auction Items + Live Auction, Fundraising, Challenges, Checkout,
           Overview 2026-10-24, Email Builder, events list, leagues, SuperAdmin
           2026-10-25; Settings + accept-invite left on purpose)
-     E2   spacing / radius / type tokens in packages/theme
+     [x] E2 spacing / radius / type tokens in packages/theme 2026-10-25
+          (teams.tsx + scorecard.tsx wait for E3; hex colours not started)
      E3   split the two largest screens (admin teams.tsx, mobile scorecard.tsx)
      E4   iOS App Clip for the join link — after D5 (needs Apple + a shipped app)
 
@@ -731,7 +732,7 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
         the decision); the event itself stays in eventContext.tsx, which orders
         background refreshes against Saves.
 
-[ ] E2. DESIGN TOKENS: SPACING, RADIUS, TYPE IN packages/theme
+[x] E2. DESIGN TOKENS: SPACING, RADIUS, TYPE IN packages/theme — DONE 2026-10-25
         packages/theme/src/index.ts has colour tokens and the theming contract
         only — no spacing, radius or type scale. Counted 2026-10-24 across admin
         + mobile .tsx: ~1,670 literal padding/margin/gap values and ~630 hex
@@ -740,6 +741,30 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
         the most literals first. Keep the theming contract rules
         (buttonLabel/ctaLabel/mutedText, accent is decorative) — the expo
         design-system skill is the reference. Polish, not a defect.
+        DONE 2026-10-25: packages/theme/src/scales.ts, re-exported from
+        @gfp/theme: spacing (key x 4 px: 0.5,1,2,3,4,5,6,8,10,12 -> 2..48),
+        radius (xs 4, sm 6, md 8, lg 12, xl 16, xxl 20, full 999), fontSize
+        (xxs 11, xs 12, sm 13, md 14, lg 15, xl 17, xxl 20, title 22,
+        display 28). Steps come from the measured literal counts, not a
+        textbook ramp; 14 stays because it is the admin web body size.
+        MIGRATED 66 files (admin, mobile, packages/ui), 2,811 literals, by a
+        one-off codemod. 689 of them were off-scale and SNAPPED: spacing and
+        type to the nearest step, ties UP (10->12, 14->16, 16->17), so no
+        touch target shrank; radius always rounds UP so a circle stays a
+        circle, and two >20 radii on width = 2r circles became radius.full.
+        LEFT LITERAL ON PURPOSE: 0/1 (hairlines), negatives, spacing > 48,
+        fontSize >= 32 (hero numerals), one 24 radius on a scorecard modal.
+        NOT TOUCHED: admin teams.tsx and mobile scorecard.tsx (E3 splits them
+        first, per the note below; run the same scales over them after), and
+        the ~630 hex colours, which are a separate pass (semantic colour
+        tokens for the fixed error/warning/success greys).
+        VERIFIED: theme/ui/admin/mobile type-check, lint, 497 tests green.
+        Both web exports built from main and from the branch and screenshotted
+        on 19 screens (admin login, events, 12 event tabs, leagues, settings;
+        mobile join, join-by-code, register) side by side in Edge: same
+        layouts, nothing clipped or wrapped; the branch is slightly roomier
+        (e.g. registration player rows ~2px taller, mobile input text 16->17).
+        Not checked on a phone (D5).
 
 [ ] E3. SPLIT THE TWO LARGEST SCREENS
         apps/admin/src/app/(app)/events/[id]/teams.tsx (~1,000 lines: screen,
