@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useTheme } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // ── Content ───────────────────────────────────────────────────────────────────
 
@@ -195,7 +196,7 @@ function TabGroupSection({ group }: { group: typeof TAB_GROUPS[0] }) {
 function BulletList({ items, color }: { items: string[]; color: string }) {
   const theme = useTheme();
   return (
-    <View style={{ gap: 8 }}>
+    <View style={{ gap: spacing[2] }}>
       {items.map((item, i) => (
         <View key={i} style={styles.bullet}>
           <Text style={[styles.bulletDot, { color }]}>•</Text>
@@ -222,13 +223,13 @@ export default function HelpScreen() {
       </View>
 
       <Section title="How to Run an Event" subtitle="Step-by-step from creation to completion">
-        <View style={{ gap: 20 }}>
+        <View style={{ gap: spacing[5] }}>
           {LIFECYCLE.map(step => <LifecycleStep key={step.step} {...step} />)}
         </View>
       </Section>
 
       <Section title="Event Management Tabs" subtitle="What each tab is for and when to use it">
-        <View style={{ gap: 20 }}>
+        <View style={{ gap: spacing[5] }}>
           {TAB_GROUPS.map(group => <TabGroupSection key={group.id} group={group} />)}
         </View>
       </Section>
@@ -248,35 +249,35 @@ export default function HelpScreen() {
 
 const styles = StyleSheet.create({
   page:    { flex: 1 },
-  content: { gap: 16, paddingBottom: 40 },
+  content: { gap: spacing[4], paddingBottom: spacing[10] },
 
-  pageHeader:   { marginBottom: 4 },
-  pageTitle:    { fontSize: 24, fontWeight: '800' },
-  pageSubtitle: { fontSize: 14, lineHeight: 20, marginTop: 4 },
+  pageHeader:   { marginBottom: spacing[1] },
+  pageTitle:    { fontSize: fontSize.title, fontWeight: '800' },
+  pageSubtitle: { fontSize: fontSize.md, lineHeight: 20, marginTop: spacing[1] },
 
-  card:       { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e8e8e8', borderRadius: 12, overflow: 'hidden' },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', padding: 16, gap: 12 },
-  cardTitle:  { fontSize: 16, fontWeight: '800' },
-  cardSubtitle: { fontSize: 13, marginTop: 2 },
-  chevron:    { fontSize: 11, marginTop: 3 },
-  cardBody:   { paddingHorizontal: 16, paddingBottom: 18, gap: 12 },
+  card:       { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e8e8e8', borderRadius: radius.lg, overflow: 'hidden' },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', padding: spacing[4], gap: spacing[3] },
+  cardTitle:  { fontSize: fontSize.xl, fontWeight: '800' },
+  cardSubtitle: { fontSize: fontSize.sm, marginTop: spacing[0.5] },
+  chevron:    { fontSize: fontSize.xxs, marginTop: spacing[1] },
+  cardBody:   { paddingHorizontal: spacing[4], paddingBottom: spacing[5], gap: spacing[3] },
 
-  stepRow:   { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
-  stepBadge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
-  stepNum:   { fontSize: 15, fontWeight: '900', color: '#fff' },
-  stepBody:  { flex: 1, gap: 6 },
-  stepTitle: { fontSize: 14, fontWeight: '800' },
+  stepRow:   { flexDirection: 'row', gap: spacing[4], alignItems: 'flex-start' },
+  stepBadge: { width: 32, height: 32, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
+  stepNum:   { fontSize: fontSize.lg, fontWeight: '900', color: '#fff' },
+  stepBody:  { flex: 1, gap: spacing[2] },
+  stepTitle: { fontSize: fontSize.md, fontWeight: '800' },
 
-  bullet:     { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
-  bulletDot:  { fontSize: 14, lineHeight: 20, width: 12 },
-  bulletText: { flex: 1, fontSize: 13, lineHeight: 19 },
+  bullet:     { flexDirection: 'row', gap: spacing[2], alignItems: 'flex-start' },
+  bulletDot:  { fontSize: fontSize.md, lineHeight: 20, width: 12 },
+  bulletText: { flex: 1, fontSize: fontSize.sm, lineHeight: 19 },
 
-  tabGroup:       { gap: 10 },
-  tabGroupHeader: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  groupDot:       { width: 10, height: 10, borderRadius: 5, marginTop: 4, flexShrink: 0 },
-  groupLabel:     { fontSize: 14, fontWeight: '700' },
-  groupDesc:      { fontSize: 12, marginTop: 1 },
-  tabItem:        { marginLeft: 20, paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: '#e8e8e8', gap: 2 },
-  tabName:        { fontSize: 13, fontWeight: '700' },
-  tabDesc:        { fontSize: 13, lineHeight: 18 },
+  tabGroup:       { gap: spacing[3] },
+  tabGroupHeader: { flexDirection: 'row', gap: spacing[3], alignItems: 'flex-start' },
+  groupDot:       { width: 10, height: 10, borderRadius: radius.sm, marginTop: spacing[1], flexShrink: 0 },
+  groupLabel:     { fontSize: fontSize.md, fontWeight: '700' },
+  groupDesc:      { fontSize: fontSize.xs, marginTop: 1 },
+  tabItem:        { marginLeft: spacing[5], paddingLeft: spacing[3], borderLeftWidth: 2, borderLeftColor: '#e8e8e8', gap: spacing[0.5] },
+  tabName:        { fontSize: fontSize.sm, fontWeight: '700' },
+  tabDesc:        { fontSize: fontSize.sm, lineHeight: 18 },
 });

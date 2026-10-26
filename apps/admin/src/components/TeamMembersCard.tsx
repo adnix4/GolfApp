@@ -5,6 +5,7 @@ import { orgApi, type CreateInviteResult, type OrgInvite, type OrgMember, type S
 import { confirmAction } from '@/lib/confirmAction';
 import { alertFailure } from '@/lib/dialog';
 import { friendlyApiError } from '@/lib/errors';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 const ROLE_LABEL: Record<string, string> = { OrgAdmin: 'Organizer', EventStaff: 'Event staff' };
 
@@ -107,7 +108,7 @@ export function TeamMembersCard() {
         their own email and password.
       </Text>
 
-      {loading ? <ActivityIndicator style={{ marginTop: 16 }} color={theme.colors.primary} /> : loadErr ? (
+      {loading ? <ActivityIndicator style={{ marginTop: spacing[4] }} color={theme.colors.primary} /> : loadErr ? (
         <Text style={styles.error}>{loadErr}</Text>
       ) : (
         <>
@@ -205,24 +206,24 @@ export function TeamMembersCard() {
 }
 
 const styles = StyleSheet.create({
-  card:        { backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0px 3px 12px rgba(0, 0, 0, 0.06)', elevation: 3 },
-  title:       { fontSize: 17, fontWeight: '800', marginBottom: 4 },
-  subTitle:    { fontSize: 14, fontWeight: '800', marginTop: 20, marginBottom: 4 },
-  hint:        { fontSize: 12, marginTop: 4, color: '#888' },
-  error:       { color: '#c0392b', fontSize: 14, marginTop: 10 },
-  row:         { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  name:        { fontSize: 15, fontWeight: '700' },
-  sub:         { fontSize: 13, color: '#666', marginTop: 2 },
-  textBtn:     { paddingHorizontal: 8, paddingVertical: 6 },
-  danger:      { color: '#c0392b', fontSize: 14, fontWeight: '700' },
-  input:       { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, backgroundColor: '#fafafa', marginTop: 8 },
-  roleRow:     { flexDirection: 'row', gap: 8, marginTop: 12 },
-  roleChip:    { borderWidth: 1.5, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 },
-  roleText:    { fontSize: 13, fontWeight: '700' },
-  primaryBtn:  { marginTop: 16, paddingVertical: 13, borderRadius: 10, alignItems: 'center' },
-  primaryText: { fontSize: 15, fontWeight: '800' },
-  resultBox:   { marginTop: 16, backgroundColor: '#f0fdf4', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#27ae60' },
-  resultText:  { color: '#1e8449', fontSize: 14, fontWeight: '600' },
-  link:        { fontSize: 13, marginTop: 8, color: '#333', fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
-  copy:        { fontSize: 14, fontWeight: '700', textDecorationLine: 'underline' },
+  card:        { backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[6], boxShadow: '0px 3px 12px rgba(0, 0, 0, 0.06)', elevation: 3 },
+  title:       { fontSize: fontSize.xl, fontWeight: '800', marginBottom: spacing[1] },
+  subTitle:    { fontSize: fontSize.md, fontWeight: '800', marginTop: spacing[5], marginBottom: spacing[1] },
+  hint:        { fontSize: fontSize.xs, marginTop: spacing[1], color: '#888' },
+  error:       { color: '#c0392b', fontSize: fontSize.md, marginTop: spacing[3] },
+  row:         { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: '#eee' },
+  name:        { fontSize: fontSize.lg, fontWeight: '700' },
+  sub:         { fontSize: fontSize.sm, color: '#666', marginTop: spacing[0.5] },
+  textBtn:     { paddingHorizontal: spacing[2], paddingVertical: spacing[2] },
+  danger:      { color: '#c0392b', fontSize: fontSize.md, fontWeight: '700' },
+  input:       { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa', marginTop: spacing[2] },
+  roleRow:     { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3] },
+  roleChip:    { borderWidth: 1.5, borderRadius: radius.full, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
+  roleText:    { fontSize: fontSize.sm, fontWeight: '700' },
+  primaryBtn:  { marginTop: spacing[4], paddingVertical: spacing[3], borderRadius: radius.lg, alignItems: 'center' },
+  primaryText: { fontSize: fontSize.lg, fontWeight: '800' },
+  resultBox:   { marginTop: spacing[4], backgroundColor: '#f0fdf4', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#27ae60' },
+  resultText:  { color: '#1e8449', fontSize: fontSize.md, fontWeight: '600' },
+  link:        { fontSize: fontSize.sm, marginTop: spacing[2], color: '#333', fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
+  copy:        { fontSize: fontSize.md, fontWeight: '700', textDecorationLine: 'underline' },
 });

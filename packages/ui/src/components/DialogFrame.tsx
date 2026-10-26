@@ -23,6 +23,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Modal, View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { splitHighlights, type Highlight } from '@gfp/shared-types';
 import { useTheme } from './ThemeProvider';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export type DialogKind = 'confirm' | 'warning' | 'error' | 'info';
 
@@ -176,24 +177,24 @@ export function DialogFrame({
 }
 
 const styles = StyleSheet.create({
-  overlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
-  card:        { borderRadius: 16, overflow: 'hidden', maxWidth: 460, width: '100%', alignSelf: 'center' },
-  header:      { paddingVertical: 12, paddingHorizontal: 18 },
-  headerTitle: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
-  body:        { padding: 20 },
-  titleRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  icon:        { fontSize: 18, fontWeight: '800' },
-  title:       { flex: 1, fontSize: 19, fontWeight: '800' },
-  chipRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
-  chip:        { fontSize: 15, fontWeight: '800', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, overflow: 'hidden' },
-  message:     { fontSize: 15, lineHeight: 22, color: '#333' },
-  inlineChip:  { fontWeight: '800', borderRadius: 4 },
-  code:        { marginTop: 10, fontSize: 12, color: '#6b7280', fontFamily: 'monospace' },
-  checkRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16 },
-  box:         { width: 20, height: 20, borderRadius: 4, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  tick:        { fontSize: 13, fontWeight: '900', lineHeight: 16 },
-  checkLabel:  { fontSize: 14, color: '#333' },
-  actions:     { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 20, flexWrap: 'wrap' },
-  btn:         { paddingVertical: 11, paddingHorizontal: 18, borderRadius: 10, minWidth: 96, alignItems: 'center' },
-  btnText:     { fontSize: 15, fontWeight: '700' },
+  overlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: spacing[6] },
+  card:        { borderRadius: radius.xl, overflow: 'hidden', maxWidth: 460, width: '100%', alignSelf: 'center' },
+  header:      { paddingVertical: spacing[3], paddingHorizontal: spacing[5] },
+  headerTitle: { fontSize: fontSize.sm, fontWeight: '700', letterSpacing: 0.3 },
+  body:        { padding: spacing[5] },
+  titleRow:    { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] },
+  icon:        { fontSize: fontSize.xl, fontWeight: '800' },
+  title:       { flex: 1, fontSize: fontSize.xxl, fontWeight: '800' },
+  chipRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[3] },
+  chip:        { fontSize: fontSize.lg, fontWeight: '800', paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.md, overflow: 'hidden' },
+  message:     { fontSize: fontSize.lg, lineHeight: 22, color: '#333' },
+  inlineChip:  { fontWeight: '800', borderRadius: radius.xs },
+  code:        { marginTop: spacing[3], fontSize: fontSize.xs, color: '#6b7280', fontFamily: 'monospace' },
+  checkRow:    { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[4] },
+  box:         { width: 20, height: 20, borderRadius: radius.xs, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  tick:        { fontSize: fontSize.sm, fontWeight: '900', lineHeight: 16 },
+  checkLabel:  { fontSize: fontSize.md, color: '#333' },
+  actions:     { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing[3], marginTop: spacing[5], flexWrap: 'wrap' },
+  btn:         { paddingVertical: spacing[3], paddingHorizontal: spacing[5], borderRadius: radius.lg, minWidth: 96, alignItems: 'center' },
+  btnText:     { fontSize: fontSize.lg, fontWeight: '700' },
 });

@@ -18,7 +18,7 @@
 
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { readableTextOn } from '@gfp/theme';
+import { readableTextOn, radius, spacing, fontSize } from '@gfp/theme';
 import type { SponsorDTO } from '@gfp/shared-types';
 import { useTheme } from './ThemeProvider';
 
@@ -106,10 +106,10 @@ const styles = StyleSheet.create({
   // Full variant
   fullContainer: {
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: radius.xl,
+    padding: spacing[5],
     alignItems: 'center',
-    marginVertical: 8,
+    marginVertical: spacing[2],
     position: 'relative',
     boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.06)',
     elevation: 2,
@@ -118,12 +118,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: radius.full,
   },
   tierText: {
-    fontSize: 10,
+    fontSize: fontSize.xxs,
     fontWeight: '700',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -131,24 +131,24 @@ const styles = StyleSheet.create({
   fullLogo: {
     width: 160,
     height: 60,
-    marginBottom: 10,
+    marginBottom: spacing[3],
   },
   fallbackName: {
-    fontSize: 22,
+    fontSize: fontSize.title,
     fontWeight: '700',
-    marginBottom: 10,
+    marginBottom: spacing[3],
   },
   tagline: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
     fontStyle: 'italic',
     textAlign: 'center',
   },
 
   // Compact variant
   compactContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     height: 24,
   },
   compactText: {
-    fontSize: 11,
+    fontSize: fontSize.xxs,
     fontWeight: '600',
   },
 });

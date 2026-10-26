@@ -18,6 +18,7 @@ import {
 } from '@/lib/dateTime';
 import { DateTimePairField } from '@/components/DateTimePairField';
 import { confirmAction, alertAction } from '@/lib/confirmAction';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // An item's auction type is locked once it has bids or leaves the Open state
 // (the API enforces this too). Mirror that here so we can warn before saving.
@@ -325,8 +326,8 @@ export default function AuctionScreen() {
       {error && (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
-          <Pressable onPress={load} style={{ marginTop: 8 }}>
-            <Text style={{ color: theme.colors.action, fontSize: 13 }}>Retry</Text>
+          <Pressable onPress={load} style={{ marginTop: spacing[2] }}>
+            <Text style={{ color: theme.colors.action, fontSize: fontSize.sm }}>Retry</Text>
           </Pressable>
         </View>
       )}
@@ -357,33 +358,33 @@ export default function AuctionScreen() {
                     <Text style={styles.statusPillText}>{auctionStatusLabel(item.status)}</Text>
                   </View>
                 </View>
-                <Text style={{ color: theme.mutedText, fontSize: 12, marginTop: 2 }}>
+                <Text style={{ color: theme.mutedText, fontSize: fontSize.xs, marginTop: spacing[0.5] }}>
                   {TYPE_LABELS[item.auctionType] ?? item.auctionType}
                 </Text>
-                <Text style={{ color: '#555', fontSize: 13, marginTop: 4 }}>
+                <Text style={{ color: '#555', fontSize: fontSize.sm, marginTop: spacing[1] }}>
                   {item.status === 'Unsold'
                     ? `Starting: ${fmt(item.startingBidCents)} · no bids received`
                     : `Starting: ${fmt(item.startingBidCents)} · High bid: ${fmt(item.currentHighBidCents)}`}
                 </Text>
                 {item.closesAt && (
-                  <Text style={{ color: '#888', fontSize: 12, marginTop: 2 }}>
+                  <Text style={{ color: '#888', fontSize: fontSize.xs, marginTop: spacing[0.5] }}>
                     Closes: {formatDateTime(item.closesAt)}
                   </Text>
                 )}
               </View>
               <View style={styles.cardActions}>
                 <Pressable onPress={() => openEdit(item)} style={[styles.smallBtn, { borderColor: theme.colors.primary }]}>
-                  <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '600' }}>Edit</Text>
+                  <Text style={{ color: theme.colors.primary, fontSize: fontSize.sm, fontWeight: '600' }}>Edit</Text>
                 </Pressable>
-                <Pressable onPress={() => handleDelete(item)} style={[styles.smallBtn, { borderColor: '#e74c3c', marginTop: 6 }]}>
-                  <Text style={{ color: '#e74c3c', fontSize: 13, fontWeight: '600' }}>Cancel</Text>
+                <Pressable onPress={() => handleDelete(item)} style={[styles.smallBtn, { borderColor: '#e74c3c', marginTop: spacing[2] }]}>
+                  <Text style={{ color: '#e74c3c', fontSize: fontSize.sm, fontWeight: '600' }}>Cancel</Text>
                 </Pressable>
               </View>
             </View>
           </View>
         )}
         ListEmptyComponent={
-          <Text style={{ textAlign: 'center', color: '#999', marginTop: 40 }}>
+          <Text style={{ textAlign: 'center', color: '#999', marginTop: spacing[10] }}>
             No auction items yet. Tap "+ Add Item" to create one.
           </Text>
         }
@@ -433,7 +434,7 @@ export default function AuctionScreen() {
                 onPress={() => field('auctionType', t)}
                 style={[styles.typeChip, form.auctionType === t && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]}
               >
-                <Text style={{ color: form.auctionType === t ? '#fff' : theme.mutedText, fontSize: 12, fontWeight: '600' }}>
+                <Text style={{ color: form.auctionType === t ? '#fff' : theme.mutedText, fontSize: fontSize.xs, fontWeight: '600' }}>
                   {TYPE_LABELS[t]}
                 </Text>
               </Pressable>
@@ -607,7 +608,7 @@ export default function AuctionScreen() {
           <View style={styles.modalBtnRow}>
             <Pressable
               onPress={() => setShowModal(false)}
-              style={[styles.btn, { backgroundColor: '#888', flex: 1, marginRight: 8 }]}
+              style={[styles.btn, { backgroundColor: '#888', flex: 1, marginRight: spacing[2] }]}
             >
               <Text style={styles.btnText}>Cancel</Text>
             </Pressable>
@@ -627,78 +628,78 @@ export default function AuctionScreen() {
 
 const styles = StyleSheet.create({
   page:    { flex: 1, backgroundColor: '#f5f5f5' },
-  center:  { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  header:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
-  title:   { fontSize: 18, fontWeight: '800' },
-  list:    { paddingHorizontal: 16, paddingBottom: 40 },
-  card:    { borderRadius: 12, padding: 14, marginBottom: 10, boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.06)', elevation: 1 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  listThumb: { width: 64, height: 64, borderRadius: 8 },
-  listThumbPlaceholder: { width: 64, height: 64, borderRadius: 8, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' },
-  listThumbIcon: { fontSize: 24 },
-  cardActions: { flexDirection: 'column', marginLeft: 12, alignItems: 'flex-end' },
-  itemTitle: { fontSize: 15, fontWeight: '700' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  statusPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  statusPillText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  btn:     { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
-  btnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  center:  { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing[3] },
+  header:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing[4] },
+  title:   { fontSize: fontSize.xl, fontWeight: '800' },
+  list:    { paddingHorizontal: spacing[4], paddingBottom: spacing[10] },
+  card:    { borderRadius: radius.lg, padding: spacing[4], marginBottom: spacing[3], boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.06)', elevation: 1 },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  listThumb: { width: 64, height: 64, borderRadius: radius.md },
+  listThumbPlaceholder: { width: 64, height: 64, borderRadius: radius.md, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' },
+  listThumbIcon: { fontSize: fontSize.title },
+  cardActions: { flexDirection: 'column', marginLeft: spacing[3], alignItems: 'flex-end' },
+  itemTitle: { fontSize: fontSize.lg, fontWeight: '700' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], flexWrap: 'wrap' },
+  statusPill: { paddingHorizontal: spacing[2], paddingVertical: spacing[0.5], borderRadius: radius.lg },
+  statusPillText: { color: '#fff', fontSize: fontSize.xxs, fontWeight: '700' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  btn:     { paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderRadius: radius.md, alignItems: 'center' },
+  btnText: { color: '#fff', fontWeight: '700', fontSize: fontSize.md },
   // Amber, not red: ending the auction is the intended end of the night, not a
   // destructive accident — but it is irreversible, so it should not look like
   // the primary "add another item" action either.
   endBtn:  { backgroundColor: '#d97706' },
   noticeBox: {
-    backgroundColor: '#ecfdf5', borderRadius: 8, padding: 12,
-    marginHorizontal: 16, marginBottom: 12,
+    backgroundColor: '#ecfdf5', borderRadius: radius.md, padding: spacing[3],
+    marginHorizontal: spacing[4], marginBottom: spacing[3],
     borderLeftWidth: 3, borderLeftColor: '#10b981',
   },
-  noticeText: { color: '#065f46', fontSize: 14 },
-  smallBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1 },
-  label:   { fontSize: 13, fontWeight: '600', marginTop: 14, marginBottom: 4, color: '#333' },
+  noticeText: { color: '#065f46', fontSize: fontSize.md },
+  smallBtn: { paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.sm, borderWidth: 1 },
+  label:   { fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing[4], marginBottom: spacing[1], color: '#333' },
   input: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 8,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 15,
+    borderWidth: 1, borderColor: '#ddd', borderRadius: radius.md,
+    paddingHorizontal: spacing[3], paddingVertical: spacing[3], fontSize: fontSize.lg,
     backgroundColor: '#fafafa',
   },
   inputError: { borderColor: '#e74c3c', backgroundColor: '#fdf2f2' },
-  fieldError: { color: '#e74c3c', fontSize: 12, marginTop: 3 },
-  fieldHint:  { color: '#6b7280', fontSize: 12, marginTop: 3 },
+  fieldError: { color: '#e74c3c', fontSize: fontSize.xs, marginTop: spacing[1] },
+  fieldHint:  { color: '#6b7280', fontSize: fontSize.xs, marginTop: spacing[1] },
   // Amber, not red: nothing here blocks the save.
   fieldWarning: {
     color: '#92400e', backgroundColor: '#fffbeb',
     borderLeftWidth: 3, borderLeftColor: '#f59e0b',
-    fontSize: 12, lineHeight: 17, marginTop: 6,
-    paddingVertical: 6, paddingHorizontal: 8, borderRadius: 4,
+    fontSize: fontSize.xs, lineHeight: 17, marginTop: spacing[2],
+    paddingVertical: spacing[2], paddingHorizontal: spacing[2], borderRadius: radius.xs,
   },
   errorBox: {
-    backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, marginBottom: 12,
+    backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3],
     borderLeftWidth: 3, borderLeftColor: '#e74c3c',
   },
-  errorText: { color: '#c0392b', fontSize: 14 },
-  typeRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-  typeChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#fafafa' },
-  dollarRow:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dollarSign:   { fontSize: 18, fontWeight: '700', color: '#555', paddingBottom: 2 },
+  errorText: { color: '#c0392b', fontSize: fontSize.md },
+  typeRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[1] },
+  typeChip: { paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.xxl, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#fafafa' },
+  dollarRow:    { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  dollarSign:   { fontSize: fontSize.xl, fontWeight: '700', color: '#555', paddingBottom: spacing[0.5] },
   dollarInput:  { flex: 1 },
-  modalContent: { padding: 24, paddingBottom: 60 },
-  modalTitle:   { fontSize: 20, fontWeight: '800', marginBottom: 16 },
-  modalBtnRow:  { flexDirection: 'row', marginTop: 28 },
-  photoGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  formatHint: { color: '#777', fontSize: 12, lineHeight: 16, marginBottom: 6 },
-  photoThumbWrap: { width: 72, height: 72, borderRadius: 8, overflow: 'hidden', position: 'relative' },
+  modalContent: { padding: spacing[6], paddingBottom: 60 },
+  modalTitle:   { fontSize: fontSize.xxl, fontWeight: '800', marginBottom: spacing[4] },
+  modalBtnRow:  { flexDirection: 'row', marginTop: spacing[8] },
+  photoGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[1] },
+  formatHint: { color: '#777', fontSize: fontSize.xs, lineHeight: 16, marginBottom: spacing[2] },
+  photoThumbWrap: { width: 72, height: 72, borderRadius: radius.md, overflow: 'hidden', position: 'relative' },
   photoThumb:    { width: 72, height: 72 },
-  photoPending:  { backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', padding: 4 },
-  photoPendingText: { fontSize: 10, color: '#555', textAlign: 'center' },
+  photoPending:  { backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', padding: spacing[1] },
+  photoPendingText: { fontSize: fontSize.xxs, color: '#555', textAlign: 'center' },
   photoRemoveBtn: {
     position: 'absolute', top: 2, right: 2,
-    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: radius.lg,
     width: 18, height: 18, justifyContent: 'center', alignItems: 'center',
   },
-  photoRemoveText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  photoRemoveText: { color: '#fff', fontSize: fontSize.xxs, fontWeight: '800' },
   photoAddBtn:  {
-    width: 72, height: 72, borderRadius: 8, borderWidth: 1.5, borderStyle: 'dashed',
+    width: 72, height: 72, borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed',
     justifyContent: 'center', alignItems: 'center',
   },
-  photoAddText: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  photoAddText: { fontSize: fontSize.xs, fontWeight: '700', textAlign: 'center' },
 });

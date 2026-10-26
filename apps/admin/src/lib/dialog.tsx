@@ -16,6 +16,7 @@ import {
   describeFailure, dismissKey, resolveDontShowAgain,
   type DontShowAgainOption, type FailureOverrides, type Highlight,
 } from '@gfp/shared-types';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export type { DialogButton };
 
@@ -191,10 +192,10 @@ function DialogInputField({ input, onSubmit }: { input: DialogInput; onSubmit: (
 }
 
 const inputStyles = StyleSheet.create({
-  wrap:  { marginTop: 14 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  wrap:  { marginTop: spacing[4] },
+  label: { fontSize: fontSize.sm, fontWeight: '600', color: '#374151', marginBottom: spacing[2] },
   field: {
-    borderWidth: 1, borderColor: '#ccc', borderRadius: 8, backgroundColor: '#fff',
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: '#111',
+    borderWidth: 1, borderColor: '#ccc', borderRadius: radius.md, backgroundColor: '#fff',
+    paddingHorizontal: spacing[3], paddingVertical: spacing[3], fontSize: fontSize.lg, color: '#111',
   },
 });

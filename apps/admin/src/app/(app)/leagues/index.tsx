@@ -9,6 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { leagueApi } from '@/lib/api';
 import { leagueKeys, useLeagueList } from '@/lib/queries';
 import { useResponsive } from '@/lib/responsive';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 const FORMATS    = ['Stableford', 'Stroke', 'Match'];
 const HC_SYSTEMS = ['Club', 'USGA'];
@@ -92,7 +93,7 @@ export default function LeaguesScreen() {
                 backgroundColor: theme.colors.surface,
                 borderColor: theme.colors.accent,
                 flex: !isMobile ? 1 : undefined,
-                margin: 6,
+                margin: spacing[2],
               }]}
               onPress={() => router.push(`/(app)/leagues/${item.id}` as never)}
             >
@@ -137,7 +138,7 @@ export default function LeaguesScreen() {
                   style={[styles.seg, { borderColor: theme.colors.accent }, format === f && { backgroundColor: theme.colors.primary }]}
                   onPress={() => setFormat(f)}
                 >
-                  <Text style={{ color: format === f ? theme.colors.surface : theme.colors.primary, fontSize: 12 }}>
+                  <Text style={{ color: format === f ? theme.colors.surface : theme.colors.primary, fontSize: fontSize.xs }}>
                     {f}
                   </Text>
                 </Pressable>
@@ -152,7 +153,7 @@ export default function LeaguesScreen() {
                   style={[styles.seg, { borderColor: theme.colors.accent }, hcSystem === h && { backgroundColor: theme.colors.primary }]}
                   onPress={() => setHcSystem(h)}
                 >
-                  <Text style={{ color: hcSystem === h ? theme.colors.surface : theme.colors.primary, fontSize: 12 }}>
+                  <Text style={{ color: hcSystem === h ? theme.colors.surface : theme.colors.primary, fontSize: fontSize.xs }}>
                     {h}
                   </Text>
                 </Pressable>
@@ -160,7 +161,7 @@ export default function LeaguesScreen() {
             </View>
 
             <View style={styles.row}>
-              <View style={{ flex: 1, marginRight: 8 }}>
+              <View style={{ flex: 1, marginRight: spacing[2] }}>
                 <Text style={[styles.label, { color: theme.mutedText }]}>HC Cap</Text>
                 <TextInput
                   style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
@@ -186,27 +187,27 @@ export default function LeaguesScreen() {
 const styles = StyleSheet.create({
   root:         { flex: 1 },
   center:       { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1 },
-  title:        { fontSize: 22, fontWeight: '700' },
-  btn:          { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  btnText:      { fontWeight: '600', fontSize: 14 },
-  errorBanner:  { margin: 12, padding: 12, borderRadius: 8, backgroundColor: '#fef2f2' },
-  empty:        { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  emptyText:    { fontSize: 15, textAlign: 'center' },
-  list:         { padding: 12 },
-  card:         { borderRadius: 12, padding: 16, borderWidth: 1, marginBottom: 8 },
-  cardTitle:    { fontSize: 17, fontWeight: '600', marginBottom: 8 },
-  cardRow:      { flexDirection: 'row', gap: 6, marginBottom: 8 },
-  chip:         { fontSize: 11, fontWeight: '600', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  cardMeta:     { fontSize: 12 },
+  header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing[5], borderBottomWidth: 1 },
+  title:        { fontSize: fontSize.title, fontWeight: '700' },
+  btn:          { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
+  btnText:      { fontWeight: '600', fontSize: fontSize.md },
+  errorBanner:  { margin: spacing[3], padding: spacing[3], borderRadius: radius.md, backgroundColor: '#fef2f2' },
+  empty:        { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing[10] },
+  emptyText:    { fontSize: fontSize.lg, textAlign: 'center' },
+  list:         { padding: spacing[3] },
+  card:         { borderRadius: radius.lg, padding: spacing[4], borderWidth: 1, marginBottom: spacing[2] },
+  cardTitle:    { fontSize: fontSize.xl, fontWeight: '600', marginBottom: spacing[2] },
+  cardRow:      { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[2] },
+  chip:         { fontSize: fontSize.xxs, fontWeight: '600', paddingHorizontal: spacing[2], paddingVertical: spacing[1], borderRadius: radius.lg },
+  cardMeta:     { fontSize: fontSize.xs },
   overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
-  modal:        { width: '90%', maxWidth: 440, borderRadius: 16, padding: 24, gap: 4 },
-  modalTitle:   { fontSize: 18, fontWeight: '700', marginBottom: 8 },
-  label:        { fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 4 },
-  input:        { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 14 },
-  segRow:       { flexDirection: 'row', gap: 6, marginTop: 4 },
-  seg:          { flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 1, alignItems: 'center' },
-  row:          { flexDirection: 'row', marginTop: 4 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 20 },
-  cancelBtn:    { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  modal:        { width: '90%', maxWidth: 440, borderRadius: radius.xl, padding: spacing[6], gap: spacing[1] },
+  modalTitle:   { fontSize: fontSize.xl, fontWeight: '700', marginBottom: spacing[2] },
+  label:        { fontSize: fontSize.xs, fontWeight: '600', marginTop: spacing[3], marginBottom: spacing[1] },
+  input:        { borderWidth: 1, borderRadius: radius.md, padding: spacing[3], fontSize: fontSize.md },
+  segRow:       { flexDirection: 'row', gap: spacing[2], marginTop: spacing[1] },
+  seg:          { flex: 1, paddingVertical: spacing[2], borderRadius: radius.md, borderWidth: 1, alignItems: 'center' },
+  row:          { flexDirection: 'row', marginTop: spacing[1] },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing[3], marginTop: spacing[5] },
+  cancelBtn:    { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
 });

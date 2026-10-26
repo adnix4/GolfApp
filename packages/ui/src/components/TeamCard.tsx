@@ -17,6 +17,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { TeamDTO } from '@gfp/shared-types';
 import { useTheme } from './ThemeProvider';
 import { formatTime } from '@gfp/shared-types';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 interface TeamCardProps {
   team: TeamDTO;
@@ -80,7 +81,7 @@ export function TeamCard({ team, showCheckIn: _showCheckIn = false }: TeamCardPr
             styles.playerStatus,
             { backgroundColor: player.checkInStatus === 'CheckedIn' ? '#eafaf1' : '#f8f9fa' }
           ]}>
-            <Text style={{ fontSize: 11, color: player.checkInStatus === 'CheckedIn' ? '#27ae60' : '#95a5a6' }}>
+            <Text style={{ fontSize: fontSize.xxs, color: player.checkInStatus === 'CheckedIn' ? '#27ae60' : '#95a5a6' }}>
               {player.checkInStatus === 'CheckedIn' ? '✓ In' : 'Pending'}
             </Text>
           </View>
@@ -93,9 +94,9 @@ export function TeamCard({ team, showCheckIn: _showCheckIn = false }: TeamCardPr
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    marginVertical: 8,
+    borderRadius: radius.xl,
+    padding: spacing[4],
+    marginVertical: spacing[2],
     boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.06)',
     elevation: 2,
   },
@@ -103,43 +104,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing[2],
   },
   teamName: {
-    fontSize: 17,
+    fontSize: fontSize.xl,
     fontWeight: '700',
     flex: 1,
   },
   statusDot: {
     width: 12,
     height: 12,
-    borderRadius: 6,
-    marginLeft: 8,
+    borderRadius: radius.sm,
+    marginLeft: spacing[2],
   },
   startInfo: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 12,
+    gap: spacing[4],
+    marginBottom: spacing[3],
   },
   infoText: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
     fontWeight: '600',
   },
   playerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: spacing[2],
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#eeeeee',
   },
   playerName: {
-    fontSize: 14,
+    fontSize: fontSize.md,
     fontWeight: '500',
   },
   playerStatus: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 999,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: radius.full,
   },
 });

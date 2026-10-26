@@ -20,6 +20,7 @@ import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { fetchMyCheckout, confirmMyCheckout, type CheckoutCartDto } from '@/lib/api';
 import { checkoutCounts, checkoutHeadline } from '@/lib/checkoutSummary';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 function usd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -177,24 +178,24 @@ export default function AuctionCheckoutScreen() {
 
 const styles = StyleSheet.create({
   page:    { flex: 1 },
-  content: { padding: 20, paddingBottom: 48 },
+  content: { padding: spacing[5], paddingBottom: spacing[12] },
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title:   { fontSize: 22, fontWeight: '800', marginBottom: 16 },
-  empty:   { color: '#888', fontSize: 15, lineHeight: 21 },
+  title:   { fontSize: fontSize.title, fontWeight: '800', marginBottom: spacing[4] },
+  empty:   { color: '#888', fontSize: fontSize.lg, lineHeight: 21 },
 
-  line:       { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.08)' },
-  lineTitle:  { fontSize: 16, fontWeight: '700', color: '#111' },
-  pledgeTag:  { fontSize: 11, fontWeight: '700', color: '#7c3aed', letterSpacing: 0.5 },
-  lineMeta:   { fontSize: 12, color: '#777', marginTop: 2 },
-  lineAmount: { fontSize: 16, fontWeight: '700', color: '#111' },
+  line:       { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.08)' },
+  lineTitle:  { fontSize: fontSize.xl, fontWeight: '700', color: '#111' },
+  pledgeTag:  { fontSize: fontSize.xxs, fontWeight: '700', color: '#7c3aed', letterSpacing: 0.5 },
+  lineMeta:   { fontSize: fontSize.xs, color: '#777', marginTop: spacing[0.5] },
+  lineAmount: { fontSize: fontSize.xl, fontWeight: '700', color: '#111' },
 
-  totalRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 },
-  totalLabel: { fontSize: 15, fontWeight: '600', color: '#374151' },
-  totalValue: { fontSize: 24, fontWeight: '800' },
+  totalRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing[4] },
+  totalLabel: { fontSize: fontSize.lg, fontWeight: '600', color: '#374151' },
+  totalValue: { fontSize: fontSize.title, fontWeight: '800' },
 
-  payBtn:     { marginTop: 18, paddingVertical: 15, borderRadius: 10, alignItems: 'center' },
-  payBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  deskNote:   { color: '#777', fontSize: 12, textAlign: 'center', marginTop: 10, lineHeight: 17 },
-  paidNote:   { color: '#059669', fontSize: 15, fontWeight: '600', marginTop: 18, lineHeight: 21 },
-  error:      { color: '#c0392b', fontSize: 13, marginTop: 12, lineHeight: 18 },
+  payBtn:     { marginTop: spacing[5], paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
+  payBtnText: { color: '#fff', fontWeight: '800', fontSize: fontSize.xl },
+  deskNote:   { color: '#777', fontSize: fontSize.xs, textAlign: 'center', marginTop: spacing[3], lineHeight: 17 },
+  paidNote:   { color: '#059669', fontSize: fontSize.lg, fontWeight: '600', marginTop: spacing[5], lineHeight: 21 },
+  error:      { color: '#c0392b', fontSize: fontSize.sm, marginTop: spacing[3], lineHeight: 18 },
 });

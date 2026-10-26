@@ -4,7 +4,7 @@ import {
   Switch, StyleSheet, ActivityIndicator, Platform, Image,
 } from 'react-native';
 import { useTheme } from '@gfp/ui';
-import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme } from '@gfp/theme';
+import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme, spacing, radius, fontSize } from '@gfp/theme';
 import { useResponsive } from '@/lib/responsive';
 import { orgApi, type OrgProfile } from '@/lib/api';
 import { TeamMembersCard } from '@/components/TeamMembersCard';
@@ -87,12 +87,12 @@ function ColorRow({
 }
 
 const cr = StyleSheet.create({
-  row:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  swatch:    { width: 36, height: 36, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', flexShrink: 0 },
+  row:       { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], gap: spacing[3], borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  swatch:    { width: 36, height: 36, borderRadius: radius.md, borderWidth: 1, borderColor: '#ddd', flexShrink: 0 },
   info:      { flex: 1 },
-  tokenLabel:{ fontSize: 14, fontWeight: '700', color: '#333' },
-  tokenDesc: { fontSize: 12, color: '#888', marginTop: 1 },
-  hexInput:  { borderWidth: 1, borderColor: '#ccc', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 7, fontSize: 14, width: 90, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
+  tokenLabel:{ fontSize: fontSize.md, fontWeight: '700', color: '#333' },
+  tokenDesc: { fontSize: fontSize.xs, color: '#888', marginTop: 1 },
+  hexInput:  { borderWidth: 1, borderColor: '#ccc', borderRadius: radius.sm, paddingHorizontal: spacing[3], paddingVertical: spacing[2], fontSize: fontSize.md, width: 90, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
   hexInputError: { borderColor: '#e74c3c' },
 });
 
@@ -105,7 +105,7 @@ export default function OrgSettingsScreen() {
   const theme    = useTheme();
   if (user?.role === 'EventStaff') {
     return (
-      <View style={[styles.page, { backgroundColor: theme.pageBackground, padding: 24 }]}>
+      <View style={[styles.page, { backgroundColor: theme.pageBackground, padding: spacing[6] }]}>
         <Text style={[styles.title, { color: theme.colors.primary }]}>Organization Settings</Text>
         <Text style={[styles.sub, { color: theme.mutedText }]}>
           Only organizers can change organization settings or invite people. Ask your organizer.
@@ -312,7 +312,7 @@ function OrgSettings() {
           <Text style={[styles.hint, { color: theme.mutedText }]}>PNG recommended — transparent background, at least 512px wide. SVG and ICO are converted automatically. Max 2 MB.</Text>
 
           {/* URL field — fallback / alternative */}
-          <Text style={[styles.label, { color: theme.colors.primary, marginTop: 10 }]}>
+          <Text style={[styles.label, { color: theme.colors.primary, marginTop: spacing[3] }]}>
             Or paste a URL
           </Text>
           <TextInput
@@ -367,7 +367,7 @@ function OrgSettings() {
       </View>
 
       {/* ── THEME CARD ── */}
-      <View style={[styles.card, { marginTop: 20 }]}>
+      <View style={[styles.card, { marginTop: spacing[5] }]}>
         <View style={styles.themeTitleRow}>
           <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Brand Colors</Text>
           <Pressable
@@ -378,7 +378,7 @@ function OrgSettings() {
           </Pressable>
         </View>
 
-        <Text style={[styles.hint, { color: theme.mutedText, marginBottom: 12 }]}>
+        <Text style={[styles.hint, { color: theme.mutedText, marginBottom: spacing[3] }]}>
           Enter 6-digit hex codes. Use the color picker on the right to browse.
           All changes are previewed live.
         </Text>
@@ -445,47 +445,47 @@ const styles = StyleSheet.create({
   page:    { flex: 1 },
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  title: { fontSize: 24, fontWeight: '900', marginBottom: 4 },
-  sub:   { fontSize: 14, marginBottom: 20 },
+  title: { fontSize: fontSize.title, fontWeight: '900', marginBottom: spacing[1] },
+  sub:   { fontSize: fontSize.md, marginBottom: spacing[5] },
 
-  errorBox:    { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText:   { color: '#c0392b', fontSize: 14 },
-  successBox:  { backgroundColor: '#f0fdf4', borderRadius: 8, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#27ae60' },
-  successText: { color: '#1e8449', fontSize: 14, fontWeight: '600' },
+  errorBox:    { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
+  errorText:   { color: '#c0392b', fontSize: fontSize.md },
+  successBox:  { backgroundColor: '#f0fdf4', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#27ae60' },
+  successText: { color: '#1e8449', fontSize: fontSize.md, fontWeight: '600' },
 
   card: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 24,
+    backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[6],
     boxShadow: '0px 3px 12px rgba(0, 0, 0, 0.06)', elevation: 3,
   },
-  sectionTitle: { fontSize: 17, fontWeight: '800', marginBottom: 4 },
+  sectionTitle: { fontSize: fontSize.xl, fontWeight: '800', marginBottom: spacing[1] },
 
-  fieldWrap:    { marginBottom: 4 },
-  label:        { fontSize: 13, fontWeight: '600', marginTop: 16, marginBottom: 6 },
-  input:        { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, backgroundColor: '#fafafa' },
-  textArea:     { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, backgroundColor: '#fafafa', minHeight: 100, textAlignVertical: 'top' },
-  readonlyBox:  { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, backgroundColor: '#f5f5f5' },
-  readonlyText: { fontSize: 15, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
-  hint:         { fontSize: 12, marginTop: 4, color: '#888' },
+  fieldWrap:    { marginBottom: spacing[1] },
+  label:        { fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing[4], marginBottom: spacing[2] },
+  input:        { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa' },
+  textArea:     { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa', minHeight: 100, textAlignVertical: 'top' },
+  readonlyBox:  { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], backgroundColor: '#f5f5f5' },
+  readonlyText: { fontSize: fontSize.lg, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
+  hint:         { fontSize: fontSize.xs, marginTop: spacing[1], color: '#888' },
 
-  logoPreview:  { marginTop: 8, marginBottom: 8, height: 80, backgroundColor: '#f5f5f5', borderRadius: 8, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  logoPreview:  { marginTop: spacing[2], marginBottom: spacing[2], height: 80, backgroundColor: '#f5f5f5', borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoImg:      { width: '100%', height: 80 },
-  uploadErr:    { color: '#c0392b', fontSize: 12, marginBottom: 4 },
-  uploadBtn:    { marginTop: 6, borderWidth: 1.5, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center', alignSelf: 'flex-start' },
-  uploadBtnText:{ fontSize: 14, fontWeight: '700' },
+  uploadErr:    { color: '#c0392b', fontSize: fontSize.xs, marginBottom: spacing[1] },
+  uploadBtn:    { marginTop: spacing[2], borderWidth: 1.5, borderRadius: radius.md, paddingVertical: spacing[3], paddingHorizontal: spacing[4], alignItems: 'center', alignSelf: 'flex-start' },
+  uploadBtnText:{ fontSize: fontSize.md, fontWeight: '700' },
 
-  toggleRow:    { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 },
+  toggleRow:    { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[5] },
 
-  themeTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  resetBtn:      { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  resetBtnText:  { fontSize: 12, fontWeight: '600' },
+  themeTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[1] },
+  resetBtn:      { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
+  resetBtnText:  { fontSize: fontSize.xs, fontWeight: '600' },
 
-  contrastBadge: { marginTop: 16, borderRadius: 8, padding: 10, borderWidth: 1 },
-  contrastText:  { fontSize: 13, fontWeight: '600' },
+  contrastBadge: { marginTop: spacing[4], borderRadius: radius.md, padding: spacing[3], borderWidth: 1 },
+  contrastText:  { fontSize: fontSize.sm, fontWeight: '600' },
 
-  previewRow:   { flexDirection: 'row', gap: 6, marginTop: 12, flexWrap: 'wrap' },
-  previewChip:  { flex: 1, minWidth: 60, paddingVertical: 8, borderRadius: 6, alignItems: 'center' },
-  previewLabel: { fontSize: 11, fontWeight: '700' },
+  previewRow:   { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3], flexWrap: 'wrap' },
+  previewChip:  { flex: 1, minWidth: 60, paddingVertical: spacing[2], borderRadius: radius.sm, alignItems: 'center' },
+  previewLabel: { fontSize: fontSize.xxs, fontWeight: '700' },
 
-  saveBtn:     { marginTop: 24, paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
-  saveBtnText: { fontSize: 16, fontWeight: '800', color: '#fff' },
+  saveBtn:     { marginTop: spacing[6], paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
+  saveBtnText: { fontSize: fontSize.xl, fontWeight: '800', color: '#fff' },
 });

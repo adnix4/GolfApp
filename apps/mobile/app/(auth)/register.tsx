@@ -19,6 +19,7 @@ import {
   registerTeam, registerFreeAgent, joinTeam, fetchInvitePreview, confirmEntryFee,
   type SkillLevel, type AgeGroup, type TeamInvitePreview,
 } from '@/lib/api';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 const STRIPE_PK = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
@@ -500,7 +501,7 @@ export default function RegisterScreen() {
             <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
               Pairing Preferences <Text style={styles.optional}>(optional)</Text>
             </Text>
-            <Text style={[styles.fieldHint, { color: theme.mutedText, marginTop: 0, marginBottom: 8 }]}>
+            <Text style={[styles.fieldHint, { color: theme.mutedText, marginTop: 0, marginBottom: spacing[2] }]}>
               Help the organizer match you with the right team.
             </Text>
 
@@ -623,7 +624,7 @@ export default function RegisterScreen() {
             ))}
 
             {teammates.length < MAX_TEAMMATES && (
-              <Text style={[styles.fieldHint, { color: theme.mutedText, marginBottom: 10 }]}>
+              <Text style={[styles.fieldHint, { color: theme.mutedText, marginBottom: spacing[3] }]}>
                 Don&apos;t have everyone&apos;s details? After you register you&apos;ll get a link to send
                 the rest of your team so they can sign themselves up.
               </Text>
@@ -779,7 +780,7 @@ function EntryFeePayCard({ clientSecret, amountCents, golferCount, onPaid }: Ent
           textColor: '#1a1a1a',
           borderColor: '#d0d0d0',
           borderWidth: 1.5,
-          borderRadius: 10,
+          borderRadius: radius.lg,
         }}
         style={styles.feeCardField}
         onCardChange={(details: CardFieldInput.Details) => setCardComplete(details.complete)}
@@ -805,99 +806,99 @@ function EntryFeePayCard({ clientSecret, amountCents, golferCount, onPaid }: Ent
 
 const styles = StyleSheet.create({
   page:   { flex: 1 },
-  scroll: { flexGrow: 1, padding: 20, paddingBottom: 48 },
+  scroll: { flexGrow: 1, padding: spacing[5], paddingBottom: spacing[12] },
 
-  logoRow:   { alignItems: 'center', marginBottom: 28, marginTop: 16 },
-  logoTitle: { fontSize: 26, fontWeight: '800', marginTop: 8 },
-  logoSub:   { fontSize: 13, fontWeight: '500', marginTop: 4 },
+  logoRow:   { alignItems: 'center', marginBottom: spacing[8], marginTop: spacing[4] },
+  logoTitle: { fontSize: fontSize.display, fontWeight: '800', marginTop: spacing[2] },
+  logoSub:   { fontSize: fontSize.sm, fontWeight: '500', marginTop: spacing[1] },
 
-  backBtn:     { marginBottom: 12 },
-  backBtnText: { fontSize: 14, fontWeight: '500' },
+  backBtn:     { marginBottom: spacing[3] },
+  backBtnText: { fontSize: fontSize.md, fontWeight: '500' },
 
-  eventBanner: { borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1 },
-  eventBannerLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', marginBottom: 4 },
-  eventBannerName:  { fontSize: 16, fontWeight: '700' },
+  eventBanner: { borderRadius: radius.lg, padding: spacing[4], marginBottom: spacing[4], borderWidth: 1 },
+  eventBannerLabel: { fontSize: fontSize.xxs, fontWeight: '600', textTransform: 'uppercase', marginBottom: spacing[1] },
+  eventBannerName:  { fontSize: fontSize.xl, fontWeight: '700' },
 
   errorBox: {
-    backgroundColor: '#fdf2f2', borderRadius: 10, padding: 14, marginBottom: 14,
+    backgroundColor: '#fdf2f2', borderRadius: radius.lg, padding: spacing[4], marginBottom: spacing[4],
     borderLeftWidth: 3, borderLeftColor: '#e74c3c',
   },
-  errorText: { color: '#c0392b', fontSize: 14 },
+  errorText: { color: '#c0392b', fontSize: fontSize.md },
 
   card: {
-    borderRadius: 16, padding: 20, marginBottom: 14,
+    borderRadius: radius.xl, padding: spacing[5], marginBottom: spacing[4],
     boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.07)', elevation: 3,
   },
-  heading: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
-  sub:     { fontSize: 14, marginBottom: 18, lineHeight: 20 },
+  heading: { fontSize: fontSize.xxl, fontWeight: '800', marginBottom: spacing[1] },
+  sub:     { fontSize: fontSize.md, marginBottom: spacing[5], lineHeight: 20 },
 
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
+  sectionTitle: { fontSize: fontSize.xl, fontWeight: '700', marginBottom: spacing[2] },
 
-  assignNotice: { borderRadius: 10, padding: 12, marginBottom: 4, borderWidth: 1 },
-  assignNoticeText: { fontSize: 13, lineHeight: 19 },
+  assignNotice: { borderRadius: radius.lg, padding: spacing[3], marginBottom: spacing[1], borderWidth: 1 },
+  assignNoticeText: { fontSize: fontSize.sm, lineHeight: 19 },
 
-  modeRow:        { marginTop: 0, marginBottom: 12 },
+  modeRow:        { marginTop: 0, marginBottom: spacing[3] },
 
-  row:       { flexDirection: 'row', gap: 12 },
+  row:       { flexDirection: 'row', gap: spacing[3] },
   halfField: { flex: 1 },
 
-  label:     { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
-  optional:  { fontSize: 12, fontWeight: '400' },
-  fieldHint: { fontSize: 12, marginTop: 4 },
+  label:     { fontSize: fontSize.sm, fontWeight: '600', marginBottom: spacing[2], marginTop: spacing[3] },
+  optional:  { fontSize: fontSize.xs, fontWeight: '400' },
+  fieldHint: { fontSize: fontSize.xs, marginTop: spacing[1] },
   input: {
-    borderWidth: 1, borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 16, backgroundColor: '#fafafa',
+    borderWidth: 1, borderRadius: radius.lg,
+    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+    fontSize: fontSize.xl, backgroundColor: '#fafafa',
   },
-  textArea: { height: 90, textAlignVertical: 'top', paddingTop: 12 },
+  textArea: { height: 90, textAlignVertical: 'top', paddingTop: spacing[3] },
 
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  chip:    { borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 },
-  chipText:{ fontSize: 13, fontWeight: '600' },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[1] },
+  chip:    { borderWidth: 1, borderRadius: radius.xxl, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
+  chipText:{ fontSize: fontSize.sm, fontWeight: '600' },
 
   teammatesHeader: {
     flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginBottom: 10,
+    justifyContent: 'space-between', marginBottom: spacing[3],
   },
-  teammateBadge: { fontSize: 13, fontWeight: '500' },
+  teammateBadge: { fontSize: fontSize.sm, fontWeight: '500' },
 
-  teammateCard:       { paddingTop: 16 },
-  teammateCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
-  teammateCardTitle:  { fontSize: 14, fontWeight: '700' },
-  removeBtn:          { padding: 4 },
-  removeBtnText:      { fontSize: 13, fontWeight: '500' },
+  teammateCard:       { paddingTop: spacing[4] },
+  teammateCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[0.5] },
+  teammateCardTitle:  { fontSize: fontSize.md, fontWeight: '700' },
+  removeBtn:          { padding: spacing[1] },
+  removeBtnText:      { fontSize: fontSize.sm, fontWeight: '500' },
 
   addTeammateBtn: {
-    borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 12,
-    paddingVertical: 14, alignItems: 'center', marginBottom: 14,
+    borderWidth: 1.5, borderStyle: 'dashed', borderRadius: radius.lg,
+    paddingVertical: spacing[4], alignItems: 'center', marginBottom: spacing[4],
   },
-  addTeammateBtnText: { fontSize: 15, fontWeight: '600' },
+  addTeammateBtnText: { fontSize: fontSize.lg, fontWeight: '600' },
 
-  submitBtn:        { paddingVertical: 16, borderRadius: 12, alignItems: 'center' },
-  submitBtnSpacing: { marginTop: 6 },
-  submitBtnText:    { fontSize: 17, fontWeight: '700', color: '#fff' },
-  homeBtn:          { paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1, marginTop: 10 },
-  homeBtnText:      { fontSize: 15, fontWeight: '600' },
+  submitBtn:        { paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
+  submitBtnSpacing: { marginTop: spacing[2] },
+  submitBtnText:    { fontSize: fontSize.xl, fontWeight: '700', color: '#fff' },
+  homeBtn:          { paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center', borderWidth: 1, marginTop: spacing[3] },
+  homeBtnText:      { fontSize: fontSize.lg, fontWeight: '600' },
 
-  successIcon: { fontSize: 48, textAlign: 'center', marginBottom: 12 },
-  successNote: { fontSize: 13, lineHeight: 20, marginTop: 12, marginBottom: 4 },
+  successIcon: { fontSize: 48, textAlign: 'center', marginBottom: spacing[3] },
+  successNote: { fontSize: fontSize.sm, lineHeight: 20, marginTop: spacing[3], marginBottom: spacing[1] },
 
-  feeNotice:      { borderWidth: 1, borderRadius: 10, padding: 14, marginTop: 12 },
-  feeNoticeTitle: { fontSize: 14, fontWeight: '700', color: '#7d6608', marginBottom: 4 },
-  feeNoticeText:  { fontSize: 13, lineHeight: 19, color: '#7d6608' },
-  feeCardField:   { width: '100%', height: 50, marginTop: 12 },
-  feePayError:    { fontSize: 12, color: '#c0392b', marginTop: 8 },
-  feePayBtn:      { borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 10 },
-  feePayBtnText:  { color: '#fff', fontWeight: '700', fontSize: 15 },
-  feeSecureNote:  { fontSize: 11, color: '#aaa', textAlign: 'center', marginTop: 8 },
-  rosterBox:      { borderRadius: 10, borderWidth: 1, padding: 14, marginTop: 14, gap: 4 },
-  inviteCard:     { borderRadius: 10, borderWidth: 1, padding: 14, marginTop: 14 },
-  inviteTitle:    { fontSize: 15, fontWeight: '700', marginBottom: 4 },
-  inviteText:     { fontSize: 13, lineHeight: 19 },
-  inviteUrl:      { fontSize: 12, marginTop: 10, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
-  inviteNote:     { fontSize: 12, lineHeight: 17, marginTop: 8 },
-  shareBtn:       { borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 12 },
-  shareBtnText:   { fontSize: 15, fontWeight: '700' },
-  rosterLabel:    { fontSize: 13, fontWeight: '700', marginBottom: 6 },
-  rosterRow:      { fontSize: 14, lineHeight: 22 },
+  feeNotice:      { borderWidth: 1, borderRadius: radius.lg, padding: spacing[4], marginTop: spacing[3] },
+  feeNoticeTitle: { fontSize: fontSize.md, fontWeight: '700', color: '#7d6608', marginBottom: spacing[1] },
+  feeNoticeText:  { fontSize: fontSize.sm, lineHeight: 19, color: '#7d6608' },
+  feeCardField:   { width: '100%', height: 50, marginTop: spacing[3] },
+  feePayError:    { fontSize: fontSize.xs, color: '#c0392b', marginTop: spacing[2] },
+  feePayBtn:      { borderRadius: radius.lg, paddingVertical: spacing[3], alignItems: 'center', marginTop: spacing[3] },
+  feePayBtnText:  { color: '#fff', fontWeight: '700', fontSize: fontSize.lg },
+  feeSecureNote:  { fontSize: fontSize.xxs, color: '#aaa', textAlign: 'center', marginTop: spacing[2] },
+  rosterBox:      { borderRadius: radius.lg, borderWidth: 1, padding: spacing[4], marginTop: spacing[4], gap: spacing[1] },
+  inviteCard:     { borderRadius: radius.lg, borderWidth: 1, padding: spacing[4], marginTop: spacing[4] },
+  inviteTitle:    { fontSize: fontSize.lg, fontWeight: '700', marginBottom: spacing[1] },
+  inviteText:     { fontSize: fontSize.sm, lineHeight: 19 },
+  inviteUrl:      { fontSize: fontSize.xs, marginTop: spacing[3], fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  inviteNote:     { fontSize: fontSize.xs, lineHeight: 17, marginTop: spacing[2] },
+  shareBtn:       { borderRadius: radius.lg, paddingVertical: spacing[3], alignItems: 'center', marginTop: spacing[3] },
+  shareBtnText:   { fontSize: fontSize.lg, fontWeight: '700' },
+  rosterLabel:    { fontSize: fontSize.sm, fontWeight: '700', marginBottom: spacing[2] },
+  rosterRow:      { fontSize: fontSize.md, lineHeight: 22 },
 });

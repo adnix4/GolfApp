@@ -8,6 +8,7 @@ import { useTheme } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useAuth } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 function toSlug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
@@ -209,7 +210,7 @@ export default function RegisterScreen() {
         {/* 501(c)3 toggle */}
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: theme.colors.primary, marginBottom: 2 }]}>
+            <Text style={[styles.label, { color: theme.colors.primary, marginBottom: spacing[0.5] }]}>
               501(c)(3) Non-Profit
             </Text>
             <Text style={[styles.hint, { color: theme.mutedText }]}>
@@ -251,33 +252,33 @@ export default function RegisterScreen() {
 
 const styles = StyleSheet.create({
   page:    { flex: 1 },
-  content: { padding: 20, paddingBottom: 60, alignItems: 'center' },
+  content: { padding: spacing[5], paddingBottom: 60, alignItems: 'center' },
 
-  header:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: 520, marginBottom: 20 },
-  backBtn:  { paddingVertical: 6, paddingHorizontal: 4 },
-  backText: { fontSize: 14, fontWeight: '600' },
-  logoRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  logo:     { fontSize: 20, fontWeight: '800' },
+  header:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: 520, marginBottom: spacing[5] },
+  backBtn:  { paddingVertical: spacing[2], paddingHorizontal: spacing[1] },
+  backText: { fontSize: fontSize.md, fontWeight: '600' },
+  logoRow:  { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  logo:     { fontSize: fontSize.xxl, fontWeight: '800' },
 
-  card:       { width: '100%', maxWidth: 520, backgroundColor: '#fff', borderRadius: 20, padding: 32, boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.08)', elevation: 4 },
-  heading:    { fontSize: 24, fontWeight: '900', marginBottom: 8 },
-  subheading: { fontSize: 14, lineHeight: 22, marginBottom: 20 },
+  card:       { width: '100%', maxWidth: 520, backgroundColor: '#fff', borderRadius: radius.xxl, padding: spacing[8], boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.08)', elevation: 4 },
+  heading:    { fontSize: fontSize.title, fontWeight: '900', marginBottom: spacing[2] },
+  subheading: { fontSize: fontSize.md, lineHeight: 22, marginBottom: spacing[5] },
 
-  fieldWrap: { marginBottom: 4 },
-  label:     { fontSize: 13, fontWeight: '600', marginTop: 14, marginBottom: 6 },
-  input:     { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, backgroundColor: '#fafafa' },
-  hint:      { fontSize: 12, marginTop: 4 },
-  fieldError:{ color: '#e74c3c', fontSize: 12, marginTop: 4 },
+  fieldWrap: { marginBottom: spacing[1] },
+  label:     { fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing[4], marginBottom: spacing[2] },
+  input:     { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa' },
+  hint:      { fontSize: fontSize.xs, marginTop: spacing[1] },
+  fieldError:{ color: '#e74c3c', fontSize: fontSize.xs, marginTop: spacing[1] },
 
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, marginBottom: 4 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[4], marginBottom: spacing[1] },
 
-  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: 14 },
+  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[2], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
+  errorText: { color: '#c0392b', fontSize: fontSize.md },
 
-  submitBtn:  { marginTop: 24, paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
-  submitText: { fontSize: 16, fontWeight: '800', color: '#fff' },
+  submitBtn:  { marginTop: spacing[6], paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
+  submitText: { fontSize: fontSize.xl, fontWeight: '800', color: '#fff' },
 
-  signinRow:  { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
-  signinText: { fontSize: 14 },
-  signinLink: { fontSize: 14, fontWeight: '700' },
+  signinRow:  { flexDirection: 'row', justifyContent: 'center', marginTop: spacing[5] },
+  signinText: { fontSize: fontSize.md },
+  signinLink: { fontSize: fontSize.md, fontWeight: '700' },
 });

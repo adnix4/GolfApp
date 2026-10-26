@@ -10,6 +10,7 @@ import { eventsApi } from '@/lib/api';
 import { useTeamList } from '@/lib/queries';
 import { useResponsive } from '@/lib/responsive';
 import { autoAssignHoles, validateShotgunAssignments } from '@/lib/shotgunUtils';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function ShotgunScreen() {
   const { id }  = useLocalSearchParams<{ id: string }>();
@@ -233,47 +234,47 @@ export default function ShotgunScreen() {
 
 const styles = StyleSheet.create({
   page:   { flex: 1, backgroundColor: '#f7f8fa' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[8] },
 
-  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 14, flexWrap: 'wrap', gap: 12 },
-  title:         { fontSize: 22, fontWeight: '800' },
-  subtitle:      { fontSize: 13, marginTop: 3 },
-  headerActions: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  autoBtn:       { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9 },
-  autoBtnText:   { fontSize: 13, fontWeight: '700' },
-  saveBtn:       { borderRadius: 8, paddingHorizontal: 20, paddingVertical: 9, minWidth: 90, alignItems: 'center' },
-  saveBtnText:   { fontSize: 13, fontWeight: '800', color: '#fff' },
+  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: spacing[4], flexWrap: 'wrap', gap: spacing[3] },
+  title:         { fontSize: fontSize.title, fontWeight: '800' },
+  subtitle:      { fontSize: fontSize.sm, marginTop: spacing[1] },
+  headerActions: { flexDirection: 'row', gap: spacing[3], alignItems: 'center' },
+  autoBtn:       { borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
+  autoBtnText:   { fontSize: fontSize.sm, fontWeight: '700' },
+  saveBtn:       { borderRadius: radius.md, paddingHorizontal: spacing[5], paddingVertical: spacing[2], minWidth: 90, alignItems: 'center' },
+  saveBtnText:   { fontSize: fontSize.sm, fontWeight: '800', color: '#fff' },
 
-  errorBox:   { marginHorizontal: 24, marginBottom: 8, backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c', gap: 4 },
-  errorText:  { color: '#c0392b', fontSize: 13 },
-  successBox: { marginHorizontal: 24, marginBottom: 8, backgroundColor: '#f0faf4', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#27ae60' },
-  successText:{ color: '#1a6b3c', fontSize: 13, fontWeight: '600' },
+  errorBox:   { marginHorizontal: spacing[6], marginBottom: spacing[2], backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c', gap: spacing[1] },
+  errorText:  { color: '#c0392b', fontSize: fontSize.sm },
+  successBox: { marginHorizontal: spacing[6], marginBottom: spacing[2], backgroundColor: '#f0faf4', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#27ae60' },
+  successText:{ color: '#1a6b3c', fontSize: fontSize.sm, fontWeight: '600' },
 
-  legend:     { marginHorizontal: 24, marginBottom: 8, borderRadius: 8, padding: 10 },
-  legendText: { fontSize: 12, lineHeight: 18 },
+  legend:     { marginHorizontal: spacing[6], marginBottom: spacing[2], borderRadius: radius.md, padding: spacing[3] },
+  legendText: { fontSize: fontSize.xs, lineHeight: 18 },
 
-  emptyText:  { fontSize: 15, textAlign: 'center' },
+  emptyText:  { fontSize: fontSize.lg, textAlign: 'center' },
 
-  list: { paddingHorizontal: 24, paddingBottom: 32 },
+  list: { paddingHorizontal: spacing[6], paddingBottom: spacing[8] },
 
-  listHeader:       { flexDirection: 'row', paddingVertical: 10, borderBottomWidth: 1, marginBottom: 4 },
-  colLabel:         { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  listHeader:       { flexDirection: 'row', paddingVertical: spacing[3], borderBottomWidth: 1, marginBottom: spacing[1] },
+  colLabel:         { fontSize: fontSize.xxs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   colTeam:          { flex: 1 },
   colPlayers:       { width: 72, textAlign: 'center' },
   colHole:          { width: 80, alignItems: 'flex-end' },
 
-  row:        { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
-  teamName:   { fontSize: 15, fontWeight: '600' },
-  playerCount:{ textAlign: 'center', fontSize: 14 },
+  row:        { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], borderBottomWidth: StyleSheet.hairlineWidth },
+  teamName:   { fontSize: fontSize.lg, fontWeight: '600' },
+  playerCount:{ textAlign: 'center', fontSize: fontSize.md },
 
   holeInput: {
-    width: 60, borderWidth: 1.5, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 8,
-    fontSize: 16, fontWeight: '700', textAlign: 'center',
+    width: 60, borderWidth: 1.5, borderRadius: radius.md,
+    paddingHorizontal: spacing[3], paddingVertical: spacing[2],
+    fontSize: fontSize.xl, fontWeight: '700', textAlign: 'center',
     backgroundColor: '#fff',
   },
 
-  notApplicableIcon:  { fontSize: 40, marginBottom: 12 },
-  notApplicableTitle: { fontSize: 20, fontWeight: '800', marginBottom: 8 },
-  notApplicableText:  { fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  notApplicableIcon:  { fontSize: 40, marginBottom: spacing[3] },
+  notApplicableTitle: { fontSize: fontSize.xxl, fontWeight: '800', marginBottom: spacing[2] },
+  notApplicableText:  { fontSize: fontSize.md, textAlign: 'center', lineHeight: 22 },
 });

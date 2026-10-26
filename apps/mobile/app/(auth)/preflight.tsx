@@ -10,6 +10,7 @@ import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { checkConnectivity } from '@/lib/api';
 import { formatTime } from '@gfp/shared-types';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
 
@@ -63,12 +64,12 @@ function CheckItem({
 }
 
 const itemStyles = StyleSheet.create({
-  row:     { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
-  iconBox: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  icon:    { fontSize: 18, fontWeight: '700' },
+  row:     { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing[4] },
+  iconBox: { width: 40, height: 40, borderRadius: radius.xxl, alignItems: 'center', justifyContent: 'center', marginRight: spacing[4] },
+  icon:    { fontSize: fontSize.xl, fontWeight: '700' },
   text:    { flex: 1, justifyContent: 'center' },
-  label:   { fontSize: 15, fontWeight: '700' },
-  detail:  { fontSize: 13, marginTop: 2 },
+  label:   { fontSize: fontSize.lg, fontWeight: '700' },
+  detail:  { fontSize: fontSize.sm, marginTop: spacing[0.5] },
 });
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
@@ -260,41 +261,41 @@ const styles = StyleSheet.create({
 
   header: {
     paddingTop:        Platform.OS === 'android' ? 12 : 0,
-    paddingBottom:     14,
-    paddingHorizontal: 20,
+    paddingBottom:     spacing[4],
+    paddingHorizontal: spacing[5],
     alignItems:        'center',
   },
-  headerTitle: { fontSize: 20, fontWeight: '800' },
-  headerSub:   { fontSize: 13, fontWeight: '500', marginTop: 4, opacity: 0.85 },
+  headerTitle: { fontSize: fontSize.xxl, fontWeight: '800' },
+  headerSub:   { fontSize: fontSize.sm, fontWeight: '500', marginTop: spacing[1], opacity: 0.85 },
 
-  scroll: { padding: 20, paddingBottom: 40 },
-  intro:  { fontSize: 14, lineHeight: 20, marginBottom: 20 },
+  scroll: { padding: spacing[5], paddingBottom: spacing[10] },
+  intro:  { fontSize: fontSize.md, lineHeight: 20, marginBottom: spacing[5] },
 
   card: {
-    borderRadius: 14, padding: 20, marginBottom: 16,
+    borderRadius: radius.xl, padding: spacing[5], marginBottom: spacing[4],
     boxShadow: '0px 1px 8px rgba(0, 0, 0, 0.06)', elevation: 2,
   },
 
   offlineBtn: {
-    borderWidth: 1.5, borderRadius: 12,
-    paddingVertical: 14, paddingHorizontal: 20,
-    alignItems: 'center', marginBottom: 12,
+    borderWidth: 1.5, borderRadius: radius.lg,
+    paddingVertical: spacing[4], paddingHorizontal: spacing[5],
+    alignItems: 'center', marginBottom: spacing[3],
   },
-  offlineBtnText: { fontSize: 15, fontWeight: '700' },
-  offlineNote:    { fontSize: 12, marginTop: 4 },
+  offlineBtnText: { fontSize: fontSize.lg, fontWeight: '700' },
+  offlineNote:    { fontSize: fontSize.xs, marginTop: spacing[1] },
 
   offlineBadge: {
-    borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12,
+    borderWidth: 1, borderRadius: radius.lg, padding: spacing[3], marginBottom: spacing[3],
   },
-  offlineBadgeText: { fontSize: 13, color: '#b7770d', textAlign: 'center' },
+  offlineBadgeText: { fontSize: fontSize.sm, color: '#b7770d', textAlign: 'center' },
 
-  retryRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
-  retryBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, backgroundColor: '#f0f0f0' },
-  retryText: { fontSize: 13, fontWeight: '600' },
+  retryRow: { flexDirection: 'row', gap: spacing[3], marginBottom: spacing[5] },
+  retryBtn: { paddingVertical: spacing[2], paddingHorizontal: spacing[4], borderRadius: radius.md, backgroundColor: '#f0f0f0' },
+  retryText: { fontSize: fontSize.sm, fontWeight: '600' },
 
   startBtn: {
-    paddingVertical: 18, borderRadius: 14, alignItems: 'center', marginBottom: 12,
+    paddingVertical: spacing[5], borderRadius: radius.xl, alignItems: 'center', marginBottom: spacing[3],
   },
-  startBtnText: { fontSize: 17, fontWeight: '800', color: '#fff' },
-  blocked:      { fontSize: 13, textAlign: 'center' },
+  startBtnText: { fontSize: fontSize.xl, fontWeight: '800', color: '#fff' },
+  blocked:      { fontSize: fontSize.sm, textAlign: 'center' },
 });

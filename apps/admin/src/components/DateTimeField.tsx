@@ -13,6 +13,7 @@ import {
   pickerValuesToDate, toPickerDate, toPickerTime,
 } from '@/lib/dateTime';
 import type { DateTimeFieldProps } from './DateTimeField.types';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export function DateTimeField({
   mode, value, onChange, min, max, placeholder, disabled, borderColor, accessibilityLabel,
@@ -78,13 +79,13 @@ export function DateTimeField({
 const styles = StyleSheet.create({
   field: {
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
     backgroundColor: '#fafafa',
   },
-  text:        { fontSize: 14, color: '#222' },
+  text:        { fontSize: fontSize.md, color: '#222' },
   placeholder: { color: '#aaa' },
-  done:        { alignSelf: 'flex-end', paddingVertical: 6, paddingHorizontal: 12 },
-  doneText:    { fontSize: 15, fontWeight: '700', color: '#007aff' },
+  done:        { alignSelf: 'flex-end', paddingVertical: spacing[2], paddingHorizontal: spacing[3] },
+  doneText:    { fontSize: fontSize.lg, fontWeight: '700', color: '#007aff' },
 });

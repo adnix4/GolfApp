@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Slot, useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { ThemeProvider, useTheme } from '@gfp/ui';
-import { ECO_GREEN_DEFAULT, type GFPTheme } from '@gfp/theme';
+import { ECO_GREEN_DEFAULT, type GFPTheme, spacing, fontSize } from '@gfp/theme';
 import { EventProvider, useEventLoader, type EventContextValue } from '@/lib/eventContext';
 import type { EventDetail } from '@/lib/api';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
@@ -209,7 +209,7 @@ function EventChrome({ event, error, retry, eventCtx }: {
           <View style={styles.center}>
             <Text style={styles.errorText}>{error}</Text>
             <Pressable onPress={retry} accessibilityRole="button">
-              <Text style={{ color: theme.colors.action, marginTop: 8 }}>Retry</Text>
+              <Text style={{ color: theme.colors.action, marginTop: spacing[2] }}>Retry</Text>
             </Pressable>
           </View>
         ) : (
@@ -229,30 +229,30 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
 
   primaryBar: { borderBottomWidth: 1 },
-  scroll:     { flexDirection: 'row', paddingHorizontal: 20 },
+  scroll:     { flexDirection: 'row', paddingHorizontal: spacing[5] },
 
   primaryTab: {
-    paddingVertical: 13,
-    paddingHorizontal: 18,
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[5],
     borderBottomWidth: 3,
     borderBottomColor: 'transparent',
-    marginRight: 4,
+    marginRight: spacing[1],
   },
-  primaryLabel:       { fontSize: 14, fontWeight: '600' },
+  primaryLabel:       { fontSize: fontSize.md, fontWeight: '600' },
   primaryLabelActive: { fontWeight: '800' },
 
   subBar: { borderBottomWidth: 1 },
   subTab: {
-    paddingVertical: 9,
-    paddingHorizontal: 14,
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[4],
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
-    marginRight: 2,
+    marginRight: spacing[0.5],
   },
-  subLabel:       { fontSize: 12, fontWeight: '500' },
+  subLabel:       { fontSize: fontSize.xs, fontWeight: '500' },
   subLabelActive: { fontWeight: '700' },
 
   content: { flex: 1 },
-  center:  { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  errorText: { color: '#c0392b', fontSize: 14, textAlign: 'center' },
+  center:  { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing[6] },
+  errorText: { color: '#c0392b', fontSize: fontSize.md, textAlign: 'center' },
 });

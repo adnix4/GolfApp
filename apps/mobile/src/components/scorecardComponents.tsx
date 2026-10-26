@@ -21,6 +21,7 @@ import type { ThemeContextValue } from '@gfp/ui';
 import type { ChallengeCacheDto, HoleCacheDto, SponsorCacheDto } from '@/lib/api';
 import { formatToPar, toParColor } from '@/lib/toPar';
 import { tickHaptic } from '@/lib/haptics';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // ── HOLE INFO CHIP ────────────────────────────────────────────────────────────
 
@@ -53,11 +54,11 @@ export function HoleInfoChip({ label, value, toPar }: {
 }
 
 const infoChipStyles = StyleSheet.create({
-  chip:     { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, alignItems: 'center' },
-  label:    { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  valueRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 2 },
-  value:    { fontSize: 16, fontWeight: '700', lineHeight: 20 },
-  rel:      { fontSize: 11, fontWeight: '700', marginLeft: 3, lineHeight: 15 },
+  chip:     { paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.lg, alignItems: 'center' },
+  label:    { fontSize: fontSize.xxs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  valueRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: spacing[0.5] },
+  value:    { fontSize: fontSize.xl, fontWeight: '700', lineHeight: 20 },
+  rel:      { fontSize: fontSize.xxs, fontWeight: '700', marginLeft: spacing[1], lineHeight: 15 },
 });
 
 // ── SCORE CHIP ────────────────────────────────────────────────────────────────
@@ -84,11 +85,11 @@ export function ScoreChip({ grossScore, par }: { grossScore: number | null; par:
 }
 
 const scoreChipStyles = StyleSheet.create({
-  chip:  { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, alignItems: 'center', borderWidth: 1 },
-  label: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  valueRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 2 },
-  value:    { fontSize: 22, fontWeight: '800', lineHeight: 26 },
-  rel:      { fontSize: 13, fontWeight: '700', marginLeft: 3, lineHeight: 18 },
+  chip:  { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.lg, alignItems: 'center', borderWidth: 1 },
+  label: { fontSize: fontSize.xxs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  valueRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: spacing[0.5] },
+  value:    { fontSize: fontSize.title, fontWeight: '800', lineHeight: 26 },
+  rel:      { fontSize: fontSize.sm, fontWeight: '700', marginLeft: spacing[1], lineHeight: 18 },
 });
 
 // ── HOLE-IN-ONE CELEBRATION MODAL ────────────────────────────────────────────
@@ -134,15 +135,15 @@ const hioStyles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   card: {
-    backgroundColor: '#1a1a2e', borderRadius: 24, padding: 40,
-    alignItems: 'center', marginHorizontal: 32,
+    backgroundColor: '#1a1a2e', borderRadius: 24, padding: spacing[10],
+    alignItems: 'center', marginHorizontal: spacing[8],
     borderWidth: 3, borderColor: '#f1c40f',
     boxShadow: '0px 0px 20px rgba(241, 196, 15, 0.6)', elevation: 20,
   },
-  emoji:    { fontSize: 64, marginBottom: 12 },
+  emoji:    { fontSize: 64, marginBottom: spacing[3] },
   headline: { fontSize: 34, fontWeight: '900', color: '#f1c40f', letterSpacing: 2, textAlign: 'center' },
-  sub:      { fontSize: 18, fontWeight: '600', color: '#fff', marginTop: 8, textAlign: 'center' },
-  hint:     { fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 20 },
+  sub:      { fontSize: fontSize.xl, fontWeight: '600', color: '#fff', marginTop: spacing[2], textAlign: 'center' },
+  hint:     { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.4)', marginTop: spacing[5] },
 });
 
 // ── CHALLENGE DETAIL MODAL ────────────────────────────────────────────────────
@@ -197,9 +198,9 @@ export function ChallengeDetailModal({
 }
 
 const chalModalStyles = StyleSheet.create({
-  prizeBox:   { borderRadius: 10, padding: 12, marginTop: 12 },
-  prizeLabel: { fontSize: 12, fontWeight: '800', marginBottom: 4 },
-  prizeText:  { fontSize: 14, lineHeight: 20 },
+  prizeBox:   { borderRadius: radius.lg, padding: spacing[3], marginTop: spacing[3] },
+  prizeLabel: { fontSize: fontSize.xs, fontWeight: '800', marginBottom: spacing[1] },
+  prizeText:  { fontSize: fontSize.md, lineHeight: 20 },
 });
 
 // ── HOLE INFO MODAL ───────────────────────────────────────────────────────────
@@ -254,9 +255,9 @@ export function HoleInfoModal({ hole, onDismiss }: {
 }
 
 const holeInfoStyles = StyleSheet.create({
-  row:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
-  rowLabel: { fontSize: 14, fontWeight: '600' },
-  rowValue: { fontSize: 16, fontWeight: '800' },
+  row:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing[3] },
+  rowLabel: { fontSize: fontSize.md, fontWeight: '600' },
+  rowValue: { fontSize: fontSize.xl, fontWeight: '800' },
 });
 
 // ── SPONSOR MODAL ────────────────────────────────────────────────────────────
@@ -312,8 +313,8 @@ export function SponsorModal({
 }
 
 const sponModalStyles = StyleSheet.create({
-  brand:   { alignItems: 'center', gap: 10, marginTop: 14 },
-  tagline: { fontSize: 15, fontWeight: '700', fontStyle: 'italic', textAlign: 'center', lineHeight: 21 },
+  brand:   { alignItems: 'center', gap: spacing[3], marginTop: spacing[4] },
+  tagline: { fontSize: fontSize.lg, fontWeight: '700', fontStyle: 'italic', textAlign: 'center', lineHeight: 21 },
 });
 
 // ── SHOT COUNTER COLUMN ───────────────────────────────────────────────────────
@@ -331,7 +332,7 @@ export interface ShotColumnSize {
 }
 
 const DEFAULT_SHOT_SIZE: ShotColumnSize = {
-  button: 44, gap: 6, labelFont: 11, valueFont: 28,
+  button: 44, gap: spacing[2], labelFont: 11, valueFont: 28,
 };
 
 export function ShotColumn({

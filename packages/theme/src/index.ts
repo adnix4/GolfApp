@@ -361,3 +361,8 @@ export function buildEmailVars(theme: GFPTheme): Record<string, string> {
     '{{SURFACE_COLOR}}':   theme.surface,
   };
 }
+
+// ── LAYOUT SCALES ─────────────────────────────────────────────────────────────
+
+export { spacing, radius, fontSize } from './scales';
+export type { SpacingStep, RadiusStep, FontSizeStep } from './scales';

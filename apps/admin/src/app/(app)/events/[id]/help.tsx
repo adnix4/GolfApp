@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useTheme } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // ── Content ───────────────────────────────────────────────────────────────────
 
@@ -304,13 +305,13 @@ export default function EventHelpScreen() {
       </View>
 
       <Section title="Status Progression" subtitle="What each status means and how to advance">
-        <View style={{ gap: 16 }}>
+        <View style={{ gap: spacing[4] }}>
           {STATUS_FLOW.map(item => <StatusStep key={item.status} item={item} />)}
         </View>
       </Section>
 
       <Section title="Tab Reference" subtitle="When to use each tab and what you can do there" defaultOpen>
-        <View style={{ gap: 24 }}>
+        <View style={{ gap: spacing[6] }}>
           {TAB_REFERENCE.map(group => <TabRefSection key={group.group} group={group} />)}
         </View>
       </Section>
@@ -322,41 +323,41 @@ export default function EventHelpScreen() {
 
 const styles = StyleSheet.create({
   page:    { flex: 1 },
-  content: { gap: 16, paddingBottom: 40 },
+  content: { gap: spacing[4], paddingBottom: spacing[10] },
 
-  pageHeader:   { marginBottom: 4 },
-  pageTitle:    { fontSize: 22, fontWeight: '800' },
-  pageSubtitle: { fontSize: 14, lineHeight: 20, marginTop: 4 },
+  pageHeader:   { marginBottom: spacing[1] },
+  pageTitle:    { fontSize: fontSize.title, fontWeight: '800' },
+  pageSubtitle: { fontSize: fontSize.md, lineHeight: 20, marginTop: spacing[1] },
 
-  card:       { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e8e8e8', borderRadius: 12, overflow: 'hidden' },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', padding: 16, gap: 12 },
-  cardTitle:  { fontSize: 16, fontWeight: '800' },
-  cardSubtitle: { fontSize: 13, marginTop: 2 },
-  chevron:    { fontSize: 11, marginTop: 3 },
-  cardBody:   { paddingHorizontal: 16, paddingBottom: 18, gap: 12 },
+  card:       { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e8e8e8', borderRadius: radius.lg, overflow: 'hidden' },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', padding: spacing[4], gap: spacing[3] },
+  cardTitle:  { fontSize: fontSize.xl, fontWeight: '800' },
+  cardSubtitle: { fontSize: fontSize.sm, marginTop: spacing[0.5] },
+  chevron:    { fontSize: fontSize.xxs, marginTop: spacing[1] },
+  cardBody:   { paddingHorizontal: spacing[4], paddingBottom: spacing[5], gap: spacing[3] },
 
-  statusRow:       { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-  statusBadge:     { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, flexShrink: 0, marginTop: 1 },
-  statusBadgeText: { fontSize: 11, fontWeight: '800', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 },
-  statusBody:      { flex: 1, gap: 8 },
-  statusWhat:      { fontSize: 13, lineHeight: 19, fontWeight: '500' },
-  statusNext:      { borderWidth: 1, borderRadius: 8, padding: 10, gap: 4 },
-  statusNextLabel: { fontSize: 12 },
+  statusRow:       { flexDirection: 'row', gap: spacing[3], alignItems: 'flex-start' },
+  statusBadge:     { paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.lg, flexShrink: 0, marginTop: 1 },
+  statusBadgeText: { fontSize: fontSize.xxs, fontWeight: '800', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 },
+  statusBody:      { flex: 1, gap: spacing[2] },
+  statusWhat:      { fontSize: fontSize.sm, lineHeight: 19, fontWeight: '500' },
+  statusNext:      { borderWidth: 1, borderRadius: radius.md, padding: spacing[3], gap: spacing[1] },
+  statusNextLabel: { fontSize: fontSize.xs },
   statusNextReq:   { fontWeight: '700' },
-  statusNextBtn:   { fontSize: 13, fontWeight: '700' },
+  statusNextBtn:   { fontSize: fontSize.sm, fontWeight: '700' },
 
-  tabGroup:    { gap: 12 },
-  groupHeader: { borderLeftWidth: 3, paddingLeft: 10 },
-  groupLabel:  { fontSize: 15, fontWeight: '800' },
+  tabGroup:    { gap: spacing[3] },
+  groupHeader: { borderLeftWidth: 3, paddingLeft: spacing[3] },
+  groupLabel:  { fontSize: fontSize.lg, fontWeight: '800' },
 
-  tabCard:    { backgroundColor: '#fafafa', borderWidth: 1, borderColor: '#e8e8e8', borderRadius: 10, padding: 14, gap: 8 },
-  tabCardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  tabName:    { fontSize: 14, fontWeight: '800', flex: 1 },
-  whenPill:   { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  whenText:   { fontSize: 11, fontWeight: '600' },
-  tabDesc:    { fontSize: 13, lineHeight: 19 },
-  tipsBox:    { gap: 5, borderTopWidth: 1, borderTopColor: '#e8e8e8', paddingTop: 8 },
-  tipRow:     { flexDirection: 'row', gap: 6, alignItems: 'flex-start' },
-  tipIcon:    { fontSize: 13, fontWeight: '700', width: 14 },
-  tipText:    { flex: 1, fontSize: 12, lineHeight: 17 },
+  tabCard:    { backgroundColor: '#fafafa', borderWidth: 1, borderColor: '#e8e8e8', borderRadius: radius.lg, padding: spacing[4], gap: spacing[2] },
+  tabCardTop: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], flexWrap: 'wrap' },
+  tabName:    { fontSize: fontSize.md, fontWeight: '800', flex: 1 },
+  whenPill:   { paddingHorizontal: spacing[2], paddingVertical: spacing[1], borderRadius: radius.lg },
+  whenText:   { fontSize: fontSize.xxs, fontWeight: '600' },
+  tabDesc:    { fontSize: fontSize.sm, lineHeight: 19 },
+  tipsBox:    { gap: spacing[1], borderTopWidth: 1, borderTopColor: '#e8e8e8', paddingTop: spacing[2] },
+  tipRow:     { flexDirection: 'row', gap: spacing[2], alignItems: 'flex-start' },
+  tipIcon:    { fontSize: fontSize.sm, fontWeight: '700', width: 14 },
+  tipText:    { flex: 1, fontSize: fontSize.xs, lineHeight: 17 },
 });

@@ -11,6 +11,7 @@ import { useSponsorList } from '@/lib/queries';
 import { UPLOAD_ABORTED } from '@/lib/upload';
 import { UploadProgress } from '@/components/UploadProgress';
 import { confirmAction } from '@/lib/confirmAction';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 const TIER_OPTIONS = ['title', 'gold', 'hole', 'silver', 'bronze'] as const;
 const TIER_COLOR: Record<string, string> = {
@@ -70,13 +71,13 @@ function HolePicker({
 }
 
 const holePickerStyles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[2] },
   cell: {
     width: 40, height: 40,
-    borderRadius: 8, borderWidth: 1.5,
+    borderRadius: radius.md, borderWidth: 1.5,
     alignItems: 'center', justifyContent: 'center',
   },
-  cellText: { fontSize: 14, fontWeight: '700', color: '#444' },
+  cellText: { fontSize: fontSize.md, fontWeight: '700', color: '#444' },
 });
 
 // ── SPONSORS SCREEN ───────────────────────────────────────────────────────────
@@ -167,7 +168,7 @@ export default function SponsorsScreen() {
                     />
                   ) : (
                     <View style={[styles.logoPlaceholder, { backgroundColor: theme.colors.highlight }]}>
-                      <Text style={{ fontSize: 10, color: theme.mutedText }}>No Logo</Text>
+                      <Text style={{ fontSize: fontSize.xxs, color: theme.mutedText }}>No Logo</Text>
                     </View>
                   )}
                 </View>
@@ -511,75 +512,75 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  page:   { flex: 1, padding: 28 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  title:  { fontSize: 22, fontWeight: '800' },
-  addBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 8 },
-  addBtnText: { fontSize: 14, fontWeight: '700' },
+  page:   { flex: 1, padding: spacing[8] },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[5] },
+  title:  { fontSize: fontSize.title, fontWeight: '800' },
+  addBtn: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
+  addBtnText: { fontSize: fontSize.md, fontWeight: '700' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 15 },
-  list: { gap: 12 },
+  emptyText: { fontSize: fontSize.lg },
+  list: { gap: spacing[3] },
   card: {
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: radius.lg,
+    padding: spacing[4],
     backgroundColor: '#fff',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: spacing[4],
   },
   cardLeft: {},
   logo: { width: 64, height: 40, resizeMode: 'contain' },
-  logoPlaceholder: { width: 64, height: 40, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  logoPlaceholder: { width: 64, height: 40, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' },
   cardBody: { flex: 1 },
-  sponsorName: { fontSize: 16, fontWeight: '700' },
-  tagline: { fontSize: 13, marginTop: 2 },
-  url: { fontSize: 12, marginTop: 2 },
-  donationAmt: { fontSize: 12, marginTop: 2, fontWeight: '600' },
-  holeChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
+  sponsorName: { fontSize: fontSize.xl, fontWeight: '700' },
+  tagline: { fontSize: fontSize.sm, marginTop: spacing[0.5] },
+  url: { fontSize: fontSize.xs, marginTop: spacing[0.5] },
+  donationAmt: { fontSize: fontSize.xs, marginTop: spacing[0.5], fontWeight: '600' },
+  holeChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[1], marginTop: spacing[2] },
   holeChip: {
-    paddingHorizontal: 7, paddingVertical: 3,
-    borderRadius: 6, borderWidth: 1,
+    paddingHorizontal: spacing[2], paddingVertical: spacing[1],
+    borderRadius: radius.sm, borderWidth: 1,
   },
-  holeChipText: { fontSize: 11, fontWeight: '700' },
-  cardRight: { alignItems: 'flex-end', gap: 6 },
-  tierBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  tierText: { fontSize: 11, fontWeight: '700', color: '#fff', textTransform: 'capitalize' },
-  editBtn: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
-  editBtnText: { fontSize: 12, fontWeight: '600' },
-  deleteBtn: { paddingHorizontal: 10, paddingVertical: 4 },
-  deleteBtnText: { fontSize: 12, fontWeight: '600', color: '#e74c3c' },
+  holeChipText: { fontSize: fontSize.xxs, fontWeight: '700' },
+  cardRight: { alignItems: 'flex-end', gap: spacing[2] },
+  tierBadge: { paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.lg },
+  tierText: { fontSize: fontSize.xxs, fontWeight: '700', color: '#fff', textTransform: 'capitalize' },
+  editBtn: { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: spacing[3], paddingVertical: spacing[1] },
+  editBtnText: { fontSize: fontSize.xs, fontWeight: '600' },
+  deleteBtn: { paddingHorizontal: spacing[3], paddingVertical: spacing[1] },
+  deleteBtnText: { fontSize: fontSize.xs, fontWeight: '600', color: '#e74c3c' },
   errorBox: {
-    backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, marginBottom: 12,
+    backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3],
     borderLeftWidth: 3, borderLeftColor: '#e74c3c',
   },
-  errorText: { color: '#c0392b', fontSize: 14 },
+  errorText: { color: '#c0392b', fontSize: fontSize.md },
   overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  modal:    { width: '100%', maxWidth: 480, backgroundColor: '#fff', borderRadius: 16, padding: 28, maxHeight: '90%' },
-  modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 12 },
+  modal:    { width: '100%', maxWidth: 480, backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[8], maxHeight: '90%' },
+  modalTitle: { fontSize: fontSize.xxl, fontWeight: '800', marginBottom: spacing[3] },
   modalScroll: { maxHeight: 500 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
-  input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, backgroundColor: '#fafafa' },
-  pillRow: { marginBottom: 4 },
-  pill: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#ccc', marginRight: 8, backgroundColor: '#fafafa' },
-  pillText: { fontSize: 13, fontWeight: '600', color: '#444', textTransform: 'capitalize' },
+  fieldLabel: { fontSize: fontSize.sm, fontWeight: '600', marginBottom: spacing[2], marginTop: spacing[3] },
+  input: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa' },
+  pillRow: { marginBottom: spacing[1] },
+  pill: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.xxl, borderWidth: 1, borderColor: '#ccc', marginRight: spacing[2], backgroundColor: '#fafafa' },
+  pillText: { fontSize: fontSize.sm, fontWeight: '600', color: '#444', textTransform: 'capitalize' },
   holeSection: {
-    marginTop: 16, paddingTop: 14,
+    marginTop: spacing[4], paddingTop: spacing[4],
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e0e0e0',
   },
-  holeHint: { fontSize: 12, marginBottom: 4 },
-  holeSelectionSummary: { fontSize: 12, fontWeight: '600', marginTop: 8 },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 16 },
-  cancelBtn: { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-  cancelText: { fontSize: 15, fontWeight: '600' },
-  submitBtn: { flex: 2, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-  submitText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  logoPreviewWrap: { alignItems: 'center', marginBottom: 8 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
-  uploadBtn: { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
-  uploadBtnText: { fontSize: 13, fontWeight: '700' },
-  fileNameText: { flex: 1, fontSize: 12, color: '#555' },
-  orText: { textAlign: 'center', color: '#aaa', fontSize: 12, marginVertical: 6 },
-  formatHint: { color: '#777', fontSize: 12, lineHeight: 16, marginTop: 6 },
-  formatWarn: { color: '#a67100', fontSize: 12, lineHeight: 16, marginTop: 4 },
+  holeHint: { fontSize: fontSize.xs, marginBottom: spacing[1] },
+  holeSelectionSummary: { fontSize: fontSize.xs, fontWeight: '600', marginTop: spacing[2] },
+  modalActions: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] },
+  cancelBtn: { flex: 1, borderWidth: 1, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center' },
+  cancelText: { fontSize: fontSize.lg, fontWeight: '600' },
+  submitBtn: { flex: 2, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center' },
+  submitText: { fontSize: fontSize.lg, fontWeight: '700', color: '#fff' },
+  logoPreviewWrap: { alignItems: 'center', marginBottom: spacing[2] },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginBottom: spacing[2] },
+  uploadBtn: { borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
+  uploadBtnText: { fontSize: fontSize.sm, fontWeight: '700' },
+  fileNameText: { flex: 1, fontSize: fontSize.xs, color: '#555' },
+  orText: { textAlign: 'center', color: '#aaa', fontSize: fontSize.xs, marginVertical: spacing[2] },
+  formatHint: { color: '#777', fontSize: fontSize.xs, lineHeight: 16, marginTop: spacing[2] },
+  formatWarn: { color: '#a67100', fontSize: fontSize.xs, lineHeight: 16, marginTop: spacing[1] },
 });

@@ -10,6 +10,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { buildQrPayloads, type QrScore } from '@/lib/qrPayload';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
 
@@ -169,37 +170,37 @@ const styles = StyleSheet.create({
 
   header: {
     paddingTop:        Platform.OS === 'android' ? 12 : 0,
-    paddingBottom:     12,
-    paddingHorizontal: 20,
+    paddingBottom:     spacing[3],
+    paddingHorizontal: spacing[5],
     alignItems:        'center',
   },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: '#fff' },
-  headerSub:   { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 4 },
+  headerTitle: { fontSize: fontSize.xxl, fontWeight: '800', color: '#fff' },
+  headerSub:   { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.6)', marginTop: spacing[1] },
 
   qrContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  qrWrapper:   { backgroundColor: '#fff', padding: 20, borderRadius: 16 },
-  qrPlaceholder: { alignItems: 'center', gap: 16 },
-  qrPlaceholderText: { color: '#fff', fontSize: 14 },
+  qrWrapper:   { backgroundColor: '#fff', padding: spacing[5], borderRadius: radius.xl },
+  qrPlaceholder: { alignItems: 'center', gap: spacing[4] },
+  qrPlaceholderText: { color: '#fff', fontSize: fontSize.md },
 
-  errorText: { color: '#e74c3c', textAlign: 'center', fontSize: 14, paddingHorizontal: 32 },
-  retryBtn:  { marginTop: 12, paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8, borderWidth: 1, borderColor: '#fff' },
+  errorText: { color: '#e74c3c', textAlign: 'center', fontSize: fontSize.md, paddingHorizontal: spacing[8] },
+  retryBtn:  { marginTop: spacing[3], paddingVertical: spacing[3], paddingHorizontal: spacing[6], borderRadius: radius.md, borderWidth: 1, borderColor: '#fff' },
   retryText: { color: '#fff', fontWeight: '700' },
 
-  partRow: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 12, paddingHorizontal: 24 },
-  partBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center' },
+  partRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing[3], marginBottom: spacing[3], paddingHorizontal: spacing[6] },
+  partBtn: { flex: 1, paddingVertical: spacing[3], borderRadius: radius.lg, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center' },
   partBtnActive: { backgroundColor: '#fff', borderColor: '#fff' },
-  partBtnText:   { color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: 14 },
+  partBtnText:   { color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: fontSize.md },
   partBtnTextActive: { color: '#111' },
 
-  info:     { alignItems: 'center', paddingHorizontal: 32, marginBottom: 8 },
-  infoText: { color: 'rgba(255,255,255,0.85)', fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  infoSub:  { color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 6 },
+  info:     { alignItems: 'center', paddingHorizontal: spacing[8], marginBottom: spacing[2] },
+  infoText: { color: 'rgba(255,255,255,0.85)', fontSize: fontSize.md, textAlign: 'center', lineHeight: 20 },
+  infoSub:  { color: 'rgba(255,255,255,0.45)', fontSize: fontSize.xs, marginTop: spacing[2] },
 
   actions: {
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing[6],
     paddingBottom: Platform.OS === 'ios' ? 36 : 24,
-    paddingTop: 12,
+    paddingTop: spacing[3],
   },
-  doneBtn: { paddingVertical: 16, borderRadius: 14, alignItems: 'center' },
-  doneBtnText: { fontSize: 16, fontWeight: '700' },
+  doneBtn: { paddingVertical: spacing[4], borderRadius: radius.xl, alignItems: 'center' },
+  doneBtnText: { fontSize: fontSize.xl, fontWeight: '700' },
 });

@@ -15,6 +15,7 @@ import {
   type SyncConflictDto,
   type ChallengeCacheDto,
 } from '@/lib/api';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // ── CONFLICT CARD ─────────────────────────────────────────────────────────────
 
@@ -32,10 +33,10 @@ function ConflictCard({ conflict }: { conflict: SyncConflictDto }) {
 }
 
 const conflictStyles = StyleSheet.create({
-  card:   { borderWidth: 1, borderRadius: 10, padding: 14, marginBottom: 8 },
-  title:  { fontSize: 14, fontWeight: '700', color: '#e67e22', marginBottom: 4 },
-  detail: { fontSize: 13, marginBottom: 4 },
-  hint:   { fontSize: 12, color: '#999' },
+  card:   { borderWidth: 1, borderRadius: radius.lg, padding: spacing[4], marginBottom: spacing[2] },
+  title:  { fontSize: fontSize.md, fontWeight: '700', color: '#e67e22', marginBottom: spacing[1] },
+  detail: { fontSize: fontSize.sm, marginBottom: spacing[1] },
+  hint:   { fontSize: fontSize.xs, color: '#999' },
 });
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
@@ -387,7 +388,7 @@ export default function SyncScreen() {
 // ── COLUMN LAYOUT ─────────────────────────────────────────────────────────────
 
 const col = StyleSheet.create({
-  row:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, paddingHorizontal: 8 },
+  row:   { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[2], paddingHorizontal: spacing[2] },
   hole:  { flex: 1,   textAlign: 'center' },   // "#"   — up to "18"
   yds:   { flex: 1.5, textAlign: 'center' },   // "Yds" — 3-digit yardage
   par:   { flex: 1,   textAlign: 'center' },   // "Par" — single digit
@@ -403,66 +404,66 @@ const styles = StyleSheet.create({
   cellLink:    { textDecorationLine: 'underline' },
   page:   { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { padding: 16, paddingBottom: 48 },
+  scroll: { padding: spacing[4], paddingBottom: spacing[12] },
 
   // Header
   header: {
     paddingTop:        Platform.OS === 'android' ? 12 : 0,
-    paddingBottom:     14,
-    paddingHorizontal: 20,
+    paddingBottom:     spacing[4],
+    paddingHorizontal: spacing[5],
     alignItems:        'center',
   },
-  headerEventName: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
-  headerHostedBy:  { fontSize: 13, fontWeight: '500', marginTop: 4, opacity: 0.82 },
+  headerEventName: { fontSize: fontSize.xxl, fontWeight: '800', textAlign: 'center' },
+  headerHostedBy:  { fontSize: fontSize.sm, fontWeight: '500', marginTop: spacing[1], opacity: 0.82 },
 
   // Totals card
   totalsCard: {
-    borderRadius: 14, padding: 20, marginBottom: 16,
+    borderRadius: radius.xl, padding: spacing[5], marginBottom: spacing[4],
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.07)', elevation: 3,
   },
   totalsRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
   totalItem:    { alignItems: 'center', flex: 1 },
   totalValue:   { fontSize: 36, fontWeight: '800' },
-  totalLabel:   { fontSize: 11, fontWeight: '600', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  totalDivider: { width: 1, height: 44, marginHorizontal: 8 },
+  totalLabel:   { fontSize: fontSize.xxs, fontWeight: '600', marginTop: spacing[1], textTransform: 'uppercase', letterSpacing: 0.5 },
+  totalDivider: { width: 1, height: 44, marginHorizontal: spacing[2] },
 
-  section:      { marginTop: 16 },
-  sectionTitle: { fontSize: 17, fontWeight: '800', marginBottom: 10 },
+  section:      { marginTop: spacing[4] },
+  sectionTitle: { fontSize: fontSize.xl, fontWeight: '800', marginBottom: spacing[3] },
 
   // Table
   tableHeader: {
-    flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 12,
-    borderRadius: 8, marginBottom: 2,
+    flexDirection: 'row', paddingVertical: spacing[2], paddingHorizontal: spacing[3],
+    borderRadius: radius.md, marginBottom: spacing[0.5],
   },
-  thText: { color: '#fff', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, textAlign: 'center' },
+  thText: { color: '#fff', fontSize: fontSize.xxs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, textAlign: 'center' },
 
   // Row cells
-  cellHole:  { fontWeight: '700', fontSize: 14, textAlign: 'center' },
-  cellYds:   { fontSize: 12, textAlign: 'center' },
-  cellPar:   { fontSize: 14, textAlign: 'center' },
-  cellScore: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
-  cellRel:   { fontSize: 14, fontWeight: '600', textAlign: 'center' },
-  cellSpon:  { fontSize: 11, textAlign: 'center' },
-  cellDash:  { textAlign: 'center', fontSize: 13 },
-  challengeIcon: { fontSize: 16, textAlign: 'center' },
+  cellHole:  { fontWeight: '700', fontSize: fontSize.md, textAlign: 'center' },
+  cellYds:   { fontSize: fontSize.xs, textAlign: 'center' },
+  cellPar:   { fontSize: fontSize.md, textAlign: 'center' },
+  cellScore: { fontSize: fontSize.md, fontWeight: '700', textAlign: 'center' },
+  cellRel:   { fontSize: fontSize.md, fontWeight: '600', textAlign: 'center' },
+  cellSpon:  { fontSize: fontSize.xxs, textAlign: 'center' },
+  cellDash:  { textAlign: 'center', fontSize: fontSize.sm },
+  challengeIcon: { fontSize: fontSize.xl, textAlign: 'center' },
 
   // Hole block
   holeBlock: { marginBottom: 1 },
 
   // Column-label tooltip (tap a header abbreviation to reveal full name)
-  headerTip:     { alignItems: 'center', paddingVertical: 5, marginBottom: 2 },
-  headerTipText: { color: '#fff', fontSize: 12, fontWeight: '600', letterSpacing: 0.3 },
+  headerTip:     { alignItems: 'center', paddingVertical: spacing[1], marginBottom: spacing[0.5] },
+  headerTipText: { color: '#fff', fontSize: fontSize.xs, fontWeight: '600', letterSpacing: 0.3 },
 
   // Sync button
-  syncBtn:     { paddingVertical: 15, borderRadius: 12, alignItems: 'center', marginBottom: 4 },
-  syncBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  syncError:   { fontSize: 12, color: '#c0392b', textAlign: 'center', marginBottom: 8 },
+  syncBtn:     { paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center', marginBottom: spacing[1] },
+  syncBtnText: { fontSize: fontSize.lg, fontWeight: '700', color: '#fff' },
+  syncError:   { fontSize: fontSize.xs, color: '#c0392b', textAlign: 'center', marginBottom: spacing[2] },
 
   // QR + Leave
-  qrBtn:       { paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1.5, marginBottom: 8, marginTop: 16 },
-  qrBtnText:   { fontSize: 15, fontWeight: '600' },
-  leaveBtn:    { marginTop: 10, paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 2 },
-  leaveBtnText:{ fontSize: 15, fontWeight: '700' },
+  qrBtn:       { paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center', borderWidth: 1.5, marginBottom: spacing[2], marginTop: spacing[4] },
+  qrBtnText:   { fontSize: fontSize.lg, fontWeight: '600' },
+  leaveBtn:    { marginTop: spacing[3], paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center', borderWidth: 2 },
+  leaveBtnText:{ fontSize: fontSize.lg, fontWeight: '700' },
 
-  hint: { fontSize: 12, textAlign: 'center', marginTop: 14, lineHeight: 18 },
+  hint: { fontSize: fontSize.xs, textAlign: 'center', marginTop: spacing[4], lineHeight: 18 },
 });

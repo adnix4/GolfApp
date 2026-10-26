@@ -5,6 +5,7 @@ import { GfpLogo } from '@/components/GfpLogo';
 import { useAuth } from '@/lib/auth';
 import { useResponsive } from '@/lib/responsive';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // Browser-tab labels for the top-level nav pages -> "GFP <label>".
 const PAGE_TITLES: Record<string, string> = {
@@ -188,42 +189,42 @@ const styles = StyleSheet.create({
   rootColumn: { flex: 1, flexDirection: 'column' },
 
   // ── Mobile top bar ──────────────────────────────────────────────────────────
-  topBar:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
-  topLogoRow:     { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  topLogo:        { fontSize: 18, fontWeight: '800' },
-  topNav:         { flex: 1, flexDirection: 'row', gap: 4 },
-  topNavItem:     { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6 },
+  topBar:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[4], paddingVertical: spacing[3], gap: spacing[2] },
+  topLogoRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+  topLogo:        { fontSize: fontSize.xl, fontWeight: '800' },
+  topNav:         { flex: 1, flexDirection: 'row', gap: spacing[1] },
+  topNavItem:     { paddingVertical: spacing[2], paddingHorizontal: spacing[3], borderRadius: radius.sm },
   topNavItemActive: { backgroundColor: 'rgba(255,255,255,0.15)' },
-  topNavLabel:    { fontSize: 14, fontWeight: '600' },
-  topEmail:       { fontSize: 11, maxWidth: 120 },
-  topLogout:      { borderWidth: 1, borderRadius: 6, paddingVertical: 5, paddingHorizontal: 10 },
-  topLogoutText:  { fontSize: 12, fontWeight: '600' },
+  topNavLabel:    { fontSize: fontSize.md, fontWeight: '600' },
+  topEmail:       { fontSize: fontSize.xxs, maxWidth: 120 },
+  topLogout:      { borderWidth: 1, borderRadius: radius.sm, paddingVertical: spacing[1], paddingHorizontal: spacing[3] },
+  topLogoutText:  { fontSize: fontSize.xs, fontWeight: '600' },
 
   // ── Sidebar ─────────────────────────────────────────────────────────────────
   sidebar: {
     width: 220,
-    paddingTop: 24,
-    paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingTop: spacing[6],
+    paddingHorizontal: spacing[4],
+    paddingBottom: spacing[6],
     justifyContent: 'space-between',
   },
-  logoBox: { alignItems: 'center', marginBottom: 32 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  logoText: { fontSize: 28, fontWeight: '800' },
+  logoBox: { alignItems: 'center', marginBottom: spacing[8] },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  logoText: { fontSize: fontSize.display, fontWeight: '800' },
   logoSub: {
-    fontSize: 11,
+    fontSize: fontSize.xxs,
     fontWeight: '600',
     letterSpacing: 1.5,
     textTransform: 'uppercase',
-    marginTop: 2,
+    marginTop: spacing[0.5],
   },
-  nav:      { flex: 1, gap: 4 },
-  navItem:  { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8 },
-  navLabel: { fontSize: 15, fontWeight: '600' },
-  bottomBox: { gap: 10 },
-  userEmail: { fontSize: 12, textAlign: 'center' },
-  logoutBtn: { borderWidth: 1, borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
-  logoutText: { fontSize: 13, fontWeight: '600' },
+  nav:      { flex: 1, gap: spacing[1] },
+  navItem:  { paddingVertical: spacing[3], paddingHorizontal: spacing[4], borderRadius: radius.md },
+  navLabel: { fontSize: fontSize.lg, fontWeight: '600' },
+  bottomBox: { gap: spacing[3] },
+  userEmail: { fontSize: fontSize.xs, textAlign: 'center' },
+  logoutBtn: { borderWidth: 1, borderRadius: radius.md, paddingVertical: spacing[2], alignItems: 'center' },
+  logoutText: { fontSize: fontSize.sm, fontWeight: '600' },
 
   content: { flex: 1 },
 });

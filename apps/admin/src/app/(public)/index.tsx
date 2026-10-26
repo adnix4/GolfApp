@@ -4,6 +4,7 @@ import { useTheme } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useResponsive } from '@/lib/responsive';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 const FEATURES = [
   { icon: '📋', title: 'Event Management',      desc: 'Create and configure tournaments in minutes. Set format, holes, start type, and course.' },
@@ -99,7 +100,7 @@ export default function LandingPage() {
           Built for golf event organizers, charities, booster clubs, and fundraising pros.
         </Text>
 
-        <View style={[styles.grid, { flexDirection: 'row', flexWrap: 'wrap', gap: 16 }]}>
+        <View style={[styles.grid, { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[4] }]}>
           {FEATURES.map(f => (
             <View
               key={f.title}
@@ -150,48 +151,48 @@ export default function LandingPage() {
 const styles = StyleSheet.create({
   page: { flex: 1 },
 
-  nav:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14 },
-  navLogoRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  navLogo:    { fontSize: 18, fontWeight: '800' },
-  navBtn:     { borderWidth: 1, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8 },
-  navBtnText: { fontSize: 14, fontWeight: '600' },
+  nav:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing[4] },
+  navLogoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  navLogo:    { fontSize: fontSize.xl, fontWeight: '800' },
+  navBtn:     { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
+  navBtnText: { fontSize: fontSize.md, fontWeight: '600' },
 
-  hero:         { paddingTop: 56, paddingBottom: 48 },
-  heroTag:      { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 },
-  heroTitle:    { fontSize: 42, fontWeight: '900', lineHeight: 50, marginBottom: 20 },
-  heroSub:      { fontSize: 16, lineHeight: 26, marginBottom: 36, maxWidth: 560 },
-  heroCtas:     { flexDirection: 'row', gap: 14, flexWrap: 'wrap' },
+  hero:         { paddingTop: 56, paddingBottom: spacing[12] },
+  heroTag:      { fontSize: fontSize.sm, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing[4] },
+  heroTitle:    { fontSize: 42, fontWeight: '900', lineHeight: 50, marginBottom: spacing[5] },
+  heroSub:      { fontSize: fontSize.xl, lineHeight: 26, marginBottom: spacing[10], maxWidth: 560 },
+  heroCtas:     { flexDirection: 'row', gap: spacing[4], flexWrap: 'wrap' },
   heroCtasMobile: { flexDirection: 'column' },
 
-  ctaPrimary:       { paddingHorizontal: 28, paddingVertical: 16, borderRadius: 12 },
-  ctaPrimaryText:   { fontSize: 16, fontWeight: '800' },
-  ctaSecondary:     { paddingHorizontal: 28, paddingVertical: 16, borderRadius: 12, borderWidth: 1.5 },
-  ctaSecondaryText: { fontSize: 16, fontWeight: '700' },
+  ctaPrimary:       { paddingHorizontal: spacing[8], paddingVertical: spacing[4], borderRadius: radius.lg },
+  ctaPrimaryText:   { fontSize: fontSize.xl, fontWeight: '800' },
+  ctaSecondary:     { paddingHorizontal: spacing[8], paddingVertical: spacing[4], borderRadius: radius.lg, borderWidth: 1.5 },
+  ctaSecondaryText: { fontSize: fontSize.xl, fontWeight: '700' },
 
-  statsStrip: { flexDirection: 'row', flexWrap: 'wrap', paddingVertical: 24, gap: 20, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  statsStrip: { flexDirection: 'row', flexWrap: 'wrap', paddingVertical: spacing[6], gap: spacing[5], borderBottomWidth: 1, borderBottomColor: '#eee' },
   statItem:   { alignItems: 'center', flex: 1, minWidth: 80 },
-  statValue:  { fontSize: 22, fontWeight: '900' },
-  statLabel:  { fontSize: 12, fontWeight: '600', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statValue:  { fontSize: fontSize.title, fontWeight: '900' },
+  statLabel:  { fontSize: fontSize.xs, fontWeight: '600', marginTop: spacing[0.5], textTransform: 'uppercase', letterSpacing: 0.5 },
 
   featuresSection: { paddingVertical: 56 },
-  sectionTitle:    { fontSize: 28, fontWeight: '900', marginBottom: 12, textAlign: 'center' },
-  sectionSub:      { fontSize: 15, textAlign: 'center', marginBottom: 36, lineHeight: 24 },
+  sectionTitle:    { fontSize: fontSize.display, fontWeight: '900', marginBottom: spacing[3], textAlign: 'center' },
+  sectionSub:      { fontSize: fontSize.lg, textAlign: 'center', marginBottom: spacing[10], lineHeight: 24 },
 
   grid:        {},
   featureCard: {
-    borderWidth: 1, borderRadius: 14, padding: 24,
+    borderWidth: 1, borderRadius: radius.xl, padding: spacing[6],
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.04)',
     elevation: 1,
   },
-  featureIcon:  { fontSize: 32, marginBottom: 12 },
-  featureTitle: { fontSize: 16, fontWeight: '800', marginBottom: 8 },
-  featureDesc:  { fontSize: 14, lineHeight: 22 },
+  featureIcon:  { fontSize: 32, marginBottom: spacing[3] },
+  featureTitle: { fontSize: fontSize.xl, fontWeight: '800', marginBottom: spacing[2] },
+  featureDesc:  { fontSize: fontSize.md, lineHeight: 22 },
 
-  bottomCta:      { paddingVertical: 56, alignItems: 'center', gap: 16 },
-  bottomCtaTitle: { fontSize: 28, fontWeight: '900', textAlign: 'center' },
-  bottomCtaSub:   { fontSize: 15, textAlign: 'center', lineHeight: 24, maxWidth: 480 },
+  bottomCta:      { paddingVertical: 56, alignItems: 'center', gap: spacing[4] },
+  bottomCtaTitle: { fontSize: fontSize.display, fontWeight: '900', textAlign: 'center' },
+  bottomCtaSub:   { fontSize: fontSize.lg, textAlign: 'center', lineHeight: 24, maxWidth: 480 },
 
-  footer:      { paddingVertical: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
-  footerText:  { fontSize: 13 },
-  footerLink:  { fontSize: 13, fontWeight: '700' },
+  footer:      { paddingVertical: spacing[6], flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: spacing[2] },
+  footerText:  { fontSize: fontSize.sm },
+  footerLink:  { fontSize: fontSize.sm, fontWeight: '700' },
 });

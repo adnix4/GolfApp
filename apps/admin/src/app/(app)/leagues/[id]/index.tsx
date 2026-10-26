@@ -13,6 +13,7 @@ import { useLeagueName } from './_layout';
 import { DateTimeField } from '@/components/DateTimeField';
 import { validateDateRange } from '@/lib/dateTime';
 import { formatDateOnly } from '@gfp/shared-types';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function LeagueDetailScreen() {
   const theme  = useTheme();
@@ -86,7 +87,7 @@ export default function LeagueDetailScreen() {
     <View style={[styles.root, { backgroundColor: theme.colors.surface }]}>
       <View style={[styles.header, { borderBottomColor: theme.colors.accent }]}>
         <Pressable onPress={() => router.back()}>
-          <Text style={{ color: theme.colors.action, fontSize: 15 }}>← Back</Text>
+          <Text style={{ color: theme.colors.action, fontSize: fontSize.lg }}>← Back</Text>
         </Pressable>
         <Text style={[styles.title, { color: theme.colors.primary }]}>Seasons</Text>
         <Pressable
@@ -154,7 +155,7 @@ export default function LeagueDetailScreen() {
             />
 
             <View style={styles.row}>
-              <View style={{ flex: 1, marginRight: 8 }}>
+              <View style={{ flex: 1, marginRight: spacing[2] }}>
                 <Text style={[styles.label, { color: theme.mutedText }]}>Start Date</Text>
                 <DateTimeField
                   mode="date"
@@ -184,7 +185,7 @@ export default function LeagueDetailScreen() {
             </View>
 
             <View style={styles.row}>
-              <View style={{ flex: 1, marginRight: 8 }}>
+              <View style={{ flex: 1, marginRight: spacing[2] }}>
                 <Text style={[styles.label, { color: theme.mutedText }]}>Total Rounds</Text>
                 <TextInput
                   style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
@@ -210,7 +211,7 @@ export default function LeagueDetailScreen() {
                   style={[styles.seg, { borderColor: theme.colors.accent }, method === m && { backgroundColor: theme.colors.primary }]}
                   onPress={() => setMethod(m)}
                 >
-                  <Text style={{ color: method === m ? theme.colors.surface : theme.colors.primary, fontSize: 12 }}>
+                  <Text style={{ color: method === m ? theme.colors.surface : theme.colors.primary, fontSize: fontSize.xs }}>
                     {m}
                   </Text>
                 </Pressable>
@@ -238,30 +239,30 @@ export default function LeagueDetailScreen() {
 const styles = StyleSheet.create({
   root:         { flex: 1 },
   center:       { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1 },
-  title:        { fontSize: 20, fontWeight: '700' },
-  btn:          { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  btnText:      { fontWeight: '600', fontSize: 14 },
-  errorBanner:  { margin: 12, padding: 12, borderRadius: 8, backgroundColor: '#fef2f2' },
-  empty:        { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  emptyText:    { fontSize: 15, textAlign: 'center' },
-  list:         { padding: 16, gap: 12 },
-  card:         { borderRadius: 12, padding: 16, borderWidth: 1 },
-  cardTop:      { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  cardTitle:    { fontSize: 17, fontWeight: '600' },
-  statusDot:    { fontSize: 12, fontWeight: '600' },
-  cardMeta:     { fontSize: 12, marginBottom: 8 },
-  cardStats:    { flexDirection: 'row', gap: 16 },
-  stat:         { fontSize: 13, fontWeight: '500' },
+  header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing[5], borderBottomWidth: 1 },
+  title:        { fontSize: fontSize.xxl, fontWeight: '700' },
+  btn:          { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
+  btnText:      { fontWeight: '600', fontSize: fontSize.md },
+  errorBanner:  { margin: spacing[3], padding: spacing[3], borderRadius: radius.md, backgroundColor: '#fef2f2' },
+  empty:        { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing[10] },
+  emptyText:    { fontSize: fontSize.lg, textAlign: 'center' },
+  list:         { padding: spacing[4], gap: spacing[3] },
+  card:         { borderRadius: radius.lg, padding: spacing[4], borderWidth: 1 },
+  cardTop:      { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing[1] },
+  cardTitle:    { fontSize: fontSize.xl, fontWeight: '600' },
+  statusDot:    { fontSize: fontSize.xs, fontWeight: '600' },
+  cardMeta:     { fontSize: fontSize.xs, marginBottom: spacing[2] },
+  cardStats:    { flexDirection: 'row', gap: spacing[4] },
+  stat:         { fontSize: fontSize.sm, fontWeight: '500' },
   overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
-  modal:        { width: '90%', maxWidth: 460, borderRadius: 16, padding: 24 },
-  modalTitle:   { fontSize: 18, fontWeight: '700', marginBottom: 8 },
-  label:        { fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 4 },
-  fieldError:   { fontSize: 12, color: '#e74c3c', marginTop: 4 },
-  input:        { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 14 },
-  row:          { flexDirection: 'row', marginTop: 4 },
-  segRow:       { flexDirection: 'row', gap: 6, marginTop: 4 },
-  seg:          { flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 1, alignItems: 'center' },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 20 },
-  cancelBtn:    { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  modal:        { width: '90%', maxWidth: 460, borderRadius: radius.xl, padding: spacing[6] },
+  modalTitle:   { fontSize: fontSize.xl, fontWeight: '700', marginBottom: spacing[2] },
+  label:        { fontSize: fontSize.xs, fontWeight: '600', marginTop: spacing[3], marginBottom: spacing[1] },
+  fieldError:   { fontSize: fontSize.xs, color: '#e74c3c', marginTop: spacing[1] },
+  input:        { borderWidth: 1, borderRadius: radius.md, padding: spacing[3], fontSize: fontSize.md },
+  row:          { flexDirection: 'row', marginTop: spacing[1] },
+  segRow:       { flexDirection: 'row', gap: spacing[2], marginTop: spacing[1] },
+  seg:          { flex: 1, paddingVertical: spacing[2], borderRadius: radius.md, borderWidth: 1, alignItems: 'center' },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing[3], marginTop: spacing[5] },
+  cancelBtn:    { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
 });

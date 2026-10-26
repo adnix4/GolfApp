@@ -5,6 +5,7 @@
  */
 import type { CSSProperties } from 'react';
 import type { DateTimeFieldProps } from './DateTimeField.types';
+import { fontSize, radius } from '@gfp/theme';
 
 export function DateTimeField({
   mode, value, onChange, min, max, disabled, borderColor, accessibilityLabel,
@@ -14,9 +15,9 @@ export function DateTimeField({
     height: 40,
     boxSizing: 'border-box',
     border: `1px solid ${borderColor}`,
-    borderRadius: 8,
+    borderRadius: radius.md,
     padding: '0 12px',
-    fontSize: 14,
+    fontSize: fontSize.md,
     // react-native-web's system font stack; a bare <input> doesn't inherit it.
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
     color: value ? '#222' : '#aaa',

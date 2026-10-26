@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { auctionApi, type AuctionItem, type AuctionSession } from '@/lib/api';
 import { eventKeys, useAuctionItemList, useAuctionSession } from '@/lib/queries';
 import { confirmAction } from '@/lib/confirmAction';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function LiveAuctionScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
@@ -146,16 +147,16 @@ export default function LiveAuctionScreen() {
       {error && (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
-          <Pressable onPress={() => setError(null)} style={{ marginTop: 6 }}>
-            <Text style={{ color: '#c0392b', fontSize: 12 }}>Dismiss</Text>
+          <Pressable onPress={() => setError(null)} style={{ marginTop: spacing[2] }}>
+            <Text style={{ color: '#c0392b', fontSize: fontSize.xs }}>Dismiss</Text>
           </Pressable>
         </View>
       )}
       {success && (
         <View style={styles.successBox}>
           <Text style={styles.successText}>✓ {success}</Text>
-          <Pressable onPress={() => setSuccess(null)} style={{ marginTop: 6 }}>
-            <Text style={{ color: '#1a6b3c', fontSize: 12 }}>Dismiss</Text>
+          <Pressable onPress={() => setSuccess(null)} style={{ marginTop: spacing[2] }}>
+            <Text style={{ color: '#1a6b3c', fontSize: fontSize.xs }}>Dismiss</Text>
           </Pressable>
         </View>
       )}
@@ -171,7 +172,7 @@ export default function LiveAuctionScreen() {
               </Text>
             </View>
           ) : (
-            <Text style={[styles.infoText, { marginBottom: 16, color: '#555' }]}>
+            <Text style={[styles.infoText, { marginBottom: spacing[4], color: '#555' }]}>
               {items.length} live item{items.length !== 1 ? 's' : ''} ready.
             </Text>
           )}
@@ -193,13 +194,13 @@ export default function LiveAuctionScreen() {
           </View>
 
           {/* Bidder count */}
-          <View style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }]}>
+          <View style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[3] }]}>
             <Text style={{ fontSize: 32 }}>🙋</Text>
             <View>
-              <Text style={{ fontSize: 28, fontWeight: '800', color: theme.colors.primary }}>
+              <Text style={{ fontSize: fontSize.display, fontWeight: '800', color: theme.colors.primary }}>
                 {session.currentBidderCount}
               </Text>
-              <Text style={{ fontSize: 12, color: '#666' }}>
+              <Text style={{ fontSize: fontSize.xs, color: '#666' }}>
                 {session.currentBidderCount === 1 ? 'attendee is bidding' : 'attendees are bidding'}
               </Text>
             </View>
@@ -222,7 +223,7 @@ export default function LiveAuctionScreen() {
               </Text>
 
               {/* Called amount */}
-              <Text style={[styles.label, { marginTop: 16 }]}>Called Amount ($)</Text>
+              <Text style={[styles.label, { marginTop: spacing[4] }]}>Called Amount ($)</Text>
               <View style={styles.amountRow}>
                 <MoneyInput
                   style={[styles.amtInput, { borderColor: theme.colors.primary }]}
@@ -241,7 +242,7 @@ export default function LiveAuctionScreen() {
               </View>
 
               {/* Award item */}
-              <Text style={[styles.label, { marginTop: 20 }]}>Award Item to Winner</Text>
+              <Text style={[styles.label, { marginTop: spacing[5] }]}>Award Item to Winner</Text>
               <AwardWinnerInput
                 item={currentItem}
                 onAward={(winnerId) => awardItem(currentItem, winnerId)}
@@ -269,7 +270,7 @@ export default function LiveAuctionScreen() {
           {/* Ends the auction independently of the event's own status — the
               round finishing and the auction finishing are different moments. */}
           <Pressable
-            style={[styles.bigBtn, { backgroundColor: '#7f8c8d', marginTop: 10 }]}
+            style={[styles.bigBtn, { backgroundColor: '#7f8c8d', marginTop: spacing[3] }]}
             onPress={() => confirmAction(
               'End the live auction?',
               'Attendee screens will stop showing a live auction. Silent items keep '
@@ -297,7 +298,7 @@ export default function LiveAuctionScreen() {
               ]}
             >
               <Text style={{ fontWeight: '700', color: theme.colors.primary }}>{item.title}</Text>
-              <Text style={{ color: '#555', fontSize: 12 }}>
+              <Text style={{ color: '#555', fontSize: fontSize.xs }}>
                 Starting: {fmt(item.startingBidCents)}
                 {item.id === session.currentItemId ? '  ← On stage now' : ''}
               </Text>
@@ -334,14 +335,14 @@ function AwardWinnerInput({
 
   return (
     <View>
-      <Text style={{ color: '#666', fontSize: 13, marginBottom: 8 }}>
+      <Text style={{ color: '#666', fontSize: fontSize.sm, marginBottom: spacing[2] }}>
         Find the player ID on the Teams or Registration screen.
       </Text>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
+      <View style={{ flexDirection: 'row', gap: spacing[2] }}>
         <TextInput
           style={[
             styles.amtInput,
-            { flex: 1, borderColor: idError ? '#e74c3c' : '#ddd', fontSize: 14 },
+            { flex: 1, borderColor: idError ? '#e74c3c' : '#ddd', fontSize: fontSize.md },
           ]}
           value={winnerId}
           onChangeText={v => { setWinnerId(v); if (idError) setIdError(null); }}
@@ -358,37 +359,37 @@ function AwardWinnerInput({
           <Text style={styles.btnText}>Award</Text>
         </Pressable>
       </View>
-      {idError && <Text style={{ color: '#e74c3c', fontSize: 12, marginTop: 4 }}>{idError}</Text>}
+      {idError && <Text style={{ color: '#e74c3c', fontSize: fontSize.xs, marginTop: spacing[1] }}>{idError}</Text>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   page:        { flex: 1, backgroundColor: '#f5f5f5' },
-  content:     { padding: 20, paddingBottom: 60, gap: 12 },
+  content:     { padding: spacing[5], paddingBottom: 60, gap: spacing[3] },
   center:      { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  heading:     { fontSize: 22, fontWeight: '800' },
-  card:        { backgroundColor: '#fff', borderRadius: 12, padding: 16, boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.06)', elevation: 1 },
-  banner:      { borderRadius: 10, padding: 14, alignItems: 'center' },
-  bannerText:  { color: '#fff', fontWeight: '800', fontSize: 16, letterSpacing: 0.5 },
-  infoText:    { fontSize: 14, color: '#555', marginBottom: 12 },
-  itemTitle:   { fontSize: 18, fontWeight: '800', marginBottom: 6 },
-  itemDesc:    { color: '#555', fontSize: 14, marginBottom: 8 },
-  itemMeta:    { color: '#777', fontSize: 13 },
-  label:       { fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#333' },
-  amountRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dollarSign:  { fontSize: 20, fontWeight: '800', color: '#27ae60' },
-  amtInput:    { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 18, fontWeight: '700', minWidth: 100, backgroundColor: '#fafafa' },
-  btn:         { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  btnText:     { color: '#fff', fontWeight: '700', fontSize: 14 },
-  bigBtn:      { paddingVertical: 16, borderRadius: 10, alignItems: 'center' },
-  bigBtnText:  { color: '#fff', fontWeight: '800', fontSize: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: '700' },
-  miniCard:    { backgroundColor: '#fff', borderRadius: 8, padding: 12 },
-  errorBox:    { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText:   { color: '#c0392b', fontSize: 14, fontWeight: '600' },
-  successBox:  { backgroundColor: '#f0faf4', borderRadius: 8, padding: 12, borderLeftWidth: 3, borderLeftColor: '#27ae60' },
-  successText: { color: '#1a6b3c', fontSize: 14, fontWeight: '600' },
-  warnBox:     { backgroundColor: '#fff8e1', borderRadius: 8, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#f39c12' },
-  warnText:    { color: '#7d5a00', fontSize: 13 },
+  heading:     { fontSize: fontSize.title, fontWeight: '800' },
+  card:        { backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing[4], boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.06)', elevation: 1 },
+  banner:      { borderRadius: radius.lg, padding: spacing[4], alignItems: 'center' },
+  bannerText:  { color: '#fff', fontWeight: '800', fontSize: fontSize.xl, letterSpacing: 0.5 },
+  infoText:    { fontSize: fontSize.md, color: '#555', marginBottom: spacing[3] },
+  itemTitle:   { fontSize: fontSize.xl, fontWeight: '800', marginBottom: spacing[2] },
+  itemDesc:    { color: '#555', fontSize: fontSize.md, marginBottom: spacing[2] },
+  itemMeta:    { color: '#777', fontSize: fontSize.sm },
+  label:       { fontSize: fontSize.sm, fontWeight: '600', marginBottom: spacing[2], color: '#333' },
+  amountRow:   { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  dollarSign:  { fontSize: fontSize.xxl, fontWeight: '800', color: '#27ae60' },
+  amtInput:    { borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[3], fontSize: fontSize.xl, fontWeight: '700', minWidth: 100, backgroundColor: '#fafafa' },
+  btn:         { paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  btnText:     { color: '#fff', fontWeight: '700', fontSize: fontSize.md },
+  bigBtn:      { paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
+  bigBtnText:  { color: '#fff', fontWeight: '800', fontSize: fontSize.xl },
+  sectionTitle: { fontSize: fontSize.xl, fontWeight: '700' },
+  miniCard:    { backgroundColor: '#fff', borderRadius: radius.md, padding: spacing[3] },
+  errorBox:    { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
+  errorText:   { color: '#c0392b', fontSize: fontSize.md, fontWeight: '600' },
+  successBox:  { backgroundColor: '#f0faf4', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#27ae60' },
+  successText: { color: '#1a6b3c', fontSize: fontSize.md, fontWeight: '600' },
+  warnBox:     { backgroundColor: '#fff8e1', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#f39c12' },
+  warnText:    { color: '#7d5a00', fontSize: fontSize.sm },
 });

@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
+import { fontSize, spacing } from '@gfp/theme';
 
 interface Props {
   totalTestRecords: number;
@@ -23,10 +24,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    gap: 8,
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[4],
+    gap: spacing[2],
   },
-  icon: { fontSize: 16, color: '#fff' },
-  text: { fontSize: 13, fontWeight: '700', color: '#fff', textAlign: 'center', flex: 1 },
+  icon: { fontSize: fontSize.xl, color: '#fff' },
+  text: { fontSize: fontSize.sm, fontWeight: '700', color: '#fff', textAlign: 'center', flex: 1 },
 });

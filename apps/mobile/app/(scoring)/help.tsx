@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { LeaveEventButton } from '@/components/LeaveEventButton';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // ── Content ───────────────────────────────────────────────────────────────────
 
@@ -184,19 +185,19 @@ export default function HelpScreen() {
 
       <View style={styles.sections}>
         <Section title="Tabs" subtitle="What each tab does during your round">
-          <View style={{ gap: 14 }}>
+          <View style={{ gap: spacing[4] }}>
             {TABS.map(tab => <TabCard key={tab.name} tab={tab} />)}
           </View>
         </Section>
 
         <Section title="End of Round" subtitle="How to submit your scorecard when you finish" defaultOpen>
-          <View style={{ gap: 14 }}>
+          <View style={{ gap: spacing[4] }}>
             {END_OF_ROUND.map(step => <EndStep key={step.step} step={step} />)}
           </View>
         </Section>
 
         <Section title="Playing Offline" subtitle="What happens when you lose your connection" defaultOpen={false}>
-          <View style={{ gap: 10 }}>
+          <View style={{ gap: spacing[3] }}>
             {OFFLINE_TIPS.map((tip, i) => (
               <View key={i} style={styles.tipRow}>
                 <Text style={[styles.tipDot, { color: theme.colors.primary }]}>•</Text>
@@ -207,7 +208,7 @@ export default function HelpScreen() {
         </Section>
 
         <Section title="How to Join an Event" subtitle="If you need to re-enter or switch events" defaultOpen={false}>
-          <View style={{ gap: 10 }}>
+          <View style={{ gap: spacing[3] }}>
             {[
               'From the main screen, select your tournament from the event list.',
               'Enter the email address you registered with — your team assignment is automatic.',
@@ -232,30 +233,30 @@ export default function HelpScreen() {
 
 const styles = StyleSheet.create({
   page:    { flex: 1 },
-  content: { paddingBottom: 40 },
+  content: { paddingBottom: spacing[10] },
 
-  header:      { paddingTop: 16, paddingBottom: 16, paddingHorizontal: 20 },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: '#fff' },
-  headerEvent: { fontSize: 13, marginTop: 2 },
+  header:      { paddingTop: spacing[4], paddingBottom: spacing[4], paddingHorizontal: spacing[5] },
+  headerTitle: { fontSize: fontSize.title, fontWeight: '800', color: '#fff' },
+  headerEvent: { fontSize: fontSize.sm, marginTop: spacing[0.5] },
 
-  sections: { padding: 16, gap: 14 },
+  sections: { padding: spacing[4], gap: spacing[4] },
 
-  card:       { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e8e8e8', borderRadius: 12, overflow: 'hidden' },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', padding: 14, gap: 12 },
-  cardTitle:  { fontSize: 15, fontWeight: '800' },
-  cardSubtitle: { fontSize: 12, marginTop: 2 },
-  chevron:    { fontSize: 11, marginTop: 2 },
-  cardBody:   { paddingHorizontal: 14, paddingBottom: 16 },
+  card:       { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e8e8e8', borderRadius: radius.lg, overflow: 'hidden' },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', padding: spacing[4], gap: spacing[3] },
+  cardTitle:  { fontSize: fontSize.lg, fontWeight: '800' },
+  cardSubtitle: { fontSize: fontSize.xs, marginTop: spacing[0.5] },
+  chevron:    { fontSize: fontSize.xxs, marginTop: spacing[0.5] },
+  cardBody:   { paddingHorizontal: spacing[4], paddingBottom: spacing[4] },
 
-  tabCard:    { borderLeftWidth: 3, borderLeftColor: '#ccc', paddingLeft: 12, gap: 8 },
-  endCard:    { borderLeftWidth: 3, borderLeftColor: '#ccc', paddingLeft: 12, gap: 8 },
-  tabCardTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  endCardTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  tabIcon:    { fontSize: 18 },
-  tabName:    { fontSize: 15, fontWeight: '800' },
-  tabDesc:    { fontSize: 13, lineHeight: 19 },
-  tips:       { gap: 6 },
-  tipRow:     { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
-  tipDot:     { fontSize: 14, width: 14, lineHeight: 19 },
-  tipText:    { flex: 1, fontSize: 13, lineHeight: 19 },
+  tabCard:    { borderLeftWidth: 3, borderLeftColor: '#ccc', paddingLeft: spacing[3], gap: spacing[2] },
+  endCard:    { borderLeftWidth: 3, borderLeftColor: '#ccc', paddingLeft: spacing[3], gap: spacing[2] },
+  tabCardTop: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  endCardTop: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  tabIcon:    { fontSize: fontSize.xl },
+  tabName:    { fontSize: fontSize.lg, fontWeight: '800' },
+  tabDesc:    { fontSize: fontSize.sm, lineHeight: 19 },
+  tips:       { gap: spacing[2] },
+  tipRow:     { flexDirection: 'row', gap: spacing[2], alignItems: 'flex-start' },
+  tipDot:     { fontSize: fontSize.md, width: 14, lineHeight: 19 },
+  tipText:    { flex: 1, fontSize: fontSize.sm, lineHeight: 19 },
 });

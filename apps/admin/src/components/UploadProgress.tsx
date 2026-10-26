@@ -1,5 +1,6 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTheme } from '@gfp/ui';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 /**
  * Determinate upload progress bar with a Cancel action, driven by the
@@ -44,10 +45,10 @@ export function UploadProgress({
 }
 
 const styles = StyleSheet.create({
-  wrap:      { marginVertical: 8, gap: 6 },
+  wrap:      { marginVertical: spacing[2], gap: spacing[2] },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  label:     { fontSize: 13, fontWeight: '600' },
-  cancel:    { fontSize: 13, fontWeight: '700', color: '#c0392b' },
-  track:     { height: 8, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.08)', overflow: 'hidden' },
-  fill:      { height: '100%', borderRadius: 999 },
+  label:     { fontSize: fontSize.sm, fontWeight: '600' },
+  cancel:    { fontSize: fontSize.sm, fontWeight: '700', color: '#c0392b' },
+  track:     { height: 8, borderRadius: radius.full, backgroundColor: 'rgba(0,0,0,0.08)', overflow: 'hidden' },
+  fill:      { height: '100%', borderRadius: radius.full },
 });

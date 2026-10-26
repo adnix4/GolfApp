@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useTheme } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 /**
  * The signed-out card the account screens share: forgot password, reset
@@ -90,24 +91,24 @@ export function AuthLink({ label, onPress }: { label: string; onPress: () => voi
 }
 
 export const authStyles = StyleSheet.create({
-  page:        { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  card:        { width: '100%', maxWidth: 420, backgroundColor: '#ffffff', borderRadius: 16, padding: 36,
+  page:        { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[6] },
+  card:        { width: '100%', maxWidth: 420, backgroundColor: '#ffffff', borderRadius: radius.xl, padding: spacing[10],
                  boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.08)' },
-  logoRow:     { alignItems: 'center', marginBottom: 32 },
-  logoMarkRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logoRow:     { alignItems: 'center', marginBottom: spacing[8] },
+  logoMarkRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   logoText:    { fontSize: 32, fontWeight: '800' },
-  logoSub:     { fontSize: 13, fontWeight: '500', letterSpacing: 1, textTransform: 'uppercase', marginTop: 4 },
-  heading:     { fontSize: 22, fontWeight: '700', marginBottom: 20 },
-  label:       { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 14 },
-  input:       { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15,
+  logoSub:     { fontSize: fontSize.sm, fontWeight: '500', letterSpacing: 1, textTransform: 'uppercase', marginTop: spacing[1] },
+  heading:     { fontSize: fontSize.title, fontWeight: '700', marginBottom: spacing[5] },
+  label:       { fontSize: fontSize.sm, fontWeight: '600', marginBottom: spacing[2], marginTop: spacing[4] },
+  input:       { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg,
                  backgroundColor: '#fafafa' },
-  button:      { marginTop: 28, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
+  button:      { marginTop: spacing[8], paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
   buttonDisabled: { opacity: 0.6 },
-  buttonText:  { fontSize: 16, fontWeight: '700' },
-  errorBox:    { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, marginBottom: 8,
+  buttonText:  { fontSize: fontSize.xl, fontWeight: '700' },
+  errorBox:    { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[2],
                  borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText:   { color: '#c0392b', fontSize: 14 },
-  note:        { fontSize: 14, lineHeight: 20, marginBottom: 8 },
-  linkRow:     { marginTop: 18, alignItems: 'center' },
-  link:        { fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
+  errorText:   { color: '#c0392b', fontSize: fontSize.md },
+  note:        { fontSize: fontSize.md, lineHeight: 20, marginBottom: spacing[2] },
+  linkRow:     { marginTop: spacing[5], alignItems: 'center' },
+  link:        { fontSize: fontSize.md, fontWeight: '600', textDecorationLine: 'underline' },
 });

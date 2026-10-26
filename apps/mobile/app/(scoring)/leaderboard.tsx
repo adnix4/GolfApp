@@ -10,6 +10,7 @@ import { formatRelativeAge, resolveLeaderboardState, type LeaderboardState } fro
 import { useSession } from '@/lib/session';
 import { fetchLeaderboard } from '@/lib/api';
 import type { PublicLeaderboardEntry, PublicIndividualEntry } from '@/lib/api';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // Spec §3 Phase 3: SignalR is primary; 15 s HTTP fallback only when the hub
 // connection is down. Spec §2.4: offline-mode events disable live leaderboard
@@ -88,15 +89,15 @@ const GolferRow = memo(function GolferRow({ entry }: { entry: PublicIndividualEn
 });
 
 const rowStyles = StyleSheet.create({
-  row:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth },
-  rank:  { width: 32,  fontSize: 13, fontWeight: '700', textAlign: 'center' },
-  team:  { flex: 1,    fontSize: 14, fontWeight: '600', marginHorizontal: 8 },
-  toPar: { width: 44,  fontSize: 15, fontWeight: '800', textAlign: 'right' },
-  back:  { width: 40,  fontSize: 13, textAlign: 'right', marginLeft: 8 },
-  num:   { width: 44,  fontSize: 13, textAlign: 'right', marginLeft: 8 },
-  thru:  { width: 36,  fontSize: 13, textAlign: 'right', marginLeft: 8 },
-  golfer:     { fontSize: 14, fontWeight: '600' },
-  golferTeam: { fontSize: 12 },
+  row:   { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], paddingHorizontal: spacing[4], borderBottomWidth: StyleSheet.hairlineWidth },
+  rank:  { width: 32,  fontSize: fontSize.sm, fontWeight: '700', textAlign: 'center' },
+  team:  { flex: 1,    fontSize: fontSize.md, fontWeight: '600', marginHorizontal: spacing[2] },
+  toPar: { width: 44,  fontSize: fontSize.lg, fontWeight: '800', textAlign: 'right' },
+  back:  { width: 40,  fontSize: fontSize.sm, textAlign: 'right', marginLeft: spacing[2] },
+  num:   { width: 44,  fontSize: fontSize.sm, textAlign: 'right', marginLeft: spacing[2] },
+  thru:  { width: 36,  fontSize: fontSize.sm, textAlign: 'right', marginLeft: spacing[2] },
+  golfer:     { fontSize: fontSize.md, fontWeight: '600' },
+  golferTeam: { fontSize: fontSize.xs },
 });
 
 // ── HEADER ROW ────────────────────────────────────────────────────────────────
@@ -123,7 +124,7 @@ function TableHeader({ stableford = false, golfers = false }: { stableford?: boo
 }
 
 const headerStyles = StyleSheet.create({
-  th: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  th: { fontSize: fontSize.xxs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
 });
 
 // ── HOLE-IN-ONE OVERLAY ───────────────────────────────────────────────────────
@@ -171,13 +172,13 @@ function HoleInOneOverlay({
 
 const hioStyles = StyleSheet.create({
   backdrop:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-  card:      { width: '82%', borderRadius: 20, padding: 32, alignItems: 'center', gap: 8 },
-  flag:      { fontSize: 64, marginBottom: 8 },
-  headline:  { fontSize: 28, fontWeight: '900', letterSpacing: 1 },
-  name:      { fontSize: 20, fontWeight: '700', textAlign: 'center' },
-  sub:       { fontSize: 16, fontWeight: '500' },
-  btn:       { marginTop: 16, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 12 },
-  btnText:   { color: '#fff', fontSize: 16, fontWeight: '700' },
+  card:      { width: '82%', borderRadius: radius.xxl, padding: spacing[8], alignItems: 'center', gap: spacing[2] },
+  flag:      { fontSize: 64, marginBottom: spacing[2] },
+  headline:  { fontSize: fontSize.display, fontWeight: '900', letterSpacing: 1 },
+  name:      { fontSize: fontSize.xxl, fontWeight: '700', textAlign: 'center' },
+  sub:       { fontSize: fontSize.xl, fontWeight: '500' },
+  btn:       { marginTop: spacing[4], paddingHorizontal: spacing[8], paddingVertical: spacing[3], borderRadius: radius.lg },
+  btnText:   { color: '#fff', fontSize: fontSize.xl, fontWeight: '700' },
 });
 
 // ── STATUS TICKER ─────────────────────────────────────────────────────────────
@@ -388,21 +389,21 @@ function BoardToggle({
 
 const styles = StyleSheet.create({
   page:    { flex: 1 },
-  center:  { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
+  center:  { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing[2] },
   list:    { paddingBottom: Platform.OS === 'ios' ? 24 : 16 },
 
   statusBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 8,
+    paddingHorizontal: spacing[4], paddingVertical: spacing[2],
   },
-  statusText:  { fontSize: 12, fontWeight: '600' },
-  refreshBtn:  { fontSize: 20, fontWeight: '700' },
+  statusText:  { fontSize: fontSize.xs, fontWeight: '600' },
+  refreshBtn:  { fontSize: fontSize.xxl, fontWeight: '700' },
 
   emptyIcon:  { fontSize: 48 },
-  emptyTitle: { fontSize: 20, fontWeight: '800' },
-  emptySub:   { fontSize: 14, marginTop: 4, textAlign: 'center', paddingHorizontal: 32 },
+  emptyTitle: { fontSize: fontSize.xxl, fontWeight: '800' },
+  emptySub:   { fontSize: fontSize.md, marginTop: spacing[1], textAlign: 'center', paddingHorizontal: spacing[8] },
 
-  toggleRow:  { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
-  toggleTab:  { borderWidth: 1.5, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6 },
-  toggleText: { fontSize: 13, fontWeight: '700' },
+  toggleRow:  { flexDirection: 'row', gap: spacing[2], paddingHorizontal: spacing[4], paddingBottom: spacing[2] },
+  toggleTab:  { borderWidth: 1.5, borderRadius: radius.xl, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
+  toggleText: { fontSize: fontSize.sm, fontWeight: '700' },
 });

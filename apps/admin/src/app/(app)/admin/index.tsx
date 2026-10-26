@@ -7,6 +7,7 @@ import { useTheme, StatusPill } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
 import { useAllOrganizations, useAllEvents } from '@/lib/queries';
 import { formatDate } from '@gfp/shared-types';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // Super-admin uses a different palette than the organizer event view —
 // here Completed is blue (legacy) and Archived is a real status.
@@ -213,29 +214,29 @@ const styles = StyleSheet.create({
   page:   { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  pageTitle: { fontSize: 26, fontWeight: '900', marginBottom: 4 },
-  pageSub:   { fontSize: 14, marginBottom: 20 },
+  pageTitle: { fontSize: fontSize.display, fontWeight: '900', marginBottom: spacing[1] },
+  pageSub:   { fontSize: fontSize.md, marginBottom: spacing[5] },
 
-  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: 14 },
+  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[4], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
+  errorText: { color: '#c0392b', fontSize: fontSize.md },
 
-  statsRow:     { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  statsRow:     { flexDirection: 'row', gap: spacing[3], marginBottom: spacing[6] },
   statsRowWrap: { flexWrap: 'wrap' },
-  statCard:       { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1 },
+  statCard:       { flex: 1, backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing[4], alignItems: 'center', borderWidth: 1 },
   statCardMobile: { flex: 0, width: '47%' },
-  statValue: { fontSize: 28, fontWeight: '900' },
-  statLabel: { fontSize: 12, fontWeight: '600', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statValue: { fontSize: fontSize.display, fontWeight: '900' },
+  statLabel: { fontSize: fontSize.xs, fontWeight: '600', marginTop: spacing[0.5], textTransform: 'uppercase', letterSpacing: 0.5 },
 
-  tabs:    { flexDirection: 'row', borderWidth: 1, borderRadius: 10, overflow: 'hidden', marginBottom: 16 },
-  tab:     { flex: 1, paddingVertical: 10, alignItems: 'center' },
-  tabText: { fontSize: 14, fontWeight: '700' },
+  tabs:    { flexDirection: 'row', borderWidth: 1, borderRadius: radius.lg, overflow: 'hidden', marginBottom: spacing[4] },
+  tab:     { flex: 1, paddingVertical: spacing[3], alignItems: 'center' },
+  tabText: { fontSize: fontSize.md, fontWeight: '700' },
 
-  tableWrap:   { borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#e8e8e8', backgroundColor: '#fff' },
-  tableHeader: { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 12, gap: 8 },
-  tableRow:    { flexDirection: 'row', paddingVertical: 12, paddingHorizontal: 12, gap: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0', alignItems: 'center' },
+  tableWrap:   { borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: '#e8e8e8', backgroundColor: '#fff' },
+  tableHeader: { flexDirection: 'row', paddingVertical: spacing[3], paddingHorizontal: spacing[3], gap: spacing[2] },
+  tableRow:    { flexDirection: 'row', paddingVertical: spacing[3], paddingHorizontal: spacing[3], gap: spacing[2], borderTopWidth: 1, borderTopColor: '#f0f0f0', alignItems: 'center' },
 
-  thCell:   { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  tdCell:   { fontSize: 14 },
+  thCell:   { fontSize: fontSize.xs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  tdCell:   { fontSize: fontSize.md },
   thName:   { flex: 3 },
   thSlug:   { flex: 2 },
   thOrg:    { flex: 2 },
@@ -245,10 +246,10 @@ const styles = StyleSheet.create({
   thTeams:  { flex: 1, textAlign: 'center' },
   thDate:   { flex: 2 },
 
-  cellPrimary: { fontSize: 14, fontWeight: '700' },
-  cellSub:     { fontSize: 12, marginTop: 2 },
-  cellCode:    { fontSize: 11, fontFamily: 'monospace', marginTop: 1 },
+  cellPrimary: { fontSize: fontSize.md, fontWeight: '700' },
+  cellSub:     { fontSize: fontSize.xs, marginTop: spacing[0.5] },
+  cellCode:    { fontSize: fontSize.xxs, fontFamily: 'monospace', marginTop: 1 },
 
-  emptyMsg: { padding: 24, textAlign: 'center', fontSize: 14 },
+  emptyMsg: { padding: spacing[6], textAlign: 'center', fontSize: fontSize.md },
 
 });

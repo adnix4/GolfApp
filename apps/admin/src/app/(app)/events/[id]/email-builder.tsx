@@ -11,6 +11,7 @@ import {
   buildEmailHtml, formatFee,
   DEFAULT_SECTIONS, SECTION_LABELS, type SectionId,
 } from '@/lib/emailHtml';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // ── SCREEN ────────────────────────────────────────────────────────────────────
 
@@ -259,41 +260,41 @@ export default function EmailBuilderScreen() {
 
 const styles = StyleSheet.create({
   page:       { flex: 1 },
-  container:  { padding: 16, gap: 16, maxWidth: 800, alignSelf: 'center', width: '100%' },
+  container:  { padding: spacing[4], gap: spacing[4], maxWidth: 800, alignSelf: 'center', width: '100%' },
   center:     { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText:  { fontSize: 14 },
+  errorText:  { fontSize: fontSize.md },
 
   card:       {
-    borderRadius: 12, padding: 20, gap: 12,
+    borderRadius: radius.lg, padding: spacing[5], gap: spacing[3],
     boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.06)', elevation: 2,
   },
-  cardTitle:  { fontSize: 16, fontWeight: '700', marginBottom: 2 },
-  cardSub:    { fontSize: 13, lineHeight: 20 },
+  cardTitle:  { fontSize: fontSize.xl, fontWeight: '700', marginBottom: spacing[0.5] },
+  cardSub:    { fontSize: fontSize.sm, lineHeight: 20 },
 
-  sectionRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
-  sectionLabel:   { fontSize: 14, fontWeight: '600', flex: 1 },
-  sectionActions: { flexDirection: 'row', gap: 4 },
-  arrowBtn:       { padding: 6, borderRadius: 6, backgroundColor: '#f0f0f0' },
+  sectionRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing[3], borderBottomWidth: StyleSheet.hairlineWidth },
+  sectionLabel:   { fontSize: fontSize.md, fontWeight: '600', flex: 1 },
+  sectionActions: { flexDirection: 'row', gap: spacing[1] },
+  arrowBtn:       { padding: spacing[2], borderRadius: radius.sm, backgroundColor: '#f0f0f0' },
   arrowDisabled:  { opacity: 0.3 },
-  arrowText:      { fontSize: 14, fontWeight: '700' },
-  removeBtn:      { padding: 6, borderRadius: 6, backgroundColor: '#fdf2f2' },
-  removeText:     { fontSize: 13, color: '#e74c3c', fontWeight: '700' },
+  arrowText:      { fontSize: fontSize.md, fontWeight: '700' },
+  removeBtn:      { padding: spacing[2], borderRadius: radius.sm, backgroundColor: '#fdf2f2' },
+  removeText:     { fontSize: fontSize.sm, color: '#e74c3c', fontWeight: '700' },
 
-  addRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-  addLabel:  { fontSize: 12, fontWeight: '600', alignSelf: 'center' },
-  addBtn:    { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-  addBtnText:{ fontSize: 12, fontWeight: '600' },
+  addRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[2] },
+  addLabel:  { fontSize: fontSize.xs, fontWeight: '600', alignSelf: 'center' },
+  addBtn:    { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
+  addBtnText:{ fontSize: fontSize.xs, fontWeight: '600' },
 
-  label: { fontSize: 12, fontWeight: '600', marginBottom: -4 },
-  input: { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 14 },
+  label: { fontSize: fontSize.xs, fontWeight: '600', marginBottom: -4 },
+  input: { borderWidth: 1, borderRadius: radius.md, padding: spacing[3], fontSize: fontSize.md },
 
-  buttonRow:   { flexDirection: 'row', gap: 12, marginTop: 4 },
-  btn:         { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 10, padding: 12, minHeight: 44 },
+  buttonRow:   { flexDirection: 'row', gap: spacing[3], marginTop: spacing[1] },
+  btn:         { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, padding: spacing[3], minHeight: 44 },
   btnOutline:  { backgroundColor: 'transparent', borderWidth: 1.5 },
   btnDisabled: { opacity: 0.5 },
-  btnText:     { color: '#fff', fontSize: 14, fontWeight: '700' },
+  btnText:     { color: '#fff', fontSize: fontSize.md, fontWeight: '700' },
 
-  sendErrorBox: { backgroundColor: '#fdf2f2', borderRadius: 8, padding: 10, borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  successMsg: { color: '#27ae60', fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  errorMsg:   { color: '#c0392b', fontSize: 13, fontWeight: '600' },
+  sendErrorBox: { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
+  successMsg: { color: '#27ae60', fontSize: fontSize.sm, fontWeight: '600', textAlign: 'center' },
+  errorMsg:   { color: '#c0392b', fontSize: fontSize.sm, fontWeight: '600' },
 });

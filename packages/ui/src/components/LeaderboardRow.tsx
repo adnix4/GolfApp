@@ -14,7 +14,7 @@
 
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { readableTextOn } from '@gfp/theme';
+import { readableTextOn, spacing, fontSize, radius } from '@gfp/theme';
 import type { LeaderboardEntryDTO } from '@gfp/shared-types';
 import { useTheme } from './ThemeProvider';
 
@@ -161,14 +161,14 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[4],
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#eef0f2',
   },
   rank: {
     width: 32,
-    fontSize: 16,
+    fontSize: fontSize.xl,
     fontWeight: '700',
     textAlign: 'center',
   },
@@ -176,18 +176,18 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
+    gap: spacing[2],
+    paddingHorizontal: spacing[3],
   },
   teamName: {
-    fontSize: 15,
+    fontSize: fontSize.lg,
     fontWeight: '600',
     flexShrink: 1,
   },
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+    borderRadius: radius.md,
     maxWidth: 80,
   },
   badgeLogo: {
@@ -196,27 +196,27 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   badgeText: {
-    fontSize: 10,
+    fontSize: fontSize.xxs,
     fontWeight: '600',
   },
   toPar: {
     width: 44,
-    fontSize: 16,
+    fontSize: fontSize.xl,
     fontWeight: '800',
     textAlign: 'right',
   },
   num: {
     width: 44,
-    fontSize: 13,
+    fontSize: fontSize.sm,
     fontWeight: '600',
     textAlign: 'right',
-    marginLeft: 8,
+    marginLeft: spacing[2],
   },
   thru: {
     width: 36,
-    fontSize: 13,
+    fontSize: fontSize.sm,
     fontWeight: '500',
     textAlign: 'right',
-    marginLeft: 8,
+    marginLeft: spacing[2],
   },
 });

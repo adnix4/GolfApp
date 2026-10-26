@@ -10,6 +10,7 @@ import { ApiError } from '@/lib/api';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { AuthLink } from '@/components/AuthCard';
 import { useRouter } from 'expo-router';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function LoginScreen() {
   const theme = useTheme();
@@ -115,78 +116,78 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing[6],
   },
   card: {
     width: '100%',
     maxWidth: 420,
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 36,
+    borderRadius: radius.xl,
+    padding: spacing[10],
     boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.08)',
   },
   logoRow: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: spacing[8],
   },
   logoMarkRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing[2],
   },
   logoText: {
     fontSize: 32,
     fontWeight: '800',
   },
   logoSub: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
     fontWeight: '500',
     letterSpacing: 1,
     textTransform: 'uppercase',
-    marginTop: 4,
+    marginTop: spacing[1],
   },
   heading: {
-    fontSize: 22,
+    fontSize: fontSize.title,
     fontWeight: '700',
-    marginBottom: 20,
+    marginBottom: spacing[5],
   },
   label: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
     fontWeight: '600',
-    marginBottom: 6,
-    marginTop: 14,
+    marginBottom: spacing[2],
+    marginTop: spacing[4],
   },
   input: {
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 15,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    fontSize: fontSize.lg,
     backgroundColor: '#fafafa',
   },
   button: {
-    marginTop: 28,
-    paddingVertical: 14,
-    borderRadius: 10,
+    marginTop: spacing[8],
+    paddingVertical: spacing[4],
+    borderRadius: radius.lg,
     alignItems: 'center',
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
-    fontSize: 16,
+    fontSize: fontSize.xl,
     fontWeight: '700',
   },
   errorBox: {
     backgroundColor: '#fdf2f2',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: radius.md,
+    padding: spacing[3],
+    marginBottom: spacing[2],
     borderLeftWidth: 3,
     borderLeftColor: '#e74c3c',
   },
   errorText: {
     color: '#c0392b',
-    fontSize: 14,
+    fontSize: fontSize.md,
   },
 });

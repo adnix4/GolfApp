@@ -20,6 +20,7 @@ import type {
   HandicapHistoryRow, LeagueMember, LeagueRound, PairingGroup, RoundAbsence,
 } from '@/lib/api';
 import { formatDateOnly, formatDate } from '@gfp/shared-types';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // ── PAIRINGS PREVIEW ──────────────────────────────────────────────────────────
 
@@ -101,7 +102,7 @@ export function HandicapHistoryModal({
             }
           </ScrollView>
           <Pressable
-            style={[mStyles.btn, { backgroundColor: theme.colors.primary, marginTop: 12, alignSelf: 'flex-end' }]}
+            style={[mStyles.btn, { backgroundColor: theme.colors.primary, marginTop: spacing[3], alignSelf: 'flex-end' }]}
             onPress={onClose}
           >
             <Text style={{ color: theme.colors.surface }}>Close</Text>
@@ -192,7 +193,7 @@ export function AddMemberModal({
         <View style={[mStyles.modal, { backgroundColor: theme.colors.surface }]}>
           <Text style={[mStyles.modalTitle, { color: theme.colors.primary }]}>Add Member</Text>
           <View style={mStyles.row}>
-            <View style={{ flex: 1, marginRight: 8 }}>
+            <View style={{ flex: 1, marginRight: spacing[2] }}>
               <Text style={[mStyles.label, { color: theme.mutedText }]}>First Name *</Text>
               <TextInput
                 style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
@@ -266,21 +267,21 @@ export function AbsencesModal({
           </Text>
           <ScrollView style={{ maxHeight: 260 }}>
             {absences.length === 0
-              ? <Text style={{ color: theme.mutedText, fontSize: 13 }}>No absences reported yet.</Text>
+              ? <Text style={{ color: theme.mutedText, fontSize: fontSize.sm }}>No absences reported yet.</Text>
               : absences.map(a => (
                 <View key={a.id} style={[mStyles.absenceRow, { borderColor: theme.colors.accent }]}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '600' }}>{a.memberName}</Text>
+                    <Text style={{ color: theme.colors.primary, fontSize: fontSize.sm, fontWeight: '600' }}>{a.memberName}</Text>
                     {a.subMemberName
-                      ? <Text style={{ color: '#16a34a', fontSize: 12 }}>Sub: {a.subMemberName}</Text>
-                      : <Text style={{ color: theme.mutedText, fontSize: 12 }}>No sub assigned</Text>}
+                      ? <Text style={{ color: '#16a34a', fontSize: fontSize.xs }}>Sub: {a.subMemberName}</Text>
+                      : <Text style={{ color: theme.mutedText, fontSize: fontSize.xs }}>No sub assigned</Text>}
                   </View>
                   {!a.subMemberId && (
                     <Pressable
                       style={[mStyles.iconBtn, { borderColor: theme.colors.accent }]}
                       onPress={() => onAddSub(a.memberId)}
                     >
-                      <Text style={{ fontSize: 12, color: theme.colors.action }}>Add Sub</Text>
+                      <Text style={{ fontSize: fontSize.xs, color: theme.colors.action }}>Add Sub</Text>
                     </Pressable>
                   )}
                 </View>
@@ -288,17 +289,17 @@ export function AbsencesModal({
             }
           </ScrollView>
           <Text style={[mStyles.label, { color: theme.mutedText }]}>Report New Absence</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: spacing[2] }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: theme.mutedText, fontSize: 11, marginBottom: 4 }}>Select Member</Text>
-              <ScrollView style={{ maxHeight: 100, borderWidth: 1, borderColor: theme.colors.accent, borderRadius: 8 }}>
+              <Text style={{ color: theme.mutedText, fontSize: fontSize.xxs, marginBottom: spacing[1] }}>Select Member</Text>
+              <ScrollView style={{ maxHeight: 100, borderWidth: 1, borderColor: theme.colors.accent, borderRadius: radius.md }}>
                 {roster.filter(m => m.status === 'Active').map(m => (
                   <Pressable
                     key={m.id}
-                    style={{ padding: 8, backgroundColor: selMemberId === m.id ? theme.colors.primary + '22' : 'transparent' }}
+                    style={{ padding: spacing[2], backgroundColor: selMemberId === m.id ? theme.colors.primary + '22' : 'transparent' }}
                     onPress={() => onSelectMember(m.id)}
                   >
-                    <Text style={{ color: theme.colors.primary, fontSize: 12 }}>
+                    <Text style={{ color: theme.colors.primary, fontSize: fontSize.xs }}>
                       {m.lastName}, {m.firstName}
                     </Text>
                   </Pressable>
@@ -351,7 +352,7 @@ export function AddSubModal({
         <View style={[mStyles.modal, { backgroundColor: theme.colors.surface }]}>
           <Text style={[mStyles.modalTitle, { color: theme.colors.primary }]}>Add Substitute</Text>
           <View style={mStyles.row}>
-            <View style={{ flex: 1, marginRight: 8 }}>
+            <View style={{ flex: 1, marginRight: spacing[2] }}>
               <Text style={[mStyles.label, { color: theme.mutedText }]}>First Name *</Text>
               <TextInput
                 style={[mStyles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
@@ -463,23 +464,23 @@ export function AddRoundModal({
 
 const mStyles = StyleSheet.create({
   overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
-  modal:         { width: '92%', maxWidth: 500, borderRadius: 16, padding: 24 },
-  modalTitle:    { fontSize: 17, fontWeight: '700', marginBottom: 8 },
-  label:         { fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 4 },
-  fieldError:    { fontSize: 12, color: '#e74c3c', marginTop: 4 },
-  input:         { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 14 },
+  modal:         { width: '92%', maxWidth: 500, borderRadius: radius.xl, padding: spacing[6] },
+  modalTitle:    { fontSize: fontSize.xl, fontWeight: '700', marginBottom: spacing[2] },
+  label:         { fontSize: fontSize.xs, fontWeight: '600', marginTop: spacing[3], marginBottom: spacing[1] },
+  fieldError:    { fontSize: fontSize.xs, color: '#e74c3c', marginTop: spacing[1] },
+  input:         { borderWidth: 1, borderRadius: radius.md, padding: spacing[3], fontSize: fontSize.md },
   row:           { flexDirection: 'row' },
-  modalActions:  { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 20 },
-  formError:     { color: '#dc2626', fontSize: 13, marginTop: 12 },
-  cancelBtn:     { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  btn:           { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  pairingGroup:  { borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 8 },
-  groupLabel:    { fontSize: 13, fontWeight: '700', marginBottom: 4 },
-  groupMember:   { fontSize: 13, paddingLeft: 4 },
-  histRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, gap: 8 },
-  histDate:      { fontSize: 12, flex: 1 },
-  histChg:       { fontSize: 14, fontWeight: '600' },
-  histDiff:      { fontSize: 12, width: 60, textAlign: 'right' },
-  absenceRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
-  iconBtn:       { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
+  modalActions:  { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing[3], marginTop: spacing[5] },
+  formError:     { color: '#dc2626', fontSize: fontSize.sm, marginTop: spacing[3] },
+  cancelBtn:     { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
+  btn:           { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
+  pairingGroup:  { borderWidth: 1, borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[2] },
+  groupLabel:    { fontSize: fontSize.sm, fontWeight: '700', marginBottom: spacing[1] },
+  groupMember:   { fontSize: fontSize.sm, paddingLeft: spacing[1] },
+  histRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[2], borderBottomWidth: 1, gap: spacing[2] },
+  histDate:      { fontSize: fontSize.xs, flex: 1 },
+  histChg:       { fontSize: fontSize.md, fontWeight: '600' },
+  histDiff:      { fontSize: fontSize.xs, width: 60, textAlign: 'right' },
+  absenceRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[2], borderBottomWidth: 1 },
+  iconBtn:       { paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.sm, borderWidth: 1 },
 });
