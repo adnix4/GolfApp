@@ -59,7 +59,7 @@ P4 — FEATURES / POLISH
      [x] T5  CI exports admin + mobile web bundles on every PR 2026-10-03
      [x] T8  e2e drives mobile scorecard + admin sign-in in a browser 2026-10-03
      [x] T7  CI runs the e2e harness (real Postgres/Redis + browser) 2026-10-03
-     T9   e2e: formats + conflict 2026-10-03, Stripe webhooks 2026-10-04; SignalR/league open
+     T9   e2e: formats + conflict 2026-10-03, Stripe webhooks 2026-10-04; league 2026-10-26; SignalR open
      [x] T10 web + ui have tests (logic-level, node env) 2026-10-03
      [x] T11 lap timings; API coverage in CI; turbo staleness moot 2026-10-03
      [x] T12 harness-only: fresh Edge profile's extensions abort requests; flags fix 2026-10-03
@@ -937,8 +937,29 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         forgery check (400,200,200,200).
         Note: these run in the e2e job, so the T11 coverage table (unit tests
         only) still shows Features/Webhooks at 0%.
-        STILL OPEN: the SignalR leaderboard push, and a league round from
-        pairings to close.
+        LEAGUE ROUND DONE 2026-10-26 ("League round (T9)" phase): a Stableford,
+        Club-handicap league with 4 members (index 0/4/10/18) and hand-picked
+        scores, so every number is known in advance. Pairings cover the
+        roster, and locking them moves the round Scheduled -> Open; then
+        open-scoring -> Scoring. A score before Scoring is refused (400). 72
+        hole scores give the expected gross/net/Stableford per member
+        (strokes on holes 1..course handicap). The close runs all three
+        engines on real Postgres:
+        - handicaps: gross - 72 after one round (Ben 4->3, Cleo 10->18,
+          Dev 18->16), with one history row each and none for an unchanged
+          index (Ava 0);
+        - standings: ranked by Stableford points (Dev 38, Ben 37, Ava 36,
+          Cleo 28);
+        - skins: low net wins, ties carry (Ben's hole 6 is worth 3 holes'
+          pot; holes 7-18 tie through to 4800c with no winner).
+        A score after close and a second close are refused (400).
+        This is the first time the handicap engine's query has run on
+        Postgres in a test. It works; the 2026-06 note about a GroupBy that
+        might not translate predates the batched LoadClosedResultsAsync.
+        VERIFIED: making ties stop carrying (SkinsCalculator) fails the skins
+        check; adding 1 to the differential (HandicapEngine) fails the
+        handicaps check. Full harness green with neither change.
+        STILL OPEN: the SignalR leaderboard push.
 
 [x] T10. (COVERAGE) apps/web AND packages/ui HAVE NO TESTS (2026-10-03).
         apps/web has 29 source files and no `test` script. packages/ui has 13
