@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@gfp/ui';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function PaymentSetupScreen() {
   const theme  = useTheme();
@@ -53,20 +54,20 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 8, paddingVertical: 12, borderBottomWidth: 1,
+    paddingHorizontal: spacing[2], paddingVertical: spacing[3], borderBottomWidth: 1,
   },
   backBtn:     { width: 44, alignItems: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '700' },
+  headerTitle: { fontSize: fontSize.xl, fontWeight: '700' },
 
-  body: { padding: 20, paddingBottom: 48 },
+  body: { padding: spacing[5], paddingBottom: spacing[12] },
 
-  errorCard:  { alignItems: 'center', padding: 32, gap: 12 },
-  errorTitle: { fontSize: 18, fontWeight: '700', color: '#333' },
-  errorMsg:   { fontSize: 14, color: '#666', textAlign: 'center', lineHeight: 20 },
+  errorCard:  { alignItems: 'center', padding: spacing[8], gap: spacing[3] },
+  errorTitle: { fontSize: fontSize.xl, fontWeight: '700', color: '#333' },
+  errorMsg:   { fontSize: fontSize.md, color: '#666', textAlign: 'center', lineHeight: 20 },
 
   actionBtn: {
-    borderRadius: 12, paddingVertical: 14, paddingHorizontal: 28,
-    alignItems: 'center', marginTop: 8, minWidth: 200,
+    borderRadius: radius.lg, paddingVertical: spacing[4], paddingHorizontal: spacing[8],
+    alignItems: 'center', marginTop: spacing[2], minWidth: 200,
   },
-  actionBtnText: { fontWeight: '700', fontSize: 16 },
+  actionBtnText: { fontWeight: '700', fontSize: fontSize.xl },
 });

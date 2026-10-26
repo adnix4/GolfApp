@@ -8,6 +8,7 @@ import { useSession } from '@/lib/session';
 import { confirmLeaveEvent, unsyncedHoleCount } from '@/lib/confirmLeave';
 import { shouldShowTabs } from '@/lib/scoringTabs';
 import { fetchEventStatus } from '@/lib/api';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 
 const POLL_MS = 5000;
@@ -261,7 +262,7 @@ export default function ScoringLayout() {
             borderTopColor:  '#e0e0e0',
             borderTopWidth:  1,
           },
-          tabBarLabelStyle:    { fontSize: 11, fontWeight: '600' },
+          tabBarLabelStyle:    { fontSize: fontSize.xxs, fontWeight: '600' },
           tabBarIconStyle:     { marginBottom: -2 },
           tabBarIcon: ({ color }) => {
             // Overridden per-screen below; this fallback should never render.
@@ -346,63 +347,63 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
 
   // Banners (stack at top above tabs)
-  bannerText:       { color: '#fff', fontSize: 12, fontWeight: '600', textAlign: 'center', flex: 1 },
-  testBanner:       { backgroundColor: '#6a0dad', paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
-  testBannerLeave:  { marginLeft: 10, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)' },
-  testBannerLeaveText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  preScoringBanner: { backgroundColor: '#b45309', paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row' },
-  offlineBanner:    { backgroundColor: '#e74c3c', paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row' },
+  bannerText:       { color: '#fff', fontSize: fontSize.xs, fontWeight: '600', textAlign: 'center', flex: 1 },
+  testBanner:       { backgroundColor: '#6a0dad', paddingVertical: spacing[2], paddingHorizontal: spacing[3], flexDirection: 'row', alignItems: 'center' },
+  testBannerLeave:  { marginLeft: spacing[3], paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)' },
+  testBannerLeaveText: { color: '#fff', fontSize: fontSize.xxs, fontWeight: '700' },
+  preScoringBanner: { backgroundColor: '#b45309', paddingVertical: spacing[2], paddingHorizontal: spacing[3], flexDirection: 'row' },
+  offlineBanner:    { backgroundColor: '#e74c3c', paddingVertical: spacing[2], paddingHorizontal: spacing[3], flexDirection: 'row' },
 
   // Waiting screen
   waitPage: { flex: 1 },
 
   waitHeader: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[5],
     alignItems: 'center',
   },
-  waitHeaderTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  waitHeaderTitle: { color: '#fff', fontSize: fontSize.xl, fontWeight: '800' },
 
   waitBody: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing[6],
   },
 
   waitCard: {
     width: '100%',
-    borderRadius: 20,
-    padding: 32,
+    borderRadius: radius.xxl,
+    padding: spacing[8],
     alignItems: 'center',
     boxShadow: '0px 2px 12px rgba(0, 0, 0, 0.08)', elevation: 4,
   },
 
-  waitSpinner:   { marginBottom: 24 },
-  waitIconEnded: { fontSize: 48, marginBottom: 16 },
+  waitSpinner:   { marginBottom: spacing[6] },
+  waitIconEnded: { fontSize: 48, marginBottom: spacing[4] },
 
-  waitTitle: { fontSize: 22, fontWeight: '800', textAlign: 'center', marginBottom: 12 },
-  waitSub:   { fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 20 },
+  waitTitle: { fontSize: fontSize.title, fontWeight: '800', textAlign: 'center', marginBottom: spacing[3] },
+  waitSub:   { fontSize: fontSize.lg, textAlign: 'center', lineHeight: 22, marginBottom: spacing[5] },
 
   statusPill: {
-    borderRadius: 20, paddingHorizontal: 16, paddingVertical: 6, marginBottom: 24,
+    borderRadius: radius.xxl, paddingHorizontal: spacing[4], paddingVertical: spacing[2], marginBottom: spacing[6],
   },
-  statusPillText: { fontSize: 13, fontWeight: '700' },
+  statusPillText: { fontSize: fontSize.sm, fontWeight: '700' },
 
   continueBtn: {
-    paddingVertical: 14, paddingHorizontal: 32,
-    borderRadius: 12, alignItems: 'center',
-    width: '100%', marginBottom: 12,
+    paddingVertical: spacing[4], paddingHorizontal: spacing[8],
+    borderRadius: radius.lg, alignItems: 'center',
+    width: '100%', marginBottom: spacing[3],
   },
-  continueBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  continueBtnText: { fontSize: fontSize.xl, fontWeight: '700', color: '#fff' },
 
   checkBtn: {
-    borderWidth: 1.5, borderRadius: 12,
-    paddingVertical: 12, paddingHorizontal: 28,
-    alignItems: 'center', width: '100%', marginBottom: 12,
+    borderWidth: 1.5, borderRadius: radius.lg,
+    paddingVertical: spacing[3], paddingHorizontal: spacing[8],
+    alignItems: 'center', width: '100%', marginBottom: spacing[3],
   },
-  checkBtnText: { fontSize: 15, fontWeight: '600' },
+  checkBtnText: { fontSize: fontSize.lg, fontWeight: '600' },
 
-  leaveBtn:     { paddingVertical: 8 },
-  leaveBtnText: { fontSize: 14, fontWeight: '500' },
+  leaveBtn:     { paddingVertical: spacing[2] },
+  leaveBtnText: { fontSize: fontSize.md, fontWeight: '500' },
 });

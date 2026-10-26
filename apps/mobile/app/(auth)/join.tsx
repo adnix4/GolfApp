@@ -11,6 +11,7 @@ import { GfpLogo } from '@/components/GfpLogo';
 import { useSession } from '@/lib/session';
 import { joinEvent, fetchActiveEvents, type ActiveEventSummary, type JoinEventResponse } from '@/lib/api';
 import { registerForPushNotifications } from '@/lib/pushNotifications';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 type Step = 'pick' | 'join' | 'verify' | 'waiting';
 
@@ -656,117 +657,117 @@ export default function JoinScreen() {
 const styles = StyleSheet.create({
   page:    { flex: 1 },
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll:  { flexGrow: 1, padding: 20, paddingBottom: 40 },
+  scroll:  { flexGrow: 1, padding: spacing[5], paddingBottom: spacing[10] },
 
-  logoRow:   { alignItems: 'center', marginBottom: 28, marginTop: 16 },
-  logoTitle: { fontSize: 26, fontWeight: '800', marginTop: 8 },
-  logoSub:   { fontSize: 13, fontWeight: '500', marginTop: 4 },
+  logoRow:   { alignItems: 'center', marginBottom: spacing[8], marginTop: spacing[4] },
+  logoTitle: { fontSize: fontSize.display, fontWeight: '800', marginTop: spacing[2] },
+  logoSub:   { fontSize: fontSize.sm, fontWeight: '500', marginTop: spacing[1] },
 
-  sectionHeading: { fontSize: 18, fontWeight: '700', marginBottom: 14 },
+  sectionHeading: { fontSize: fontSize.xl, fontWeight: '700', marginBottom: spacing[4] },
 
   // Loading / empty
-  loadingRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 24, justifyContent: 'center' },
-  loadingText: { fontSize: 14 },
-  emptyBox:    { borderRadius: 12, padding: 24, alignItems: 'center', marginBottom: 8 },
-  emptyText:   { fontSize: 15, fontWeight: '600', textAlign: 'center' },
-  emptyHint:   { fontSize: 13, textAlign: 'center', marginTop: 6 },
+  loadingRow:  { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[6], justifyContent: 'center' },
+  loadingText: { fontSize: fontSize.md },
+  emptyBox:    { borderRadius: radius.lg, padding: spacing[6], alignItems: 'center', marginBottom: spacing[2] },
+  emptyText:   { fontSize: fontSize.lg, fontWeight: '600', textAlign: 'center' },
+  emptyHint:   { fontSize: fontSize.sm, textAlign: 'center', marginTop: spacing[2] },
 
   // Event cards
   eventCard: {
-    borderRadius: 14, padding: 16, marginBottom: 12,
+    borderRadius: radius.xl, padding: spacing[4], marginBottom: spacing[3],
     flexDirection: 'row', alignItems: 'center',
     boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.06)', elevation: 2,
   },
   eventCardBody: { flex: 1 },
-  eventName:     { fontSize: 16, fontWeight: '700', marginBottom: 3 },
-  eventOrg:      { fontSize: 13, fontWeight: '500', marginBottom: 2 },
-  eventMeta:     { fontSize: 12, marginBottom: 8 },
-  badgeRow:      { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  badge:         { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  badgeText:     { fontSize: 11, fontWeight: '600' },
-  chevron:       { fontSize: 26, fontWeight: '300', marginLeft: 8 },
+  eventName:     { fontSize: fontSize.xl, fontWeight: '700', marginBottom: spacing[1] },
+  eventOrg:      { fontSize: fontSize.sm, fontWeight: '500', marginBottom: spacing[0.5] },
+  eventMeta:     { fontSize: fontSize.xs, marginBottom: spacing[2] },
+  badgeRow:      { flexDirection: 'row', gap: spacing[2], flexWrap: 'wrap' },
+  badge:         { borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: spacing[1] },
+  badgeText:     { fontSize: fontSize.xxs, fontWeight: '600' },
+  chevron:       { fontSize: fontSize.display, fontWeight: '300', marginLeft: spacing[2] },
 
   // Manual entry toggle
-  manualToggle:    { alignItems: 'center', paddingVertical: 16 },
-  manualToggleText: { fontSize: 14 },
+  manualToggle:    { alignItems: 'center', paddingVertical: spacing[4] },
+  manualToggleText: { fontSize: fontSize.md },
 
   // Join step — back button
-  backBtn:     { marginBottom: 12 },
-  backBtnText: { fontSize: 14, fontWeight: '500' },
+  backBtn:     { marginBottom: spacing[3] },
+  backBtnText: { fontSize: fontSize.md, fontWeight: '500' },
 
   // Selected event mini-card
   selectedCard: {
-    borderRadius: 12, padding: 14, marginBottom: 16,
+    borderRadius: radius.lg, padding: spacing[4], marginBottom: spacing[4],
     borderWidth: 1,
     boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)', elevation: 1,
   },
-  selectedCardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 4 },
-  selectedName:    { fontSize: 16, fontWeight: '700', flex: 1 },
-  selectedMeta:    { fontSize: 13, marginTop: 2 },
-  formatLabel:     { fontSize: 12, marginTop: 4 },
-  statusPill:      { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0 },
-  statusPillText:  { fontSize: 11, fontWeight: '600' },
+  selectedCardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing[2], marginBottom: spacing[1] },
+  selectedName:    { fontSize: fontSize.xl, fontWeight: '700', flex: 1 },
+  selectedMeta:    { fontSize: fontSize.sm, marginTop: spacing[0.5] },
+  formatLabel:     { fontSize: fontSize.xs, marginTop: spacing[1] },
+  statusPill:      { borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: spacing[1], flexShrink: 0 },
+  statusPillText:  { fontSize: fontSize.xxs, fontWeight: '600' },
 
   // Email entry card
   card: {
-    borderRadius: 16, padding: 24, marginBottom: 16,
+    borderRadius: radius.xl, padding: spacing[6], marginBottom: spacing[4],
     boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.07)', elevation: 3,
   },
-  heading: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
-  sub:     { fontSize: 14, marginBottom: 18 },
-  label:   { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
+  heading: { fontSize: fontSize.xxl, fontWeight: '800', marginBottom: spacing[1] },
+  sub:     { fontSize: fontSize.md, marginBottom: spacing[5] },
+  label:   { fontSize: fontSize.sm, fontWeight: '600', marginBottom: spacing[2], marginTop: spacing[3] },
   input:   {
-    borderWidth: 1, borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 16, backgroundColor: '#fafafa',
+    borderWidth: 1, borderRadius: radius.lg,
+    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+    fontSize: fontSize.xl, backgroundColor: '#fafafa',
   },
   joinBtn: {
-    marginTop: 22, paddingVertical: 16,
-    borderRadius: 12, alignItems: 'center',
+    marginTop: spacing[6], paddingVertical: spacing[4],
+    borderRadius: radius.lg, alignItems: 'center',
   },
-  joinBtnText: { fontSize: 17, fontWeight: '700', color: '#fff' },
+  joinBtnText: { fontSize: fontSize.xl, fontWeight: '700', color: '#fff' },
 
   errorBox: {
-    backgroundColor: '#fdf2f2', borderRadius: 8, padding: 12, marginBottom: 8,
+    backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[2],
     borderLeftWidth: 3, borderLeftColor: '#e74c3c',
   },
-  errorText: { color: '#c0392b', fontSize: 14 },
+  errorText: { color: '#c0392b', fontSize: fontSize.md },
   noticeBox: {
-    backgroundColor: '#fff8e1', borderColor: '#f39c12', borderWidth: 1, borderRadius: 10,
-    padding: 12, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#fff8e1', borderColor: '#f39c12', borderWidth: 1, borderRadius: radius.lg,
+    padding: spacing[3], marginBottom: spacing[4], flexDirection: 'row', alignItems: 'center', gap: spacing[3],
   },
-  noticeText:    { flex: 1, color: '#6d4c00', fontSize: 14 },
-  noticeDismiss: { color: '#6d4c00', fontSize: 13, fontWeight: '700' },
+  noticeText:    { flex: 1, color: '#6d4c00', fontSize: fontSize.md },
+  noticeDismiss: { color: '#6d4c00', fontSize: fontSize.sm, fontWeight: '700' },
 
   // Verify step (A3 email one-time code)
-  verifyIcon: { fontSize: 40, textAlign: 'center', marginBottom: 8 },
-  codeInput:  { textAlign: 'center', fontSize: 24, fontWeight: '700', letterSpacing: 10 },
+  verifyIcon: { fontSize: 40, textAlign: 'center', marginBottom: spacing[2] },
+  codeInput:  { textAlign: 'center', fontSize: fontSize.title, fontWeight: '700', letterSpacing: 10 },
   resentBox: {
-    backgroundColor: '#f1f8e9', borderRadius: 8, padding: 12, marginBottom: 8,
+    backgroundColor: '#f1f8e9', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[2],
     borderLeftWidth: 3, borderLeftColor: '#7cb342',
   },
-  resentText:    { color: '#33691e', fontSize: 14 },
-  resendBtn:     { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
-  resendBtnText: { fontSize: 14, fontWeight: '500', textDecorationLine: 'underline' },
+  resentText:    { color: '#33691e', fontSize: fontSize.md },
+  resendBtn:     { alignItems: 'center', paddingVertical: spacing[4], marginTop: spacing[1] },
+  resendBtnText: { fontSize: fontSize.md, fontWeight: '500', textDecorationLine: 'underline' },
 
-  registerSection: { marginTop: 4 },
-  orDivider: { flexDirection: 'row', alignItems: 'center', marginVertical: 16, gap: 10 },
+  registerSection: { marginTop: spacing[1] },
+  orDivider: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing[4], gap: spacing[3] },
   orLine:    { flex: 1, height: 1 },
-  orText:    { fontSize: 13, fontWeight: '500' },
+  orText:    { fontSize: fontSize.sm, fontWeight: '500' },
   registerBtn: {
-    borderWidth: 1.5, borderRadius: 12,
-    paddingVertical: 14, alignItems: 'center',
+    borderWidth: 1.5, borderRadius: radius.lg,
+    paddingVertical: spacing[4], alignItems: 'center',
   },
-  registerBtnText: { fontSize: 15, fontWeight: '600' },
+  registerBtnText: { fontSize: fontSize.lg, fontWeight: '600' },
 
   // Waiting step
-  waitingIcon:      { fontSize: 48, textAlign: 'center', marginBottom: 12 },
-  waitingInfoBox:   { borderRadius: 10, borderWidth: 1, padding: 14, marginTop: 16, marginBottom: 4, gap: 6 },
-  waitingInfoLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
-  waitingInfoRow:   { fontSize: 14 },
+  waitingIcon:      { fontSize: 48, textAlign: 'center', marginBottom: spacing[3] },
+  waitingInfoBox:   { borderRadius: radius.lg, borderWidth: 1, padding: spacing[4], marginTop: spacing[4], marginBottom: spacing[1], gap: spacing[2] },
+  waitingInfoLabel: { fontSize: fontSize.xs, fontWeight: '700', textTransform: 'uppercase', marginBottom: spacing[1] },
+  waitingInfoRow:   { fontSize: fontSize.md },
   waitingBackBtn:   {
-    borderWidth: 1.5, borderRadius: 12,
-    paddingVertical: 14, alignItems: 'center', marginTop: 10,
+    borderWidth: 1.5, borderRadius: radius.lg,
+    paddingVertical: spacing[4], alignItems: 'center', marginTop: spacing[3],
   },
-  waitingBackBtnText: { fontSize: 15, fontWeight: '600' },
+  waitingBackBtnText: { fontSize: fontSize.lg, fontWeight: '600' },
 });

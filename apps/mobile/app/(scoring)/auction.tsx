@@ -23,6 +23,7 @@ import {
   AuctionItemDto, AuctionSessionDto, PlayerBidHistoryItem, CheckoutCartDto,
 } from '@/lib/api';
 import { checkoutCounts, checkoutHeadline } from '@/lib/checkoutSummary';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 type Tab = 'items' | 'history' | 'live';
 
@@ -430,7 +431,7 @@ export default function AuctionScreen() {
         <FlatList
           data={openItems}
           keyExtractor={i => i.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[10] }}
           refreshing={loading}
           onRefresh={refresh}
           renderItem={({ item }) => {
@@ -462,7 +463,7 @@ export default function AuctionScreen() {
                   )}
                   <View style={styles.cardBody}>
                     <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Text>
-                    <Text style={{ color: theme.mutedText, fontSize: 12 }}>
+                    <Text style={{ color: theme.mutedText, fontSize: fontSize.xs }}>
                       {item.auctionType}
                       {item.closesAt ? `  · Closes: ${formatDateTime(item.closesAt)}` : ''}
                     </Text>
@@ -470,12 +471,12 @@ export default function AuctionScreen() {
                       <>
                         {/* Pledges stack rather than compete, so this stays the
                             green "money raised" line for everyone. */}
-                        <Text style={{ color: '#27ae60', fontWeight: '700', marginTop: 4 }}>
+                        <Text style={{ color: '#27ae60', fontWeight: '700', marginTop: spacing[1] }}>
                           Raised: {fmt(item.totalRaisedCents)}
                           {item.goalCents ? ` / ${fmt(item.goalCents)}` : ''}
                         </Text>
                         {mine && (
-                          <Text style={{ color: theme.mutedText, fontSize: 12, marginTop: 2 }}>
+                          <Text style={{ color: theme.mutedText, fontSize: fontSize.xs, marginTop: spacing[0.5] }}>
                             You Pledged: {fmt(mine.maxCents)}
                           </Text>
                         )}
@@ -488,7 +489,7 @@ export default function AuctionScreen() {
                             colour alone is invisible to a colour-blind golfer
                             and weak in sunlight on a phone. */}
                         <Text
-                          style={{ color: TONE_COLOR[tone], fontWeight: '700', marginTop: 4 }}
+                          style={{ color: TONE_COLOR[tone], fontWeight: '700', marginTop: spacing[1] }}
                           accessibilityLabel={
                             `Current bid ${fmt(item.currentHighBidCents)}`
                             + (tone === 'winning' ? ', you are winning'
@@ -499,14 +500,14 @@ export default function AuctionScreen() {
                           {tone === 'winning' ? ' · Winning' : tone === 'outbid' ? ' · Outbid' : ''}
                         </Text>
                         {mine && (
-                          <Text style={{ color: theme.mutedText, fontSize: 12, marginTop: 2 }}>
+                          <Text style={{ color: theme.mutedText, fontSize: fontSize.xs, marginTop: spacing[0.5] }}>
                             {/* Only a Silent bid is a ceiling; calling a called-out
                                 Live bid a "maximum" would be wrong. */}
                             {usesProxyBidding(item.auctionType) ? 'Your Max Bid' : 'Your Bid'}
                             : {fmt(mine.maxCents)}
                           </Text>
                         )}
-                        <Text style={{ color: '#888', fontSize: 12, marginTop: 2 }}>
+                        <Text style={{ color: '#888', fontSize: fontSize.xs, marginTop: spacing[0.5] }}>
                           min increment: {fmt(item.bidIncrementCents)}
                         </Text>
                       </>
@@ -517,7 +518,7 @@ export default function AuctionScreen() {
             );
           }}
           ListEmptyComponent={
-            <Text style={{ textAlign: 'center', color: '#999', marginTop: 40 }}>
+            <Text style={{ textAlign: 'center', color: '#999', marginTop: spacing[10] }}>
               No open auction items.
             </Text>
           }
@@ -526,15 +527,15 @@ export default function AuctionScreen() {
 
       {/* Live tab */}
       {tab === 'live' && (
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <ScrollView contentContainerStyle={{ padding: spacing[4] }}>
           {liveSession?.isActive && currentLiveItem ? (
             <View>
               <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
                 Now: {currentLiveItem.title}
               </Text>
-              <Text style={{ color: '#555', marginBottom: 12 }}>{currentLiveItem.description}</Text>
+              <Text style={{ color: '#555', marginBottom: spacing[3] }}>{currentLiveItem.description}</Text>
               <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-                <Text style={{ fontSize: 13, color: theme.mutedText }}>Called Amount</Text>
+                <Text style={{ fontSize: fontSize.sm, color: theme.mutedText }}>Called Amount</Text>
                 <Text style={{ fontSize: 36, fontWeight: '900', color: '#27ae60' }}>
                   {fmt(liveSession.currentCalledAmountCents)}
                 </Text>
@@ -559,7 +560,7 @@ export default function AuctionScreen() {
                     </Text>}
               </Pressable>
 
-              <Text style={[styles.sectionTitle, { color: theme.colors.primary, marginTop: 16 }]}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.primary, marginTop: spacing[4] }]}>
                 Pledge / Bid on this item
               </Text>
               <Text style={styles.bidLabel}>
@@ -590,7 +591,7 @@ export default function AuctionScreen() {
             </View>
           ) : (
             <View style={styles.center}>
-              <Text style={{ color: '#888', fontSize: 15 }}>
+              <Text style={{ color: '#888', fontSize: fontSize.lg }}>
                 {liveSession?.isActive
                   ? 'Waiting for the host to call the next item…'
                   : 'No live auction is active right now.'}
@@ -605,29 +606,29 @@ export default function AuctionScreen() {
         <FlatList
           data={history}
           ListHeaderComponent={historyError ? (
-            <View style={[styles.errorBanner, { marginBottom: 12 }]}>
+            <View style={[styles.errorBanner, { marginBottom: spacing[3] }]}>
               <Text style={styles.errorBannerText}>
                 Could not refresh your bids. Showing the last ones we loaded.
               </Text>
             </View>
           ) : undefined}
           keyExtractor={i => `${i.auctionItemId}-${i.placedAt}`}
-          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[10] }}
           renderItem={({ item }) => (
             <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
               <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.itemTitle}</Text>
-              <Text style={{ color: '#555', fontSize: 13 }}>
+              <Text style={{ color: '#555', fontSize: fontSize.sm }}>
                 {/* "max" matters here: on a proxy item this row is the ceiling
                     the golfer set, not what the item is going for. */}
                 {usesProxyBidding(item.auctionType) ? 'max ' : ''}{fmt(item.amountCents)} · {item.status}
               </Text>
-              <Text style={{ color: '#888', fontSize: 11, marginTop: 2 }}>
+              <Text style={{ color: '#888', fontSize: fontSize.xxs, marginTop: spacing[0.5] }}>
                 {formatDateTime(item.placedAt)}
               </Text>
             </View>
           )}
           ListEmptyComponent={
-            <Text style={{ textAlign: 'center', color: '#999', marginTop: 40 }}>
+            <Text style={{ textAlign: 'center', color: '#999', marginTop: spacing[10] }}>
               You haven't placed any bids yet.
             </Text>
           }
@@ -686,7 +687,7 @@ export default function AuctionScreen() {
                     ))}
                   </ScrollView>
                 )}
-                <Text style={{ color: '#555', marginBottom: 12 }}>{liveSelectedItem.description}</Text>
+                <Text style={{ color: '#555', marginBottom: spacing[3] }}>{liveSelectedItem.description}</Text>
 
                 {isDonationItem(liveSelectedItem.auctionType) ? (
                   <>
@@ -788,63 +789,63 @@ export default function AuctionScreen() {
 
 const styles = StyleSheet.create({
   page:        { flex: 1 },
-  center:      { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  liveBanner:  { backgroundColor: '#c0392b', paddingVertical: 8, alignItems: 'center' },
-  liveBannerText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  center:      { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[6] },
+  liveBanner:  { backgroundColor: '#c0392b', paddingVertical: spacing[2], alignItems: 'center' },
+  liveBannerText: { color: '#fff', fontWeight: '800', fontSize: fontSize.md },
   tabRow:      { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
-  tabBtn:      { flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 3, borderBottomColor: 'transparent' },
-  tabLabel:    { fontSize: 13, fontWeight: '700' },
-  card:        { borderRadius: 12, padding: 14, marginBottom: 10, boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.06)', elevation: 2 },
-  cardRow:     { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  tabBtn:      { flex: 1, alignItems: 'center', paddingVertical: spacing[3], borderBottomWidth: 3, borderBottomColor: 'transparent' },
+  tabLabel:    { fontSize: fontSize.sm, fontWeight: '700' },
+  card:        { borderRadius: radius.lg, padding: spacing[4], marginBottom: spacing[3], boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.06)', elevation: 2 },
+  cardRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   cardBody:    { flex: 1 },
-  cardThumb:   { width: 64, height: 64, borderRadius: 8, backgroundColor: '#f0f0f0' },
+  cardThumb:   { width: 64, height: 64, borderRadius: radius.md, backgroundColor: '#f0f0f0' },
   photoViewerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)' },
-  photoViewerScroll:  { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 12, paddingTop: 64, paddingBottom: 24 },
-  photoViewerHint:    { color: '#bbb', fontSize: 13, marginTop: 14 },
+  photoViewerScroll:  { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[3], paddingTop: 64, paddingBottom: spacing[6] },
+  photoViewerHint:    { color: '#bbb', fontSize: fontSize.sm, marginTop: spacing[4] },
   photoViewerClose:   {
-    position: 'absolute', top: 40, right: 16, width: 40, height: 40, borderRadius: 20,
+    position: 'absolute', top: 40, right: 16, width: 40, height: 40, borderRadius: radius.xxl,
     backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center',
   },
-  photoViewerCloseText: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 22 },
-  photoStrip:  { marginBottom: 12 },
+  photoViewerCloseText: { color: '#fff', fontSize: fontSize.xl, fontWeight: '700', lineHeight: 22 },
+  photoStrip:  { marginBottom: spacing[3] },
   // Fixed-size gallery tiles (tap to expand) — sizing off screenWidth made
   // these enormous in a desktop-width browser window and pushed the bid
   // controls off-screen.
-  modalPhoto:  { width: 168, height: 126, borderRadius: 8, marginRight: 8, backgroundColor: '#f0f0f0' },
-  itemTitle:   { fontSize: 15, fontWeight: '800', marginBottom: 2 },
-  sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: 8 },
-  bidRow:      { flexDirection: 'row', gap: 8, marginTop: 12 },
-  bidInput:    { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
-  bidBtn:      { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, justifyContent: 'center' },
-  bidBtnText:  { color: '#fff', fontWeight: '700', fontSize: 15 },
-  bidLabel:    { color: '#555', fontSize: 14, marginBottom: 8 },
-  bidError:    { color: '#c0392b', fontSize: 13, fontWeight: '600', marginTop: 10 },
-  denomRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  denomBtn:    { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1.5, borderColor: '#27ae60' },
+  modalPhoto:  { width: 168, height: 126, borderRadius: radius.md, marginRight: spacing[2], backgroundColor: '#f0f0f0' },
+  itemTitle:   { fontSize: fontSize.lg, fontWeight: '800', marginBottom: spacing[0.5] },
+  sectionTitle: { fontSize: fontSize.xl, fontWeight: '800', marginBottom: spacing[2] },
+  bidRow:      { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3] },
+  bidInput:    { borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.xl },
+  bidBtn:      { paddingHorizontal: spacing[5], paddingVertical: spacing[3], borderRadius: radius.md, justifyContent: 'center' },
+  bidBtnText:  { color: '#fff', fontWeight: '700', fontSize: fontSize.lg },
+  bidLabel:    { color: '#555', fontSize: fontSize.md, marginBottom: spacing[2] },
+  bidError:    { color: '#c0392b', fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing[3] },
+  denomRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[3] },
+  denomBtn:    { paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderRadius: radius.md, borderWidth: 1.5, borderColor: '#27ae60' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalCard:   { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, overflow: 'hidden' },
-  sheetHeader: { marginTop: -24, marginHorizontal: -24, marginBottom: 16, paddingVertical: 12, paddingHorizontal: 24 },
-  sheetEventName: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
+  modalCard:   { borderTopLeftRadius: radius.xxl, borderTopRightRadius: radius.xxl, padding: spacing[6], paddingBottom: spacing[10], overflow: 'hidden' },
+  sheetHeader: { marginTop: -24, marginHorizontal: -24, marginBottom: spacing[4], paddingVertical: spacing[3], paddingHorizontal: spacing[6] },
+  sheetEventName: { fontSize: fontSize.sm, fontWeight: '700', letterSpacing: 0.3 },
   sheetItemTitle: {
-    alignSelf: 'flex-start', fontSize: 17, fontWeight: '800',
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, marginBottom: 10, overflow: 'hidden',
+    alignSelf: 'flex-start', fontSize: fontSize.xl, fontWeight: '800',
+    paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.md, marginBottom: spacing[3], overflow: 'hidden',
   },
-  cancelBtn:   { alignItems: 'center', marginTop: 16, paddingVertical: 10 },
+  cancelBtn:   { alignItems: 'center', marginTop: spacing[4], paddingVertical: spacing[3] },
   raiseHandBtn: {
-    backgroundColor: '#2980b9', borderRadius: 12,
-    paddingVertical: 14, alignItems: 'center', marginTop: 12,
+    backgroundColor: '#2980b9', borderRadius: radius.lg,
+    paddingVertical: spacing[4], alignItems: 'center', marginTop: spacing[3],
   },
-  raiseHandText: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  errorBanner: { backgroundColor: '#fdf2f2', borderLeftWidth: 3, borderLeftColor: '#e74c3c', padding: 12 },
-  errorBannerText: { color: '#c0392b', fontSize: 13 },
-  paymentWarning:    { backgroundColor: '#fff8e1', borderLeftWidth: 3, borderLeftColor: '#f39c12', padding: 12 },
-  paymentWarningRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  paymentWarningText: { color: '#b7770d', fontSize: 13, flex: 1 },
-  paymentWarningLink: { color: '#e67e22', fontSize: 13, fontWeight: '700' },
+  raiseHandText: { color: '#fff', fontWeight: '800', fontSize: fontSize.xl },
+  errorBanner: { backgroundColor: '#fdf2f2', borderLeftWidth: 3, borderLeftColor: '#e74c3c', padding: spacing[3] },
+  errorBannerText: { color: '#c0392b', fontSize: fontSize.sm },
+  paymentWarning:    { backgroundColor: '#fff8e1', borderLeftWidth: 3, borderLeftColor: '#f39c12', padding: spacing[3] },
+  paymentWarningRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2] },
+  paymentWarningText: { color: '#b7770d', fontSize: fontSize.sm, flex: 1 },
+  paymentWarningLink: { color: '#e67e22', fontSize: fontSize.sm, fontWeight: '700' },
   // Green, not amber: winning is good news, and it must not read as another warning.
-  wonBanner:     { backgroundColor: '#ecfdf5', borderLeftWidth: 3, borderLeftColor: '#10b981', padding: 12 },
-  wonBannerText: { color: '#065f46', fontSize: 13, fontWeight: '600', flex: 1 },
-  wonBannerLink: { color: '#059669', fontSize: 13, fontWeight: '700' },
-  checkedInNotice:     { backgroundColor: '#eafaf1', borderLeftWidth: 3, borderLeftColor: '#27ae60', padding: 12 },
-  checkedInNoticeText: { color: '#1e8449', fontSize: 13 },
+  wonBanner:     { backgroundColor: '#ecfdf5', borderLeftWidth: 3, borderLeftColor: '#10b981', padding: spacing[3] },
+  wonBannerText: { color: '#065f46', fontSize: fontSize.sm, fontWeight: '600', flex: 1 },
+  wonBannerLink: { color: '#059669', fontSize: fontSize.sm, fontWeight: '700' },
+  checkedInNotice:     { backgroundColor: '#eafaf1', borderLeftWidth: 3, borderLeftColor: '#27ae60', padding: spacing[3] },
+  checkedInNoticeText: { color: '#1e8449', fontSize: fontSize.sm },
 });

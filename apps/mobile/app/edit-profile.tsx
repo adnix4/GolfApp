@@ -10,6 +10,7 @@ import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { notify, notifyFailure } from '@/lib/notify';
 import { updateMyProfile } from '@/lib/api';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function EditProfileScreen() {
   const theme   = useTheme();
@@ -149,31 +150,31 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 8, paddingVertical: 12, borderBottomWidth: 1,
+    paddingHorizontal: spacing[2], paddingVertical: spacing[3], borderBottomWidth: 1,
   },
   backBtn:     { width: 44, alignItems: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '700' },
+  headerTitle: { fontSize: fontSize.xl, fontWeight: '700' },
 
-  body: { padding: 20, paddingBottom: 48, gap: 16 },
+  body: { padding: spacing[5], paddingBottom: spacing[12], gap: spacing[4] },
 
-  fieldGroup:  { gap: 6 },
-  fieldLabel:  { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  fieldGroup:  { gap: spacing[2] },
+  fieldLabel:  { fontSize: fontSize.xs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   input: {
-    borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 14,
-    paddingVertical: 12, fontSize: 16,
+    borderWidth: 1.5, borderRadius: radius.lg, paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3], fontSize: fontSize.xl,
   },
 
   readonlyRow: {
-    borderRadius: 10, padding: 14,
+    borderRadius: radius.lg, padding: spacing[4],
     boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.04)', elevation: 1,
   },
-  readonlyLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  readonlyValue: { fontSize: 16, fontWeight: '500', marginTop: 4 },
-  readonlyHint:  { fontSize: 12, color: '#aaa', marginTop: 6 },
+  readonlyLabel: { fontSize: fontSize.xs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  readonlyValue: { fontSize: fontSize.xl, fontWeight: '500', marginTop: spacing[1] },
+  readonlyHint:  { fontSize: fontSize.xs, color: '#aaa', marginTop: spacing[2] },
 
   saveBtn: {
-    borderRadius: 12, paddingVertical: 16,
-    alignItems: 'center', marginTop: 8,
+    borderRadius: radius.lg, paddingVertical: spacing[4],
+    alignItems: 'center', marginTop: spacing[2],
   },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: fontSize.xl },
 });

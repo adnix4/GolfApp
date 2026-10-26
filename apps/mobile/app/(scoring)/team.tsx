@@ -7,6 +7,7 @@ import { useSession } from '@/lib/session';
 import { LeaveEventButton } from '@/components/LeaveEventButton';
 import type { PlayerCacheDto } from '@/lib/api';
 import { formatTime } from '@gfp/shared-types';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // ── PLAYER ROW ────────────────────────────────────────────────────────────────
 
@@ -56,16 +57,16 @@ function PlayerRow({
 }
 
 const rowStyles = StyleSheet.create({
-  row:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f0f0f0' },
-  avatar:   { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  initials: { fontSize: 16, fontWeight: '800' },
+  row:      { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f0f0f0' },
+  avatar:   { width: 44, height: 44, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', marginRight: spacing[4] },
+  initials: { fontSize: fontSize.xl, fontWeight: '800' },
   info:     { flex: 1 },
-  nameRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name:     { fontSize: 15, fontWeight: '700' },
-  email:    { fontSize: 13, marginTop: 2 },
-  youBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
-  youText:  { fontSize: 11, fontWeight: '700' },
-  editBtn:  { padding: 6 },
+  nameRow:  { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  name:     { fontSize: fontSize.lg, fontWeight: '700' },
+  email:    { fontSize: fontSize.sm, marginTop: spacing[0.5] },
+  youBadge: { paddingHorizontal: spacing[2], paddingVertical: spacing[0.5], borderRadius: radius.md },
+  youText:  { fontSize: fontSize.xxs, fontWeight: '700' },
+  editBtn:  { padding: spacing[2] },
 });
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
@@ -162,38 +163,38 @@ function InfoRow({ icon, label, value, theme }: {
 }
 
 const infoRowStyles = StyleSheet.create({
-  row:   { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f0f0f0' },
-  icon:  { fontSize: 18, marginRight: 12, marginTop: 2 },
+  row:   { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: spacing[3], borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f0f0f0' },
+  icon:  { fontSize: fontSize.xl, marginRight: spacing[3], marginTop: spacing[0.5] },
   body:  { flex: 1 },
-  label: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
-  value: { fontSize: 14, fontWeight: '600', marginTop: 2 },
+  label: { fontSize: fontSize.xxs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
+  value: { fontSize: fontSize.md, fontWeight: '600', marginTop: spacing[0.5] },
 });
 
 // ── STYLES ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   page:   { flex: 1 },
-  scroll: { padding: 16, paddingBottom: 40 },
+  scroll: { padding: spacing[4], paddingBottom: spacing[10] },
 
   teamCard: {
-    borderRadius: 16, padding: 24, marginBottom: 12,
+    borderRadius: radius.xl, padding: spacing[6], marginBottom: spacing[3],
     alignItems: 'center',
   },
-  teamName:  { fontSize: 26, fontWeight: '900', textAlign: 'center', marginBottom: 4 },
-  eventName: { fontSize: 14, fontWeight: '500', opacity: 0.85, textAlign: 'center' },
+  teamName:  { fontSize: fontSize.display, fontWeight: '900', textAlign: 'center', marginBottom: spacing[1] },
+  eventName: { fontSize: fontSize.md, fontWeight: '500', opacity: 0.85, textAlign: 'center' },
 
   infoCard: {
-    borderRadius: 14, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 4,
-    marginBottom: 20,
+    borderRadius: radius.xl, paddingHorizontal: spacing[4], paddingTop: spacing[1], paddingBottom: spacing[1],
+    marginBottom: spacing[5],
     boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.05)', elevation: 2,
   },
   sectionTitle: {
-    fontSize: 13, fontWeight: '700', textTransform: 'uppercase',
-    letterSpacing: 0.5, marginBottom: 10,
+    fontSize: fontSize.sm, fontWeight: '700', textTransform: 'uppercase',
+    letterSpacing: 0.5, marginBottom: spacing[3],
   },
   rosterCard: {
-    borderRadius: 14, paddingHorizontal: 16,
+    borderRadius: radius.xl, paddingHorizontal: spacing[4],
     boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.05)', elevation: 2,
   },
-  emptyRoster: { fontSize: 14, textAlign: 'center', paddingVertical: 20 },
+  emptyRoster: { fontSize: fontSize.md, textAlign: 'center', paddingVertical: spacing[5] },
 });

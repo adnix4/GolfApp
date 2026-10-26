@@ -16,6 +16,7 @@ import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { notify, notifyFailure } from '@/lib/notify';
 import { createSetupIntent, confirmSetup } from '@/lib/api';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // Set EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY in your .env file.
 const STRIPE_PK = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
@@ -129,7 +130,7 @@ function PaymentSetupContent() {
             </Pressable>
           </View>
         ) : loading ? (
-          <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 48 }} />
+          <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: spacing[12] }} />
         ) : initError ? (
           <View style={styles.errorCard}>
             <Ionicons name="alert-circle-outline" size={32} color="#e74c3c" />
@@ -152,7 +153,7 @@ function PaymentSetupContent() {
         ) : (
           <>
             <View style={[styles.infoCard, { backgroundColor: theme.colors.surface }]}>
-              <Ionicons name="lock-closed-outline" size={20} color={theme.colors.primary} style={{ marginBottom: 6 }} />
+              <Ionicons name="lock-closed-outline" size={20} color={theme.colors.primary} style={{ marginBottom: spacing[2] }} />
               <Text style={[styles.infoText, { color: theme.colors.primary }]}>
                 Your card is saved securely via Stripe and is only charged when you check out for auction items you win or pledges you make.
               </Text>
@@ -167,7 +168,7 @@ function PaymentSetupContent() {
                 textColor: '#1a1a1a',
                 borderColor: '#d0d0d0',
                 borderWidth: 1.5,
-                borderRadius: 10,
+                borderRadius: radius.lg,
               }}
               style={styles.cardField}
               onCardChange={(details: CardFieldInput.Details) => setCardComplete(details.complete)}
@@ -202,40 +203,40 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 8, paddingVertical: 12, borderBottomWidth: 1,
+    paddingHorizontal: spacing[2], paddingVertical: spacing[3], borderBottomWidth: 1,
   },
   backBtn:     { width: 44, alignItems: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '700' },
+  headerTitle: { fontSize: fontSize.xl, fontWeight: '700' },
 
-  body: { padding: 20, paddingBottom: 48, gap: 16 },
+  body: { padding: spacing[5], paddingBottom: spacing[12], gap: spacing[4] },
 
   infoCard: {
-    borderRadius: 12, padding: 16, alignItems: 'center',
+    borderRadius: radius.lg, padding: spacing[4], alignItems: 'center',
     boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.05)', elevation: 2,
   },
-  infoText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  infoText: { fontSize: fontSize.md, textAlign: 'center', lineHeight: 20 },
 
-  sectionLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionLabel: { fontSize: fontSize.xs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
 
   cardField: { width: '100%', height: 50 },
 
   saveBtn: {
-    borderRadius: 12, paddingVertical: 16,
-    alignItems: 'center', marginTop: 4,
+    borderRadius: radius.lg, paddingVertical: spacing[4],
+    alignItems: 'center', marginTop: spacing[1],
   },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: fontSize.xl },
 
-  secureNote: { fontSize: 12, color: '#aaa', textAlign: 'center', marginTop: 4 },
+  secureNote: { fontSize: fontSize.xs, color: '#aaa', textAlign: 'center', marginTop: spacing[1] },
 
   actionBtn: {
-    borderRadius: 12, paddingVertical: 14, paddingHorizontal: 28,
-    alignItems: 'center', marginTop: 8, minWidth: 200,
+    borderRadius: radius.lg, paddingVertical: spacing[4], paddingHorizontal: spacing[8],
+    alignItems: 'center', marginTop: spacing[2], minWidth: 200,
   },
-  actionBtnText:    { fontWeight: '700', fontSize: 16 },
-  secondaryBtn:     { paddingVertical: 10, paddingHorizontal: 16 },
-  secondaryBtnText: { fontSize: 14, fontWeight: '600' },
+  actionBtnText:    { fontWeight: '700', fontSize: fontSize.xl },
+  secondaryBtn:     { paddingVertical: spacing[3], paddingHorizontal: spacing[4] },
+  secondaryBtnText: { fontSize: fontSize.md, fontWeight: '600' },
 
-  errorCard: { alignItems: 'center', padding: 32, gap: 12 },
-  errorTitle: { fontSize: 18, fontWeight: '700', color: '#333' },
-  errorMsg:   { fontSize: 14, color: '#666', textAlign: 'center', lineHeight: 20 },
+  errorCard: { alignItems: 'center', padding: spacing[8], gap: spacing[3] },
+  errorTitle: { fontSize: fontSize.xl, fontWeight: '700', color: '#333' },
+  errorMsg:   { fontSize: fontSize.md, color: '#666', textAlign: 'center', lineHeight: 20 },
 });

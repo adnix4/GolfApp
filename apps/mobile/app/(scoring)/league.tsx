@@ -132,6 +132,7 @@ function LeaguePromo() {
 }
 import { fetchMemberSeasonSummary, MemberSeasonSummary } from '@/lib/api';
 import { formatDateOnly, formatDate } from '@gfp/shared-types';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function LeagueScreen() {
   const theme   = useTheme();
@@ -263,7 +264,7 @@ export default function LeagueScreen() {
           <>
             <View style={[styles.tableHeader, { backgroundColor: theme.colors.primary + '11' }]}>
               {['Date', 'Gross', 'Net', 'Pts'].map(h => (
-                <Text key={h} style={[styles.tableCell, { color: theme.mutedText, fontWeight: '700', fontSize: 11 }]}>{h}</Text>
+                <Text key={h} style={[styles.tableCell, { color: theme.mutedText, fontWeight: '700', fontSize: fontSize.xxs }]}>{h}</Text>
               ))}
             </View>
             {summary.roundHistory.map(r => (
@@ -285,89 +286,89 @@ export default function LeagueScreen() {
 
 const promoStyles = StyleSheet.create({
   root:   { flex: 1 },
-  scroll: { paddingBottom: 48 },
+  scroll: { paddingBottom: spacing[12] },
 
   // Hero
   hero: {
-    paddingTop: 48, paddingBottom: 36, paddingHorizontal: 28,
-    alignItems: 'center', gap: 12,
+    paddingTop: spacing[12], paddingBottom: spacing[10], paddingHorizontal: spacing[8],
+    alignItems: 'center', gap: spacing[3],
   },
   heroIconWrap: {
-    width: 80, height: 80, borderRadius: 40,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+    width: 80, height: 80, borderRadius: radius.full,
+    alignItems: 'center', justifyContent: 'center', marginBottom: spacing[1],
   },
-  heroTitle: { color: '#fff', fontSize: 28, fontWeight: '800', textAlign: 'center' },
-  heroSub:   { color: 'rgba(255,255,255,0.82)', fontSize: 15, textAlign: 'center', lineHeight: 22 },
+  heroTitle: { color: '#fff', fontSize: fontSize.display, fontWeight: '800', textAlign: 'center' },
+  heroSub:   { color: 'rgba(255,255,255,0.82)', fontSize: fontSize.lg, textAlign: 'center', lineHeight: 22 },
   heroBadge: {
-    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5, marginTop: 4,
+    borderRadius: radius.xxl, paddingHorizontal: spacing[4], paddingVertical: spacing[1], marginTop: spacing[1],
   },
-  heroBadgeText: { color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: '600' },
+  heroBadgeText: { color: 'rgba(255,255,255,0.9)', fontSize: fontSize.xs, fontWeight: '600' },
 
   // Sections
-  section: { paddingHorizontal: 16, paddingTop: 28, gap: 10 },
+  section: { paddingHorizontal: spacing[4], paddingTop: spacing[8], gap: spacing[3] },
   stepsSection: {
-    marginHorizontal: 16, borderRadius: 16, marginTop: 28,
-    paddingHorizontal: 20, paddingVertical: 22,
+    marginHorizontal: spacing[4], borderRadius: radius.xl, marginTop: spacing[8],
+    paddingHorizontal: spacing[5], paddingVertical: spacing[6],
     boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.06)', elevation: 2,
   },
-  sectionLabel: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
+  sectionLabel: { fontSize: fontSize.sm, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing[1] },
 
   // Feature cards
   featureCard: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
-    borderRadius: 14, padding: 16,
+    flexDirection: 'row', alignItems: 'flex-start', gap: spacing[4],
+    borderRadius: radius.xl, padding: spacing[4],
     boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)', elevation: 1,
   },
-  featureIcon:  { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  featureText:  { flex: 1, gap: 3 },
-  featureTitle: { fontSize: 15, fontWeight: '700' },
-  featureBody:  { fontSize: 13, lineHeight: 19 },
+  featureIcon:  { width: 46, height: 46, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  featureText:  { flex: 1, gap: spacing[1] },
+  featureTitle: { fontSize: fontSize.lg, fontWeight: '700' },
+  featureBody:  { fontSize: fontSize.sm, lineHeight: 19 },
 
   // Steps
-  stepRow:    { flexDirection: 'row', alignItems: 'flex-start', gap: 14, paddingVertical: 10 },
-  stepNum:    { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
-  stepNumText: { color: '#fff', fontSize: 14, fontWeight: '800' },
-  stepText:   { flex: 1, gap: 2 },
-  stepTitle:  { fontSize: 14, fontWeight: '700' },
-  stepBody:   { fontSize: 13, lineHeight: 18 },
+  stepRow:    { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[4], paddingVertical: spacing[3] },
+  stepNum:    { width: 30, height: 30, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
+  stepNumText: { color: '#fff', fontSize: fontSize.md, fontWeight: '800' },
+  stepText:   { flex: 1, gap: spacing[0.5] },
+  stepTitle:  { fontSize: fontSize.md, fontWeight: '700' },
+  stepBody:   { fontSize: fontSize.sm, lineHeight: 18 },
 
   // CTA
   cta: {
-    marginHorizontal: 16, marginTop: 20, borderRadius: 16, borderWidth: 1,
-    padding: 22, alignItems: 'center', gap: 8,
+    marginHorizontal: spacing[4], marginTop: spacing[5], borderRadius: radius.xl, borderWidth: 1,
+    padding: spacing[6], alignItems: 'center', gap: spacing[2],
   },
-  ctaIcon:  { marginBottom: 2 },
-  ctaTitle: { fontSize: 17, fontWeight: '800', textAlign: 'center' },
-  ctaBody:  { fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  ctaIcon:  { marginBottom: spacing[0.5] },
+  ctaTitle: { fontSize: fontSize.xl, fontWeight: '800', textAlign: 'center' },
+  ctaBody:  { fontSize: fontSize.sm, textAlign: 'center', lineHeight: 20 },
 });
 
 // ── MAIN STYLES ───────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   root:             { flex: 1 },
-  center:           { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  content:          { padding: 16, paddingBottom: 40, gap: 20 },
-  emptyText:        { fontSize: 14, textAlign: 'center' },
+  center:           { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing[6] },
+  content:          { padding: spacing[4], paddingBottom: spacing[10], gap: spacing[5] },
+  emptyText:        { fontSize: fontSize.md, textAlign: 'center' },
   // Profile card
-  profileCard:      { borderRadius: 16, padding: 20, gap: 4 },
-  profileName:      { color: '#fff', fontSize: 20, fontWeight: '700' },
-  profileFlight:    { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginBottom: 12 },
+  profileCard:      { borderRadius: radius.xl, padding: spacing[5], gap: spacing[1] },
+  profileName:      { color: '#fff', fontSize: fontSize.xxl, fontWeight: '700' },
+  profileFlight:    { color: 'rgba(255,255,255,0.7)', fontSize: fontSize.sm, marginBottom: spacing[3] },
   profileStats:     { flexDirection: 'row', alignItems: 'center' },
   profileStat:      { flex: 1, alignItems: 'center' },
-  profileStatVal:   { color: '#fff', fontSize: 22, fontWeight: '800' },
-  profileStatLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 2 },
+  profileStatVal:   { color: '#fff', fontSize: fontSize.title, fontWeight: '800' },
+  profileStatLabel: { color: 'rgba(255,255,255,0.7)', fontSize: fontSize.xxs, marginTop: spacing[0.5] },
   profileStatDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.2)' },
   // Section
-  section:          { gap: 4 },
-  sectionTitle:     { fontSize: 16, fontWeight: '700', marginBottom: 6 },
+  section:          { gap: spacing[1] },
+  sectionTitle:     { fontSize: fontSize.xl, fontWeight: '700', marginBottom: spacing[2] },
   // Handicap trend
-  trendRow:         { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1 },
-  trendDate:        { fontSize: 13 },
-  trendRight:       { alignItems: 'flex-end', gap: 2 },
-  trendChange:      { fontSize: 14, fontWeight: '600' },
-  trendDiff:        { fontSize: 12 },
+  trendRow:         { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], borderBottomWidth: 1 },
+  trendDate:        { fontSize: fontSize.sm },
+  trendRight:       { alignItems: 'flex-end', gap: spacing[0.5] },
+  trendChange:      { fontSize: fontSize.md, fontWeight: '600' },
+  trendDiff:        { fontSize: fontSize.xs },
   // Table
-  tableHeader:      { flexDirection: 'row', paddingVertical: 8, borderRadius: 6 },
-  tableRow:         { flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1 },
-  tableCell:        { flex: 1, textAlign: 'center', fontSize: 13 },
+  tableHeader:      { flexDirection: 'row', paddingVertical: spacing[2], borderRadius: radius.sm },
+  tableRow:         { flexDirection: 'row', paddingVertical: spacing[2], borderBottomWidth: 1 },
+  tableCell:        { flex: 1, textAlign: 'center', fontSize: fontSize.sm },
 });

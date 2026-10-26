@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { confirmLeaveEvent, unsyncedHoleCount } from '@/lib/confirmLeave';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 /**
  * "Leave Event" for the in-event tabs, so a golfer (or a device left on a
@@ -30,6 +31,6 @@ export function LeaveEventButton() {
 }
 
 const styles = StyleSheet.create({
-  btn:  { marginTop: 24, paddingVertical: 12, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
-  text: { fontSize: 14, fontWeight: '600' },
+  btn:  { marginTop: spacing[6], paddingVertical: spacing[3], borderRadius: radius.lg, borderWidth: 1, alignItems: 'center' },
+  text: { fontSize: fontSize.md, fontWeight: '600' },
 });
