@@ -8,6 +8,7 @@ import {
 } from '@gfp/shared-types';
 import { teamsApi, type Team, type RegisterTeamPayload } from '@/lib/api';
 import { formStyles } from './formStyles';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // ── Register Team Modal ───────────────────────────────────────────────────────
 
@@ -113,7 +114,7 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
                   </Text>
                   {players.length > 1 && (
                     <Pressable onPress={() => removePlayer(idx)}>
-                      <Text style={{ color: '#e74c3c', fontSize: 13 }}>Remove</Text>
+                      <Text style={{ color: '#e74c3c', fontSize: fontSize.sm }}>Remove</Text>
                     </Pressable>
                   )}
                 </View>
@@ -130,12 +131,12 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
                   />
                 </View>
                 <TextInput
-                  style={[formStyles.input, { borderColor: theme.colors.accent, marginTop: 6 }]}
+                  style={[formStyles.input, { borderColor: theme.colors.accent, marginTop: spacing[2] }]}
                   value={p.email} onChangeText={v => updatePlayer(idx, 'email', v)}
                   placeholder="Email *" placeholderTextColor="#999"
                   keyboardType="email-address" autoCapitalize="none" editable={!loading}
                 />
-                <View style={[formStyles.nameRow, { marginTop: 6 }]}>
+                <View style={[formStyles.nameRow, { marginTop: spacing[2] }]}>
                   <TextInput
                     style={[formStyles.input, formStyles.halfInput, { borderColor: theme.colors.accent }]}
                     value={p.phone ?? ''} onChangeText={v => updatePlayer(idx, 'phone', fmtPhoneInput(digitsOnly(v)))}
@@ -178,9 +179,9 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
 }
 
 const styles = StyleSheet.create({
-  playerForm: { borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 12, marginBottom: 10, gap: 6 },
-  playerFormHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  playerFormTitle: { fontSize: 13, fontWeight: '700' },
-  addPlayerFormBtn: { borderWidth: 1, borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginTop: 4 },
-  addPlayerFormText: { fontSize: 14, fontWeight: '600' },
+  playerForm: { borderWidth: 1, borderColor: '#eee', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], gap: spacing[2] },
+  playerFormHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[1] },
+  playerFormTitle: { fontSize: fontSize.sm, fontWeight: '700' },
+  addPlayerFormBtn: { borderWidth: 1, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center', marginTop: spacing[1] },
+  addPlayerFormText: { fontSize: fontSize.md, fontWeight: '600' },
 });

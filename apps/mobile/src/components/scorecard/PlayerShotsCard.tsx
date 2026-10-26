@@ -4,6 +4,7 @@ import { useTheme } from '@gfp/ui';
 import type { PlayerCacheDto, PlayerShotBreakdown } from '@/lib/api';
 import type { ScorecardLayout } from '@/lib/scorecardLayout';
 import { ShotColumn, type ShotColumnSize } from '@/components/scorecardComponents';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export type ShotType = 'drive' | 'approach' | 'putt';
 
@@ -184,45 +185,45 @@ const styles = StyleSheet.create({
   // Collapsed golfer on short screens: name + shot total, tap to expand.
   collapsedRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 9, paddingHorizontal: 2,
+    paddingVertical: spacing[2], paddingHorizontal: spacing[0.5],
   },
-  collapsedName:  { flex: 1, fontSize: 14, fontWeight: '600' },
-  collapsedTotal: { fontSize: 15, fontWeight: '800', minWidth: 28, textAlign: 'right' },
+  collapsedName:  { flex: 1, fontSize: fontSize.md, fontWeight: '600' },
+  collapsedTotal: { fontSize: fontSize.lg, fontWeight: '800', minWidth: 28, textAlign: 'right' },
   playerCard: {
-    borderRadius: 14,
-    paddingTop: 16,
-    paddingHorizontal: 12,
-    paddingBottom: 8,
-    marginBottom: 8,
+    borderRadius: radius.xl,
+    paddingTop: spacing[4],
+    paddingHorizontal: spacing[3],
+    paddingBottom: spacing[2],
+    marginBottom: spacing[2],
     boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.06)', elevation: 2,
   },
-  playerCardTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
-  noPlayersText:   { fontSize: 13, paddingBottom: 8 },
+  playerCardTitle: { fontSize: fontSize.sm, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing[3] },
+  noPlayersText:   { fontSize: fontSize.sm, paddingBottom: spacing[2] },
   playerSection: {
     flexDirection: 'row', alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingTop: spacing[3],
+    paddingBottom: spacing[4],
   },
   playerNameBlock: {
-    width: 92, flexDirection: 'row', alignItems: 'center', gap: 6,
+    width: 92, flexDirection: 'row', alignItems: 'center', gap: spacing[2],
   },
   colHeaderRow: {
-    flexDirection: 'row', alignItems: 'center', paddingBottom: 4,
+    flexDirection: 'row', alignItems: 'center', paddingBottom: spacing[1],
   },
   colHeaderText: {
     flex: 1, textAlign: 'center',
     fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5,
   },
-  colHeaderSpacer: { width: 1, marginHorizontal: 4 },
+  colHeaderSpacer: { width: 1, marginHorizontal: spacing[1] },
   playerAvatar:   { alignItems: 'center', justifyContent: 'center' },
-  playerInitials: { fontSize: 12, fontWeight: '800' },
-  playerName:     { flex: 1, fontSize: 14, fontWeight: '600' },
+  playerInitials: { fontSize: fontSize.xs, fontWeight: '800' },
+  playerName:     { flex: 1, fontSize: fontSize.md, fontWeight: '600' },
   // (playerTotal now shows just the number — the name block is narrow)
-  playerTotal:    { fontSize: 13, fontWeight: '700' },
+  playerTotal:    { fontSize: fontSize.sm, fontWeight: '700' },
   playerCols: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  colDivider: { width: 1, height: 80, marginHorizontal: 4 },
+  colDivider: { width: 1, height: 80, marginHorizontal: spacing[1] },
 });

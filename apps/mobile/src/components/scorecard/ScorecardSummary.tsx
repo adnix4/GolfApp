@@ -9,6 +9,7 @@ import type {
 import { strokesByPlayer } from '@/lib/holeUtils';
 import { ChallengeDetailModal, SponsorModal } from '@/components/scorecardComponents';
 import { screenStyles } from './scorecardStyles';
+import { fontSize, spacing } from '@gfp/theme';
 
 /**
  * Pre-scoring summary: the whole course as one table, shown in place of the
@@ -58,7 +59,7 @@ export function ScorecardSummary({
         ) : null}
       </View>
 
-      <ScrollView contentContainerStyle={[screenStyles.scroll, { paddingBottom: 40 }]}>
+      <ScrollView contentContainerStyle={[screenStyles.scroll, { paddingBottom: spacing[10] }]}>
 
         {/* [Team]'s Scorecard */}
         <Text style={[styles.summaryTitle, { color: theme.colors.primary }]}>
@@ -177,7 +178,7 @@ export function ScorecardSummary({
 }
 
 const summaryCol = StyleSheet.create({
-  row:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, paddingHorizontal: 8 },
+  row:  { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[2], paddingHorizontal: spacing[2] },
   hole: { flex: 1,   textAlign: 'center' },   // "#"   — up to "18"
   yds:  { flex: 1.5, textAlign: 'center' },   // "Yds" — 3-digit yardage
   par:  { flex: 1,   textAlign: 'center' },   // "Par" — single digit
@@ -188,24 +189,24 @@ const summaryCol = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  headerEventName: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
-  headerHostedBy:  { fontSize: 13, fontWeight: '500', marginTop: 3, textAlign: 'center', opacity: 0.8 },
+  headerEventName: { fontSize: fontSize.xxl, fontWeight: '800', textAlign: 'center' },
+  headerHostedBy:  { fontSize: fontSize.sm, fontWeight: '500', marginTop: spacing[1], textAlign: 'center', opacity: 0.8 },
   summaryTitle: {
-    fontSize: 18, fontWeight: '800',
-    marginTop: 16, marginBottom: 8, paddingHorizontal: 12,
+    fontSize: fontSize.xl, fontWeight: '800',
+    marginTop: spacing[4], marginBottom: spacing[2], paddingHorizontal: spacing[3],
   },
   summaryTableHeader: {
     flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 8, paddingHorizontal: 12,
+    paddingVertical: spacing[2], paddingHorizontal: spacing[3],
   },
-  summaryTh:            { fontSize: 11, fontWeight: '700', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center' },
+  summaryTh:            { fontSize: fontSize.xxs, fontWeight: '700', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center' },
   summaryHoleBlock:     {},
-  summaryCell:          { fontSize: 14 },
-  summaryCellDash:      { textAlign: 'center', fontSize: 14 },
-  summaryChallengeIcon: { fontSize: 16 },
-  summarySubRow:        { paddingHorizontal: 12, paddingBottom: 6 },
-  summarySubText:       { fontSize: 11, fontWeight: '500' },
+  summaryCell:          { fontSize: fontSize.md },
+  summaryCellDash:      { textAlign: 'center', fontSize: fontSize.md },
+  summaryChallengeIcon: { fontSize: fontSize.xl },
+  summarySubRow:        { paddingHorizontal: spacing[3], paddingBottom: spacing[2] },
+  summarySubText:       { fontSize: fontSize.xxs, fontWeight: '500' },
   // Column-label tooltip (tap a header abbreviation to reveal full name)
-  headerTip:     { alignItems: 'center', paddingVertical: 5, marginBottom: 2 },
-  headerTipText: { color: '#fff', fontSize: 12, fontWeight: '600', letterSpacing: 0.3 },
+  headerTip:     { alignItems: 'center', paddingVertical: spacing[1], marginBottom: spacing[0.5] },
+  headerTipText: { color: '#fff', fontSize: fontSize.xs, fontWeight: '600', letterSpacing: 0.3 },
 });

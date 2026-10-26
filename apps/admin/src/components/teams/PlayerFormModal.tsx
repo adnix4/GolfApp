@@ -6,6 +6,7 @@ import { useTheme } from '@gfp/ui';
 import { digitsOnly, fmtPhoneInput } from '@gfp/shared-types';
 import { playersApi, type Team, type Player, type AddPlayerPayload } from '@/lib/api';
 import { formStyles } from './formStyles';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 // ── Player Form Modal (add or edit) ──────────────────────────────────────────
 
@@ -185,7 +186,7 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
                   <Text style={[styles.pickerBtnText, { color: selectedTeamId ? theme.colors.primary : '#999' }]} numberOfLines={1}>
                     {teamLabel(selectedTeamId)}
                   </Text>
-                  <Text style={{ color: theme.mutedText, fontSize: 12, marginLeft: 6 }}>{pickerOpen ? '▲' : '▼'}</Text>
+                  <Text style={{ color: theme.mutedText, fontSize: fontSize.xs, marginLeft: spacing[2] }}>{pickerOpen ? '▲' : '▼'}</Text>
                 </Pressable>
 
                 {/* Options list */}
@@ -237,7 +238,7 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
 
                     {availableTeams.length === 0 && (
                       <View style={styles.pickerOption}>
-                        <Text style={{ color: '#888', fontSize: 13, fontStyle: 'italic' }}>No teams with open slots</Text>
+                        <Text style={{ color: '#888', fontSize: fontSize.sm, fontStyle: 'italic' }}>No teams with open slots</Text>
                       </View>
                     )}
                   </ScrollView>
@@ -269,24 +270,24 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
 const styles = StyleSheet.create({
   pickerBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
+    borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[3],
     backgroundColor: '#fafafa',
   },
-  pickerBtnText: { flex: 1, fontSize: 14 },
+  pickerBtnText: { flex: 1, fontSize: fontSize.md },
   pickerList: {
-    borderWidth: 1, borderRadius: 8, marginTop: 4,
+    borderWidth: 1, borderRadius: radius.md, marginTop: spacing[1],
     maxHeight: 260,
   },
   pickerOption: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 12, paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    paddingHorizontal: spacing[3], paddingVertical: spacing[3],
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#eee',
   },
   pickerRadio: {
-    width: 18, height: 18, borderRadius: 9, borderWidth: 2,
+    width: 18, height: 18, borderRadius: radius.lg, borderWidth: 2,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  pickerRadioDot: { width: 9, height: 9, borderRadius: 5 },
-  pickerOptionLabel: { fontSize: 14, fontWeight: '600' },
-  pickerOptionDesc:  { fontSize: 12, marginTop: 1 },
+  pickerRadioDot: { width: 9, height: 9, borderRadius: radius.sm },
+  pickerOptionLabel: { fontSize: fontSize.md, fontWeight: '600' },
+  pickerOptionDesc:  { fontSize: fontSize.xs, marginTop: 1 },
 });

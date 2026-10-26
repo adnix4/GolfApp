@@ -3,6 +3,7 @@ import { View, Text, Pressable, Modal, TextInput, ActivityIndicator } from 'reac
 import { useTheme } from '@gfp/ui';
 import { teamsApi, type Team } from '@/lib/api';
 import { formStyles } from './formStyles';
+import { fontSize, spacing } from '@gfp/theme';
 
 // ── Edit Team Modal ───────────────────────────────────────────────────────────
 
@@ -81,7 +82,7 @@ export function EditTeamModal({ visible, eventId, team, onClose, onSaved }: Edit
             editable={!loading}
           />
           {team && (
-            <Text style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            <Text style={{ color: '#888', fontSize: fontSize.xs, marginTop: spacing[1] }}>
               Currently {team.players.length} player{team.players.length !== 1 ? 's' : ''} on this team.
             </Text>
           )}

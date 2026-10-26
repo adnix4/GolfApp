@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Text, StyleSheet } from 'react-native';
 import { useTheme, FormModal } from '@gfp/ui';
 import type { Team } from '@/lib/api';
+import { fontSize, spacing } from '@gfp/theme';
 
 // ── Confirm Remove Team Modal ─────────────────────────────────────────────────
 
@@ -45,5 +46,5 @@ export function ConfirmRemoveTeamModal({ visible, eventName, team, onClose, onCo
 }
 
 const styles = StyleSheet.create({
-  confirmModalMessage: { fontSize: 16, fontWeight: '600', lineHeight: 24, marginBottom: 4 },
+  confirmModalMessage: { fontSize: fontSize.xl, fontWeight: '600', lineHeight: 24, marginBottom: spacing[1] },
 });

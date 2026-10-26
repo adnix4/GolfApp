@@ -14,6 +14,7 @@ import { PlayerFormModal } from '@/components/teams/PlayerFormModal';
 import { RegisterTeamModal } from '@/components/teams/RegisterTeamModal';
 import { EditTeamModal } from '@/components/teams/EditTeamModal';
 import { formStyles } from '@/components/teams/formStyles';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function TeamsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
@@ -162,8 +163,8 @@ export default function TeamsScreen() {
       {error && (
         <View style={formStyles.errorBox}>
           <Text style={formStyles.errorText}>{error}</Text>
-          <Pressable onPress={() => setError(null)} style={{ marginTop: 6 }}>
-            <Text style={{ color: '#c0392b', fontSize: 12 }}>Dismiss</Text>
+          <Pressable onPress={() => setError(null)} style={{ marginTop: spacing[2] }}>
+            <Text style={{ color: '#c0392b', fontSize: fontSize.xs }}>Dismiss</Text>
           </Pressable>
         </View>
       )}
@@ -234,12 +235,12 @@ export default function TeamsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page:   { flex: 1, padding: 28 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  title:  { fontSize: 22, fontWeight: '800' },
-  addBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 8 },
-  addBtnText: { fontSize: 14, fontWeight: '700' },
+  page:   { flex: 1, padding: spacing[8] },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[4] },
+  title:  { fontSize: fontSize.title, fontWeight: '800' },
+  addBtn: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
+  addBtnText: { fontSize: fontSize.md, fontWeight: '700' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 15 },
-  list: { gap: 12 },
+  emptyText: { fontSize: fontSize.lg },
+  list: { gap: spacing[3] },
 });

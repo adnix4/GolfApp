@@ -3,6 +3,7 @@ import { useTheme } from '@gfp/ui';
 import type { HoleCacheDto } from '@/lib/api';
 import type { ChipSpec, ChipsRowLayout } from '@/lib/chipsFit';
 import { HoleInfoChip, ScoreChip } from '@/components/scorecardComponents';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export function HoleChipsRow({
   hole, chipsRow, displayScore, par, roundChips, roundToPar, currentHoleNumber,
@@ -68,18 +69,18 @@ export function HoleChipsRow({
 const styles = StyleSheet.create({
   // Stand-in for Par/HCP/yardages when they won't fit on one line.
   holeInfoBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    borderWidth: 1.5, borderRadius: 12,
-    paddingHorizontal: 10, paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', gap: spacing[1],
+    borderWidth: 1.5, borderRadius: radius.lg,
+    paddingHorizontal: spacing[3], paddingVertical: spacing[3],
   },
   // Sizes are mirrored by the BUTTON_* constants in lib/chipsFit — "Yardages"
   // is far wider than the old "Hole 13", and the collapsed row has no further
   // fallback if it overflows.
-  holeInfoBtnText:    { fontSize: 13, fontWeight: '800' },
-  holeInfoBtnChevron: { fontSize: 18, fontWeight: '400', lineHeight: 20 },
+  holeInfoBtnText:    { fontSize: fontSize.sm, fontWeight: '800' },
+  holeInfoBtnChevron: { fontSize: fontSize.xl, fontWeight: '400', lineHeight: 20 },
   infoRow: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
-    justifyContent: 'center', marginBottom: 12,
+    flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2],
+    justifyContent: 'center', marginBottom: spacing[3],
     alignItems: 'flex-start',
   },
 });

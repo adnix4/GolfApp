@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '@gfp/ui';
 import type { ChallengeCacheDto } from '@/lib/api';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 /** Challenge badge plus the conflict / organizer-edit / read-only notices. */
 export function HoleNotices({
@@ -74,20 +75,20 @@ export function HoleNotices({
 
 const styles = StyleSheet.create({
   readOnlyNotice: {
-    borderWidth: 1, borderRadius: 10,
-    padding: 12, marginBottom: 12, alignItems: 'center',
+    borderWidth: 1, borderRadius: radius.lg,
+    padding: spacing[3], marginBottom: spacing[3], alignItems: 'center',
   },
-  readOnlyText: { fontSize: 13, textAlign: 'center', lineHeight: 18 },
+  readOnlyText: { fontSize: fontSize.sm, textAlign: 'center', lineHeight: 18 },
   conflictNotice: {
-    borderWidth: 1, borderRadius: 10,
-    padding: 12, marginBottom: 12,
+    borderWidth: 1, borderRadius: radius.lg,
+    padding: spacing[3], marginBottom: spacing[3],
   },
-  conflictNoticeText: { fontSize: 13, lineHeight: 18, color: '#a67100', fontWeight: '600' },
+  conflictNoticeText: { fontSize: fontSize.sm, lineHeight: 18, color: '#a67100', fontWeight: '600' },
   challengeBadge: {
-    borderWidth: 1, borderRadius: 10,
-    padding: 10, marginBottom: 12, gap: 3,
+    borderWidth: 1, borderRadius: radius.lg,
+    padding: spacing[3], marginBottom: spacing[3], gap: spacing[1],
   },
-  challengeSponsor: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  challengeDesc:    { fontSize: 13, fontWeight: '600', lineHeight: 18 },
-  challengePrize:   { fontSize: 12, fontWeight: '600' },
+  challengeSponsor: { fontSize: fontSize.xxs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  challengeDesc:    { fontSize: fontSize.sm, fontWeight: '600', lineHeight: 18 },
+  challengePrize:   { fontSize: fontSize.xs, fontWeight: '600' },
 });

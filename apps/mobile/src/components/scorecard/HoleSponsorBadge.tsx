@@ -1,6 +1,7 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTheme, AdaptiveLogoFrame } from '@gfp/ui';
 import type { SponsorCacheDto } from '@/lib/api';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export function HoleSponsorBadge({ sponsor, logoUrl, onPress }: {
   sponsor:  SponsorCacheDto;
@@ -56,15 +57,15 @@ export function HoleSponsorBadge({ sponsor, logoUrl, onPress }: {
 
 const styles = StyleSheet.create({
   sponsorBadge: {
-    borderWidth: 2, borderRadius: 12,
+    borderWidth: 2, borderRadius: radius.lg,
     flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 10, paddingHorizontal: 12, marginBottom: 12,
-    gap: 8,
+    paddingVertical: spacing[3], paddingHorizontal: spacing[3], marginBottom: spacing[3],
+    gap: spacing[2],
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
-  sponsorContent: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  sponsorName:    { fontSize: 13, fontWeight: '700' },
-  sponsorTagline: { fontSize: 11, fontWeight: '600', fontStyle: 'italic', textAlign: 'center' },
-  sponsorChevron: { fontSize: 26, fontWeight: '400', lineHeight: 28, marginTop: -2 },
+  sponsorContent: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing[1] },
+  sponsorName:    { fontSize: fontSize.sm, fontWeight: '700' },
+  sponsorTagline: { fontSize: fontSize.xxs, fontWeight: '600', fontStyle: 'italic', textAlign: 'center' },
+  sponsorChevron: { fontSize: fontSize.display, fontWeight: '400', lineHeight: 28, marginTop: -2 },
 });

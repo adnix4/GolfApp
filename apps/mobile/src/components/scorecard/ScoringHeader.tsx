@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '@gfp/ui';
 import { screenStyles } from './scorecardStyles';
+import { fontSize, radius, spacing } from '@gfp/theme';
 
 export function ScoringHeader({
   teamName, eventName, currentHoleNumber, par, isCurrentHoleDone, roundFullySynced,
@@ -46,22 +47,22 @@ export function ScoringHeader({
 }
 
 const styles = StyleSheet.create({
-  headerTeam:  { fontSize: 18, fontWeight: '800' },
-  headerEvent: { fontSize: 13, fontWeight: '500', opacity: 0.85, flexShrink: 1 },
+  headerTeam:  { fontSize: fontSize.xl, fontWeight: '800' },
+  headerEvent: { fontSize: fontSize.sm, fontWeight: '500', opacity: 0.85, flexShrink: 1 },
   headerMetaRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, marginTop: 2,
+    gap: spacing[2], marginTop: spacing[0.5],
   },
-  headerHole: { fontSize: 13, fontWeight: '700' },
-  headerPar:  { fontSize: 13, fontWeight: '500', opacity: 0.85 },
+  headerHole: { fontSize: fontSize.sm, fontWeight: '700' },
+  headerPar:  { fontSize: fontSize.sm, fontWeight: '500', opacity: 0.85 },
   completedBadge: {
-    borderRadius: 10,
-    paddingHorizontal: 8, paddingVertical: 2,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing[2], paddingVertical: spacing[0.5],
   },
   badgeSynced:  { backgroundColor: '#27ae60' },
   // Amber reads as "in flight", not "broken" — an unsynced hole is normal on a
   // course with patchy signal and resolves itself.
   badgePending: { backgroundColor: '#f0a500' },
-  completedBadgeText:  { color: '#fff', fontSize: 11, fontWeight: '700' },
+  completedBadgeText:  { color: '#fff', fontSize: fontSize.xxs, fontWeight: '700' },
   badgePendingText:    { color: '#4a3300' },
 });
