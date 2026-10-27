@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, spacing, fontSize, radius } from '@gfp/theme';
 import {
   eventsApi, teamsApi, sponsorsApi,
@@ -18,6 +18,7 @@ export default function PrintKitScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const { event } = useEventDetail();
   const theme    = useTheme();
+  const c        = useClasses();
 
   const [loading,  setLoading]  = useState<PrintMode | null>(null);
   const [error,    setError]    = useState<string | null>(null);
@@ -75,15 +76,15 @@ export default function PrintKitScreen() {
 
   return (
     <View style={styles.page}>
-      <Text style={[styles.title, { color: theme.colors.primary }]}>Print Kit</Text>
+      <Text style={[c.title, styles.title]}>Print Kit</Text>
       <Text style={[styles.subtitle, { color: theme.mutedText }]}>
         Opens a print-ready page in a new tab.
         {!isWeb && ' (Only available on the web version of the admin.)'}
       </Text>
 
       {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={[c.errorBox, styles.errorBox]}>
+          <Text style={c.errorText}>{error}</Text>
         </View>
       )}
 
@@ -427,10 +428,9 @@ function buildTeeTimeHtml(event: EventDetail, teams: Team[]): string {
 
 const styles = StyleSheet.create({
   page:     { flex: 1, padding: spacing[8], backgroundColor: '#f7f8fa' },
-  title:    { fontSize: fontSize.title, fontWeight: '800', marginBottom: spacing[2] },
+  title:    { marginBottom: spacing[2] },        // over c.title
   subtitle: { fontSize: fontSize.md, lineHeight: 20, marginBottom: spacing[5] },
-  errorBox: { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c', marginBottom: spacing[4] },
-  errorText:{ color: '#c0392b', fontSize: fontSize.md },
+  errorBox: { marginBottom: spacing[4] },        // over c.errorBox
 
   cards: { gap: spacing[4] },
   card: {

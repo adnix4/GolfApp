@@ -4,17 +4,18 @@ import {
   ScrollView, ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme, MoneyInput } from '@gfp/ui';
+import { useTheme, MoneyInput, useClasses } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { auctionApi, type AuctionItem, type AuctionSession } from '@/lib/api';
 import { eventKeys, useAuctionItemList, useAuctionSession } from '@/lib/queries';
 import { confirmAction } from '@/lib/confirmAction';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 export default function LiveAuctionScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
+  const c = useClasses();
 
   // Lots come from the same cache as the Auction Items tab, so switching
   // between the two is one request, not two.
@@ -134,7 +135,7 @@ export default function LiveAuctionScreen() {
   const fmt = formatCentsShort;
 
   if (loading) return (
-    <View style={styles.center}>
+    <View style={c.center}>
       <ActivityIndicator size="large" color={theme.colors.primary} />
     </View>
   );
@@ -145,10 +146,10 @@ export default function LiveAuctionScreen() {
 
       {/* Feedback banners */}
       {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={[c.errorBox, styles.errorBox]}>
+          <Text style={[c.errorText, styles.errorText]}>{error}</Text>
           <Pressable onPress={() => setError(null)} style={{ marginTop: spacing[2] }}>
-            <Text style={{ color: '#c0392b', fontSize: fontSize.xs }}>Dismiss</Text>
+            <Text style={{ color: status.dangerText, fontSize: fontSize.xs }}>Dismiss</Text>
           </Pressable>
         </View>
       )}
@@ -189,7 +190,7 @@ export default function LiveAuctionScreen() {
       ) : (
         <>
           {/* Session active banner */}
-          <View style={[styles.banner, { backgroundColor: '#e74c3c' }]}>
+          <View style={[styles.banner, { backgroundColor: status.danger }]}>
             <Text style={styles.bannerText}>🔴  LIVE SESSION IN PROGRESS</Text>
           </View>
 
@@ -352,14 +353,14 @@ function AwardWinnerInput({
           autoCorrect={false}
         />
         <Pressable
-          style={[styles.btn, { backgroundColor: '#27ae60' }, (disabled || !winnerId.trim()) && { opacity: 0.5 }]}
+          style={[styles.btn, { backgroundColor: status.success }, (disabled || !winnerId.trim()) && { opacity: 0.5 }]}
           disabled={disabled || !winnerId.trim()}
           onPress={handleAward}
         >
           <Text style={styles.btnText}>Award</Text>
         </Pressable>
       </View>
-      {idError && <Text style={{ color: '#e74c3c', fontSize: fontSize.xs, marginTop: spacing[1] }}>{idError}</Text>}
+      {idError && <Text style={{ color: status.danger, fontSize: fontSize.xs, marginTop: spacing[1] }}>{idError}</Text>}
     </View>
   );
 }
@@ -367,7 +368,6 @@ function AwardWinnerInput({
 const styles = StyleSheet.create({
   page:        { flex: 1, backgroundColor: '#f5f5f5' },
   content:     { padding: spacing[5], paddingBottom: 60, gap: spacing[3] },
-  center:      { flex: 1, justifyContent: 'center', alignItems: 'center' },
   heading:     { fontSize: fontSize.title, fontWeight: '800' },
   card:        { backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing[4], boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.06)', elevation: 1 },
   banner:      { borderRadius: radius.lg, padding: spacing[4], alignItems: 'center' },
@@ -378,7 +378,6 @@ const styles = StyleSheet.create({
   itemMeta:    { color: '#777', fontSize: fontSize.sm },
   label:       { fontSize: fontSize.sm, fontWeight: '600', marginBottom: spacing[2], color: '#333' },
   amountRow:   { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  dollarSign:  { fontSize: fontSize.xxl, fontWeight: '800', color: '#27ae60' },
   amtInput:    { borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[3], fontSize: fontSize.xl, fontWeight: '700', minWidth: 100, backgroundColor: '#fafafa' },
   btn:         { paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   btnText:     { color: '#fff', fontWeight: '700', fontSize: fontSize.md },
@@ -386,10 +385,10 @@ const styles = StyleSheet.create({
   bigBtnText:  { color: '#fff', fontWeight: '800', fontSize: fontSize.xl },
   sectionTitle: { fontSize: fontSize.xl, fontWeight: '700' },
   miniCard:    { backgroundColor: '#fff', borderRadius: radius.md, padding: spacing[3] },
-  errorBox:    { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText:   { color: '#c0392b', fontSize: fontSize.md, fontWeight: '600' },
-  successBox:  { backgroundColor: '#f0faf4', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#27ae60' },
+  errorBox:    { marginBottom: 0 },        // over c.errorBox
+  errorText:   { fontWeight: '600' },      // over c.errorText
+  successBox:  { backgroundColor: '#f0faf4', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: status.success },
   successText: { color: '#1a6b3c', fontSize: fontSize.md, fontWeight: '600' },
-  warnBox:     { backgroundColor: '#fff8e1', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#f39c12' },
+  warnBox:     { backgroundColor: '#fff8e1', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: status.warning },
   warnText:    { color: '#7d5a00', fontSize: fontSize.sm },
 });

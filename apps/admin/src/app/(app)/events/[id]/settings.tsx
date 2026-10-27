@@ -6,8 +6,8 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { clearDismissedWarnings, notify } from '@/lib/dialog';
-import { useTheme } from '@gfp/ui';
-import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme, spacing, radius, fontSize } from '@gfp/theme';
+import { useTheme, useClasses } from '@gfp/ui';
+import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme, spacing, radius, fontSize, status } from '@gfp/theme';
 import { useResponsive } from '@/lib/responsive';
 import { eventsApi, eventBrandingApi } from '@/lib/api';
 import { UPLOAD_ABORTED } from '@/lib/upload';
@@ -91,12 +91,13 @@ const cr = StyleSheet.create({
   tokenLabel:    { fontSize: fontSize.md, fontWeight: '700', color: '#333' },
   tokenDesc:     { fontSize: fontSize.xs, color: '#888', marginTop: 1 },
   hexInput:      { borderWidth: 1, borderColor: '#ccc', borderRadius: radius.sm, paddingHorizontal: spacing[3], paddingVertical: spacing[2], fontSize: fontSize.md, width: 90, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
-  hexInputError: { borderColor: '#e74c3c' },
+  hexInputError: { borderColor: status.danger },
 });
 
 export default function EventSettingsScreen() {
   const { id }  = useLocalSearchParams<{ id: string }>();
   const theme   = useTheme();
+  const c       = useClasses();
   const { pagePadding } = useResponsive();
   const { event, setEvent, refresh } = useEventDetail();
 
@@ -245,7 +246,7 @@ export default function EventSettingsScreen() {
 
   return (
     <ScrollView
-      style={[styles.page, { backgroundColor: theme.pageBackground }]}
+      style={c.screen}
       contentContainerStyle={{ padding: pagePadding, paddingBottom: 80 }}
       keyboardShouldPersistTaps="handled"
     >
@@ -254,7 +255,7 @@ export default function EventSettingsScreen() {
         Customize the look of this event. Leave fields blank to inherit your organization defaults.
       </Text>
 
-      {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
+      {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
       {saved  && <View style={styles.successBox}><Text style={styles.successText}>Branding saved.</Text></View>}
 
       {/* ── BRAND FROM WEBSITE ── */}
@@ -266,7 +267,7 @@ export default function EventSettingsScreen() {
         </Text>
         <View style={styles.extractRow}>
           <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent, flex: 1 }]}
+            style={[c.input, styles.input, { flex: 1 }]}
             value={websiteUrl}
             onChangeText={setWebsiteUrl}
             placeholder="yourcharity.org"
@@ -302,7 +303,7 @@ export default function EventSettingsScreen() {
 
         {/* Logo */}
         <View style={styles.fieldWrap}>
-          <Text style={[styles.label, { color: theme.colors.primary }]}>Logo</Text>
+          <Text style={[c.fieldLabel, styles.label]}>Logo</Text>
 
           {!!logoUrl && (
             <View style={styles.logoPreview}>
@@ -337,9 +338,9 @@ export default function EventSettingsScreen() {
           )}
           <Text style={[styles.hint, { color: theme.mutedText }]}>PNG recommended — transparent background, at least 512px wide. SVG and ICO are converted automatically. Max 2 MB.</Text>
 
-          <Text style={[styles.label, { color: theme.colors.primary, marginTop: spacing[3] }]}>Or paste a URL</Text>
+          <Text style={[c.fieldLabel, styles.label, { marginTop: spacing[3] }]}>Or paste a URL</Text>
           <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent }]}
+            style={[c.input, styles.input]}
             value={logoUrl}
             onChangeText={setLogoUrl}
             placeholder="https://cdn.example.com/logo.png  (blank = org default)"
@@ -353,7 +354,7 @@ export default function EventSettingsScreen() {
 
         {/* Mission */}
         <View style={styles.fieldWrap}>
-          <Text style={[styles.label, { color: theme.colors.primary }]}>Mission Statement</Text>
+          <Text style={[c.fieldLabel, styles.label]}>Mission Statement</Text>
           <TextInput
             style={[styles.textArea, { borderColor: theme.colors.accent }]}
             value={mission}
@@ -373,7 +374,7 @@ export default function EventSettingsScreen() {
         {/* 501(c)(3) */}
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: theme.colors.primary, marginTop: 0 }]}>
+            <Text style={[c.fieldLabel, styles.label, { marginTop: 0 }]}>
               501(c)(3) Non-Profit
             </Text>
             <Text style={[styles.hint, { color: theme.mutedText }]}>
@@ -397,9 +398,9 @@ export default function EventSettingsScreen() {
             {hasTheme && (
               <Pressable
                 onPress={() => { setHasTheme(false); setColors({ ...ECO_GREEN_DEFAULT }); }}
-                style={[styles.resetBtn, { borderColor: '#e74c3c' }]}
+                style={[styles.resetBtn, { borderColor: status.danger }]}
               >
-                <Text style={[styles.resetBtnText, { color: '#e74c3c' }]}>Clear (use org)</Text>
+                <Text style={[styles.resetBtnText, { color: status.danger }]}>Clear (use org)</Text>
               </Pressable>
             )}
             <Pressable
@@ -447,8 +448,8 @@ export default function EventSettingsScreen() {
             </View>
 
             {!surfaceIsLight && (
-              <View style={[styles.contrastBadge, { backgroundColor: '#fdf2f2', borderColor: '#e74c3c' }]}>
-                <Text style={[styles.contrastText, { color: '#c0392b' }]}>
+              <View style={[styles.contrastBadge, { backgroundColor: status.dangerBg, borderColor: status.danger }]}>
+                <Text style={[styles.contrastText, { color: status.dangerText }]}>
                   ✗ Surface is too dark — it sits behind white cards on every page. Pick a pale tint.
                 </Text>
               </View>
@@ -484,7 +485,7 @@ export default function EventSettingsScreen() {
 
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: theme.colors.primary, marginTop: 0 }]}>
+            <Text style={[c.fieldLabel, styles.label, { marginTop: 0 }]}>
               Offline Event Mode
             </Text>
             <Text style={[styles.hint, { color: theme.mutedText }]}>
@@ -502,7 +503,7 @@ export default function EventSettingsScreen() {
 
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: theme.colors.primary, marginTop: 0 }]}>
+            <Text style={[c.fieldLabel, styles.label, { marginTop: 0 }]}>
               Allow Free Agent Registration
             </Text>
             <Text style={[styles.hint, { color: theme.mutedText }]}>
@@ -520,7 +521,7 @@ export default function EventSettingsScreen() {
 
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: theme.colors.primary, marginTop: 0 }]}>
+            <Text style={[c.fieldLabel, styles.label, { marginTop: 0 }]}>
               Allow Walk-Up Registration
             </Text>
             <Text style={[styles.hint, { color: theme.mutedText }]}>
@@ -579,15 +580,11 @@ export default function EventSettingsScreen() {
 const styles = StyleSheet.create({
   resetWarnings:     { alignSelf: 'center', marginTop: spacing[4], padding: spacing[2] },
   resetWarningsText: { fontSize: fontSize.sm, fontWeight: '600', textDecorationLine: 'underline' },
-  page:   { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   title: { fontSize: fontSize.title, fontWeight: '900', marginBottom: spacing[1] },
   sub:   { fontSize: fontSize.md, marginBottom: spacing[5] },
 
-  errorBox:    { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText:   { color: '#c0392b', fontSize: fontSize.md },
-  successBox:  { backgroundColor: '#f0fdf4', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#27ae60' },
+  successBox:  { backgroundColor: '#f0fdf4', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: status.success },
   successText: { color: '#1e8449', fontSize: fontSize.md, fontWeight: '600' },
 
   card: {
@@ -597,8 +594,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: fontSize.xl, fontWeight: '800', marginBottom: spacing[1] },
 
   fieldWrap:    { marginBottom: spacing[1] },
-  label:        { fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing[4], marginBottom: spacing[2] },
-  input:        { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa' },
+  label:        { marginTop: spacing[4] },             // over c.fieldLabel
+  input:        { paddingHorizontal: spacing[4] },     // over c.input
   textArea:     { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa', minHeight: 100, textAlignVertical: 'top' },
   hint:         { fontSize: fontSize.xs, marginTop: spacing[1], color: '#888' },
 
@@ -608,7 +605,7 @@ const styles = StyleSheet.create({
 
   logoPreview:  { marginTop: spacing[2], marginBottom: spacing[2], height: 80, backgroundColor: '#f5f5f5', borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoImg:      { width: '100%', height: 80 },
-  uploadErr:    { color: '#c0392b', fontSize: fontSize.xs, marginBottom: spacing[1] },
+  uploadErr:    { color: status.dangerText, fontSize: fontSize.xs, marginBottom: spacing[1] },
   uploadBtn:    { marginTop: spacing[2], borderWidth: 1.5, borderRadius: radius.md, paddingVertical: spacing[3], paddingHorizontal: spacing[4], alignItems: 'center', alignSelf: 'flex-start' },
   uploadBtnText:{ fontSize: fontSize.md, fontWeight: '700' },
 

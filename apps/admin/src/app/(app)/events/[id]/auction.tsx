@@ -4,7 +4,7 @@ import {
   Modal, ScrollView, ActivityIndicator, Image,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme, MoneyInput } from '@gfp/ui';
+import { useTheme, MoneyInput, useClasses } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue, formatDateTime } from '@gfp/shared-types';
 import { auctionApi, resolveUrl, type AuctionItem, type CreateAuctionItemPayload } from '@/lib/api';
 import { bidIncrementWarning } from '@/lib/auctionSetup';
@@ -18,7 +18,7 @@ import {
 } from '@/lib/dateTime';
 import { DateTimePairField } from '@/components/DateTimePairField';
 import { confirmAction, alertAction } from '@/lib/confirmAction';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // An item's auction type is locked once it has bids or leaves the Open state
 // (the API enforces this too). Mirror that here so we can warn before saving.
@@ -76,6 +76,7 @@ function itemToForm(item: AuctionItem): AuctionForm {
 export default function AuctionScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
+  const c = useClasses();
 
   const itemList = useAuctionItemList(eventId);
   const { items, loading, refetch } = itemList;
@@ -324,8 +325,8 @@ export default function AuctionScreen() {
       )}
 
       {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={c.errorBox}>
+          <Text style={c.errorText}>{error}</Text>
           <Pressable onPress={load} style={{ marginTop: spacing[2] }}>
             <Text style={{ color: theme.colors.action, fontSize: fontSize.sm }}>Retry</Text>
           </Pressable>
@@ -376,8 +377,8 @@ export default function AuctionScreen() {
                 <Pressable onPress={() => openEdit(item)} style={[styles.smallBtn, { borderColor: theme.colors.primary }]}>
                   <Text style={{ color: theme.colors.primary, fontSize: fontSize.sm, fontWeight: '600' }}>Edit</Text>
                 </Pressable>
-                <Pressable onPress={() => handleDelete(item)} style={[styles.smallBtn, { borderColor: '#e74c3c', marginTop: spacing[2] }]}>
-                  <Text style={{ color: '#e74c3c', fontSize: fontSize.sm, fontWeight: '600' }}>Cancel</Text>
+                <Pressable onPress={() => handleDelete(item)} style={[styles.smallBtn, { borderColor: status.danger, marginTop: spacing[2] }]}>
+                  <Text style={{ color: status.danger, fontSize: fontSize.sm, fontWeight: '600' }}>Cancel</Text>
                 </Pressable>
               </View>
             </View>
@@ -393,20 +394,20 @@ export default function AuctionScreen() {
       {/* ── Create / Edit Modal ── */}
       <Modal visible={showModal} animationType="slide" onRequestClose={() => setShowModal(false)}>
         <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
-          <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
+          <Text style={c.modalTitle}>
             {editItem ? 'Edit Auction Item' : 'New Auction Item'}
           </Text>
 
           {modalError && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{modalError}</Text>
+            <View style={c.errorBox}>
+              <Text style={c.errorText}>{modalError}</Text>
             </View>
           )}
 
           {/* Title */}
           <Text style={styles.label}>Title *</Text>
           <TextInput
-            style={[styles.input, fieldErrors.title && styles.inputError]}
+            style={[c.input, styles.input, fieldErrors.title && styles.inputError]}
             value={form.title}
             onChangeText={v => field('title', v)}
             placeholder="Signed golf bag, spa package, etc."
@@ -417,7 +418,7 @@ export default function AuctionScreen() {
           {/* Description */}
           <Text style={styles.label}>Description</Text>
           <TextInput
-            style={[styles.input, { minHeight: 80 }]}
+            style={[c.input, styles.input, { minHeight: 80 }]}
             value={form.description}
             onChangeText={v => field('description', v)}
             placeholder="Describe the item, donor, or condition..."
@@ -445,7 +446,7 @@ export default function AuctionScreen() {
           <Text style={styles.label}>Starting Bid ($) *</Text>
           <View style={styles.dollarRow}>
             <MoneyInput
-              style={[styles.input, styles.dollarInput, fieldErrors.startingBid && styles.inputError]}
+              style={[c.input, styles.input, styles.dollarInput, fieldErrors.startingBid && styles.inputError]}
               value={form.startingBid}
               onChangeText={v => field('startingBid', v)}
               placeholder="$25.00"
@@ -460,7 +461,7 @@ export default function AuctionScreen() {
               <Text style={styles.label}>Bid Increment ($)</Text>
               <View style={styles.dollarRow}>
                 <MoneyInput
-                  style={[styles.input, styles.dollarInput]}
+                  style={[c.input, styles.input, styles.dollarInput]}
                   value={form.bidIncrement}
                   onChangeText={v => field('bidIncrement', v)}
                   placeholder="$5.00"
@@ -487,7 +488,7 @@ export default function AuctionScreen() {
           <Text style={styles.label}>Buy-Now Price ($) — optional</Text>
           <View style={styles.dollarRow}>
             <MoneyInput
-              style={[styles.input, styles.dollarInput]}
+              style={[c.input, styles.input, styles.dollarInput]}
               value={form.buyNowPrice}
               onChangeText={v => field('buyNowPrice', v)}
               placeholder="Leave blank for no buy-now option"
@@ -525,7 +526,7 @@ export default function AuctionScreen() {
               <Text style={styles.label}>Donation Goal ($) — optional</Text>
               <View style={styles.dollarRow}>
                 <MoneyInput
-                  style={[styles.input, styles.dollarInput]}
+                  style={[c.input, styles.input, styles.dollarInput]}
                   value={form.goal}
                   onChangeText={v => field('goal', v)}
                   placeholder="Leave blank if no target goal"
@@ -539,7 +540,7 @@ export default function AuctionScreen() {
           <Text style={styles.label}>Fair Market Value ($)</Text>
           <View style={styles.dollarRow}>
             <MoneyInput
-              style={[styles.input, styles.dollarInput]}
+              style={[c.input, styles.input, styles.dollarInput]}
               value={form.fairMarketValue}
               onChangeText={v => field('fairMarketValue', v)}
               placeholder="$0.00"
@@ -550,7 +551,7 @@ export default function AuctionScreen() {
           {/* Display Order */}
           <Text style={styles.label}>Display Order</Text>
           <TextInput
-            style={styles.input}
+            style={[c.input, styles.input]}
             value={form.displayOrder}
             onChangeText={v => field('displayOrder', v.replace(/[^0-9]/g, ''))}
             keyboardType="number-pad"
@@ -657,13 +658,9 @@ const styles = StyleSheet.create({
   noticeText: { color: '#065f46', fontSize: fontSize.md },
   smallBtn: { paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.sm, borderWidth: 1 },
   label:   { fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing[4], marginBottom: spacing[1], color: '#333' },
-  input: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: radius.md,
-    paddingHorizontal: spacing[3], paddingVertical: spacing[3], fontSize: fontSize.lg,
-    backgroundColor: '#fafafa',
-  },
-  inputError: { borderColor: '#e74c3c', backgroundColor: '#fdf2f2' },
-  fieldError: { color: '#e74c3c', fontSize: fontSize.xs, marginTop: spacing[1] },
+  input:   { borderColor: '#ddd' },   // over c.input: a neutral border, not the accent
+  inputError: { borderColor: status.danger, backgroundColor: status.dangerBg },
+  fieldError: { color: status.danger, fontSize: fontSize.xs, marginTop: spacing[1] },
   fieldHint:  { color: '#6b7280', fontSize: fontSize.xs, marginTop: spacing[1] },
   // Amber, not red: nothing here blocks the save.
   fieldWarning: {
@@ -672,18 +669,11 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs, lineHeight: 17, marginTop: spacing[2],
     paddingVertical: spacing[2], paddingHorizontal: spacing[2], borderRadius: radius.xs,
   },
-  errorBox: {
-    backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3],
-    borderLeftWidth: 3, borderLeftColor: '#e74c3c',
-  },
-  errorText: { color: '#c0392b', fontSize: fontSize.md },
   typeRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[1] },
   typeChip: { paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.xxl, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#fafafa' },
   dollarRow:    { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  dollarSign:   { fontSize: fontSize.xl, fontWeight: '700', color: '#555', paddingBottom: spacing[0.5] },
   dollarInput:  { flex: 1 },
   modalContent: { padding: spacing[6], paddingBottom: 60 },
-  modalTitle:   { fontSize: fontSize.xxl, fontWeight: '800', marginBottom: spacing[4] },
   modalBtnRow:  { flexDirection: 'row', marginTop: spacing[8] },
   photoGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[1] },
   formatHint: { color: '#777', fontSize: fontSize.xs, lineHeight: 16, marginBottom: spacing[2] },

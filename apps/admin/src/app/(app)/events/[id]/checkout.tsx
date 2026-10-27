@@ -15,7 +15,7 @@ import {
   View, Text, Pressable, StyleSheet, FlatList, TextInput, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import {
   checkoutApi,
   type CheckoutDeskRow, type CheckoutCart, type SettlementMethod,
@@ -44,6 +44,7 @@ function hasItemsToHandOver(cart: CheckoutCart): boolean {
 export default function AuctionCheckoutScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
+  const c = useClasses();
   const { isMobile, pagePadding } = useResponsive();
 
   const desk = useCheckoutDesk(eventId);
@@ -180,7 +181,7 @@ export default function AuctionCheckoutScreen() {
       return (
         <View style={[styles.cart, { borderColor: theme.colors.primary }]}>
           {cartError
-            ? <Text style={styles.errorText}>{cartError}</Text>
+            ? <Text style={c.errorText}>{cartError}</Text>
             : <ActivityIndicator color={theme.colors.primary} />}
         </View>
       );
@@ -234,8 +235,8 @@ export default function AuctionCheckoutScreen() {
         </View>
 
         {cartError && (
-          <View style={[styles.errorBox, styles.cartMsg]} accessibilityRole="alert">
-            <Text style={styles.errorText}>{cartError}</Text>
+          <View style={[c.errorBox, styles.cartMsg]} accessibilityRole="alert">
+            <Text style={c.errorText}>{cartError}</Text>
           </View>
         )}
         {notice && (
@@ -303,7 +304,7 @@ export default function AuctionCheckoutScreen() {
   }
 
   if (loading) return (
-    <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>
+    <View style={c.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>
   );
 
   return (
@@ -330,8 +331,8 @@ export default function AuctionCheckoutScreen() {
       </View>
 
       {error && (
-        <View style={styles.errorBox} accessibilityRole="alert">
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={c.errorBox} accessibilityRole="alert">
+          <Text style={c.errorText}>{error}</Text>
         </View>
       )}
       <TextInput
@@ -415,7 +416,6 @@ export default function AuctionCheckoutScreen() {
 
 const styles = StyleSheet.create({
   page:   { flex: 1, backgroundColor: '#f7f7f8' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   title:  { fontSize: fontSize.xxl, fontWeight: '800' },
   sub:    { fontSize: fontSize.sm, marginTop: spacing[1], marginBottom: spacing[4], lineHeight: 18 },
 
@@ -483,8 +483,6 @@ const styles = StyleSheet.create({
   addCardBtn:  { marginTop: spacing[3], paddingVertical: spacing[3], borderRadius: radius.md, borderWidth: 1, borderColor: '#6b7280', alignItems: 'center' },
   addCardText: { fontSize: fontSize.sm, fontWeight: '600', color: '#374151' },
 
-  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: fontSize.md },
   noticeBox: { backgroundColor: '#ecfdf5', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#10b981' },
   noticeText:{ color: '#065f46', fontSize: fontSize.md },
 });

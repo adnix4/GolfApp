@@ -4,14 +4,14 @@ import {
   StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme, AdaptiveLogoFrame, MoneyInput } from '@gfp/ui';
+import { useTheme, AdaptiveLogoFrame, MoneyInput, useClasses } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { sponsorsApi, type Sponsor, type CreateSponsorPayload, type SponsorPlacements } from '@/lib/api';
 import { useSponsorList } from '@/lib/queries';
 import { UPLOAD_ABORTED } from '@/lib/upload';
 import { UploadProgress } from '@/components/UploadProgress';
 import { confirmAction } from '@/lib/confirmAction';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 const TIER_OPTIONS = ['title', 'gold', 'hole', 'silver', 'bronze'] as const;
 const TIER_COLOR: Record<string, string> = {
@@ -85,6 +85,7 @@ const holePickerStyles = StyleSheet.create({
 export default function SponsorsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
+  const c        = useClasses();
 
   const sponsorList = useSponsorList(id);
   const { items: sponsors, setItems: setSponsors, loading } = sponsorList;
@@ -125,7 +126,7 @@ export default function SponsorsScreen() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.primary }]}>
+        <Text style={c.title}>
           Sponsors ({sponsors.length})
         </Text>
         <Pressable
@@ -137,14 +138,14 @@ export default function SponsorsScreen() {
       </View>
 
       {error && (
-        <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>
+        <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>
       )}
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>
+        <View style={c.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>
       ) : sponsors.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.mutedText }]}>No sponsors added yet.</Text>
+        <View style={c.center}>
+          <Text style={c.emptyText}>No sponsors added yet.</Text>
         </View>
       ) : (
         <FlatList
@@ -241,6 +242,7 @@ interface SponsorFormModalProps {
 
 function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: SponsorFormModalProps) {
   const theme  = useTheme();
+  const c      = useClasses();
   const isEdit = initialData != null;
 
   const [name,            setName]            = useState('');
@@ -351,25 +353,25 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <View style={c.overlay}>
         <View style={styles.modal}>
-          <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
+          <Text style={[c.modalTitle, styles.modalTitle]}>
             {isEdit ? 'Edit Sponsor' : 'Add Sponsor'}
           </Text>
-          {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
+          {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
 
           {/* Scrollable form body */}
           <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
 
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Sponsor Name</Text>
+            <Text style={c.fieldLabel}>Sponsor Name</Text>
             <TextInput
-              style={[styles.input, { borderColor: theme.colors.accent }]}
+              style={c.input}
               value={name} onChangeText={setName}
               placeholder="Acme Corp" placeholderTextColor="#999" editable={!loading}
             />
 
             {/* Logo section */}
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Logo</Text>
+            <Text style={c.fieldLabel}>Logo</Text>
             {previewUri ? (
               <View style={styles.logoPreviewWrap}>
                 <AdaptiveLogoFrame
@@ -415,7 +417,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
             <Text style={styles.formatHint}>PNG recommended — transparent background, at least 512px wide. SVG and ICO are converted automatically.</Text>
             <Text style={styles.orText}>— or paste a URL —</Text>
             <TextInput
-              style={[styles.input, { borderColor: theme.colors.accent }]}
+              style={c.input}
               value={logoUrl}
               onChangeText={v => { setLogoUrl(v); setPendingFile(null); setLocalPreview(null); }}
               placeholder="https://example.com/logo.png"
@@ -431,29 +433,29 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
               </Text>
             )}
 
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Website URL</Text>
+            <Text style={c.fieldLabel}>Website URL</Text>
             <TextInput
-              style={[styles.input, { borderColor: theme.colors.accent }]}
+              style={c.input}
               value={websiteUrl} onChangeText={setWebsiteUrl}
               placeholder="https://acme.com (optional)" placeholderTextColor="#999" editable={!loading}
             />
 
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Tagline</Text>
+            <Text style={c.fieldLabel}>Tagline</Text>
             <TextInput
-              style={[styles.input, { borderColor: theme.colors.accent }]}
+              style={c.input}
               value={tagline} onChangeText={setTagline}
               placeholder="Powering your round (optional)" placeholderTextColor="#999" editable={!loading}
             />
 
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Donation Amount</Text>
+            <Text style={c.fieldLabel}>Donation Amount</Text>
             <MoneyInput
-              style={[styles.input, { borderColor: theme.colors.accent }]}
+              style={c.input}
               value={donationAmt} onChangeText={setDonationAmt}
               placeholder="$0.00 (optional)" placeholderTextColor="#999"
               editable={!loading}
             />
 
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Tier</Text>
+            <Text style={c.fieldLabel}>Tier</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
               {TIER_OPTIONS.map(t => (
                 <Pressable
@@ -468,7 +470,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
 
             {/* ── HOLE SPONSORSHIP ── */}
             <View style={styles.holeSection}>
-              <Text style={[styles.fieldLabel, { color: theme.colors.primary, marginTop: 0 }]}>
+              <Text style={[c.fieldLabel, { marginTop: 0 }]}>
                 Hole Sponsorship
               </Text>
               <Text style={[styles.holeHint, { color: theme.mutedText }]}>
@@ -489,18 +491,18 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
           </ScrollView>
 
           {/* Action buttons — outside scroll so they stay visible */}
-          <View style={styles.modalActions}>
-            <Pressable style={[styles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
-              <Text style={[styles.cancelText, { color: theme.mutedText }]}>Cancel</Text>
+          <View style={[c.formActions, styles.modalActions]}>
+            <Pressable style={c.cancelBtn} onPress={onClose}>
+              <Text style={c.cancelText}>Cancel</Text>
             </Pressable>
             <Pressable
-              style={[styles.submitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
+              style={[c.submitBtn, loading && { opacity: 0.6 }]}
               onPress={handleSubmit}
               disabled={loading}
             >
               {loading
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.submitText}>{isEdit ? 'Save' : 'Add Sponsor'}</Text>}
+                : <Text style={c.submitText}>{isEdit ? 'Save' : 'Add Sponsor'}</Text>}
             </Pressable>
           </View>
         </View>
@@ -514,11 +516,8 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
 const styles = StyleSheet.create({
   page:   { flex: 1, padding: spacing[8] },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[5] },
-  title:  { fontSize: fontSize.title, fontWeight: '800' },
   addBtn: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
   addBtnText: { fontSize: fontSize.md, fontWeight: '700' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: fontSize.lg },
   list: { gap: spacing[3] },
   card: {
     borderWidth: 1,
@@ -530,7 +529,6 @@ const styles = StyleSheet.create({
     gap: spacing[4],
   },
   cardLeft: {},
-  logo: { width: 64, height: 40, resizeMode: 'contain' },
   logoPlaceholder: { width: 64, height: 40, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' },
   cardBody: { flex: 1 },
   sponsorName: { fontSize: fontSize.xl, fontWeight: '700' },
@@ -549,18 +547,10 @@ const styles = StyleSheet.create({
   editBtn: { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: spacing[3], paddingVertical: spacing[1] },
   editBtnText: { fontSize: fontSize.xs, fontWeight: '600' },
   deleteBtn: { paddingHorizontal: spacing[3], paddingVertical: spacing[1] },
-  deleteBtnText: { fontSize: fontSize.xs, fontWeight: '600', color: '#e74c3c' },
-  errorBox: {
-    backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3],
-    borderLeftWidth: 3, borderLeftColor: '#e74c3c',
-  },
-  errorText: { color: '#c0392b', fontSize: fontSize.md },
-  overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  deleteBtnText: { fontSize: fontSize.xs, fontWeight: '600', color: status.danger },
   modal:    { width: '100%', maxWidth: 480, backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[8], maxHeight: '90%' },
-  modalTitle: { fontSize: fontSize.xxl, fontWeight: '800', marginBottom: spacing[3] },
+  modalTitle: { marginBottom: spacing[3] },     // over c.modalTitle
   modalScroll: { maxHeight: 500 },
-  fieldLabel: { fontSize: fontSize.sm, fontWeight: '600', marginBottom: spacing[2], marginTop: spacing[3] },
-  input: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa' },
   pillRow: { marginBottom: spacing[1] },
   pill: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.xxl, borderWidth: 1, borderColor: '#ccc', marginRight: spacing[2], backgroundColor: '#fafafa' },
   pillText: { fontSize: fontSize.sm, fontWeight: '600', color: '#444', textTransform: 'capitalize' },
@@ -570,11 +560,7 @@ const styles = StyleSheet.create({
   },
   holeHint: { fontSize: fontSize.xs, marginBottom: spacing[1] },
   holeSelectionSummary: { fontSize: fontSize.xs, fontWeight: '600', marginTop: spacing[2] },
-  modalActions: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] },
-  cancelBtn: { flex: 1, borderWidth: 1, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center' },
-  cancelText: { fontSize: fontSize.lg, fontWeight: '600' },
-  submitBtn: { flex: 2, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center' },
-  submitText: { fontSize: fontSize.lg, fontWeight: '700', color: '#fff' },
+  modalActions: { marginTop: spacing[4] },      // over c.formActions
   logoPreviewWrap: { alignItems: 'center', marginBottom: spacing[2] },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginBottom: spacing[2] },
   uploadBtn: { borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
