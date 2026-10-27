@@ -20,7 +20,7 @@ import type {
   HandicapHistoryRow, LeagueMember, LeagueRound, PairingGroup, RoundAbsence,
 } from '@/lib/api';
 import { formatDateOnly, formatDate } from '@gfp/shared-types';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // ── PAIRINGS PREVIEW ──────────────────────────────────────────────────────────
 
@@ -467,7 +467,7 @@ const mStyles = StyleSheet.create({
   modal:         { width: '92%', maxWidth: 500, borderRadius: radius.xl, padding: spacing[6] },
   modalTitle:    { fontSize: fontSize.xl, fontWeight: '700', marginBottom: spacing[2] },
   label:         { fontSize: fontSize.xs, fontWeight: '600', marginTop: spacing[3], marginBottom: spacing[1] },
-  fieldError:    { fontSize: fontSize.xs, color: '#e74c3c', marginTop: spacing[1] },
+  fieldError:    { fontSize: fontSize.xs, color: status.danger, marginTop: spacing[1] },
   input:         { borderWidth: 1, borderRadius: radius.md, padding: spacing[3], fontSize: fontSize.md },
   row:           { flexDirection: 'row' },
   modalActions:  { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing[3], marginTop: spacing[5] },
