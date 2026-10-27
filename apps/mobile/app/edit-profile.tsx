@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { notify, notifyFailure } from '@/lib/notify';
 import { updateMyProfile } from '@/lib/api';
@@ -14,6 +14,7 @@ import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function EditProfileScreen() {
   const theme   = useTheme();
+  const c       = useClasses();
   const router  = useRouter();
   const { session, setSession } = useSession();
   const player  = session?.player;
@@ -64,7 +65,7 @@ export default function EditProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+    <SafeAreaView style={c.screen}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: '#e0e0e0' }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button">
@@ -146,7 +147,6 @@ function Field({
 }
 
 const styles = StyleSheet.create({
-  page:   { flex: 1 },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

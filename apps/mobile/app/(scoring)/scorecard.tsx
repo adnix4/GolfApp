@@ -3,7 +3,7 @@ import { View, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useObserve } from 'expo-observe';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
 import { fetchPublicChallenges, type ChallengeCacheDto, type HoleCacheDto, type PlayerCacheDto, type PlayerShotBreakdown, type SponsorCacheDto } from '@/lib/api';
 import { HoleInOneModal, SponsorModal, HoleInfoModal } from '@/components/scorecardComponents';
@@ -31,6 +31,7 @@ const NO_PLAYERS: PlayerCacheDto[] = [];
 
 export default function ScorecardScreen() {
   const theme                  = useTheme();
+  const c = useClasses();
   const router                 = useRouter();
   const {
     session, loading,
@@ -134,7 +135,7 @@ export default function ScorecardScreen() {
 
   if (loading || !session?.team) {
     return (
-      <View style={[styles.center, { backgroundColor: theme.pageBackground }]}>
+      <View style={[c.center, { backgroundColor: theme.pageBackground }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
@@ -437,6 +438,5 @@ export default function ScorecardScreen() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollFlex: { flex: 1 },
 });

@@ -12,11 +12,11 @@ import {
   useStripe,
   type CardFieldInput,
 } from '@stripe/stripe-react-native';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { notify, notifyFailure } from '@/lib/notify';
 import { createSetupIntent, confirmSetup } from '@/lib/api';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // Set EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY in your .env file.
 const STRIPE_PK = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
@@ -31,6 +31,7 @@ export default function PaymentSetupScreen() {
 
 function PaymentSetupContent() {
   const theme   = useTheme();
+  const c = useClasses();
   const router  = useRouter();
   const { session, setSession } = useSession();
   const player  = session?.player;
@@ -100,7 +101,7 @@ function PaymentSetupContent() {
   const isConfigured = !!STRIPE_PK;
 
   return (
-    <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+    <SafeAreaView style={c.screen}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: '#e0e0e0' }]}>
         <Pressable onPress={goBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
@@ -133,7 +134,7 @@ function PaymentSetupContent() {
           <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: spacing[12] }} />
         ) : initError ? (
           <View style={styles.errorCard}>
-            <Ionicons name="alert-circle-outline" size={32} color="#e74c3c" />
+            <Ionicons name="alert-circle-outline" size={32} color={status.danger} />
             <Text style={styles.errorTitle}>Setup Failed</Text>
             <Text style={styles.errorMsg}>{initError}</Text>
             <Pressable
@@ -199,7 +200,6 @@ function PaymentSetupContent() {
 }
 
 const styles = StyleSheet.create({
-  page:   { flex: 1 },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

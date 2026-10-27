@@ -5,7 +5,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, MoneyInput } from '@gfp/ui';
+import { useTheme, MoneyInput, useClasses } from '@gfp/ui';
 import {
   formatCentsShort, dollarsToCents, centsToMoneyValue, useLiveAuction,
   needsPaymentMethod, minimumBidCents, isDonationItem, usesProxyBidding,
@@ -23,7 +23,7 @@ import {
   AuctionItemDto, AuctionSessionDto, PlayerBidHistoryItem, CheckoutCartDto,
 } from '@/lib/api';
 import { checkoutCounts, checkoutHeadline } from '@/lib/checkoutSummary';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 type Tab = 'items' | 'history' | 'live';
 
@@ -108,6 +108,7 @@ function describeBidError(raw: string): string {
 
 export default function AuctionScreen() {
   const theme  = useTheme();
+  const c      = useClasses();
   const router = useRouter();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { session } = useSession();
@@ -349,7 +350,7 @@ export default function AuctionScreen() {
   );
 
   return (
-    <View style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+    <View style={c.screen}>
       {/* Load error banner */}
       {loadError && (
         <View style={styles.errorBanner}>
@@ -471,7 +472,7 @@ export default function AuctionScreen() {
                       <>
                         {/* Pledges stack rather than compete, so this stays the
                             green "money raised" line for everyone. */}
-                        <Text style={{ color: '#27ae60', fontWeight: '700', marginTop: spacing[1] }}>
+                        <Text style={{ color: status.success, fontWeight: '700', marginTop: spacing[1] }}>
                           Raised: {fmt(item.totalRaisedCents)}
                           {item.goalCents ? ` / ${fmt(item.goalCents)}` : ''}
                         </Text>
@@ -536,7 +537,7 @@ export default function AuctionScreen() {
               <Text style={{ color: '#555', marginBottom: spacing[3] }}>{currentLiveItem.description}</Text>
               <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
                 <Text style={{ fontSize: fontSize.sm, color: theme.mutedText }}>Called Amount</Text>
-                <Text style={{ fontSize: 36, fontWeight: '900', color: '#27ae60' }}>
+                <Text style={{ fontSize: 36, fontWeight: '900', color: status.success }}>
                   {fmt(liveSession.currentCalledAmountCents)}
                 </Text>
               </View>
@@ -545,7 +546,7 @@ export default function AuctionScreen() {
               <Pressable
                 style={[
                   styles.raiseHandBtn,
-                  handRaised && { backgroundColor: '#27ae60' },
+                  handRaised && { backgroundColor: status.success },
                   raisingHand && { opacity: 0.6 },
                 ]}
                 onPress={handleRaiseHand}
@@ -788,9 +789,8 @@ export default function AuctionScreen() {
 }
 
 const styles = StyleSheet.create({
-  page:        { flex: 1 },
   center:      { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[6] },
-  liveBanner:  { backgroundColor: '#c0392b', paddingVertical: spacing[2], alignItems: 'center' },
+  liveBanner:  { backgroundColor: status.dangerText, paddingVertical: spacing[2], alignItems: 'center' },
   liveBannerText: { color: '#fff', fontWeight: '800', fontSize: fontSize.md },
   tabRow:      { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
   tabBtn:      { flex: 1, alignItems: 'center', paddingVertical: spacing[3], borderBottomWidth: 3, borderBottomColor: 'transparent' },
@@ -819,9 +819,9 @@ const styles = StyleSheet.create({
   bidBtn:      { paddingHorizontal: spacing[5], paddingVertical: spacing[3], borderRadius: radius.md, justifyContent: 'center' },
   bidBtnText:  { color: '#fff', fontWeight: '700', fontSize: fontSize.lg },
   bidLabel:    { color: '#555', fontSize: fontSize.md, marginBottom: spacing[2] },
-  bidError:    { color: '#c0392b', fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing[3] },
+  bidError:    { color: status.dangerText, fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing[3] },
   denomRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[3] },
-  denomBtn:    { paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderRadius: radius.md, borderWidth: 1.5, borderColor: '#27ae60' },
+  denomBtn:    { paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderRadius: radius.md, borderWidth: 1.5, borderColor: status.success },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalCard:   { borderTopLeftRadius: radius.xxl, borderTopRightRadius: radius.xxl, padding: spacing[6], paddingBottom: spacing[10], overflow: 'hidden' },
   sheetHeader: { marginTop: -24, marginHorizontal: -24, marginBottom: spacing[4], paddingVertical: spacing[3], paddingHorizontal: spacing[6] },
@@ -836,9 +836,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[4], alignItems: 'center', marginTop: spacing[3],
   },
   raiseHandText: { color: '#fff', fontWeight: '800', fontSize: fontSize.xl },
-  errorBanner: { backgroundColor: '#fdf2f2', borderLeftWidth: 3, borderLeftColor: '#e74c3c', padding: spacing[3] },
-  errorBannerText: { color: '#c0392b', fontSize: fontSize.sm },
-  paymentWarning:    { backgroundColor: '#fff8e1', borderLeftWidth: 3, borderLeftColor: '#f39c12', padding: spacing[3] },
+  errorBanner: { backgroundColor: status.dangerBg, borderLeftWidth: 3, borderLeftColor: status.danger, padding: spacing[3] },
+  errorBannerText: { color: status.dangerText, fontSize: fontSize.sm },
+  paymentWarning:    { backgroundColor: '#fff8e1', borderLeftWidth: 3, borderLeftColor: status.warning, padding: spacing[3] },
   paymentWarningRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2] },
   paymentWarningText: { color: '#b7770d', fontSize: fontSize.sm, flex: 1 },
   paymentWarningLink: { color: '#e67e22', fontSize: fontSize.sm, fontWeight: '700' },
@@ -846,6 +846,6 @@ const styles = StyleSheet.create({
   wonBanner:     { backgroundColor: '#ecfdf5', borderLeftWidth: 3, borderLeftColor: '#10b981', padding: spacing[3] },
   wonBannerText: { color: '#065f46', fontSize: fontSize.sm, fontWeight: '600', flex: 1 },
   wonBannerLink: { color: '#059669', fontSize: fontSize.sm, fontWeight: '700' },
-  checkedInNotice:     { backgroundColor: '#eafaf1', borderLeftWidth: 3, borderLeftColor: '#27ae60', padding: spacing[3] },
+  checkedInNotice:     { backgroundColor: '#eafaf1', borderLeftWidth: 3, borderLeftColor: status.success, padding: spacing[3] },
   checkedInNoticeText: { color: '#1e8449', fontSize: fontSize.sm },
 });

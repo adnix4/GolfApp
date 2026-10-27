@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
 import { confirmLeaveEvent, unsyncedHoleCount } from '@/lib/confirmLeave';
 // Same challenge popup as the scorecard (the shared DialogFrame, sponsor highlighted).
@@ -15,7 +15,7 @@ import {
   type SyncConflictDto,
   type ChallengeCacheDto,
 } from '@/lib/api';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // ── CONFLICT CARD ─────────────────────────────────────────────────────────────
 
@@ -43,6 +43,7 @@ const conflictStyles = StyleSheet.create({
 
 export default function SyncScreen() {
   const theme  = useTheme();
+  const c = useClasses();
   const router = useRouter();
   const { session, loading, pendingScores, syncStatus, syncScores, clearSession, completedHoles, syncedHoles } = useSession();
 
@@ -100,7 +101,7 @@ export default function SyncScreen() {
 
   if (loading || !session?.team) {
     return (
-      <View style={[styles.center, { backgroundColor: theme.pageBackground }]}>
+      <View style={[c.center, { backgroundColor: theme.pageBackground }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
@@ -140,7 +141,7 @@ export default function SyncScreen() {
   }
 
   return (
-    <SafeAreaView edges={['left', 'right']} style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+    <SafeAreaView edges={['left', 'right']} style={c.screen}>
 
       {/* ── HEADER ── */}
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
@@ -402,8 +403,6 @@ const col = StyleSheet.create({
 
 const styles = StyleSheet.create({
   cellLink:    { textDecorationLine: 'underline' },
-  page:   { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { padding: spacing[4], paddingBottom: spacing[12] },
 
   // Header
@@ -457,7 +456,7 @@ const styles = StyleSheet.create({
   // Sync button
   syncBtn:     { paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center', marginBottom: spacing[1] },
   syncBtnText: { fontSize: fontSize.lg, fontWeight: '700', color: '#fff' },
-  syncError:   { fontSize: fontSize.xs, color: '#c0392b', textAlign: 'center', marginBottom: spacing[2] },
+  syncError:   { fontSize: fontSize.xs, color: status.dangerText, textAlign: 'center', marginBottom: spacing[2] },
 
   // QR + Leave
   qrBtn:       { paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center', borderWidth: 1.5, marginBottom: spacing[2], marginTop: spacing[4] },

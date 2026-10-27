@@ -6,11 +6,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Battery from 'expo-battery';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { checkConnectivity } from '@/lib/api';
 import { formatTime } from '@gfp/shared-types';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
 
@@ -76,6 +76,7 @@ const itemStyles = StyleSheet.create({
 
 export default function PreflightScreen() {
   const theme  = useTheme();
+  const c      = useClasses();
   const router = useRouter();
   const { session, loading } = useSession();
 
@@ -150,7 +151,7 @@ export default function PreflightScreen() {
 
   if (loading || !session) {
     return (
-      <View style={[styles.center, { backgroundColor: theme.pageBackground }]}>
+      <View style={[c.center, { backgroundColor: theme.pageBackground }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
@@ -164,7 +165,7 @@ export default function PreflightScreen() {
     (connectivityCheck.status === 'ok' || offlineMode);
 
   return (
-    <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+    <SafeAreaView style={c.screen}>
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <Text style={[styles.headerTitle, { color: theme.colors.highlight }]}>Pre-Flight Check</Text>
         <Text style={[styles.headerSub,   { color: theme.colors.highlight }]} numberOfLines={1}>
@@ -202,7 +203,7 @@ export default function PreflightScreen() {
         )}
 
         {offlineMode && (
-          <View style={[styles.offlineBadge, { backgroundColor: '#fffbf0', borderColor: '#f39c12' }]}>
+          <View style={[styles.offlineBadge, { backgroundColor: '#fffbf0', borderColor: status.warning }]}>
             <Text style={styles.offlineBadgeText}>Offline mode — scores will sync automatically when connected</Text>
           </View>
         )}
@@ -256,8 +257,6 @@ export default function PreflightScreen() {
 // ── STYLES ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  page:   { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   header: {
     paddingTop:        Platform.OS === 'android' ? 12 : 0,
