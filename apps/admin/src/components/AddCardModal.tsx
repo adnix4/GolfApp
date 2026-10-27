@@ -22,9 +22,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Modal, ActivityIndicator } from 'react-native';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { paymentMethodApi } from '@/lib/api';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // The publishable key is safe to expose. With none configured the card button is
 // hidden entirely and the desk falls back to cash or check.
@@ -109,6 +109,7 @@ function CardForm({ eventId, playerId, onSaved }: {
   const stripe   = useStripe();
   const elements = useElements();
   const theme    = useTheme();
+  const c        = useClasses();
   const [saving, setSaving] = useState(false);
   const [err,    setErr]    = useState<string | null>(null);
 
@@ -155,7 +156,7 @@ function CardForm({ eventId, playerId, onSaved }: {
       >
         {saving
           ? <ActivityIndicator color="#fff" size="small" />
-          : <Text style={styles.saveText}>Save card</Text>}
+          : <Text style={c.submitText}>Save card</Text>}
       </Pressable>
       <Text style={[styles.secure, { color: theme.mutedText }]}>
         🔒 Card details go straight to Stripe — they never reach this app.
@@ -169,9 +170,8 @@ const styles = StyleSheet.create({
   sheet:    { width: '100%', maxWidth: 460, backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[6] },
   title:    { fontSize: fontSize.xl, fontWeight: '800' },
   sub:      { fontSize: fontSize.sm, marginTop: spacing[1], marginBottom: spacing[3], lineHeight: 18 },
-  error:    { color: '#c0392b', fontSize: fontSize.sm, marginTop: spacing[3] },
+  error:    { color: status.dangerText, fontSize: fontSize.sm, marginTop: spacing[3] },
   saveBtn:  { marginTop: spacing[4], paddingVertical: spacing[3], borderRadius: radius.md, alignItems: 'center' },
-  saveText: { color: '#fff', fontWeight: '700', fontSize: fontSize.lg },
   secure:   { fontSize: fontSize.xxs, textAlign: 'center', marginTop: spacing[3] },
   cancelBtn:  { marginTop: spacing[4], alignItems: 'center' },
   cancelText: { fontSize: fontSize.md },

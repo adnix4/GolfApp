@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // ── Content ───────────────────────────────────────────────────────────────────
 
@@ -26,13 +26,13 @@ const STATUS_FLOW = [
     what: 'Check in teams (Registration tab). Assign starting holes (Shotgun tab). Run Live Auction.',
   },
   {
-    status: 'Scoring',      color: '#f39c12',
+    status: 'Scoring',      color: status.warning,
     next: 'Mark Complete',
     req:  'All teams have finished their round.',
     what: 'Golfers enter scores on mobile. Monitor Leaderboard. Run Live Auction. QR Import backups.',
   },
   {
-    status: 'Completed',    color: '#27ae60',
+    status: 'Completed',    color: status.success,
     next: null,
     req:  null,
     what: 'Final results published. Fundraising summary available.',
@@ -91,7 +91,7 @@ const TAB_REFERENCE = [
   },
   {
     group: 'Scoring',
-    groupColor: '#f39c12',
+    groupColor: status.warning,
     tabs: [
       {
         name: 'Scoring',
@@ -133,7 +133,7 @@ const TAB_REFERENCE = [
   },
   {
     group: 'Fundraising',
-    groupColor: '#e74c3c',
+    groupColor: status.danger,
     tabs: [
       {
         name: 'Fundraising',
@@ -183,7 +183,7 @@ const TAB_REFERENCE = [
   },
   {
     group: 'Tools',
-    groupColor: '#27ae60',
+    groupColor: status.success,
     tabs: [
       {
         name: 'Print Kit',
@@ -293,12 +293,13 @@ function TabRefSection({ group }: { group: typeof TAB_REFERENCE[0] }) {
 
 export default function EventHelpScreen() {
   const theme = useTheme();
+  const c = useClasses();
   const { pagePadding } = useResponsive();
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={[styles.content, { padding: pagePadding }]}>
+    <ScrollView style={c.page} contentContainerStyle={[styles.content, { padding: pagePadding }]}>
       <View style={styles.pageHeader}>
-        <Text style={[styles.pageTitle, { color: theme.colors.primary }]}>Event Help</Text>
+        <Text style={c.title}>Event Help</Text>
         <Text style={[styles.pageSubtitle, { color: theme.mutedText }]}>
           A reference guide for every tab and each stage of your event.
         </Text>
@@ -322,11 +323,9 @@ export default function EventHelpScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  page:    { flex: 1 },
   content: { gap: spacing[4], paddingBottom: spacing[10] },
 
   pageHeader:   { marginBottom: spacing[1] },
-  pageTitle:    { fontSize: fontSize.title, fontWeight: '800' },
   pageSubtitle: { fontSize: fontSize.md, lineHeight: 20, marginTop: spacing[1] },
 
   card:       { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e8e8e8', borderRadius: radius.lg, overflow: 'hidden' },

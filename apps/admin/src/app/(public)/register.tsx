@@ -4,11 +4,11 @@ import {
   StyleSheet, ActivityIndicator, Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useAuth } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 function toSlug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
@@ -16,6 +16,7 @@ function toSlug(name: string): string {
 
 export default function RegisterScreen() {
   const theme  = useTheme();
+  const c      = useClasses();
   const router = useRouter();
   const { register } = useAuth();
 
@@ -99,9 +100,9 @@ export default function RegisterScreen() {
     const err = fieldErrors[errorKey];
     return (
       <View style={styles.fieldWrap}>
-        <Text style={[styles.label, { color: theme.colors.primary }]}>{label}</Text>
+        <Text style={[c.fieldLabel, styles.label]}>{label}</Text>
         <TextInput
-          style={[styles.input, { borderColor: err ? '#e74c3c' : theme.colors.accent }]}
+          style={[c.input, styles.input, !!err && c.inputError]}
           value={value}
           onChangeText={v => {
             onChangeText(v);
@@ -146,8 +147,8 @@ export default function RegisterScreen() {
         </Text>
 
         {error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={[c.errorBox, styles.errorBox]}>
+            <Text style={c.errorText}>{error}</Text>
           </View>
         )}
 
@@ -210,7 +211,7 @@ export default function RegisterScreen() {
         {/* 501(c)3 toggle */}
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: theme.colors.primary, marginBottom: spacing[0.5] }]}>
+            <Text style={[c.fieldLabel, styles.label, { marginBottom: spacing[0.5] }]}>
               501(c)(3) Non-Profit
             </Text>
             <Text style={[styles.hint, { color: theme.mutedText }]}>
@@ -265,15 +266,14 @@ const styles = StyleSheet.create({
   subheading: { fontSize: fontSize.md, lineHeight: 22, marginBottom: spacing[5] },
 
   fieldWrap: { marginBottom: spacing[1] },
-  label:     { fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing[4], marginBottom: spacing[2] },
-  input:     { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa' },
+  label:     { marginTop: spacing[4] },   // over c.fieldLabel
+  input:     { paddingHorizontal: spacing[4] },   // over c.input
   hint:      { fontSize: fontSize.xs, marginTop: spacing[1] },
-  fieldError:{ color: '#e74c3c', fontSize: fontSize.xs, marginTop: spacing[1] },
+  fieldError:{ color: status.danger, fontSize: fontSize.xs, marginTop: spacing[1] },
 
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[4], marginBottom: spacing[1] },
 
-  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[2], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: fontSize.md },
+  errorBox:  { marginBottom: spacing[2] },   // over c.errorBox
 
   submitBtn:  { marginTop: spacing[6], paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
   submitText: { fontSize: fontSize.xl, fontWeight: '800', color: '#fff' },
