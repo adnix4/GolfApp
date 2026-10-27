@@ -42,6 +42,9 @@ export { MoneyInput }       from './components/MoneyInput';
 export { DialogFrame }      from './components/DialogFrame';
 export type { DialogFrameProps, DialogButton, DialogKind } from './components/DialogFrame';
 export type { MoneyInputProps } from './components/MoneyInput';
+export { useClasses, classesFor } from './styles/useClasses';
+export { buildClasses }     from './styles/classes';
+export type { Classes }     from './styles/classes';
 
 /**
  * Re-export types so consumers don't need to import from @gfp/theme directly

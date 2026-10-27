@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, StatusPill, AsyncSection, PrimaryButton, FormModal, MoneyInput } from '@gfp/ui';
+import { useTheme, useClasses, StatusPill, AsyncSection, PrimaryButton, FormModal, MoneyInput } from '@gfp/ui';
 import {
   FORMAT_OPTIONS, FORMAT_LABELS, FORMAT_HINTS,
   START_OPTIONS, START_LABELS, START_HINTS,
@@ -18,7 +18,7 @@ import { eventStatusColor } from '@/lib/eventStatus';
 import { friendlyApiError } from '@/lib/errors';
 import { useQueryClient } from '@tanstack/react-query';
 import { eventKeys, useEventList } from '@/lib/queries';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, neutral, radius, spacing, status } from '@gfp/theme';
 
 // ── Row component (memoized) ──────────────────────────────────────────────────
 // Hoisted so the FlatList renderItem closure doesn't recreate the row tree on
@@ -224,6 +224,7 @@ function startErrors(date: string, time: string): Pick<FieldErrors, 'startDate' 
 
 function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps) {
   const theme = useTheme();
+  const c     = useClasses();
 
   const [name,        setName]        = useState('');
   const [format,      setFormat]      = useState<string>('Scramble');
@@ -334,10 +335,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
               </Text>
             </View>
             <TextInput
-              style={[
-                styles.input,
-                { borderColor: showNameError ? '#e74c3c' : theme.colors.accent },
-              ]}
+              style={[c.input, showNameError && c.inputError]}
               value={name}
               onChangeText={v => {
                 setName(v);
@@ -443,14 +441,11 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
               Entry Fee per Golfer ($){' '}
               <Text style={styles.optionalTag}>(optional)</Text>
             </Text>
-            <Text style={styles.fieldHint}>
+            <Text style={c.fieldHint}>
               Shown on the public event page and email ads; each golfer pays at registration.
             </Text>
             <MoneyInput
-              style={[
-                styles.input,
-                { borderColor: showFeeError ? '#e74c3c' : theme.colors.accent },
-              ]}
+              style={[c.input, showFeeError && c.inputError]}
               value={entryFee}
               onChangeText={v => {
                 setEntryFee(v);
@@ -474,7 +469,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
               Start Date & Time{' '}
               <Text style={styles.optionalTag}>(optional)</Text>
             </Text>
-            <Text style={styles.fieldHint}>
+            <Text style={c.fieldHint}>
               Can be set now or updated later from event settings.
             </Text>
 
@@ -516,25 +511,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.display,
     fontWeight: '800',
-  },
-  createBtn: {
-    paddingHorizontal: spacing[5],
-    paddingVertical: spacing[3],
-    borderRadius: radius.md,
-  },
-  createBtnText: {
-    fontSize: fontSize.md,
-    fontWeight: '700',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: fontSize.lg,
-    textAlign: 'center',
-    maxWidth: 300,
   },
   list: {
     gap: spacing[3],
@@ -586,75 +562,33 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textTransform: 'capitalize',
   },
-  errorBox: {
-    backgroundColor: '#fdf2f2',
-    borderRadius: radius.md,
-    padding: spacing[3],
-    marginBottom: spacing[3],
-    borderLeftWidth: 3,
-    borderLeftColor: '#e74c3c',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  errorText: {
-    color: '#c0392b',
-    fontSize: fontSize.md,
-    flex: 1,
-  },
-  // Modal
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  overlayScroll: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing[4],
-  },
-  modal: {
-    width: '100%',
-    maxWidth: 480,
-    backgroundColor: '#fff',
-    borderRadius: radius.xl,
-    padding: spacing[8],
-    boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.15)',
-  },
-  modalTitle: {
-    fontSize: fontSize.xxl,
-    fontWeight: '800',
-    marginBottom: spacing[1],
-  },
   requiredNote: {
     fontSize: fontSize.xs,
     color: '#888',
     marginBottom: spacing[4],
   },
   requiredStar: {
-    color: '#e74c3c',
+    color: status.danger,
     fontWeight: '700',
   },
   submitErrorBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#fdf2f2',
+    backgroundColor: status.dangerBg,
     borderRadius: radius.md,
     padding: spacing[3],
     marginBottom: spacing[4],
     borderLeftWidth: 3,
-    borderLeftColor: '#e74c3c',
+    borderLeftColor: status.danger,
     gap: spacing[2],
   },
   submitErrorIcon: {
     fontSize: fontSize.md,
-    color: '#c0392b',
+    color: status.dangerText,
     marginTop: 1,
   },
   submitErrorText: {
-    color: '#c0392b',
+    color: status.dangerText,
     fontSize: fontSize.md,
     flex: 1,
     lineHeight: 20,
@@ -681,27 +615,9 @@ const styles = StyleSheet.create({
   },
   fieldError: {
     fontSize: fontSize.xs,
-    color: '#e74c3c',
+    color: status.danger,
     marginTop: spacing[1],
     marginLeft: spacing[0.5],
-  },
-  fieldHint: {
-    fontSize: fontSize.xs,
-    color: '#888',
-    marginTop: -4,
-    marginBottom: spacing[2],
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[3],
-    fontSize: fontSize.lg,
-    backgroundColor: '#fafafa',
-  },
-  inputSm: {
-    fontSize: fontSize.md,
-    paddingVertical: spacing[2],
   },
   optionGrid: {
     flexDirection: 'row',
@@ -721,7 +637,7 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: radius.lg,
     padding: spacing[3],
-    backgroundColor: '#fafafa',
+    backgroundColor: neutral.inputBg,
   },
   optionCardHalf: {
     minWidth: 0,
@@ -748,7 +664,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xxl,
     borderWidth: 1.5,
     borderColor: '#ccc',
-    backgroundColor: '#fafafa',
+    backgroundColor: neutral.inputBg,
   },
   pillText: {
     fontSize: fontSize.sm,
@@ -759,32 +675,5 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: '400',
     color: '#888',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: spacing[3],
-    marginTop: spacing[6],
-  },
-  cancelBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingVertical: spacing[3],
-    alignItems: 'center',
-  },
-  cancelText: {
-    fontSize: fontSize.lg,
-    fontWeight: '600',
-  },
-  submitBtn: {
-    flex: 2,
-    borderRadius: radius.md,
-    paddingVertical: spacing[3],
-    alignItems: 'center',
-  },
-  submitText: {
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: '#fff',
   },
 });

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Pressable, Modal, TextInput, ActivityIndicator } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { useClasses } from '@gfp/ui';
 import { teamsApi, type Team } from '@/lib/api';
 import { formStyles } from './formStyles';
 import { fontSize, spacing } from '@gfp/theme';
@@ -16,7 +16,7 @@ interface EditTeamModalProps {
 }
 
 export function EditTeamModal({ visible, eventId, team, onClose, onSaved }: EditTeamModalProps) {
-  const theme = useTheme();
+  const c = useClasses();
   const [name,       setName]       = useState('');
   const [maxPlayers, setMaxPlayers] = useState('');
   const [loading,    setLoading]    = useState(false);
@@ -55,14 +55,14 @@ export function EditTeamModal({ visible, eventId, team, onClose, onSaved }: Edit
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={formStyles.overlay}>
+      <View style={c.overlay}>
         <View style={formStyles.modal}>
-          <Text style={[formStyles.modalTitle, { color: theme.colors.primary }]}>Edit Team</Text>
-          {error && <View style={formStyles.errorBox}><Text style={formStyles.errorText}>{error}</Text></View>}
+          <Text style={c.modalTitle}>Edit Team</Text>
+          {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
 
-          <Text style={[formStyles.fieldLabel, { color: theme.colors.primary }]}>Team Name *</Text>
+          <Text style={c.fieldLabel}>Team Name *</Text>
           <TextInput
-            style={[formStyles.input, { borderColor: theme.colors.accent }]}
+            style={c.input}
             value={name}
             onChangeText={v => { setName(v); if (error) setError(null); }}
             placeholder="Team name"
@@ -71,9 +71,9 @@ export function EditTeamModal({ visible, eventId, team, onClose, onSaved }: Edit
             maxLength={200}
           />
 
-          <Text style={[formStyles.fieldLabel, { color: theme.colors.primary }]}>Max Players (1–8)</Text>
+          <Text style={c.fieldLabel}>Max Players (1–8)</Text>
           <TextInput
-            style={[formStyles.input, { borderColor: theme.colors.accent }]}
+            style={c.input}
             value={maxPlayers}
             onChangeText={v => { setMaxPlayers(v.replace(/[^0-9]/g, '')); if (error) setError(null); }}
             placeholder="4"
@@ -87,18 +87,18 @@ export function EditTeamModal({ visible, eventId, team, onClose, onSaved }: Edit
             </Text>
           )}
 
-          <View style={formStyles.modalActions}>
-            <Pressable style={[formStyles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
-              <Text style={[formStyles.cancelText, { color: theme.mutedText }]}>Cancel</Text>
+          <View style={c.formActions}>
+            <Pressable style={c.cancelBtn} onPress={onClose}>
+              <Text style={c.cancelText}>Cancel</Text>
             </Pressable>
             <Pressable
-              style={[formStyles.submitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
+              style={[c.submitBtn, loading && { opacity: 0.6 }]}
               onPress={handleSave}
               disabled={loading}
             >
               {loading
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={formStyles.submitText}>Save</Text>}
+                : <Text style={c.submitText}>Save</Text>}
             </Pressable>
           </View>
         </View>
