@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   View, Text, Pressable, Modal, TextInput, StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import {
   digitsOnly, fmtPhoneInput, validateRoster, toPlayerInput, type GolferFields,
 } from '@gfp/shared-types';
@@ -29,6 +29,7 @@ function blankPlayer(): PlayerDraft {
 
 export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: RegisterTeamModalProps) {
   const theme = useTheme();
+  const c = useClasses();
   const [teamName, setTeamName] = useState('');
   const [players,  setPlayers]  = useState<PlayerDraft[]>([blankPlayer()]);
   const [loading,  setLoading]  = useState(false);
@@ -88,15 +89,15 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => { reset(); onClose(); }}>
-      <View style={formStyles.overlay}>
+      <View style={c.overlay}>
         <ScrollView contentContainerStyle={formStyles.modalScroll} keyboardShouldPersistTaps="handled">
           <View style={formStyles.modal}>
-            <Text style={[formStyles.modalTitle, { color: theme.colors.primary }]}>Register Team</Text>
-            {error && <View style={formStyles.errorBox}><Text style={formStyles.errorText}>{error}</Text></View>}
+            <Text style={c.modalTitle}>Register Team</Text>
+            {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
 
-            <Text style={[formStyles.fieldLabel, { color: theme.colors.primary }]}>Team Name *</Text>
+            <Text style={c.fieldLabel}>Team Name *</Text>
             <TextInput
-              style={[formStyles.input, { borderColor: theme.colors.accent }]}
+              style={c.input}
               value={teamName}
               onChangeText={v => { setTeamName(v); if (error) setError(null); }}
               placeholder="The Eagles"
@@ -105,7 +106,7 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
               maxLength={200}
             />
 
-            <Text style={[formStyles.fieldLabel, { color: theme.colors.primary }]}>Players</Text>
+            <Text style={c.fieldLabel}>Players</Text>
             {players.map((p, idx) => (
               <View key={idx} style={styles.playerForm}>
                 <View style={styles.playerFormHeader}>
@@ -120,31 +121,31 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
                 </View>
                 <View style={formStyles.nameRow}>
                   <TextInput
-                    style={[formStyles.input, formStyles.halfInput, { borderColor: theme.colors.accent }]}
+                    style={[c.input, formStyles.halfInput]}
                     value={p.firstName} onChangeText={v => updatePlayer(idx, 'firstName', v)}
                     placeholder="First *" placeholderTextColor="#999" editable={!loading}
                   />
                   <TextInput
-                    style={[formStyles.input, formStyles.halfInput, { borderColor: theme.colors.accent }]}
+                    style={[c.input, formStyles.halfInput]}
                     value={p.lastName} onChangeText={v => updatePlayer(idx, 'lastName', v)}
                     placeholder="Last *" placeholderTextColor="#999" editable={!loading}
                   />
                 </View>
                 <TextInput
-                  style={[formStyles.input, { borderColor: theme.colors.accent, marginTop: spacing[2] }]}
+                  style={[c.input, { marginTop: spacing[2] }]}
                   value={p.email} onChangeText={v => updatePlayer(idx, 'email', v)}
                   placeholder="Email *" placeholderTextColor="#999"
                   keyboardType="email-address" autoCapitalize="none" editable={!loading}
                 />
                 <View style={[formStyles.nameRow, { marginTop: spacing[2] }]}>
                   <TextInput
-                    style={[formStyles.input, formStyles.halfInput, { borderColor: theme.colors.accent }]}
+                    style={[c.input, formStyles.halfInput]}
                     value={p.phone ?? ''} onChangeText={v => updatePlayer(idx, 'phone', fmtPhoneInput(digitsOnly(v)))}
                     placeholder="Phone (optional)" placeholderTextColor="#999"
                     keyboardType="phone-pad" editable={!loading}
                   />
                   <TextInput
-                    style={[formStyles.input, formStyles.halfInput, { borderColor: theme.colors.accent }]}
+                    style={[c.input, formStyles.halfInput]}
                     value={p.handicap ?? ''} onChangeText={v => updatePlayer(idx, 'handicap', v)}
                     placeholder="Handicap (optional)" placeholderTextColor="#999"
                     keyboardType="decimal-pad" editable={!loading}
@@ -157,18 +158,18 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
               <Text style={[styles.addPlayerFormText, { color: theme.colors.action }]}>+ Add Player</Text>
             </Pressable>
 
-            <View style={formStyles.modalActions}>
-              <Pressable style={[formStyles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={() => { reset(); onClose(); }}>
-                <Text style={[formStyles.cancelText, { color: theme.mutedText }]}>Cancel</Text>
+            <View style={c.formActions}>
+              <Pressable style={c.cancelBtn} onPress={() => { reset(); onClose(); }}>
+                <Text style={c.cancelText}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={[formStyles.submitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
+                style={[c.submitBtn, loading && { opacity: 0.6 }]}
                 onPress={handleSubmit}
                 disabled={loading}
               >
                 {loading
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={formStyles.submitText}>Register</Text>}
+                  : <Text style={c.submitText}>Register</Text>}
               </Pressable>
             </View>
           </View>

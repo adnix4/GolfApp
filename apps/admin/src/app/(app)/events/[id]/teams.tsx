@@ -5,7 +5,7 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { useTeamList } from '@/lib/queries';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { teamsApi, playersApi, type Team, type Player } from '@/lib/api';
 import { isCheckedIn as statusIsCheckedIn } from '@/lib/checkIn';
 import { TeamRow } from '@/components/teams/TeamRow';
@@ -13,12 +13,12 @@ import { ConfirmRemoveTeamModal } from '@/components/teams/ConfirmRemoveTeamModa
 import { PlayerFormModal } from '@/components/teams/PlayerFormModal';
 import { RegisterTeamModal } from '@/components/teams/RegisterTeamModal';
 import { EditTeamModal } from '@/components/teams/EditTeamModal';
-import { formStyles } from '@/components/teams/formStyles';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 export default function TeamsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
+  const c        = useClasses();
 
   const teamList = useTeamList(id);
   const { items: teams, setItems: setTeams, loading } = teamList;
@@ -148,7 +148,7 @@ export default function TeamsScreen() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.primary }]}>
+        <Text style={c.title}>
           Teams ({teams.length})
         </Text>
         <Pressable
@@ -161,22 +161,22 @@ export default function TeamsScreen() {
       </View>
 
       {error && (
-        <View style={formStyles.errorBox}>
-          <Text style={formStyles.errorText}>{error}</Text>
+        <View style={c.errorBox}>
+          <Text style={c.errorText}>{error}</Text>
           <Pressable onPress={() => setError(null)} style={{ marginTop: spacing[2] }}>
-            <Text style={{ color: '#c0392b', fontSize: fontSize.xs }}>Dismiss</Text>
+            <Text style={{ color: status.dangerText, fontSize: fontSize.xs }}>Dismiss</Text>
           </Pressable>
         </View>
       )}
 
 
       {loading ? (
-        <View style={styles.center}>
+        <View style={c.center}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       ) : teams.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.mutedText }]}>No teams registered yet.</Text>
+        <View style={c.center}>
+          <Text style={c.emptyText}>No teams registered yet.</Text>
         </View>
       ) : (
         <FlatList
@@ -237,10 +237,7 @@ export default function TeamsScreen() {
 const styles = StyleSheet.create({
   page:   { flex: 1, padding: spacing[8] },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[4] },
-  title:  { fontSize: fontSize.title, fontWeight: '800' },
   addBtn: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
   addBtnText: { fontSize: fontSize.md, fontWeight: '700' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: fontSize.lg },
   list: { gap: spacing[3] },
 });

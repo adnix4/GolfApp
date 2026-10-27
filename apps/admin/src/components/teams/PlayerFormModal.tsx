@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   View, Text, Pressable, Modal, TextInput, StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { digitsOnly, fmtPhoneInput } from '@gfp/shared-types';
 import { playersApi, type Team, type Player, type AddPlayerPayload } from '@/lib/api';
 import { formStyles } from './formStyles';
@@ -23,6 +23,7 @@ interface PlayerFormModalProps {
 
 export function PlayerFormModal({ visible, eventId, teamId, teams, player, title, onClose, onSaved }: PlayerFormModalProps) {
   const theme = useTheme();
+  const c = useClasses();
   const [firstName,       setFirstName]       = useState('');
   const [lastName,        setLastName]        = useState('');
   const [email,           setEmail]           = useState('');
@@ -113,33 +114,33 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => { onClose(); }}>
-      <View style={formStyles.overlay}>
+      <View style={c.overlay}>
         <ScrollView contentContainerStyle={formStyles.modalScroll} keyboardShouldPersistTaps="handled">
           <View style={formStyles.modal}>
-            <Text style={[formStyles.modalTitle, { color: theme.colors.primary }]}>{title}</Text>
-            {error && <View style={formStyles.errorBox}><Text style={formStyles.errorText}>{error}</Text></View>}
+            <Text style={c.modalTitle}>{title}</Text>
+            {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
 
             {/* Name */}
-            <Text style={[formStyles.fieldLabel, { color: theme.colors.primary }]}>Name *</Text>
-            <Text style={[formStyles.fieldDesc, { color: theme.mutedText }]}>Player's first and last name as it should appear on the scorecard.</Text>
+            <Text style={c.fieldLabel}>Name *</Text>
+            <Text style={c.fieldHint}>Player's first and last name as it should appear on the scorecard.</Text>
             <View style={formStyles.nameRow}>
               <TextInput
-                style={[formStyles.input, formStyles.halfInput, { borderColor: theme.colors.accent }]}
+                style={[c.input, formStyles.halfInput]}
                 value={firstName} onChangeText={v => { setFirstName(v); if (error) setError(null); }}
                 placeholder="First name" placeholderTextColor="#999" editable={!loading}
               />
               <TextInput
-                style={[formStyles.input, formStyles.halfInput, { borderColor: theme.colors.accent }]}
+                style={[c.input, formStyles.halfInput]}
                 value={lastName} onChangeText={v => { setLastName(v); if (error) setError(null); }}
                 placeholder="Last name" placeholderTextColor="#999" editable={!loading}
               />
             </View>
 
             {/* Email */}
-            <Text style={[formStyles.fieldLabel, { color: theme.colors.primary }]}>Email</Text>
-            <Text style={[formStyles.fieldDesc, { color: theme.mutedText }]}>Used by the player to join the event on the mobile app. Must be unique within this event.</Text>
+            <Text style={c.fieldLabel}>Email</Text>
+            <Text style={c.fieldHint}>Used by the player to join the event on the mobile app. Must be unique within this event.</Text>
             <TextInput
-              style={[formStyles.input, { borderColor: theme.colors.accent }]}
+              style={c.input}
               value={email} onChangeText={v => { setEmail(v); if (error) setError(null); }}
               placeholder="player@example.com"
               placeholderTextColor="#999"
@@ -147,9 +148,9 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
             />
 
             {/* Phone */}
-            <Text style={[formStyles.fieldLabel, { color: theme.colors.primary }]}>Phone <Text style={formStyles.fieldOptional}>(optional)</Text></Text>
+            <Text style={c.fieldLabel}>Phone <Text style={formStyles.fieldOptional}>(optional)</Text></Text>
             <TextInput
-              style={[formStyles.input, { borderColor: theme.colors.accent }]}
+              style={c.input}
               value={phone}
               onChangeText={v => { setPhone(fmtPhoneInput(digitsOnly(v))); if (error) setError(null); }}
               placeholder="(555) 867-5309"
@@ -158,10 +159,10 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
             />
 
             {/* Handicap */}
-            <Text style={[formStyles.fieldLabel, { color: theme.colors.primary }]}>Handicap Index</Text>
-            <Text style={[formStyles.fieldDesc, { color: theme.mutedText }]}>USGA handicap index (0 – 54). Used for net scoring, pairing, and flights. Leave blank if unknown.</Text>
+            <Text style={c.fieldLabel}>Handicap Index</Text>
+            <Text style={c.fieldHint}>USGA handicap index (0 – 54). Used for net scoring, pairing, and flights. Leave blank if unknown.</Text>
             <TextInput
-              style={[formStyles.input, { borderColor: theme.colors.accent }]}
+              style={c.input}
               value={handicap} onChangeText={v => { setHandicap(v.replace(/[^0-9.]/g, '')); if (error) setError(null); }}
               placeholder="e.g. 14.2"
               placeholderTextColor="#999"
@@ -171,8 +172,8 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
             {/* Team assignment — edit mode only */}
             {!!player && (
               <>
-                <Text style={[formStyles.fieldLabel, { color: theme.colors.primary }]}>Team Assignment</Text>
-                <Text style={[formStyles.fieldDesc, { color: theme.mutedText }]}>
+                <Text style={c.fieldLabel}>Team Assignment</Text>
+                <Text style={c.fieldHint}>
                   Move this player to a different team or designate them as a free agent for the organizer to assign.
                   Only teams with open slots are shown.
                 </Text>
@@ -246,18 +247,18 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
               </>
             )}
 
-            <View style={formStyles.modalActions}>
-              <Pressable style={[formStyles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
-                <Text style={[formStyles.cancelText, { color: theme.mutedText }]}>Cancel</Text>
+            <View style={c.formActions}>
+              <Pressable style={c.cancelBtn} onPress={onClose}>
+                <Text style={c.cancelText}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={[formStyles.submitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
+                style={[c.submitBtn, loading && { opacity: 0.6 }]}
                 onPress={handleSave}
                 disabled={loading}
               >
                 {loading
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={formStyles.submitText}>{player ? 'Save' : 'Add'}</Text>}
+                  : <Text style={c.submitText}>{player ? 'Save' : 'Add'}</Text>}
               </Pressable>
             </View>
           </View>
