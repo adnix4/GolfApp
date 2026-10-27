@@ -366,3 +366,7 @@ export function buildEmailVars(theme: GFPTheme): Record<string, string> {
 
 export { spacing, radius, fontSize } from './scales';
 export type { SpacingStep, RadiusStep, FontSizeStep } from './scales';
+
+// ── STATUS + NEUTRAL COLOURS ──────────────────────────────────────────────────
+
+export { status, neutral } from './status';
