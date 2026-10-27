@@ -5,13 +5,13 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useObserve } from 'expo-observe';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { FORMAT_LABELS, formatDate } from '@gfp/shared-types';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useSession } from '@/lib/session';
 import { joinEvent, fetchActiveEvents, type ActiveEventSummary, type JoinEventResponse } from '@/lib/api';
 import { registerForPushNotifications } from '@/lib/pushNotifications';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 type Step = 'pick' | 'join' | 'verify' | 'waiting';
 
@@ -27,6 +27,7 @@ function formatEventDate(iso: string | null): string {
 
 export default function JoinScreen() {
   const theme  = useTheme();
+  const c      = useClasses();
   const router = useRouter();
   const { session, loading, deviceId, setSession, endedNotice, dismissEndedNotice } = useSession();
   const { preEventId } = useLocalSearchParams<{ preEventId?: string }>();
@@ -222,7 +223,7 @@ export default function JoinScreen() {
   if (step === 'waiting') {
     return (
       <KeyboardAvoidingView
-        style={[styles.page, { backgroundColor: theme.pageBackground }]}
+        style={c.screen}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -242,7 +243,7 @@ export default function JoinScreen() {
 
             {error && (
               <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={c.errorText}>{error}</Text>
               </View>
             )}
 
@@ -288,7 +289,7 @@ export default function JoinScreen() {
   if (step === 'verify') {
     return (
       <KeyboardAvoidingView
-        style={[styles.page, { backgroundColor: theme.pageBackground }]}
+        style={c.screen}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -315,7 +316,7 @@ export default function JoinScreen() {
 
             {error && (
               <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={c.errorText}>{error}</Text>
               </View>
             )}
 
@@ -325,9 +326,9 @@ export default function JoinScreen() {
               </View>
             )}
 
-            <Text style={[styles.label, { color: theme.colors.primary }]}>Verification Code</Text>
+            <Text style={c.fieldLabel}>Verification Code</Text>
             <TextInput
-              style={[styles.input, styles.codeInput, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+              style={[c.inputLg, styles.codeInput]}
               value={verifyCode}
               onChangeText={v => { setVerifyCode(v.replace(/[^0-9]/g, '')); setResent(false); }}
               placeholder="••••••"
@@ -380,7 +381,7 @@ export default function JoinScreen() {
 
     return (
       <KeyboardAvoidingView
-        style={[styles.page, { backgroundColor: theme.pageBackground }]}
+        style={c.screen}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -430,15 +431,15 @@ export default function JoinScreen() {
 
             {error && (
               <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={c.errorText}>{error}</Text>
               </View>
             )}
 
             {!selected && (
               <>
-                <Text style={[styles.label, { color: theme.colors.primary }]}>Event Code</Text>
+                <Text style={c.fieldLabel}>Event Code</Text>
                 <TextInput
-                  style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+                  style={c.inputLg}
                   value={eventCode}
                   onChangeText={v => setEventCode(v.toUpperCase())}
                   placeholder="e.g. ABC12345"
@@ -450,9 +451,9 @@ export default function JoinScreen() {
               </>
             )}
 
-            <Text style={[styles.label, { color: theme.colors.primary }]}>Your Email</Text>
+            <Text style={c.fieldLabel}>Your Email</Text>
             <TextInput
-              style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+              style={c.inputLg}
               value={email}
               onChangeText={setEmail}
               placeholder="you@example.com"
@@ -521,7 +522,7 @@ export default function JoinScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.page, { backgroundColor: theme.pageBackground }]}
+      style={c.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -622,12 +623,12 @@ export default function JoinScreen() {
           <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
             {error && (
               <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={c.errorText}>{error}</Text>
               </View>
             )}
-            <Text style={[styles.label, { color: theme.colors.primary }]}>Event Code</Text>
+            <Text style={c.fieldLabel}>Event Code</Text>
             <TextInput
-              style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+              style={c.inputLg}
               value={eventCode}
               onChangeText={v => { setEventCode(v.toUpperCase()); setError(null); }}
               placeholder="e.g. ABC12345"
@@ -655,7 +656,6 @@ export default function JoinScreen() {
 }
 
 const styles = StyleSheet.create({
-  page:    { flex: 1 },
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll:  { flexGrow: 1, padding: spacing[5], paddingBottom: spacing[10] },
 
@@ -715,12 +715,6 @@ const styles = StyleSheet.create({
   },
   heading: { fontSize: fontSize.xxl, fontWeight: '800', marginBottom: spacing[1] },
   sub:     { fontSize: fontSize.md, marginBottom: spacing[5] },
-  label:   { fontSize: fontSize.sm, fontWeight: '600', marginBottom: spacing[2], marginTop: spacing[3] },
-  input:   {
-    borderWidth: 1, borderRadius: radius.lg,
-    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
-    fontSize: fontSize.xl, backgroundColor: '#fafafa',
-  },
   joinBtn: {
     marginTop: spacing[6], paddingVertical: spacing[4],
     borderRadius: radius.lg, alignItems: 'center',
@@ -728,10 +722,9 @@ const styles = StyleSheet.create({
   joinBtnText: { fontSize: fontSize.xl, fontWeight: '700', color: '#fff' },
 
   errorBox: {
-    backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[2],
-    borderLeftWidth: 3, borderLeftColor: '#e74c3c',
+    backgroundColor: status.dangerBg, borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[2],
+    borderLeftWidth: 3, borderLeftColor: status.danger,
   },
-  errorText: { color: '#c0392b', fontSize: fontSize.md },
   noticeBox: {
     backgroundColor: '#fff8e1', borderColor: '#f39c12', borderWidth: 1, borderRadius: radius.lg,
     padding: spacing[3], marginBottom: spacing[4], flexDirection: 'row', alignItems: 'center', gap: spacing[3],
