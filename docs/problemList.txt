@@ -72,6 +72,7 @@ P4 — FEATURES / POLISH
           (teams.tsx + scorecard.tsx done after E3 2026-10-26; hex colours not started)
      [x] E3 split the two largest screens (admin teams.tsx, mobile scorecard.tsx) 2026-10-26
      E4   iOS App Clip for the join link — after D5 (needs Apple + a shipped app)
+     E5   shared style classes (useClasses) — pilot done 2026-10-27, GO; rollout open
 
 P5 — BLOCKED OR DEFERRED (no action available yet)
      D19  dev-loop fixes landed; three follow-ups, one gated on D6
@@ -805,6 +806,57 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
         (D5, bundle pro.golffundraiser.scorer), an apple-app-site-association
         file on the web domain (D3), and a scoped-down join + scorecard target.
         The expo-app-clip skill covers it. Not before the pilot.
+
+[ ] E5. SHARED STYLE CLASSES INSTEAD OF A STYLESHEET PER SCREEN — PILOT DONE
+        Question (2026-10-27): replace per-screen StyleSheet.create blocks with
+        a "class" setup, where a style is defined once and applied by name?
+        CENSUS (main, after E2/E3): 1,833 style keys in admin + mobile + ui.
+        A few are copy-pasted almost verbatim: center 23x, page {flex:1} 26x,
+        errorText 21x, errorBox 24x (8 variants, same look, different
+        margins), plus the form-modal set (input, fieldLabel, cancel/submit
+        buttons, overlay). Most "same name" keys are NOT shared: card 20
+        variants, header 15, row 15, title 13, modal 8/8 different. Those
+        are layout and stay local. 958 hex literals; the status colours
+        repeat (#e74c3c x98, #27ae60 x68, #c0392b x58, #fdf2f2 x37). 32 keys
+        are dead (16 in events/index.tsx alone, left over when it moved to
+        FormModal; 11 in leagues/index.tsx).
+        CHOSEN: our own classes, not NativeWind/Tailwind. Tailwind would be a
+        second styling system in three apps, depends on NativeWind supporting
+        RN 0.88, can only reach the runtime org/event palette through CSS
+        variables, and pays off only after rewriting ~80 files.
+        BUILT: @gfp/theme `status` + `neutral` colour tokens (the values the
+        screens already used). @gfp/ui `useClasses()` returns a StyleSheet
+        built from the active ThemeContextValue (buildClasses), cached per
+        palette. Theme colours are part of the class, so
+        `[formStyles.input, { borderColor: theme.colors.accent }]` becomes
+        `c.input`, and submitText uses buttonLabel instead of '#fff'. Classes:
+        page, screen, center, title, muted, emptyText, errorBox, errorText,
+        overlay, modalTitle, fieldLabel, fieldHint, input, inputError,
+        inputLg (mobile), formActions, cancelBtn/Text, submitBtn/Text.
+        PILOT: admin Teams screen + its 3 form modals (formStyles.ts cut to the
+        5 layout-only keys), admin Events list + New Event form, mobile Join.
+        7 screen files: +106 / -239 lines. The shared code is 196 lines,
+        tests included.
+        VERIFIED: lint, type-check and tests green (admin, mobile, ui, theme;
+        ui adds 4 classes tests incl. "no colour literals in classes.ts").
+        Web exports of main and the pilot screenshotted in Edge on 12 views
+        (Events, New Event, New Event with field errors, Teams, Register Team,
+        Register Team error, Edit Team, Edit Player, mobile Join, manual code,
+        email step, email error): 10 are pixel-identical. The 2 New Event views
+        differ ONLY by intent: field hints moved from #888 (3.5:1, fails AA)
+        to the theme's mutedText, with a 17px line height. Repeated with a
+        navy/gold event theme on the Teams views: 0 px differ, and the classes
+        follow the event palette (navy labels/Save, gold borders).
+        FINDINGS: (1) it works and removes noise at call sites; (2) the win is
+        concentrated in admin forms. Mobile has far less duplication, and its
+        inputs are deliberately bigger (hence inputLg); (3) near-misses are
+        the real cost. Many screens use the same class with a 4px different
+        margin, so either keep a local override (no pixel change, less gain)
+        or unify the margin (small visible change). That is a design call,
+        made per area during rollout.
+        ROLLOUT (if GO): ~32 admin + ~13 mobile files still define a shared
+        candidate; one commit per area with the same screenshot diff; delete
+        the 32 dead keys; move the remaining status literals onto `status`.
 
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done.
