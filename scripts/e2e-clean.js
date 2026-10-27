@@ -680,6 +680,135 @@ async function phaseConflict(ctx) {
   pass('admin approval puts the hole back on the board', c.dim('+1 · 13 · thru 3'));
 }
 
+// ── league round (T9) ─────────────────────────────────────────────────────────
+// Closing a round runs HandicapEngine → StandingsCalculator → SkinsCalculator in
+// one call, and the handicap query was only ever unit-tested on EF InMemory.
+// This plays one round on real Postgres with hand-picked scores, so every number
+// below is worked out in advance. No course: every hole is par 4 with stroke
+// index = hole number, and a member with course handicap N gets a stroke on
+// holes 1..N. Club handicap, default BestNofM(5,10): after one round the new
+// index is that round's gross − 72.
+//
+//   member  idx  gross  net  stableford  new idx   holes off 4 (gross)
+//   Ava      0    72    72     36        0 (same)  1: 3, 10: 5
+//   Ben      4    75    71     37        3.0       1-4: 5, 6: 3
+//   Cleo    10    90    80     28        18.0      all 5
+//   Dev     18    88    70     38        16.0      all 5 except 2, 3: 4
+//
+// Skins at 100¢/hole/player × 4 = 400 a hole, lowest net wins, ties carry:
+// Ava 1, Dev 2 and 3, Ben 6 for 1200 (carried from 4-5), 7-18 all tie, so
+// hole 18 shows 4800 carried from 17 and no winner.
+const LEAGUE_CARD = {
+  Ava:  { hcp: 0,  gross: h => (h === 1 ? 3 : h === 10 ? 5 : 4) },
+  Ben:  { hcp: 4,  gross: h => (h <= 4 ? 5 : h === 6 ? 3 : 4) },
+  Cleo: { hcp: 10, gross: () => 5 },
+  Dev:  { hcp: 18, gross: h => (h === 2 || h === 3 ? 4 : 5) },
+};
+
+async function phaseLeague(ctx) {
+  phase('League round (T9)');
+  // Access tokens last 15 minutes; the one from the tournament phase may be stale.
+  const token = (await api('POST', '/auth/login',
+    { body: { email: ctx.orgEmail, password: ctx.orgPassword } })).accessToken;
+
+  const league = await api('POST', '/leagues', { token, body: {
+    name: `E2E League ${ctx.stamp}`, format: 'Stableford', handicapSystem: 'Club', handicapCap: 36 } });
+  const day = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+  const season = await api('POST', `/leagues/${league.id}/seasons`, { token, body: {
+    name: 'E2E Season', totalRounds: 4, startDate: day(0), endDate: day(35) } });
+  const S = `/leagues/${league.id}/seasons/${season.id}`;
+  const ids = {};
+  for (const [name, m] of Object.entries(LEAGUE_CARD)) {
+    const created = await api('POST', `${S}/members`, { token, body: {
+      firstName: name, lastName: 'League', email: `e2e.league.${name.toLowerCase()}.${ctx.stamp}@example.com`,
+      handicapIndex: m.hcp } });
+    ids[name] = created.id;
+  }
+  const nameOf = Object.fromEntries(Object.entries(ids).map(([n, id]) => [id, n]));
+  const round = await api('POST', `${S}/rounds`, { token, body: { roundDate: day(0), notes: 'E2E round' } });
+  const R = `${S}/rounds/${round.id}`;
+  const status = async () => (await api('GET', `${S}/rounds`, { token })).find(r => r.id === round.id);
+  pass('league, season, 4 members, round created', c.dim(round.status));
+
+  // Pairings: every member exactly once; locking them opens the round.
+  const groups = await api('POST', `${R}/generate-pairings?maxPerGroup=4`, { token });
+  const paired = groups.flatMap(g => g.memberIds).sort();
+  if (paired.join() !== Object.values(ids).sort().join()) {
+    fail('pairings cover the roster', `got ${JSON.stringify(groups.map(g => g.memberNames))}`);
+  }
+  await api('POST', `${R}/scores`, { token, expect: [400],
+    body: { memberId: ids.Ava, holeNumber: 1, grossScore: 4 } });
+  await api('PATCH', `${R}/pairings`, { token, body: { lock: true,
+    groups: groups.map(g => ({ memberIds: g.memberIds, teeTime: '08:00:00', startingHole: 1 })) } });
+  const opened = await status();
+  if (opened.status !== 'Open' || opened.pairingCount !== groups.length) fail('pairings lock the round', JSON.stringify(opened));
+  await api('POST', `${R}/open-scoring`, { token });
+  if ((await status()).status !== 'Scoring') fail('open scoring', JSON.stringify(await status()));
+  pass('pairings cover the roster; lock → Open → Scoring; no score before then',
+    c.dim(`${groups.length} group${groups.length === 1 ? '' : 's'} · 400 before scoring`));
+
+  // 4 × 18 hole scores, then the server's own per-member totals.
+  for (const [name, m] of Object.entries(LEAGUE_CARD)) {
+    for (let hole = 1; hole <= 18; hole++) {
+      await api('POST', `${R}/scores`, { token, body: { memberId: ids[name], holeNumber: hole, grossScore: m.gross(hole) } });
+    }
+  }
+  const cards = Object.fromEntries((await api('GET', `${R}/scorecards`, { token }))
+    .map(sc => [nameOf[sc.memberId], `${sc.grossTotal}/${sc.netTotal}/${sc.stablefordTotal}`]));
+  const wantCards = { Ava: '72/72/36', Ben: '75/71/37', Cleo: '90/80/28', Dev: '88/70/38' };
+  if (JSON.stringify(cards, Object.keys(wantCards)) !== JSON.stringify(wantCards)) {
+    fail('round scorecards (gross/net/stableford)', `expected ${JSON.stringify(wantCards)}, got ${JSON.stringify(cards)}`);
+  }
+  pass('72 hole scores; net + Stableford follow the stroke index', c.dim('Dev 38 · Ben 37 · Ava 36 · Cleo 28'));
+
+  // Close: the three engines run on real Postgres.
+  await api('POST', `${R}/close?skinsPotCentsPerHolePerPlayer=100`, { token });
+  const closed = await status();
+  if (closed.status !== 'Closed' || closed.scoredCount !== 4) fail('round closes', JSON.stringify(closed));
+  await api('POST', `${R}/scores`, { token, expect: [400], body: { memberId: ids.Ava, holeNumber: 1, grossScore: 3 } });
+  await api('POST', `${R}/close?skinsPotCentsPerHolePerPlayer=100`, { token, expect: [400] });
+  pass('round closes; later scores and a second close are refused', c.dim('Closed · 400 · 400'));
+
+  // Handicaps: gross − 72 after one round; Ava's 0 is unchanged so she gets no history row.
+  const members = Object.fromEntries((await api('GET', `${S}/members`, { token }))
+    .map(m => [nameOf[m.id], m]));
+  const wantIdx = { Ava: 0, Ben: 3, Cleo: 18, Dev: 16 };
+  for (const [name, idx] of Object.entries(wantIdx)) {
+    const m = members[name];
+    if (m?.handicapIndex !== idx || m?.roundsPlayed !== 1) {
+      fail('handicaps recalculated', `${name}: expected index ${idx} after 1 round, got ${JSON.stringify(m)}`);
+    }
+  }
+  const history = async name => api('GET', `${S}/members/${ids[name]}/handicap-history`, { token });
+  const [avaHist, benHist] = [await history('Ava'), await history('Ben')];
+  const bh = benHist[0];
+  if (avaHist.length !== 0 || benHist.length !== 1 || bh.oldIndex !== 4 || bh.newIndex !== 3 ||
+      bh.differential !== 3 || bh.roundId !== round.id) {
+    fail('handicap history', JSON.stringify({ avaHist, benHist }));
+  }
+  pass('handicaps recalculate from the round', c.dim('Ava 0 · Ben 4→3 · Cleo 10→18 · Dev 18→16'));
+
+  // Standings: Stableford points, ranked high to low (one flight: "General").
+  const table = (await api('GET', `${S}/standings`, { token }))
+    .map(r => `${r.rank} ${nameOf[r.memberId]} ${r.totalPoints} ${r.netStrokes} ${r.flightName}`);
+  const wantTable = ['1 Dev 38 70 General', '2 Ben 37 71 General', '3 Ava 36 72 General', '4 Cleo 28 80 General'];
+  if (table.join('|') !== wantTable.join('|')) {
+    fail('standings', `expected ${JSON.stringify(wantTable)}, got ${JSON.stringify(table)}`);
+  }
+  pass('standings rank by Stableford points', c.dim('Dev · Ben · Ava · Cleo'));
+
+  // Skins: one row per hole; ties carry the pot forward.
+  const skins = await api('GET', `${R}/skins`, { token });
+  const won = skins.filter(s => s.winnerMemberId).map(s => `${s.holeNumber}:${nameOf[s.winnerMemberId]}:${s.potCents}`);
+  const h6 = skins.find(s => s.holeNumber === 6), h18 = skins.find(s => s.holeNumber === 18);
+  if (skins.length !== 18 || won.join() !== '1:Ava:400,2:Dev:400,3:Dev:400,6:Ben:1200' ||
+      h6?.carriedOverFromHole !== 5 || h18?.winnerMemberId != null || h18?.potCents !== 4800 ||
+      h18?.carriedOverFromHole !== 17) {
+    fail('skins', JSON.stringify(skins.map(s => [s.holeNumber, nameOf[s.winnerMemberId] ?? '-', s.potCents, s.carriedOverFromHole])));
+  }
+  pass('skins: low net wins, ties carry', c.dim('Ava 1 · Dev 2,3 · Ben 6 for $12 · 7-18 carried to $48'));
+}
+
 // ── staff invites and password reset (D20, D21) ──────────────────────────────
 // Real Identity, real Postgres. The reset link only reaches people by email,
 // and local SendGrid keys are placeholders, so in Development the API logs it;
@@ -1368,6 +1497,7 @@ async function phaseTransactions(ctx) {
     await phaseWebhooks(ctx);
     await phaseFormats(ctx);
     await phaseConflict(ctx);
+    await phaseLeague(ctx);
     await phaseQrTransfer(ctx);
     await phaseCheckinQr(ctx);
     await phaseAccounts(ctx);
