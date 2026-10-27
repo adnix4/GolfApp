@@ -4,7 +4,7 @@ import {
   ActivityIndicator, ScrollView, StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { formatCentsShort, formatDateOnly, validateLeagueMember, toPlayerInput } from '@gfp/shared-types';
 import {
   leagueApi, LeagueMember, LeagueRound,
@@ -26,6 +26,7 @@ type Tab = 'overview' | 'roster' | 'rounds' | 'handicaps' | 'standings' | 'skins
 
 export default function SeasonDashboardScreen() {
   const theme       = useTheme();
+  const c           = useClasses();
   const router      = useRouter();
   const { id, sid } = useLocalSearchParams<{ id: string; sid: string }>();
 
@@ -263,7 +264,7 @@ export default function SeasonDashboardScreen() {
   }
 
   if (loading) return (
-    <View style={styles.center}>
+    <View style={c.center}>
       <ActivityIndicator size="large" color={theme.colors.primary} />
     </View>
   );
@@ -669,7 +670,6 @@ function roundStatusColor(s: string) {
 
 const styles = StyleSheet.create({
   root:          { flex: 1 },
-  center:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header:        { flexDirection: 'row', alignItems: 'center', gap: spacing[3], padding: spacing[4], borderBottomWidth: 1 },
   title:         { flex: 1, fontSize: fontSize.xl, fontWeight: '700' },
   statusBadge:   { fontSize: fontSize.xs },

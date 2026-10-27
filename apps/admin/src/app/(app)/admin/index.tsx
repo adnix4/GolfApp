@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, Pressable, RefreshControl,
   ActivityIndicator, StyleSheet,
 } from 'react-native';
-import { useTheme, StatusPill } from '@gfp/ui';
+import { useTheme, StatusPill, useClasses } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
 import { useAllOrganizations, useAllEvents } from '@/lib/queries';
 import { formatDate } from '@gfp/shared-types';
@@ -24,6 +24,7 @@ function Badge({ status }: { status: string }) {
 
 export default function SuperAdminDashboard() {
   const theme = useTheme();
+  const c = useClasses();
   const { isMobile, pagePadding } = useResponsive();
 
   const orgList   = useAllOrganizations();
@@ -48,7 +49,7 @@ export default function SuperAdminDashboard() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={c.center}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
@@ -56,7 +57,7 @@ export default function SuperAdminDashboard() {
 
   return (
     <ScrollView
-      style={[styles.page, { backgroundColor: theme.pageBackground }]}
+      style={c.screen}
       contentContainerStyle={{ padding: pagePadding, paddingBottom: 60 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
     >
@@ -67,8 +68,8 @@ export default function SuperAdminDashboard() {
       </Text>
 
       {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={[c.errorBox, styles.errorBox]}>
+          <Text style={c.errorText}>{error}</Text>
         </View>
       )}
 
@@ -211,14 +212,11 @@ export default function SuperAdminDashboard() {
 }
 
 const styles = StyleSheet.create({
-  page:   { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   pageTitle: { fontSize: fontSize.display, fontWeight: '900', marginBottom: spacing[1] },
   pageSub:   { fontSize: fontSize.md, marginBottom: spacing[5] },
 
-  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[4], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: fontSize.md },
+  errorBox:  { marginBottom: spacing[4] },   // over c.errorBox
 
   statsRow:     { flexDirection: 'row', gap: spacing[3], marginBottom: spacing[6] },
   statsRowWrap: { flexWrap: 'wrap' },

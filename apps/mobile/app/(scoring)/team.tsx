@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { LeaveEventButton } from '@/components/LeaveEventButton';
 import type { PlayerCacheDto } from '@/lib/api';
@@ -73,6 +73,7 @@ const rowStyles = StyleSheet.create({
 
 export default function TeamScreen() {
   const theme   = useTheme();
+  const c = useClasses();
   const router  = useRouter();
   const { session } = useSession();
 
@@ -93,7 +94,7 @@ export default function TeamScreen() {
     .join(' ');
 
   return (
-    <SafeAreaView edges={['left', 'right']} style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+    <SafeAreaView edges={['left', 'right']} style={c.screen}>
       <ScrollView contentContainerStyle={styles.scroll}>
 
         {/* ── TEAM HEADER ── */}
@@ -173,7 +174,6 @@ const infoRowStyles = StyleSheet.create({
 // ── STYLES ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  page:   { flex: 1 },
   scroll: { padding: spacing[4], paddingBottom: spacing[10] },
 
   teamCard: {

@@ -6,16 +6,17 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { scoresApi, type QrCollectResult } from '@/lib/api';
 import { eventKeys } from '@/lib/queries';
 import { decodeQrPayload, type DecodedQrPayload as DecodedPreview } from '@/lib/qrUtils';
 import { formatDateTime } from '@gfp/shared-types';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 export default function QrImportScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
+  const c        = useClasses();
   const queryClient = useQueryClient();
 
   const [payload,  setPayload]  = useState('');
@@ -62,7 +63,7 @@ export default function QrImportScreen() {
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={[styles.title, { color: theme.colors.primary }]}>QR Score Import</Text>
+      <Text style={[c.title, styles.title]}>QR Score Import</Text>
       <Text style={[styles.subtitle, { color: theme.mutedText }]}>
         Use a USB barcode scanner or paste the QR payload from a player's mobile scorecard.
         The scanner acts as a keyboard — focus the field and scan.
@@ -131,8 +132,8 @@ export default function QrImportScreen() {
 
       {/* Result */}
       {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={[c.errorBox, styles.errorBox]}>
+          <Text style={c.errorText}>{error}</Text>
         </View>
       )}
 
@@ -147,7 +148,7 @@ export default function QrImportScreen() {
             <>
               <PreviewRow label="Conflicts" value={String(result.conflicts)} />
               {result.conflictDetails.map((c, i) => (
-                <Text key={i} style={[styles.conflictLine, { color: '#c0392b' }]}>
+                <Text key={i} style={[styles.conflictLine, { color: status.dangerText }]}>
                   Hole {c.holeNumber}: existing {c.existingScore} vs QR {c.qrScore}
                 </Text>
               ))}
@@ -172,7 +173,7 @@ const styles = StyleSheet.create({
   page:    { flex: 1, backgroundColor: '#f7f8fa' },
   content: { padding: spacing[8], gap: spacing[4], maxWidth: 680, width: '100%', alignSelf: 'center' },
 
-  title:    { fontSize: fontSize.title, fontWeight: '800', marginBottom: spacing[1] },
+  title:    { marginBottom: spacing[1] },        // over c.title
   subtitle: { fontSize: fontSize.md, lineHeight: 20, marginBottom: spacing[1] },
 
   inputCard: { backgroundColor: '#fff', borderWidth: 2, borderRadius: radius.lg, padding: spacing[1], minHeight: 100 },
@@ -186,14 +187,13 @@ const styles = StyleSheet.create({
   previewLabel: { fontSize: fontSize.sm, fontWeight: '600', color: '#555', width: 100 },
   previewValue: { fontSize: fontSize.sm, color: '#222', flex: 1 },
 
-  decodeError:     { backgroundColor: '#fff8e1', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#f39c12' },
+  decodeError:     { backgroundColor: '#fff8e1', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: status.warning },
   decodeErrorText: { color: '#7d6608', fontSize: fontSize.sm, fontWeight: '600' },
 
   importBtn:     { borderRadius: radius.lg, paddingVertical: spacing[4], alignItems: 'center' },
   importBtnText: { fontSize: fontSize.xl, fontWeight: '800', color: '#fff' },
 
-  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: fontSize.md },
+  errorBox:  { marginBottom: 0 },               // over c.errorBox
 
   resultCard:    { borderWidth: 1.5, borderRadius: radius.lg, padding: spacing[4], gap: spacing[2], backgroundColor: '#fff' },
   resultTitle:   { fontSize: fontSize.lg, fontWeight: '800', marginBottom: spacing[1] },

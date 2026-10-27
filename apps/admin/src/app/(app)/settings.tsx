@@ -3,8 +3,8 @@ import {
   View, Text, TextInput, Pressable, ScrollView,
   Switch, StyleSheet, ActivityIndicator, Platform, Image,
 } from 'react-native';
-import { useTheme } from '@gfp/ui';
-import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme, spacing, radius, fontSize } from '@gfp/theme';
+import { useTheme, useClasses } from '@gfp/ui';
+import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme, spacing, radius, fontSize, status } from '@gfp/theme';
 import { useResponsive } from '@/lib/responsive';
 import { orgApi, type OrgProfile } from '@/lib/api';
 import { TeamMembersCard } from '@/components/TeamMembersCard';
@@ -93,7 +93,7 @@ const cr = StyleSheet.create({
   tokenLabel:{ fontSize: fontSize.md, fontWeight: '700', color: '#333' },
   tokenDesc: { fontSize: fontSize.xs, color: '#888', marginTop: 1 },
   hexInput:  { borderWidth: 1, borderColor: '#ccc', borderRadius: radius.sm, paddingHorizontal: spacing[3], paddingVertical: spacing[2], fontSize: fontSize.md, width: 90, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
-  hexInputError: { borderColor: '#e74c3c' },
+  hexInputError: { borderColor: status.danger },
 });
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
@@ -103,9 +103,10 @@ const cr = StyleSheet.create({
 export default function OrgSettingsScreen() {
   const { user } = useAuth();
   const theme    = useTheme();
+  const c        = useClasses();
   if (user?.role === 'EventStaff') {
     return (
-      <View style={[styles.page, { backgroundColor: theme.pageBackground, padding: spacing[6] }]}>
+      <View style={[c.screen, { padding: spacing[6] }]}>
         <Text style={[styles.title, { color: theme.colors.primary }]}>Organization Settings</Text>
         <Text style={[styles.sub, { color: theme.mutedText }]}>
           Only organizers can change organization settings or invite people. Ask your organizer.
@@ -118,6 +119,7 @@ export default function OrgSettingsScreen() {
 
 function OrgSettings() {
   const theme  = useTheme();
+  const c      = useClasses();
   const { pagePadding } = useResponsive();
 
   const [loading,    setLoading]    = useState(true);
@@ -227,12 +229,12 @@ function OrgSettings() {
   }
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
+    return <View style={c.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
   }
 
   return (
     <ScrollView
-      style={[styles.page, { backgroundColor: theme.pageBackground }]}
+      style={c.screen}
       contentContainerStyle={{ padding: pagePadding, paddingBottom: 80 }}
       keyboardShouldPersistTaps="handled"
     >
@@ -241,7 +243,7 @@ function OrgSettings() {
         Update your organization profile. Changes apply to all events.
       </Text>
 
-      {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
+      {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
       {saved  && <View style={styles.successBox}><Text style={styles.successText}>Settings saved.</Text></View>}
 
       {/* ── TEAM MEMBERS (problemList D20) ── */}
@@ -254,7 +256,7 @@ function OrgSettings() {
 
         {/* Slug (read-only) */}
         <View style={styles.fieldWrap}>
-          <Text style={[styles.label, { color: theme.colors.primary }]}>URL Slug</Text>
+          <Text style={[c.fieldLabel, styles.label]}>URL Slug</Text>
           <View style={[styles.readonlyBox, { borderColor: theme.colors.accent + '55' }]}>
             <Text style={[styles.readonlyText, { color: theme.mutedText }]}>{slug}</Text>
           </View>
@@ -265,9 +267,9 @@ function OrgSettings() {
 
         {/* Name */}
         <View style={styles.fieldWrap}>
-          <Text style={[styles.label, { color: theme.colors.primary }]}>Organization Name *</Text>
+          <Text style={[c.fieldLabel, styles.label]}>Organization Name *</Text>
           <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent }]}
+            style={[c.input, styles.input]}
             value={name}
             onChangeText={v => { setName(v); setError(null); }}
             placeholder="Clear Lake High School Boosters"
@@ -280,7 +282,7 @@ function OrgSettings() {
 
         {/* Logo */}
         <View style={styles.fieldWrap}>
-          <Text style={[styles.label, { color: theme.colors.primary }]}>Logo</Text>
+          <Text style={[c.fieldLabel, styles.label]}>Logo</Text>
 
           {/* Preview */}
           {!!logoUrl && (
@@ -312,11 +314,11 @@ function OrgSettings() {
           <Text style={[styles.hint, { color: theme.mutedText }]}>PNG recommended — transparent background, at least 512px wide. SVG and ICO are converted automatically. Max 2 MB.</Text>
 
           {/* URL field — fallback / alternative */}
-          <Text style={[styles.label, { color: theme.colors.primary, marginTop: spacing[3] }]}>
+          <Text style={[c.fieldLabel, styles.label, { marginTop: spacing[3] }]}>
             Or paste a URL
           </Text>
           <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent }]}
+            style={[c.input, styles.input]}
             value={logoUrl}
             onChangeText={setLogoUrl}
             placeholder="https://cdn.example.com/logo.png"
@@ -330,7 +332,7 @@ function OrgSettings() {
 
         {/* Mission */}
         <View style={styles.fieldWrap}>
-          <Text style={[styles.label, { color: theme.colors.primary }]}>Mission Statement</Text>
+          <Text style={[c.fieldLabel, styles.label]}>Mission Statement</Text>
           <TextInput
             style={[styles.textArea, { borderColor: theme.colors.accent }]}
             value={mission}
@@ -350,7 +352,7 @@ function OrgSettings() {
         {/* 501(c)3 */}
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: theme.colors.primary, marginTop: 0 }]}>
+            <Text style={[c.fieldLabel, styles.label, { marginTop: 0 }]}>
               501(c)(3) Non-Profit
             </Text>
             <Text style={[styles.hint, { color: theme.mutedText }]}>
@@ -408,8 +410,8 @@ function OrgSettings() {
 
         {/* Surface lightness indicator */}
         {!surfaceIsLight && (
-          <View style={[styles.contrastBadge, { backgroundColor: '#fdf2f2', borderColor: '#e74c3c' }]}>
-            <Text style={[styles.contrastText, { color: '#c0392b' }]}>
+          <View style={[styles.contrastBadge, { backgroundColor: status.dangerBg, borderColor: status.danger }]}>
+            <Text style={[styles.contrastText, { color: status.dangerText }]}>
               ✗ Surface is too dark — it sits behind white cards on every page. Pick a pale tint.
             </Text>
           </View>
@@ -442,15 +444,11 @@ function OrgSettings() {
 }
 
 const styles = StyleSheet.create({
-  page:    { flex: 1 },
-  center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   title: { fontSize: fontSize.title, fontWeight: '900', marginBottom: spacing[1] },
   sub:   { fontSize: fontSize.md, marginBottom: spacing[5] },
 
-  errorBox:    { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText:   { color: '#c0392b', fontSize: fontSize.md },
-  successBox:  { backgroundColor: '#f0fdf4', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#27ae60' },
+  successBox:  { backgroundColor: '#f0fdf4', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: status.success },
   successText: { color: '#1e8449', fontSize: fontSize.md, fontWeight: '600' },
 
   card: {
@@ -460,8 +458,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: fontSize.xl, fontWeight: '800', marginBottom: spacing[1] },
 
   fieldWrap:    { marginBottom: spacing[1] },
-  label:        { fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing[4], marginBottom: spacing[2] },
-  input:        { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa' },
+  label:        { marginTop: spacing[4] },   // over c.fieldLabel
+  input:        { paddingHorizontal: spacing[4] },   // over c.input
   textArea:     { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa', minHeight: 100, textAlignVertical: 'top' },
   readonlyBox:  { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], backgroundColor: '#f5f5f5' },
   readonlyText: { fontSize: fontSize.lg, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
@@ -469,7 +467,7 @@ const styles = StyleSheet.create({
 
   logoPreview:  { marginTop: spacing[2], marginBottom: spacing[2], height: 80, backgroundColor: '#f5f5f5', borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoImg:      { width: '100%', height: 80 },
-  uploadErr:    { color: '#c0392b', fontSize: fontSize.xs, marginBottom: spacing[1] },
+  uploadErr:    { color: status.dangerText, fontSize: fontSize.xs, marginBottom: spacing[1] },
   uploadBtn:    { marginTop: spacing[2], borderWidth: 1.5, borderRadius: radius.md, paddingVertical: spacing[3], paddingHorizontal: spacing[4], alignItems: 'center', alignSelf: 'flex-start' },
   uploadBtnText:{ fontSize: fontSize.md, fontWeight: '700' },
 

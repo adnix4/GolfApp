@@ -5,16 +5,17 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { eventsApi } from '@/lib/api';
 import { useTeamList } from '@/lib/queries';
 import { useResponsive } from '@/lib/responsive';
 import { autoAssignHoles, validateShotgunAssignments } from '@/lib/shotgunUtils';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 export default function ShotgunScreen() {
   const { id }  = useLocalSearchParams<{ id: string }>();
   const theme   = useTheme();
+  const c       = useClasses();
 
   const { pagePadding } = useResponsive();
 
@@ -101,7 +102,7 @@ export default function ShotgunScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: pagePadding, paddingTop: pagePadding }]}>
         <View>
-          <Text style={[styles.title, { color: theme.colors.primary }]}>Shotgun Assignment</Text>
+          <Text style={c.title}>Shotgun Assignment</Text>
           {!loading && event && (
             <Text style={[styles.subtitle, { color: theme.mutedText }]}>
               {teams.length} team{teams.length !== 1 ? 's' : ''} · {event.holes} holes ·{' '}
@@ -136,17 +137,17 @@ export default function ShotgunScreen() {
 
       {/* Validation errors */}
       {validationErrors.length > 0 && (
-        <View style={styles.errorBox}>
+        <View style={[c.errorBox, styles.errorBox]}>
           {validationErrors.map((e, i) => (
-            <Text key={i} style={styles.errorText}>• {e}</Text>
+            <Text key={i} style={[c.errorText, styles.errorText]}>• {e}</Text>
           ))}
         </View>
       )}
 
       {/* General error */}
       {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={[c.errorBox, styles.errorBox]}>
+          <Text style={[c.errorText, styles.errorText]}>{error}</Text>
         </View>
       )}
 
@@ -173,7 +174,7 @@ export default function ShotgunScreen() {
         </View>
       ) : teams.length === 0 ? (
         <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.mutedText }]}>
+          <Text style={[c.emptyText, styles.emptyText]}>
             No teams registered yet. Add teams first.
           </Text>
         </View>
@@ -210,7 +211,7 @@ export default function ShotgunScreen() {
                     style={[
                       styles.holeInput,
                       { borderColor: isErr || isDup ? '#e74c3c' : val ? '#27ae60' : '#ddd' },
-                      (isErr || isDup) && { backgroundColor: '#fdf2f2' },
+                      (isErr || isDup) && { backgroundColor: status.dangerBg },
                       val && !isErr && !isDup && { backgroundColor: '#f0faf4' },
                     ]}
                     value={val}
@@ -237,7 +238,6 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[8] },
 
   header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: spacing[4], flexWrap: 'wrap', gap: spacing[3] },
-  title:         { fontSize: fontSize.title, fontWeight: '800' },
   subtitle:      { fontSize: fontSize.sm, marginTop: spacing[1] },
   headerActions: { flexDirection: 'row', gap: spacing[3], alignItems: 'center' },
   autoBtn:       { borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
@@ -245,15 +245,15 @@ const styles = StyleSheet.create({
   saveBtn:       { borderRadius: radius.md, paddingHorizontal: spacing[5], paddingVertical: spacing[2], minWidth: 90, alignItems: 'center' },
   saveBtnText:   { fontSize: fontSize.sm, fontWeight: '800', color: '#fff' },
 
-  errorBox:   { marginHorizontal: spacing[6], marginBottom: spacing[2], backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c', gap: spacing[1] },
-  errorText:  { color: '#c0392b', fontSize: fontSize.sm },
-  successBox: { marginHorizontal: spacing[6], marginBottom: spacing[2], backgroundColor: '#f0faf4', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#27ae60' },
+  errorBox:   { marginHorizontal: spacing[6], marginBottom: spacing[2], gap: spacing[1] },   // over c.errorBox
+  errorText:  { fontSize: fontSize.sm },          // over c.errorText
+  successBox: { marginHorizontal: spacing[6], marginBottom: spacing[2], backgroundColor: '#f0faf4', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: status.success },
   successText:{ color: '#1a6b3c', fontSize: fontSize.sm, fontWeight: '600' },
 
   legend:     { marginHorizontal: spacing[6], marginBottom: spacing[2], borderRadius: radius.md, padding: spacing[3] },
   legendText: { fontSize: fontSize.xs, lineHeight: 18 },
 
-  emptyText:  { fontSize: fontSize.lg, textAlign: 'center' },
+  emptyText:  { textAlign: 'center' },            // over c.emptyText
 
   list: { paddingHorizontal: spacing[6], paddingBottom: spacing[8] },
 

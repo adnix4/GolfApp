@@ -16,11 +16,11 @@ import {
   View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { fetchMyCheckout, confirmMyCheckout, type CheckoutCartDto } from '@/lib/api';
 import { checkoutCounts, checkoutHeadline } from '@/lib/checkoutSummary';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 function usd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -28,6 +28,7 @@ function usd(cents: number): string {
 
 export default function AuctionCheckoutScreen() {
   const theme    = useTheme();
+  const c = useClasses();
   const router   = useRouter();
   const { session } = useSession();
 
@@ -84,22 +85,22 @@ export default function AuctionCheckoutScreen() {
   }
 
   if (!session) return (
-    <View style={styles.center}><Text style={{ color: '#888' }}>No active event session.</Text></View>
+    <View style={c.center}><Text style={{ color: '#888' }}>No active event session.</Text></View>
   );
 
   if (loading) return (
-    <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>
+    <View style={c.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>
   );
 
   const won = cart?.lines ?? [];
 
   return (
     <ScrollView
-      style={[styles.page, { backgroundColor: theme.pageBackground }]}
+      style={c.screen}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
     >
-      <Text style={[styles.title, { color: theme.colors.primary }]}>
+      <Text style={[c.title, styles.title]}>
         {won.length === 0 ? 'Auction checkout' : `${checkoutHeadline(won)}!`}
       </Text>
 
@@ -177,10 +178,8 @@ export default function AuctionCheckoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  page:    { flex: 1 },
   content: { padding: spacing[5], paddingBottom: spacing[12] },
-  center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title:   { fontSize: fontSize.title, fontWeight: '800', marginBottom: spacing[4] },
+  title:   { marginBottom: spacing[4] },   // over c.title
   empty:   { color: '#888', fontSize: fontSize.lg, lineHeight: 21 },
 
   line:       { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.08)' },
@@ -197,5 +196,5 @@ const styles = StyleSheet.create({
   payBtnText: { color: '#fff', fontWeight: '800', fontSize: fontSize.xl },
   deskNote:   { color: '#777', fontSize: fontSize.xs, textAlign: 'center', marginTop: spacing[3], lineHeight: 17 },
   paidNote:   { color: '#059669', fontSize: fontSize.lg, fontWeight: '600', marginTop: spacing[5], lineHeight: 21 },
-  error:      { color: '#c0392b', fontSize: fontSize.sm, marginTop: spacing[3], lineHeight: 18 },
+  error:      { color: status.dangerText, fontSize: fontSize.sm, marginTop: spacing[3], lineHeight: 18 },
 });

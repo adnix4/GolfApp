@@ -7,15 +7,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Brightness from 'expo-brightness';
 import QRCode from 'react-native-qrcode-svg';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { buildQrPayloads, type QrScore } from '@/lib/qrPayload';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
 
 export default function QrTransferScreen() {
   const theme               = useTheme();
+  const c = useClasses();
   const router              = useRouter();
   const { session, pendingScores, deviceId } = useSession();
 
@@ -76,7 +77,7 @@ export default function QrTransferScreen() {
   const qrValue  = qrValues[activePart] ?? '';
 
   return (
-    <SafeAreaView style={[styles.page, { backgroundColor: '#111' }]}>
+    <SafeAreaView style={[c.page, { backgroundColor: '#111' }]}>
       {/* ── HEADER ── */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Scorecard QR</Text>
@@ -166,7 +167,6 @@ export default function QrTransferScreen() {
 // ── STYLES ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  page:    { flex: 1 },
 
   header: {
     paddingTop:        Platform.OS === 'android' ? 12 : 0,
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   qrPlaceholder: { alignItems: 'center', gap: spacing[4] },
   qrPlaceholderText: { color: '#fff', fontSize: fontSize.md },
 
-  errorText: { color: '#e74c3c', textAlign: 'center', fontSize: fontSize.md, paddingHorizontal: spacing[8] },
+  errorText: { color: status.danger, textAlign: 'center', fontSize: fontSize.md, paddingHorizontal: spacing[8] },
   retryBtn:  { marginTop: spacing[3], paddingVertical: spacing[3], paddingHorizontal: spacing[6], borderRadius: radius.md, borderWidth: 1, borderColor: '#fff' },
   retryText: { color: '#fff', fontWeight: '700' },
 

@@ -5,11 +5,11 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
-import { useTheme, MoneyInput } from '@gfp/ui';
+import { useTheme, MoneyInput, useClasses } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { challengesApi, type HoleChallenge } from '@/lib/api';
 import { useChallengeList } from '@/lib/queries';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 const COMMON_CHALLENGES = [
   'Closest to Pin',
@@ -23,6 +23,7 @@ const COMMON_CHALLENGES = [
 export default function ChallengesScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
+  const c        = useClasses();
 
   const challengeList = useChallengeList(id);
   const { items: challenges, setItems: setChallenges, loading } = challengeList;
@@ -65,7 +66,7 @@ export default function ChallengesScreen() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.primary }]}>
+        <Text style={c.title}>
           Hole Challenges ({challenges.length})
         </Text>
         <Pressable
@@ -78,8 +79,8 @@ export default function ChallengesScreen() {
       </View>
 
       {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={[c.errorBox, styles.errorBox]}>
+          <Text style={c.errorText}>{error}</Text>
         </View>
       )}
 
@@ -129,7 +130,7 @@ export default function ChallengesScreen() {
                   </Text>
                 )}
                 {ch.winnerName && (
-                  <Text style={[styles.winnerLine, { color: '#27ae60' }]}>
+                  <Text style={[styles.winnerLine, { color: status.success }]}>
                     🏆 Winner: {ch.winnerName}
                   </Text>
                 )}
@@ -174,6 +175,7 @@ interface FormProps {
 
 function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHoles, onClose, onSaved }: FormProps) {
   const theme = useTheme();
+  const c     = useClasses();
 
   const [holeNumber,    setHoleNumber]    = useState('');
   const [description,   setDescription]   = useState('');
@@ -226,20 +228,20 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <View style={c.overlay}>
         <View style={styles.modal}>
-          <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
+          <Text style={[c.modalTitle, styles.modalTitle]}>
             {initial ? `Edit — Hole ${initial.holeNumber}` : 'Add Challenge'}
           </Text>
 
-          {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
+          {error && <View style={[c.errorBox, styles.errorBox]}><Text style={c.errorText}>{error}</Text></View>}
 
           {/* Hole selector */}
           {!initial && (
             <>
-              <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Hole Number *</Text>
+              <Text style={c.fieldLabel}>Hole Number *</Text>
               <TextInput
-                style={[styles.input, { borderColor: theme.colors.accent }]}
+                style={c.input}
                 value={holeNumber}
                 onChangeText={setHoleNumber}
                 placeholder={`1–${holeCount}`}
@@ -251,7 +253,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
           )}
 
           {/* Quick-pick challenge types */}
-          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Challenge Type *</Text>
+          <Text style={c.fieldLabel}>Challenge Type *</Text>
           <View style={styles.quickPicks}>
             {COMMON_CHALLENGES.map(c => (
               <Pressable
@@ -270,7 +272,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
             ))}
           </View>
           <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent, marginTop: spacing[2] }]}
+            style={[c.input, { marginTop: spacing[2] }]}
             value={description}
             onChangeText={setDescription}
             placeholder="Custom description…"
@@ -278,9 +280,9 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
             editable={!loading}
           />
 
-          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Sponsor (optional)</Text>
+          <Text style={c.fieldLabel}>Sponsor (optional)</Text>
           <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent }]}
+            style={c.input}
             value={sponsorName}
             onChangeText={setSponsorName}
             placeholder="ACME Corp"
@@ -288,9 +290,9 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
             editable={!loading}
           />
 
-          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Sponsor Logo URL (optional)</Text>
+          <Text style={c.fieldLabel}>Sponsor Logo URL (optional)</Text>
           <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent }]}
+            style={c.input}
             value={sponsorLogoUrl}
             onChangeText={setSponsorLogoUrl}
             placeholder="https://example.com/logo.png"
@@ -308,9 +310,9 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
             />
           )}
 
-          <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Donation Amount (optional)</Text>
+          <Text style={c.fieldLabel}>Donation Amount (optional)</Text>
           <MoneyInput
-            style={[styles.input, { borderColor: theme.colors.accent }]}
+            style={c.input}
             value={donationAmt}
             onChangeText={setDonationAmt}
             placeholder="$0.00"
@@ -318,18 +320,18 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
             editable={!loading}
           />
 
-          <View style={styles.modalActions}>
-            <Pressable style={[styles.cancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
-              <Text style={[styles.cancelText, { color: theme.mutedText }]}>Cancel</Text>
+          <View style={[c.formActions, styles.modalActions]}>
+            <Pressable style={c.cancelBtn} onPress={onClose}>
+              <Text style={c.cancelText}>Cancel</Text>
             </Pressable>
             <Pressable
-              style={[styles.saveBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
+              style={[c.submitBtn, loading && { opacity: 0.6 }]}
               onPress={handleSave}
               disabled={loading}
             >
               {loading
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.saveBtnText}>Save</Text>}
+                : <Text style={c.submitText}>Save</Text>}
             </Pressable>
           </View>
         </View>
@@ -341,15 +343,13 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
 const styles = StyleSheet.create({
   page:   { flex: 1, backgroundColor: '#f7f8fa' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing[6], paddingBottom: spacing[4] },
-  title:  { fontSize: fontSize.title, fontWeight: '800' },
   addBtn: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
   addBtnText: { fontSize: fontSize.md, fontWeight: '700' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[8] },
   emptyText: { fontSize: fontSize.xl, fontWeight: '600', marginBottom: spacing[2], textAlign: 'center' },
   emptyHint: { fontSize: fontSize.sm, textAlign: 'center', opacity: 0.8 },
 
-  errorBox: { margin: spacing[4], backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: fontSize.md },
+  errorBox: { margin: spacing[4], marginBottom: spacing[4] },   // over c.errorBox
 
   list: { padding: spacing[4], gap: spacing[3] },
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing[4], backgroundColor: '#fff', borderWidth: 1, borderRadius: radius.lg, padding: spacing[4] },
@@ -364,20 +364,13 @@ const styles = StyleSheet.create({
   cardActions: { gap: spacing[2] },
   editBtn: { paddingVertical: spacing[1], paddingHorizontal: spacing[3], borderRadius: radius.sm, borderWidth: 1, borderColor: '#3498db' },
   editText: { fontSize: fontSize.xs, fontWeight: '700' },
-  deleteBtn: { paddingVertical: spacing[1], paddingHorizontal: spacing[3], borderRadius: radius.sm, borderWidth: 1, borderColor: '#e74c3c' },
-  deleteText: { fontSize: fontSize.xs, fontWeight: '700', color: '#e74c3c' },
+  deleteBtn: { paddingVertical: spacing[1], paddingHorizontal: spacing[3], borderRadius: radius.sm, borderWidth: 1, borderColor: status.danger },
+  deleteText: { fontSize: fontSize.xs, fontWeight: '700', color: status.danger },
 
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
   modal: { width: '90%', maxWidth: 460, backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[6], gap: spacing[1] },
-  modalTitle: { fontSize: fontSize.xxl, fontWeight: '800', marginBottom: spacing[2] },
-  fieldLabel: { fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing[3], marginBottom: spacing[2] },
-  input: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa' },
+  modalTitle: { marginBottom: spacing[2] },     // over c.modalTitle
   quickPicks: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   quickChip: { borderWidth: 1, borderColor: '#ccc', borderRadius: radius.xl, paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
   quickChipText: { fontSize: fontSize.sm, fontWeight: '600' },
-  modalActions: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] },
-  cancelBtn: { flex: 1, borderWidth: 1, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center' },
-  cancelText: { fontSize: fontSize.lg, fontWeight: '600' },
-  saveBtn: { flex: 2, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center' },
-  saveBtnText: { fontSize: fontSize.lg, fontWeight: '700', color: '#fff' },
+  modalActions: { marginTop: spacing[4] },      // over c.formActions
 });

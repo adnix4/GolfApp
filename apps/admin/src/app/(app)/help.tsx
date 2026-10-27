@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // ── Content ───────────────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ const LIFECYCLE = [
     ],
   },
   {
-    step: 4, status: 'Scoring', color: '#f39c12',
+    step: 4, status: 'Scoring', color: status.warning,
     title: 'Scoring — Round in Progress',
     items: [
       'Golfers enter scores hole-by-hole on their mobile Scorecard tab.',
@@ -54,7 +54,7 @@ const LIFECYCLE = [
     ],
   },
   {
-    step: 5, status: 'Completed', color: '#27ae60',
+    step: 5, status: 'Completed', color: status.success,
     title: 'Completed — Wrap Up',
     items: [
       'Final leaderboard is locked and published to the public.',
@@ -85,7 +85,7 @@ const TAB_GROUPS = [
     ],
   },
   {
-    id: 'scoring', label: 'Scoring', color: '#f39c12',
+    id: 'scoring', label: 'Scoring', color: status.warning,
     desc: 'Track and review round scores.',
     tabs: [
       { name: 'Scoring',     desc: 'Manual score entry grid — enter hole-by-hole scores for any team. Use this as a backup when mobile sync is unavailable or a team loses their phone.' },
@@ -95,7 +95,7 @@ const TAB_GROUPS = [
     ],
   },
   {
-    id: 'fundraising', label: 'Fundraising', color: '#e74c3c',
+    id: 'fundraising', label: 'Fundraising', color: status.danger,
     desc: 'Revenue tools, sponsorships, and auctions.',
     tabs: [
       { name: 'Fundraising',   desc: 'Live revenue dashboard showing total proceeds broken down by source: auction bids, donations, and sponsor contributions.' },
@@ -106,7 +106,7 @@ const TAB_GROUPS = [
     ],
   },
   {
-    id: 'tools', label: 'Tools', color: '#27ae60',
+    id: 'tools', label: 'Tools', color: status.success,
     desc: 'Communication, print materials, and branding.',
     tabs: [
       { name: 'Print Kit',      desc: 'Generate a printable PDF packet containing the event QR code (for golfer sign-in), starting hole assignments, and scorecard sheets for each team.' },
@@ -211,12 +211,13 @@ function BulletList({ items, color }: { items: string[]; color: string }) {
 
 export default function HelpScreen() {
   const theme = useTheme();
+  const c = useClasses();
   const { pagePadding } = useResponsive();
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={[styles.content, { padding: pagePadding }]}>
+    <ScrollView style={c.page} contentContainerStyle={[styles.content, { padding: pagePadding }]}>
       <View style={styles.pageHeader}>
-        <Text style={[styles.pageTitle, { color: theme.colors.primary }]}>Help & Guide</Text>
+        <Text style={c.title}>Help & Guide</Text>
         <Text style={[styles.pageSubtitle, { color: theme.mutedText }]}>
           Everything you need to plan, run, and wrap up a fundraising tournament.
         </Text>
@@ -248,11 +249,9 @@ export default function HelpScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  page:    { flex: 1 },
   content: { gap: spacing[4], paddingBottom: spacing[10] },
 
   pageHeader:   { marginBottom: spacing[1] },
-  pageTitle:    { fontSize: fontSize.title, fontWeight: '800' },
   pageSubtitle: { fontSize: fontSize.md, lineHeight: 20, marginTop: spacing[1] },
 
   card:       { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e8e8e8', borderRadius: radius.lg, overflow: 'hidden' },

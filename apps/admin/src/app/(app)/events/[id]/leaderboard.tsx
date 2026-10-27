@@ -5,7 +5,7 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { useLeaderboard, useIndividualLeaderboard } from '@/lib/queries';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { FORMAT_LABELS } from '@gfp/shared-types';
 import { useResponsive } from '@/lib/responsive';
 import { fontSize, radius, spacing } from '@gfp/theme';
@@ -26,6 +26,7 @@ function RankBadge({ rank }: { rank: number }) {
 export default function LeaderboardScreen() {
   const { id }  = useLocalSearchParams<{ id: string }>();
   const theme   = useTheme();
+  const c       = useClasses();
   const { pagePadding } = useResponsive();
 
   const { event, refresh } = useEventDetail();
@@ -53,14 +54,14 @@ export default function LeaderboardScreen() {
   const showGolfers  = isStroke && view === 'golfers';
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
+    return <View style={c.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
   }
 
   return (
-    <View style={[styles.page, { padding: pagePadding }]}>
+    <View style={[c.page, { padding: pagePadding }]}>
       <View style={styles.header}>
         <View>
-          <Text style={[styles.title, { color: theme.colors.primary }]}>Leaderboard</Text>
+          <Text style={c.title}>Leaderboard</Text>
           {event && (
             <Text style={[styles.formatBadge, { color: theme.mutedText }]}>
               {FORMAT_LABELS[event.format] ?? event.format} · {event.holes} holes
@@ -79,8 +80,8 @@ export default function LeaderboardScreen() {
       </View>
 
       {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={c.errorBox}>
+          <Text style={c.errorText}>{error}</Text>
         </View>
       )}
 
@@ -105,7 +106,7 @@ export default function LeaderboardScreen() {
       {showGolfers ? (
         golfers.every(g => g.holesComplete === 0) && !error ? (
           <View style={styles.emptyWrap}>
-            <Text style={[styles.emptyText, { color: theme.mutedText }]}>
+            <Text style={c.emptyText}>
               No golfer strokes recorded yet.
             </Text>
           </View>
@@ -155,7 +156,7 @@ export default function LeaderboardScreen() {
         )
       ) : entries.length === 0 && !error ? (
         <View style={styles.emptyWrap}>
-          <Text style={[styles.emptyText, { color: theme.mutedText }]}>
+          <Text style={c.emptyText}>
             No scores submitted yet.
           </Text>
         </View>
@@ -224,13 +225,9 @@ export default function LeaderboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  page:   { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: fontSize.lg },
 
   header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[4] },
-  title:       { fontSize: fontSize.title, fontWeight: '800' },
   formatBadge: { fontSize: fontSize.sm, marginTop: spacing[0.5] },
 
   viewToggle:  { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[3] },
@@ -242,8 +239,6 @@ const styles = StyleSheet.create({
   refreshBtn:  { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[2], minWidth: 80, alignItems: 'center' },
   refreshText: { fontSize: fontSize.md, fontWeight: '600' },
 
-  errorBox:  { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: fontSize.md },
 
   table:     { borderWidth: 1, borderRadius: radius.lg, overflow: 'hidden', flex: 1 },
   colHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], paddingHorizontal: spacing[3], borderBottomWidth: 1 },

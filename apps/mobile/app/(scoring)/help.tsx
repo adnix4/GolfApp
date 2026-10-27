@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { LeaveEventButton } from '@/components/LeaveEventButton';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // ── Content ───────────────────────────────────────────────────────────────────
 
@@ -23,7 +23,7 @@ const TABS = [
   {
     name: 'Standings',
     icon: '🏆',
-    color: '#f39c12',
+    color: status.warning,
     desc: 'Live leaderboard showing all teams ranked by score relative to par. Your team is highlighted. The leaderboard refreshes every 30 seconds when online.',
     tips: [
       'Scores shown here may lag behind mobile entries by up to 30 seconds.',
@@ -56,7 +56,7 @@ const TABS = [
   {
     name: 'League',
     icon: '📊',
-    color: '#e74c3c',
+    color: status.danger,
     desc: 'Shows your season statistics for this league event: handicap index, standings, total points, and round history. Only visible when the event is part of a league season.',
     tips: [
       'Your handicap is updated automatically after each round is completed.',
@@ -166,11 +166,12 @@ function EndStep({ step }: { step: typeof END_OF_ROUND[0] }) {
 
 export default function HelpScreen() {
   const theme = useTheme();
+  const c = useClasses();
   const { session } = useSession();
 
   return (
     <ScrollView
-      style={[styles.page, { backgroundColor: theme.colors.surface }]}
+      style={[c.page, { backgroundColor: theme.colors.surface }]}
       contentContainerStyle={styles.content}
     >
       {/* Header */}
@@ -232,7 +233,6 @@ export default function HelpScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  page:    { flex: 1 },
   content: { paddingBottom: spacing[10] },
 
   header:      { paddingTop: spacing[4], paddingBottom: spacing[4], paddingHorizontal: spacing[5] },

@@ -5,7 +5,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useEventDetail } from '@/lib/eventContext';
 import { eventKeys } from '@/lib/queries';
-import { useTheme, StatusPill, MoneyInput } from '@gfp/ui';
+import { useTheme, StatusPill, MoneyInput, useClasses } from '@gfp/ui';
 import {
   FORMAT_OPTIONS, FORMAT_LABELS,
   START_OPTIONS, START_LABELS,
@@ -27,7 +27,7 @@ import {
   scoringGate, scoringGateHint, openScoringEarlyCopy,
   completionGate, markCompleteCopy, markCompleteUncheckedCopy, cancelEventCopy,
 } from '@/lib/eventStatus';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // ── Entry fee helpers ─────────────────────────────────────────────────────────
 // The per-golfer fee lives in the event config JSONB (entryFeeCents). Organizers
@@ -50,6 +50,7 @@ function entryFeeLabel(cents: number | null): string {
 
 export default function EventOverviewScreen() {
   const theme    = useTheme();
+  const c        = useClasses();
   const { isMobile, pagePadding } = useResponsive();
 
   // The layout loads the event; changes go back through setEvent/refresh so
@@ -179,10 +180,10 @@ export default function EventOverviewScreen() {
   const isDraft = event.status === 'Draft';
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={[styles.pageContent, { padding: pagePadding }]}>
+    <ScrollView style={c.page} contentContainerStyle={[styles.pageContent, { padding: pagePadding }]}>
       {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={c.errorBox}>
+          <Text style={c.errorText}>{error}</Text>
         </View>
       )}
 
@@ -281,7 +282,7 @@ export default function EventOverviewScreen() {
             <StatusDescription status={event.status} event={event} />
 
             {blocked && (
-              <View style={[styles.blockingNote, { backgroundColor: '#fff8e1', borderColor: '#f39c12' }]}>
+              <View style={[styles.blockingNote, { backgroundColor: '#fff8e1', borderColor: status.warning }]}>
                 <Text style={[styles.blockingNoteText, { color: '#856404' }]}>
                   {scoringGateHint(gate)}
                 </Text>
@@ -434,7 +435,7 @@ function DraftSetupSection({ event, updating, seeding, onOpenEdit, onOpenCourse,
       <View style={styles.setupDivider} />
 
       {/* Test data seeding — only visible in Draft */}
-      <View style={[styles.testDataSection, { backgroundColor: '#fff8e1', borderColor: '#f39c12' }]}>
+      <View style={[styles.testDataSection, { backgroundColor: '#fff8e1', borderColor: status.warning }]}>
         <Text style={[styles.testDataTitle, { color: '#856404' }]}>Testing Mode</Text>
         <Text style={[styles.testDataDesc, { color: '#856404' }]}>
           Populate realistic test teams, scores, and donations to preview the event flow.
@@ -454,7 +455,7 @@ function DraftSetupSection({ event, updating, seeding, onOpenEdit, onOpenCourse,
       </View>
 
       {!canOpen && (
-        <View style={[styles.blockingNote, { backgroundColor: '#fff8e1', borderColor: '#f39c12' }]}>
+        <View style={[styles.blockingNote, { backgroundColor: '#fff8e1', borderColor: status.warning }]}>
           <Text style={[styles.blockingNoteText, { color: '#856404' }]}>
             Set a start date & time before opening registration.
           </Text>
@@ -564,6 +565,7 @@ interface EditEventModalProps {
 
 function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProps) {
   const theme = useTheme();
+  const c = useClasses();
   // The event's saved start, as picker values. Only a changed start is sent
   // (and checked against "must be in the future", which the API enforces), so
   // organizers can still edit other details of an event that already happened.
@@ -637,16 +639,16 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <View style={c.overlay}>
         <ScrollView contentContainerStyle={styles.modalScroll}>
           <View style={styles.modal}>
-            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Edit Event Details</Text>
+            <Text style={c.modalTitle}>Edit Event Details</Text>
 
-            {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
+            {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
 
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Event Name *</Text>
+            <Text style={c.fieldLabel}>Event Name *</Text>
             <TextInput
-              style={[styles.input, { borderColor: fieldErrors.name ? '#e74c3c' : theme.colors.accent }]}
+              style={[c.input, !!fieldErrors.name && c.inputError]}
               value={name}
               onChangeText={v => { setName(v); if (fieldErrors.name) setFieldErrors(p => ({ ...p, name: undefined })); }}
               placeholder="Annual Charity Golf Classic"
@@ -656,7 +658,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
             />
             {fieldErrors.name && <Text style={styles.fieldError}>{fieldErrors.name}</Text>}
 
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Format</Text>
+            <Text style={c.fieldLabel}>Format</Text>
             <View style={styles.pillRow}>
               {FORMAT_OPTIONS.map(f => (
                 <Pressable
@@ -676,7 +678,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
               </Text>
             )}
 
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Start Type</Text>
+            <Text style={c.fieldLabel}>Start Type</Text>
             <View style={styles.pillRow}>
               {START_OPTIONS.map(s => (
                 <Pressable key={s} style={[styles.pill, startType === s && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]} onPress={() => setStartType(s)}>
@@ -685,7 +687,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
               ))}
             </View>
 
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Holes</Text>
+            <Text style={c.fieldLabel}>Holes</Text>
             <View style={styles.pillRow}>
               {HOLES_OPTIONS.map(h => (
                 <Pressable key={h} style={[styles.pill, holes === h && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]} onPress={() => setHoles(h)}>
@@ -694,9 +696,9 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
               ))}
             </View>
 
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Entry Fee per Golfer ($)</Text>
+            <Text style={c.fieldLabel}>Entry Fee per Golfer ($)</Text>
             <MoneyInput
-              style={[styles.input, { borderColor: fieldErrors.entryFee ? '#e74c3c' : theme.colors.accent }]}
+              style={[c.input, !!fieldErrors.entryFee && c.inputError]}
               value={entryFee}
               onChangeText={v => { setEntryFee(v); if (fieldErrors.entryFee) setFieldErrors(p => ({ ...p, entryFee: undefined })); }}
               placeholder="Leave blank for a free event"
@@ -707,7 +709,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
               ? <Text style={styles.fieldError}>{fieldErrors.entryFee}</Text>
               : <Text style={[styles.fieldHint, { color: theme.mutedText }]}>Shown on the public event page and email ads; each golfer pays at registration.</Text>}
 
-            <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>Start Date & Time</Text>
+            <Text style={c.fieldLabel}>Start Date & Time</Text>
             <DateTimePairField
               label="Start"
               date={startDate}
@@ -723,12 +725,12 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
               clearable={!parsed.date}
             />
 
-            <View style={styles.modalActions}>
-              <Pressable style={[styles.modalCancelBtn, { borderColor: theme.colors.accent }]} onPress={onClose}>
-                <Text style={[styles.modalCancelText, { color: theme.mutedText }]}>Cancel</Text>
+            <View style={c.formActions}>
+              <Pressable style={c.cancelBtn} onPress={onClose}>
+                <Text style={c.cancelText}>Cancel</Text>
               </Pressable>
-              <Pressable style={[styles.modalSubmitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]} onPress={handleSave} disabled={loading}>
-                {loading ? <ActivityIndicator color={theme.buttonLabel} /> : <Text style={[styles.modalSubmitText, { color: theme.buttonLabel }]}>Save Changes</Text>}
+              <Pressable style={[c.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSave} disabled={loading}>
+                {loading ? <ActivityIndicator color={theme.buttonLabel} /> : <Text style={c.submitText}>Save Changes</Text>}
               </Pressable>
             </View>
           </View>
@@ -749,6 +751,7 @@ interface AttachCourseModalProps {
 
 function AttachCourseModal({ visible, eventId, course, onClose, onAttached }: AttachCourseModalProps) {
   const theme = useTheme();
+  const c = useClasses();
   const isEdit = !!course;
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -788,12 +791,12 @@ function AttachCourseModal({ visible, eventId, course, onClose, onAttached }: At
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => { reset(); onClose(); }}>
-      <View style={styles.overlay}>
+      <View style={c.overlay}>
         <View style={styles.modal}>
-          <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
+          <Text style={c.modalTitle}>
             {isEdit ? 'Edit Course' : 'Attach Course'}
           </Text>
-          {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
+          {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
           {([
             { label: 'Course Name *', value: name,    setter: setName,    placeholder: 'Pebble Beach Golf Links' },
             { label: 'Address *',     value: address, setter: setAddress, placeholder: '17 Mile Dr' },
@@ -802,20 +805,20 @@ function AttachCourseModal({ visible, eventId, course, onClose, onAttached }: At
             { label: 'Zip',           value: zip,     setter: setZip,     placeholder: '93953' },
           ] as const).map(f => (
             <View key={f.label}>
-              <Text style={[styles.fieldLabel, { color: theme.colors.primary }]}>{f.label}</Text>
+              <Text style={c.fieldLabel}>{f.label}</Text>
               <TextInput
-                style={[styles.input, { borderColor: theme.colors.accent }]}
+                style={c.input}
                 value={f.value} onChangeText={f.setter as any}
                 placeholder={f.placeholder} placeholderTextColor="#999" editable={!loading}
               />
             </View>
           ))}
-          <View style={styles.modalActions}>
-            <Pressable style={[styles.modalCancelBtn, { borderColor: theme.colors.accent }]} onPress={() => { reset(); onClose(); }}>
-              <Text style={[styles.modalCancelText, { color: theme.mutedText }]}>Cancel</Text>
+          <View style={c.formActions}>
+            <Pressable style={c.cancelBtn} onPress={() => { reset(); onClose(); }}>
+              <Text style={c.cancelText}>Cancel</Text>
             </Pressable>
-            <Pressable style={[styles.modalSubmitBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
-              {loading ? <ActivityIndicator color={theme.buttonLabel} /> : <Text style={[styles.modalSubmitText, { color: theme.buttonLabel }]}>{isEdit ? 'Save Changes' : 'Attach'}</Text>}
+            <Pressable style={[c.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
+              {loading ? <ActivityIndicator color={theme.buttonLabel} /> : <Text style={c.submitText}>{isEdit ? 'Save Changes' : 'Attach'}</Text>}
             </Pressable>
           </View>
         </View>
@@ -839,9 +842,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  page:        { flex: 1 },
   pageContent: { gap: spacing[4] },
-  center:      { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   pageHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3], marginBottom: spacing[1] },
   eventName:  { fontSize: fontSize.title, fontWeight: '800' },
@@ -866,7 +867,7 @@ const styles = StyleSheet.create({
   },
   checkActionText: { fontSize: fontSize.xs, fontWeight: '700' },
   requiredPill:    { backgroundColor: '#fde8e8', borderRadius: radius.xs, paddingHorizontal: spacing[2], paddingVertical: spacing[0.5] },
-  requiredPillText: { fontSize: fontSize.xxs, fontWeight: '700', color: '#c0392b' },
+  requiredPillText: { fontSize: fontSize.xxs, fontWeight: '700', color: status.dangerText },
   setupDivider:    { height: 1, backgroundColor: '#c8dff5', marginVertical: spacing[4] },
   blockingNote: {
     borderWidth: 1, borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3],
@@ -878,11 +879,11 @@ const styles = StyleSheet.create({
   openRegBtnText:  { fontSize: fontSize.xl, fontWeight: '800', color: '#fff' },
   openRegBtnSub:   { fontSize: fontSize.xxs, color: 'rgba(255,255,255,0.8)', marginTop: spacing[1] },
   dangerLink:      { alignItems: 'center', paddingTop: spacing[4] },
-  dangerLinkText:  { fontSize: fontSize.sm, color: '#e74c3c', fontWeight: '500' },
+  dangerLinkText:  { fontSize: fontSize.sm, color: status.danger, fontWeight: '500' },
   testDataSection: { borderWidth: 1, borderRadius: radius.md, padding: spacing[3], marginTop: spacing[1], gap: spacing[2] },
   testDataTitle:   { fontSize: fontSize.sm, fontWeight: '700' },
   testDataDesc:    { fontSize: fontSize.xs, lineHeight: 16 },
-  seedBtn:         { alignSelf: 'flex-start', backgroundColor: '#f39c12', borderRadius: radius.sm, paddingHorizontal: spacing[4], paddingVertical: spacing[2], marginTop: spacing[1] },
+  seedBtn:         { alignSelf: 'flex-start', backgroundColor: status.warning, borderRadius: radius.sm, paddingHorizontal: spacing[4], paddingVertical: spacing[2], marginTop: spacing[1] },
   seedBtnText:     { fontSize: fontSize.sm, fontWeight: '700', color: '#fff' },
 
   // ── Stats ────────────────────────────────────────────────────────────────────
@@ -910,26 +911,14 @@ const styles = StyleSheet.create({
   advanceBtnText: { fontSize: fontSize.md, fontWeight: '700', color: '#fff' },
   overrideLink:     { marginTop: spacing[3], alignSelf: 'flex-start', paddingVertical: spacing[1] },
   overrideLinkText: { fontSize: fontSize.sm, fontWeight: '600', textDecorationLine: 'underline' },
-  cancelBtn:      { paddingVertical: spacing[3], paddingHorizontal: spacing[4], borderRadius: radius.md, borderWidth: 1.5, borderColor: '#e74c3c', alignItems: 'center' },
-  cancelBtnText:  { fontSize: fontSize.md, fontWeight: '600', color: '#e74c3c' },
+  cancelBtn:      { paddingVertical: spacing[3], paddingHorizontal: spacing[4], borderRadius: radius.md, borderWidth: 1.5, borderColor: status.danger, alignItems: 'center' },
+  cancelBtnText:  { fontSize: fontSize.md, fontWeight: '600', color: status.danger },
 
-  // ── Modals ───────────────────────────────────────────────────────────────────
-  errorBox:       { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText:      { color: '#c0392b', fontSize: fontSize.md },
-  fieldError:     { color: '#e74c3c', fontSize: fontSize.xs, marginTop: spacing[1], marginBottom: spacing[1] },
+  fieldError:     { color: status.danger, fontSize: fontSize.xs, marginTop: spacing[1], marginBottom: spacing[1] },
   fieldHint:      { fontSize: fontSize.xxs, lineHeight: 15, marginTop: spacing[1] },
-  overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
   modalScroll:    { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[5] },
   modal:          { width: '100%', maxWidth: 480, backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[8] },
-  modalTitle:     { fontSize: fontSize.xxl, fontWeight: '800', marginBottom: spacing[4] },
-  fieldLabel:     { fontSize: fontSize.sm, fontWeight: '600', marginBottom: spacing[2], marginTop: spacing[3] },
-  input:          { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa' },
   pillRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[1] },
   pill:           { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.xxl, borderWidth: 1.5, borderColor: '#ddd', backgroundColor: '#fafafa' },
   pillText:       { fontSize: fontSize.sm, fontWeight: '600', color: '#555' },
-  modalActions:   { flexDirection: 'row', gap: spacing[3], marginTop: spacing[5] },
-  modalCancelBtn: { flex: 1, borderWidth: 1, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center' },
-  modalCancelText: { fontSize: fontSize.lg, fontWeight: '600' },
-  modalSubmitBtn: { flex: 2, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center' },
-  modalSubmitText: { fontSize: fontSize.lg, fontWeight: '700' },
 });

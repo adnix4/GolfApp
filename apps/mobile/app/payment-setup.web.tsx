@@ -2,11 +2,12 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function PaymentSetupScreen() {
   const theme  = useTheme();
+  const c = useClasses();
   const router = useRouter();
 
   // Deep-linking straight here leaves no history to pop, so fall back to the
@@ -14,7 +15,7 @@ export default function PaymentSetupScreen() {
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/auction'));
 
   return (
-    <SafeAreaView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+    <SafeAreaView style={c.screen}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: '#e0e0e0' }]}>
         <Pressable onPress={goBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
@@ -50,7 +51,6 @@ export default function PaymentSetupScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1 },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

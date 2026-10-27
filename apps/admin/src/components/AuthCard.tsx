@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, KeyboardAvoidingView,
   type TextInputProps,
 } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
 import { fontSize, radius, spacing } from '@gfp/theme';
 
@@ -33,11 +33,12 @@ export function AuthCard({ heading, children }: { heading: string; children: Rea
 
 export function AuthField({ label, ...input }: { label: string } & TextInputProps) {
   const theme = useTheme();
+  const c = useClasses();
   return (
     <>
-      <Text style={[authStyles.label, { color: theme.colors.primary }]}>{label}</Text>
+      <Text style={[c.fieldLabel, authStyles.label]}>{label}</Text>
       <TextInput
-        style={[authStyles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+        style={[c.input, authStyles.input, { color: theme.colors.primary }]}
         placeholderTextColor="#999"
         {...input}
       />
@@ -68,10 +69,11 @@ export function AuthButton({ label, onPress, busy }: { label: string; onPress: (
 
 /** Inline form error, worded by friendlyApiError (no codes or statuses). */
 export function AuthError({ message }: { message: string | null }) {
+  const c = useClasses();
   if (!message) return null;
   return (
-    <View style={authStyles.errorBox}>
-      <Text style={authStyles.errorText}>{message}</Text>
+    <View style={[c.errorBox, authStyles.errorBox]}>
+      <Text style={c.errorText}>{message}</Text>
     </View>
   );
 }
@@ -99,15 +101,12 @@ export const authStyles = StyleSheet.create({
   logoText:    { fontSize: 32, fontWeight: '800' },
   logoSub:     { fontSize: fontSize.sm, fontWeight: '500', letterSpacing: 1, textTransform: 'uppercase', marginTop: spacing[1] },
   heading:     { fontSize: fontSize.title, fontWeight: '700', marginBottom: spacing[5] },
-  label:       { fontSize: fontSize.sm, fontWeight: '600', marginBottom: spacing[2], marginTop: spacing[4] },
-  input:       { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg,
-                 backgroundColor: '#fafafa' },
+  label:       { marginTop: spacing[4] },   // over c.fieldLabel
+  input:       { paddingHorizontal: spacing[4] },   // over c.input
   button:      { marginTop: spacing[8], paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
   buttonDisabled: { opacity: 0.6 },
   buttonText:  { fontSize: fontSize.xl, fontWeight: '700' },
-  errorBox:    { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[2],
-                 borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText:   { color: '#c0392b', fontSize: fontSize.md },
+  errorBox:    { marginBottom: spacing[2] },   // over c.errorBox
   note:        { fontSize: fontSize.md, lineHeight: 20, marginBottom: spacing[2] },
   linkRow:     { marginTop: spacing[5], alignItems: 'center' },
   link:        { fontSize: fontSize.md, fontWeight: '600', textDecorationLine: 'underline' },

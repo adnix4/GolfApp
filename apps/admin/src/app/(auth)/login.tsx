@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, Pressable,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView,
 } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useAuth } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
@@ -14,6 +14,7 @@ import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function LoginScreen() {
   const theme = useTheme();
+  const c = useClasses();
   const { login } = useAuth();
   const router = useRouter();
   useDocumentTitle('Golf Fundraiser Pro');
@@ -54,14 +55,14 @@ export default function LoginScreen() {
         <Text style={[styles.heading, { color: theme.colors.primary }]}>Sign in</Text>
 
         {error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={[c.errorBox, styles.errorBox]}>
+            <Text style={c.errorText}>{error}</Text>
           </View>
         )}
 
-        <Text style={[styles.label, { color: theme.colors.primary }]}>Email</Text>
+        <Text style={[c.fieldLabel, styles.label]}>Email</Text>
         <TextInput
-          style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+          style={[c.input, styles.input, { color: theme.colors.primary }]}
           value={email}
           onChangeText={setEmail}
           placeholder="organizer@email.com"
@@ -73,9 +74,9 @@ export default function LoginScreen() {
           editable={!loading}
         />
 
-        <Text style={[styles.label, { color: theme.colors.primary }]}>Password</Text>
+        <Text style={[c.fieldLabel, styles.label]}>Password</Text>
         <TextInput
-          style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+          style={[c.input, styles.input, { color: theme.colors.primary }]}
           value={password}
           onChangeText={setPassword}
           placeholder="••••••••"
@@ -151,20 +152,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: spacing[5],
   },
-  label: {
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-    marginBottom: spacing[2],
-    marginTop: spacing[4],
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    fontSize: fontSize.lg,
-    backgroundColor: '#fafafa',
-  },
+  label: { marginTop: spacing[4] },   // over c.fieldLabel
+  input: { paddingHorizontal: spacing[4] },   // over c.input
   button: {
     marginTop: spacing[8],
     paddingVertical: spacing[4],
@@ -178,16 +167,5 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: '700',
   },
-  errorBox: {
-    backgroundColor: '#fdf2f2',
-    borderRadius: radius.md,
-    padding: spacing[3],
-    marginBottom: spacing[2],
-    borderLeftWidth: 3,
-    borderLeftColor: '#e74c3c',
-  },
-  errorText: {
-    color: '#c0392b',
-    fontSize: fontSize.md,
-  },
+  errorBox: { marginBottom: spacing[2] },   // over c.errorBox
 });

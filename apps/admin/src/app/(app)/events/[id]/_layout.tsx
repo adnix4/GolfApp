@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Slot, useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { ThemeProvider, useTheme } from '@gfp/ui';
+import { ThemeProvider, useTheme, useClasses } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, type GFPTheme, spacing, fontSize } from '@gfp/theme';
 import { EventProvider, useEventLoader, type EventContextValue } from '@/lib/eventContext';
 import type { EventDetail } from '@/lib/api';
@@ -115,6 +115,7 @@ function EventChrome({ event, error, retry, eventCtx }: {
   const pathname = usePathname();
   const router   = useRouter();
   const theme    = useTheme();
+  const c        = useClasses();
 
   const pathSuffix = pathname.replace(/.*\/events\/[^/]+\/?/, '');
   const { user }   = useAuth();
@@ -207,7 +208,7 @@ function EventChrome({ event, error, retry, eventCtx }: {
           </EventProvider>
         ) : error ? (
           <View style={styles.center}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={[c.errorText, styles.errorText]}>{error}</Text>
             <Pressable onPress={retry} accessibilityRole="button">
               <Text style={{ color: theme.colors.action, marginTop: spacing[2] }}>Retry</Text>
             </Pressable>
@@ -254,5 +255,5 @@ const styles = StyleSheet.create({
 
   content: { flex: 1 },
   center:  { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing[6] },
-  errorText: { color: '#c0392b', fontSize: fontSize.md, textAlign: 'center' },
+  errorText: { textAlign: 'center' },   // over c.errorText
 });

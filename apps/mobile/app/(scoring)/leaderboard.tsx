@@ -4,7 +4,7 @@ import {
   ActivityIndicator, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { useLiveLeaderboard, type HoleInOneAlert as HoleInOneData } from '@gfp/shared-types';
 import { formatRelativeAge, resolveLeaderboardState, type LeaderboardState } from '@/lib/leaderboardState';
 import { useSession } from '@/lib/session';
@@ -270,6 +270,7 @@ const EMPTY_COPY: Record<Exclude<LeaderboardState, 'ready' | 'loading'>, {
 
 export default function LeaderboardScreen() {
   const theme       = useTheme();
+  const c = useClasses();
   const { session } = useSession();
   const offlineMode = session?.event.offlineMode ?? false;
   const format      = session?.event.format ?? 'Scramble';
@@ -302,7 +303,7 @@ export default function LeaderboardScreen() {
   const view = resolveLeaderboardState({ offlineMode, error, standings, loading });
 
   return (
-    <SafeAreaView edges={['left', 'right']} style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+    <SafeAreaView edges={['left', 'right']} style={c.screen}>
 
       {hioAlert && <HoleInOneOverlay data={hioAlert} onDismiss={dismissHioAlert} />}
 
@@ -388,7 +389,6 @@ function BoardToggle({
 // ── STYLES ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  page:    { flex: 1 },
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing[2] },
   list:    { paddingBottom: Platform.OS === 'ios' ? 24 : 16 },
 

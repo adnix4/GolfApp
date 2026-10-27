@@ -72,7 +72,8 @@ P4 — FEATURES / POLISH
           (teams.tsx + scorecard.tsx done after E3 2026-10-26; hex colours not started)
      [x] E3 split the two largest screens (admin teams.tsx, mobile scorecard.tsx) 2026-10-26
      E4   iOS App Clip for the join link — after D5 (needs Apple + a shipped app)
-     E5   shared style classes (useClasses) — pilot done 2026-10-27, GO; rollout open
+     [x] E5 shared style classes (useClasses) — pilot + rollout 2026-10-27
+          (0 px change; margin unification + league modal family left open)
 
 P5 — BLOCKED OR DEFERRED (no action available yet)
      D19  dev-loop fixes landed; three follow-ups, one gated on D6
@@ -807,7 +808,7 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
         file on the web domain (D3), and a scoped-down join + scorecard target.
         The expo-app-clip skill covers it. Not before the pilot.
 
-[ ] E5. SHARED STYLE CLASSES INSTEAD OF A STYLESHEET PER SCREEN — PILOT DONE
+[x] E5. SHARED STYLE CLASSES INSTEAD OF A STYLESHEET PER SCREEN — ROLLED OUT
         Question (2026-10-27): replace per-screen StyleSheet.create blocks with
         a "class" setup, where a style is defined once and applied by name?
         CENSUS (main, after E2/E3): 1,833 style keys in admin + mobile + ui.
@@ -857,6 +858,39 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
         ROLLOUT (if GO): ~32 admin + ~13 mobile files still define a shared
         candidate; one commit per area with the same screenshot diff; delete
         the 32 dead keys; move the remaining status literals onto `status`.
+        ROLLED OUT 2026-10-27 (same day). Compared with Expo's "centralized
+        theme file (built-in StyleSheet)" advice first: it is the same pattern.
+        The two differences are forced: the org/event palette is runtime data,
+        so the shared sheet is built per palette by a hook instead of being a
+        static module, and it lives in packages/ so admin and mobile share it.
+        DONE, 43 files, +516 / -639: admin event tabs (16), leagues (4), auth
+        + public register + org settings + admin home + help + AuthCard /
+        TeamMembersCard / AddCardModal, mobile (13). Rule used everywhere: an
+        exact match becomes `c.<class>`; a near-miss keeps ONLY its difference
+        locally, composed after the class (`[c.errorBox, styles.errorBox]` with
+        `errorBox: { marginBottom: 0 },   // over c.errorBox`), so no pixel
+        moves. Field-error borders became `[c.input, !!err && c.inputError]`.
+        Dead keys removed (leagues/index.tsx 11, plus a few singles). Status
+        literals used as a style colour moved to `status.*`: 281 -> 95 left
+        (untouched files, data maps like the sponsor tier palette, and
+        ternaries).
+        VERIFIED: turbo lint + type-check + test 12/12. Screenshot diff of
+        main vs the branch, web exports in Edge: 22 admin event-tab views
+        (tabs + Add Sponsor / Add Challenge / Add Free Agent / New Auction
+        Item / Walk-Up / Edit Event popups), 17 admin league/auth/settings/
+        help views (incl. the login, register and forgot-password error
+        states), 14 mobile views. All 0 px except the mobile QR transfer code,
+        whose modules encode live data (layout identical). Repeated with the
+        navy/gold event theme: 0 px. Harness note: a full-page capture can
+        leave the NEXT view in the narrow (top-nav) layout for a frame; it hit
+        main and the branch alike, so wait for the sidebar ("Sign out")
+        before shooting.
+        LEFT OPEN (design calls, each a visible change):
+        - unify the near-miss margins (the `// over c.x` lines list them);
+        - the league popups are their own consistent family (0.5 scrim, 700
+          titles, xs muted labels, md inputs): fold into the classes or make
+          a second "compact form" set;
+        - mobile scorecardComponents keeps its 7 per-modal sheets (E3).
 
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done.

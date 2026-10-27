@@ -4,7 +4,7 @@ import {
   ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { leagueApi } from '@/lib/api';
 import { leagueKeys, useSeasonList } from '@/lib/queries';
@@ -13,10 +13,11 @@ import { useLeagueName } from './_layout';
 import { DateTimeField } from '@/components/DateTimeField';
 import { validateDateRange } from '@/lib/dateTime';
 import { formatDateOnly } from '@gfp/shared-types';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 export default function LeagueDetailScreen() {
   const theme  = useTheme();
+  const c      = useClasses();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -78,7 +79,7 @@ export default function LeagueDetailScreen() {
   };
 
   if (loading) return (
-    <View style={styles.center}>
+    <View style={c.center}>
       <ActivityIndicator size="large" color={theme.colors.primary} />
     </View>
   );
@@ -238,7 +239,6 @@ export default function LeagueDetailScreen() {
 
 const styles = StyleSheet.create({
   root:         { flex: 1 },
-  center:       { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing[5], borderBottomWidth: 1 },
   title:        { fontSize: fontSize.xxl, fontWeight: '700' },
   btn:          { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   modal:        { width: '90%', maxWidth: 460, borderRadius: radius.xl, padding: spacing[6] },
   modalTitle:   { fontSize: fontSize.xl, fontWeight: '700', marginBottom: spacing[2] },
   label:        { fontSize: fontSize.xs, fontWeight: '600', marginTop: spacing[3], marginBottom: spacing[1] },
-  fieldError:   { fontSize: fontSize.xs, color: '#e74c3c', marginTop: spacing[1] },
+  fieldError:   { fontSize: fontSize.xs, color: status.danger, marginTop: spacing[1] },
   input:        { borderWidth: 1, borderRadius: radius.md, padding: spacing[3], fontSize: fontSize.md },
   row:          { flexDirection: 'row', marginTop: spacing[1] },
   segRow:       { flexDirection: 'row', gap: spacing[2], marginTop: spacing[1] },

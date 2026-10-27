@@ -7,7 +7,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   StripeProvider, CardField, useStripe, type CardFieldInput,
 } from '@stripe/stripe-react-native';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import {
   formatCentsShort, digitsOnly, fmtPhoneInput,
   validateGolfer, validateRoster, toPlayerInput, parseInviteToken, ApiError,
@@ -19,7 +19,7 @@ import {
   registerTeam, registerFreeAgent, joinTeam, fetchInvitePreview, confirmEntryFee,
   type SkillLevel, type AgeGroup, type TeamInvitePreview,
 } from '@/lib/api';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 const STRIPE_PK = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
@@ -38,6 +38,7 @@ const emptyTeammate = (): GolferFields => ({ firstName: '', lastName: '', email:
 
 export default function RegisterScreen() {
   const theme  = useTheme();
+  const c      = useClasses();
   const router = useRouter();
   // `invite` arrives from the captain's link via the web hand-off
   // (gfp://register?eventId=…&invite=…), which doesn't know the event name.
@@ -222,7 +223,7 @@ export default function RegisterScreen() {
 
   if (step === 'success') {
     return (
-      <View style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+      <View style={c.screen}>
         <ScrollView contentContainerStyle={styles.scroll}>
           {logo}
           <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
@@ -277,7 +278,7 @@ export default function RegisterScreen() {
 
             {entryFeeCents != null && entryFeeCents > 0 && (
               entryFeePaid ? (
-                <View style={[styles.feeNotice, { backgroundColor: '#f0faf3', borderColor: '#27ae60' }]}>
+                <View style={[styles.feeNotice, { backgroundColor: '#f0faf3', borderColor: status.success }]}>
                   <Text style={[styles.feeNoticeTitle, { color: '#1e8449' }]}>✓ Entry Fee Paid</Text>
                   <Text style={styles.feeNoticeText}>
                     Your {formatCentsShort(entryFeeCents)} entry fee has been paid. See you on the course!
@@ -293,7 +294,7 @@ export default function RegisterScreen() {
                   />
                 </StripeProvider>
               ) : (
-                <View style={[styles.feeNotice, { backgroundColor: '#fffbf0', borderColor: '#f39c12' }]}>
+                <View style={[styles.feeNotice, { backgroundColor: '#fffbf0', borderColor: status.warning }]}>
                   <Text style={styles.feeNoticeTitle}>Entry Fee Due</Text>
                   <Text style={styles.feeNoticeText}>
                     This event has a {formatCentsShort(entryFeeCents)} entry fee.
@@ -334,7 +335,7 @@ export default function RegisterScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.page, { backgroundColor: theme.pageBackground }]}
+      style={c.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -350,8 +351,8 @@ export default function RegisterScreen() {
         </View>
 
         {error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={[c.errorBox, styles.errorBox]}>
+            <Text style={c.errorText}>{error}</Text>
           </View>
         )}
 
@@ -361,18 +362,18 @@ export default function RegisterScreen() {
 
           <View style={styles.row}>
             <View style={styles.halfField}>
-              <Text style={[styles.label, { color: theme.colors.primary }]}>First Name *</Text>
+              <Text style={c.fieldLabel}>First Name *</Text>
               <TextInput
-                style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+                style={c.inputLg}
                 value={firstName} onChangeText={v => { setFirstName(v); setError(null); }}
                 placeholder="Jane" placeholderTextColor="#aaa"
                 autoCapitalize="words" autoCorrect={false} editable={!submitting} autoFocus
               />
             </View>
             <View style={styles.halfField}>
-              <Text style={[styles.label, { color: theme.colors.primary }]}>Last Name *</Text>
+              <Text style={c.fieldLabel}>Last Name *</Text>
               <TextInput
-                style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+                style={c.inputLg}
                 value={lastName} onChangeText={v => { setLastName(v); setError(null); }}
                 placeholder="Smith" placeholderTextColor="#aaa"
                 autoCapitalize="words" autoCorrect={false} editable={!submitting}
@@ -380,27 +381,27 @@ export default function RegisterScreen() {
             </View>
           </View>
 
-          <Text style={[styles.label, { color: theme.colors.primary }]}>Email *</Text>
+          <Text style={c.fieldLabel}>Email *</Text>
           <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+            style={c.inputLg}
             value={email} onChangeText={v => { setEmail(v); setError(null); }}
             placeholder="you@example.com" placeholderTextColor="#aaa"
             autoCapitalize="none" keyboardType="email-address" autoComplete="email" editable={!submitting}
           />
 
-          <Text style={[styles.label, { color: theme.colors.primary }]}>Phone *</Text>
+          <Text style={c.fieldLabel}>Phone *</Text>
           <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+            style={c.inputLg}
             value={phone} onChangeText={v => { setPhone(fmtPhoneInput(digitsOnly(v))); setError(null); }}
             placeholder="(555) 867-5309" placeholderTextColor="#aaa"
             keyboardType="phone-pad" editable={!submitting}
           />
 
-          <Text style={[styles.label, { color: theme.colors.primary }]}>
+          <Text style={c.fieldLabel}>
             Handicap Index <Text style={styles.optional}>(optional)</Text>
           </Text>
           <TextInput
-            style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+            style={c.inputLg}
             value={handicap} onChangeText={v => { setHandicap(v); setError(null); }}
             placeholder="e.g. 14.2" placeholderTextColor="#aaa"
             keyboardType="decimal-pad" editable={!submitting}
@@ -434,9 +435,9 @@ export default function RegisterScreen() {
 
           {mode === 'team' && (
             <>
-              <Text style={[styles.label, { color: theme.colors.primary }]}>Team Name *</Text>
+              <Text style={c.fieldLabel}>Team Name *</Text>
               <TextInput
-                style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+                style={c.inputLg}
                 value={teamName} onChangeText={v => { setTeamName(v); setError(null); }}
                 placeholder="e.g. The Bogey Brothers"
                 placeholderTextColor="#aaa"
@@ -450,9 +451,9 @@ export default function RegisterScreen() {
 
           {mode === 'join' && (
             <>
-              <Text style={[styles.label, { color: theme.colors.primary }]}>Invite Link or Code *</Text>
+              <Text style={c.fieldLabel}>Invite Link or Code *</Text>
               <TextInput
-                style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+                style={c.inputLg}
                 value={inviteInput} onChangeText={v => { setInviteInput(v); setError(null); }}
                 placeholder="Paste the link your captain sent you"
                 placeholderTextColor="#aaa"
@@ -460,7 +461,7 @@ export default function RegisterScreen() {
                 accessibilityLabel="Invite link or code"
               />
               {inviteInput.trim() !== '' && !inviteToken && (
-                <Text style={[styles.fieldHint, { color: '#c0392b' }]}>
+                <Text style={[styles.fieldHint, { color: status.dangerText }]}>
                   That doesn&apos;t look like an invite. Paste the whole link from your captain.
                 </Text>
               )}
@@ -468,7 +469,7 @@ export default function RegisterScreen() {
                 <Text style={[styles.fieldHint, { color: theme.mutedText }]}>Checking your invite…</Text>
               )}
               {previewError && (
-                <Text style={[styles.fieldHint, { color: '#c0392b' }]}>{previewError}</Text>
+                <Text style={[styles.fieldHint, { color: status.dangerText }]}>{previewError}</Text>
               )}
               {preview && (
                 <View style={[styles.rosterBox, { backgroundColor: theme.colors.primary + '0d', borderColor: theme.colors.primary + '33' }]}>
@@ -505,7 +506,7 @@ export default function RegisterScreen() {
               Help the organizer match you with the right team.
             </Text>
 
-            <Text style={[styles.label, { color: theme.colors.primary }]}>Skill Level</Text>
+            <Text style={c.fieldLabel}>Skill Level</Text>
             <View style={styles.chipRow}>
               {SKILL_OPTIONS.map(opt => (
                 <Pressable
@@ -524,7 +525,7 @@ export default function RegisterScreen() {
               ))}
             </View>
 
-            <Text style={[styles.label, { color: theme.colors.primary }]}>Age Group</Text>
+            <Text style={c.fieldLabel}>Age Group</Text>
             <View style={styles.chipRow}>
               {AGE_OPTIONS.map(opt => (
                 <Pressable
@@ -543,9 +544,9 @@ export default function RegisterScreen() {
               ))}
             </View>
 
-            <Text style={[styles.label, { color: theme.colors.primary }]}>Note to Organizer</Text>
+            <Text style={c.fieldLabel}>Note to Organizer</Text>
             <TextInput
-              style={[styles.input, styles.textArea, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+              style={[c.inputLg, styles.textArea]}
               value={pairingNote} onChangeText={setPairingNote}
               placeholder="e.g. I know the Johnson family — please pair me with them if possible."
               placeholderTextColor="#aaa" multiline numberOfLines={3} maxLength={PAIRING_NOTE_MAX} editable={!submitting}
@@ -573,47 +574,47 @@ export default function RegisterScreen() {
                 </View>
                 <View style={styles.row}>
                   <View style={styles.halfField}>
-                    <Text style={[styles.label, { color: theme.colors.primary }]}>First Name *</Text>
+                    <Text style={c.fieldLabel}>First Name *</Text>
                     <TextInput
-                      style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+                      style={c.inputLg}
                       value={tm.firstName} onChangeText={v => updateTeammate(idx, 'firstName', v)}
                       placeholder="Alex" placeholderTextColor="#aaa" autoCapitalize="words" autoCorrect={false} editable={!submitting}
                     />
                   </View>
                   <View style={styles.halfField}>
-                    <Text style={[styles.label, { color: theme.colors.primary }]}>Last Name *</Text>
+                    <Text style={c.fieldLabel}>Last Name *</Text>
                     <TextInput
-                      style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+                      style={c.inputLg}
                       value={tm.lastName} onChangeText={v => updateTeammate(idx, 'lastName', v)}
                       placeholder="Jones" placeholderTextColor="#aaa" autoCapitalize="words" autoCorrect={false} editable={!submitting}
                     />
                   </View>
                 </View>
-                <Text style={[styles.label, { color: theme.colors.primary }]}>Email *</Text>
+                <Text style={c.fieldLabel}>Email *</Text>
                 <TextInput
-                  style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+                  style={c.inputLg}
                   value={tm.email} onChangeText={v => updateTeammate(idx, 'email', v)}
                   placeholder="teammate@example.com" placeholderTextColor="#aaa"
                   autoCapitalize="none" keyboardType="email-address" autoComplete="email" editable={!submitting}
                 />
                 <View style={styles.row}>
                   <View style={styles.halfField}>
-                    <Text style={[styles.label, { color: theme.colors.primary }]}>
+                    <Text style={c.fieldLabel}>
                       Phone <Text style={styles.optional}>(optional)</Text>
                     </Text>
                     <TextInput
-                      style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+                      style={c.inputLg}
                       value={tm.phone ?? ''} onChangeText={v => updateTeammate(idx, 'phone', fmtPhoneInput(digitsOnly(v)))}
                       placeholder="(555) 867-5309" placeholderTextColor="#aaa"
                       keyboardType="phone-pad" editable={!submitting}
                     />
                   </View>
                   <View style={styles.halfField}>
-                    <Text style={[styles.label, { color: theme.colors.primary }]}>
+                    <Text style={c.fieldLabel}>
                       Handicap <Text style={styles.optional}>(optional)</Text>
                     </Text>
                     <TextInput
-                      style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+                      style={c.inputLg}
                       value={tm.handicap ?? ''} onChangeText={v => updateTeammate(idx, 'handicap', v)}
                       placeholder="e.g. 14.2" placeholderTextColor="#aaa"
                       keyboardType="decimal-pad" editable={!submitting}
@@ -765,7 +766,7 @@ function EntryFeePayCard({ clientSecret, amountCents, golferCount, onPaid }: Ent
   }
 
   return (
-    <View style={[styles.feeNotice, { backgroundColor: '#fffbf0', borderColor: '#f39c12' }]}>
+    <View style={[styles.feeNotice, { backgroundColor: '#fffbf0', borderColor: status.warning }]}>
       <Text style={styles.feeNoticeTitle}>Entry Fee Due</Text>
       <Text style={styles.feeNoticeText}>
         {formatCentsShort(amountCents)}
@@ -805,7 +806,6 @@ function EntryFeePayCard({ clientSecret, amountCents, golferCount, onPaid }: Ent
 }
 
 const styles = StyleSheet.create({
-  page:   { flex: 1 },
   scroll: { flexGrow: 1, padding: spacing[5], paddingBottom: spacing[12] },
 
   logoRow:   { alignItems: 'center', marginBottom: spacing[8], marginTop: spacing[4] },
@@ -819,11 +819,7 @@ const styles = StyleSheet.create({
   eventBannerLabel: { fontSize: fontSize.xxs, fontWeight: '600', textTransform: 'uppercase', marginBottom: spacing[1] },
   eventBannerName:  { fontSize: fontSize.xl, fontWeight: '700' },
 
-  errorBox: {
-    backgroundColor: '#fdf2f2', borderRadius: radius.lg, padding: spacing[4], marginBottom: spacing[4],
-    borderLeftWidth: 3, borderLeftColor: '#e74c3c',
-  },
-  errorText: { color: '#c0392b', fontSize: fontSize.md },
+  errorBox: { borderRadius: radius.lg, padding: spacing[4], marginBottom: spacing[4] },   // over c.errorBox: roomier on a phone
 
   card: {
     borderRadius: radius.xl, padding: spacing[5], marginBottom: spacing[4],
@@ -842,14 +838,8 @@ const styles = StyleSheet.create({
   row:       { flexDirection: 'row', gap: spacing[3] },
   halfField: { flex: 1 },
 
-  label:     { fontSize: fontSize.sm, fontWeight: '600', marginBottom: spacing[2], marginTop: spacing[3] },
   optional:  { fontSize: fontSize.xs, fontWeight: '400' },
   fieldHint: { fontSize: fontSize.xs, marginTop: spacing[1] },
-  input: {
-    borderWidth: 1, borderRadius: radius.lg,
-    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
-    fontSize: fontSize.xl, backgroundColor: '#fafafa',
-  },
   textArea: { height: 90, textAlignVertical: 'top', paddingTop: spacing[3] },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[1] },
@@ -887,7 +877,7 @@ const styles = StyleSheet.create({
   feeNoticeTitle: { fontSize: fontSize.md, fontWeight: '700', color: '#7d6608', marginBottom: spacing[1] },
   feeNoticeText:  { fontSize: fontSize.sm, lineHeight: 19, color: '#7d6608' },
   feeCardField:   { width: '100%', height: 50, marginTop: spacing[3] },
-  feePayError:    { fontSize: fontSize.xs, color: '#c0392b', marginTop: spacing[2] },
+  feePayError:    { fontSize: fontSize.xs, color: status.dangerText, marginTop: spacing[2] },
   feePayBtn:      { borderRadius: radius.lg, paddingVertical: spacing[3], alignItems: 'center', marginTop: spacing[3] },
   feePayBtnText:  { color: '#fff', fontWeight: '700', fontSize: fontSize.lg },
   feeSecureNote:  { fontSize: fontSize.xxs, color: '#aaa', textAlign: 'center', marginTop: spacing[2] },

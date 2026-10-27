@@ -4,20 +4,21 @@ import {
   TextInput, ActivityIndicator, Platform,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { emailBuilderApi } from '@/lib/api';
 import { useEmailBuilderData } from '@/lib/queries';
 import {
   buildEmailHtml, formatFee,
   DEFAULT_SECTIONS, SECTION_LABELS, type SectionId,
 } from '@/lib/emailHtml';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // ── SCREEN ────────────────────────────────────────────────────────────────────
 
 export default function EmailBuilderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme  = useTheme();
+  const c      = useClasses();
   const eventId = id as string;
 
   const builderQuery = useEmailBuilderData(eventId);
@@ -97,7 +98,7 @@ export default function EmailBuilderScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={c.center}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
@@ -105,7 +106,7 @@ export default function EmailBuilderScreen() {
 
   if (!builderData) {
     return (
-      <View style={styles.center}>
+      <View style={c.center}>
         <Text style={[styles.errorText, { color: theme.mutedText }]}>
           Failed to load builder data.
         </Text>
@@ -116,7 +117,7 @@ export default function EmailBuilderScreen() {
   const availableToAdd = DEFAULT_SECTIONS.filter(s => !sections.includes(s));
 
   return (
-    <ScrollView style={[styles.page, { backgroundColor: theme.pageBackground }]}>
+    <ScrollView style={c.screen}>
       <View style={styles.container}>
 
         {/* ── SECTION ORDER ── */}
@@ -212,10 +213,10 @@ export default function EmailBuilderScreen() {
 
             {Platform.OS === 'web' && (
               <Pressable
-                style={[styles.btn, styles.btnOutline, { borderColor: '#27ae60' }]}
+                style={[styles.btn, styles.btnOutline, { borderColor: status.success }]}
                 onPress={handlePreviewPdf}
               >
-                <Text style={[styles.btnText, { color: '#27ae60' }]}>Preview / Print PDF</Text>
+                <Text style={[styles.btnText, { color: status.success }]}>Preview / Print PDF</Text>
               </Pressable>
             )}
 
@@ -259,9 +260,7 @@ export default function EmailBuilderScreen() {
 // ── STYLES ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  page:       { flex: 1 },
   container:  { padding: spacing[4], gap: spacing[4], maxWidth: 800, alignSelf: 'center', width: '100%' },
-  center:     { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorText:  { fontSize: fontSize.md },
 
   card:       {
@@ -277,8 +276,8 @@ const styles = StyleSheet.create({
   arrowBtn:       { padding: spacing[2], borderRadius: radius.sm, backgroundColor: '#f0f0f0' },
   arrowDisabled:  { opacity: 0.3 },
   arrowText:      { fontSize: fontSize.md, fontWeight: '700' },
-  removeBtn:      { padding: spacing[2], borderRadius: radius.sm, backgroundColor: '#fdf2f2' },
-  removeText:     { fontSize: fontSize.sm, color: '#e74c3c', fontWeight: '700' },
+  removeBtn:      { padding: spacing[2], borderRadius: radius.sm, backgroundColor: status.dangerBg },
+  removeText:     { fontSize: fontSize.sm, color: status.danger, fontWeight: '700' },
 
   addRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[2] },
   addLabel:  { fontSize: fontSize.xs, fontWeight: '600', alignSelf: 'center' },
@@ -294,7 +293,7 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.5 },
   btnText:     { color: '#fff', fontSize: fontSize.md, fontWeight: '700' },
 
-  sendErrorBox: { backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  successMsg: { color: '#27ae60', fontSize: fontSize.sm, fontWeight: '600', textAlign: 'center' },
-  errorMsg:   { color: '#c0392b', fontSize: fontSize.sm, fontWeight: '600' },
+  sendErrorBox: { backgroundColor: status.dangerBg, borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: status.danger },
+  successMsg: { color: status.success, fontSize: fontSize.sm, fontWeight: '600', textAlign: 'center' },
+  errorMsg:   { color: status.dangerText, fontSize: fontSize.sm, fontWeight: '600' },
 });

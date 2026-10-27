@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Platform } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { orgApi, type CreateInviteResult, type OrgInvite, type OrgMember, type StaffRole } from '@/lib/api';
 import { confirmAction } from '@/lib/confirmAction';
 import { alertFailure } from '@/lib/dialog';
 import { friendlyApiError } from '@/lib/errors';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 const ROLE_LABEL: Record<string, string> = { OrgAdmin: 'Organizer', EventStaff: 'Event staff' };
 
@@ -21,6 +21,7 @@ const ROLE_HELP: Record<StaffRole, string> = {
  */
 export function TeamMembersCard() {
   const theme = useTheme();
+  const c = useClasses();
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [invites, setInvites] = useState<OrgInvite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,7 +153,7 @@ export function TeamMembersCard() {
       <Text style={[styles.subTitle, { color: theme.colors.primary }]}>Invite someone</Text>
       {formErr && <Text style={styles.error}>{formErr}</Text>}
       <TextInput
-        style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
+        style={[c.input, styles.input, { color: theme.colors.primary }]}
         value={email}
         onChangeText={setEmail}
         placeholder="volunteer@email.com"
@@ -210,19 +211,19 @@ const styles = StyleSheet.create({
   title:       { fontSize: fontSize.xl, fontWeight: '800', marginBottom: spacing[1] },
   subTitle:    { fontSize: fontSize.md, fontWeight: '800', marginTop: spacing[5], marginBottom: spacing[1] },
   hint:        { fontSize: fontSize.xs, marginTop: spacing[1], color: '#888' },
-  error:       { color: '#c0392b', fontSize: fontSize.md, marginTop: spacing[3] },
+  error:       { color: status.dangerText, fontSize: fontSize.md, marginTop: spacing[3] },
   row:         { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: '#eee' },
   name:        { fontSize: fontSize.lg, fontWeight: '700' },
   sub:         { fontSize: fontSize.sm, color: '#666', marginTop: spacing[0.5] },
   textBtn:     { paddingHorizontal: spacing[2], paddingVertical: spacing[2] },
-  danger:      { color: '#c0392b', fontSize: fontSize.md, fontWeight: '700' },
-  input:       { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa', marginTop: spacing[2] },
+  danger:      { color: status.dangerText, fontSize: fontSize.md, fontWeight: '700' },
+  input:       { paddingHorizontal: spacing[4], marginTop: spacing[2] },   // over c.input
   roleRow:     { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3] },
   roleChip:    { borderWidth: 1.5, borderRadius: radius.full, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
   roleText:    { fontSize: fontSize.sm, fontWeight: '700' },
   primaryBtn:  { marginTop: spacing[4], paddingVertical: spacing[3], borderRadius: radius.lg, alignItems: 'center' },
   primaryText: { fontSize: fontSize.lg, fontWeight: '800' },
-  resultBox:   { marginTop: spacing[4], backgroundColor: '#f0fdf4', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#27ae60' },
+  resultBox:   { marginTop: spacing[4], backgroundColor: '#f0fdf4', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: status.success },
   resultText:  { color: '#1e8449', fontSize: fontSize.md, fontWeight: '600' },
   link:        { fontSize: fontSize.sm, marginTop: spacing[2], color: '#333', fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
   copy:        { fontSize: fontSize.md, fontWeight: '700', textDecorationLine: 'underline' },

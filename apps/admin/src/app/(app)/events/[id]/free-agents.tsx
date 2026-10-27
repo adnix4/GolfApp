@@ -4,15 +4,16 @@ import {
   StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { digitsOnly, fmtAgeGroup, fmtPhone, fmtPhoneInput, validateGolfer, toPlayerInput } from '@gfp/shared-types';
 import { playersApi, type Player, type AddPlayerPayload } from '@/lib/api';
 import { useFreeAgentList, useTeamList } from '@/lib/queries';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 export default function FreeAgentsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
+  const c        = useClasses();
 
   const agentList = useFreeAgentList(id);
   const teamList  = useTeamList(id);
@@ -66,7 +67,7 @@ export default function FreeAgentsScreen() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.primary }]}>
+        <Text style={c.title}>
           Free Agents ({agents.length})
         </Text>
         <View style={styles.headerActions}>
@@ -83,8 +84,8 @@ export default function FreeAgentsScreen() {
       </View>
 
       {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={[c.errorBox, styles.errorBox]}>
+          <Text style={c.errorText}>{error}</Text>
         </View>
       )}
 
@@ -107,12 +108,12 @@ export default function FreeAgentsScreen() {
       )}
 
       {loading ? (
-        <View style={styles.center}>
+        <View style={c.center}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       ) : agents.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.mutedText }]}>
+        <View style={c.center}>
+          <Text style={c.emptyText}>
             No free agents for this event.
           </Text>
         </View>
@@ -240,6 +241,7 @@ interface AddFreeAgentModalProps {
 
 function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentModalProps) {
   const theme = useTheme();
+  const c = useClasses();
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
   const [email,     setEmail]     = useState('');
@@ -281,37 +283,37 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
         <View style={styles.modalBox}>
           <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Add Free Agent</Text>
           {error && (
-            <View style={{ backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' }}>
-              <Text style={{ color: '#c0392b', fontSize: fontSize.sm }}>{error}</Text>
+            <View style={{ backgroundColor: status.dangerBg, borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: status.danger }}>
+              <Text style={{ color: status.dangerText, fontSize: fontSize.sm }}>{error}</Text>
             </View>
           )}
           <View style={styles.nameRow}>
             <TextInput
-              style={[styles.input, styles.halfInput, { borderColor: '#ccc' }]}
+              style={[c.input, styles.halfInput, { borderColor: '#ccc' }]}
               value={firstName} onChangeText={v => { setFirstName(v); if (error) setError(null); }}
               placeholder="First *" placeholderTextColor="#999" editable={!loading}
             />
             <TextInput
-              style={[styles.input, styles.halfInput, { borderColor: '#ccc' }]}
+              style={[c.input, styles.halfInput, { borderColor: '#ccc' }]}
               value={lastName} onChangeText={v => { setLastName(v); if (error) setError(null); }}
               placeholder="Last *" placeholderTextColor="#999" editable={!loading}
             />
           </View>
           <TextInput
-            style={[styles.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
+            style={[c.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
             value={email} onChangeText={v => { setEmail(v); if (error) setError(null); }}
             placeholder="email@example.com *" placeholderTextColor="#999"
             keyboardType="email-address" autoCapitalize="none" editable={!loading}
           />
           <TextInput
-            style={[styles.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
+            style={[c.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
             value={phone}
             onChangeText={v => { setPhone(fmtPhoneInput(digitsOnly(v))); if (error) setError(null); }}
             placeholder="(555) 867-5309 (optional)" placeholderTextColor="#999"
             keyboardType="phone-pad" editable={!loading}
           />
           <TextInput
-            style={[styles.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
+            style={[c.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
             value={handicap} onChangeText={v => { setHandicap(v.replace(/[^0-9.]/g, '')); if (error) setError(null); }}
             placeholder="Handicap index (optional)" placeholderTextColor="#999"
             keyboardType="decimal-pad" editable={!loading}
@@ -342,7 +344,6 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
 const styles = StyleSheet.create({
   page:   { flex: 1, backgroundColor: '#f7f8fa' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing[6], paddingBottom: spacing[4] },
-  title:  { fontSize: fontSize.title, fontWeight: '800' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   addBtn: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.md },
   addBtnText: { fontSize: fontSize.sm, fontWeight: '700' },
@@ -352,12 +353,8 @@ const styles = StyleSheet.create({
   // minWidth 0: a web <input> won't shrink below its default ~20ch otherwise,
   // so two side by side overflow the 420px modal.
   halfInput: { flex: 1, minWidth: 0 },
-  input: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa' },
 
-  errorBox: { margin: spacing[4], backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: fontSize.md },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: fontSize.lg },
+  errorBox: { margin: spacing[4], marginBottom: spacing[4] },   // over c.errorBox
 
   actionBar: { flexDirection: 'row', alignItems: 'center', padding: spacing[3], paddingHorizontal: spacing[5], gap: spacing[3] },
   actionBarText: { flex: 1, fontSize: fontSize.md, fontWeight: '600' },

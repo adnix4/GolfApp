@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
-import { ScoreCard, useTheme } from '@gfp/ui';
+import { ScoreCard, useTheme, useClasses } from '@gfp/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { scoresApi, testDataApi, type Scorecard } from '@/lib/api';
 import { eventKeys, useTeams, useLeaderboard, useChallenges } from '@/lib/queries';
@@ -12,11 +12,12 @@ import { useResponsive } from '@/lib/responsive';
 import { resolveGrossScore, needsAceConfirmation, aceGolferIds } from '@/lib/scoring';
 import { countingPlayerId, isOwnBallFormat, stablefordPoints, FORMAT_LABELS } from '@gfp/shared-types';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 export default function ScoringScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
+  const c        = useClasses();
 
   const { width, isMobile } = useResponsive();
   // 200px compact cards keep +/− buttons inside the card boundary (44pt × 2 + 60pt score = 148px + 24px padding = 172px ≤ 200px)
@@ -234,15 +235,15 @@ export default function ScoringScreen() {
   const showSyncBar   = totalTeams > 0 && (event?.status === 'Scoring' || event?.status === 'Active');
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
+    return <View style={c.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
   }
 
   return (
-    <View style={styles.page}>
+    <View style={c.page}>
 
       {/* Test mode toggle — Registration phase only */}
       {event?.status === 'Registration' && (
-        <View style={[styles.testModeBar, { backgroundColor: '#fff8e1', borderBottomColor: '#f39c12' }]}>
+        <View style={[styles.testModeBar, { backgroundColor: '#fff8e1', borderBottomColor: status.warning }]}>
           <View style={{ flex: 1 }}>
             <Text style={styles.testModeLabel}>Testing Mode</Text>
             <Text style={styles.testModeDesc}>
@@ -252,7 +253,7 @@ export default function ScoringScreen() {
             </Text>
           </View>
           {togglingTest
-            ? <ActivityIndicator size="small" color="#f39c12" />
+            ? <ActivityIndicator size="small" color={status.warning} />
             : (
               <Switch
                 value={event.isTestMode}
@@ -336,8 +337,8 @@ export default function ScoringScreen() {
       </View>
 
       {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={[c.errorBox, styles.errorBox]}>
+          <Text style={c.errorText}>{error}</Text>
         </View>
       )}
 
@@ -392,7 +393,7 @@ export default function ScoringScreen() {
                       </Text>
                       <View style={styles.resolveBtnRow}>
                         <Pressable
-                          style={[styles.resolveBtn, styles.resolveBtnHalf, { backgroundColor: '#27ae60' }]}
+                          style={[styles.resolveBtn, styles.resolveBtnHalf, { backgroundColor: status.success }]}
                           onPress={() => handleResolveConflict(holeNum, proposedScore)}
                         >
                           <Text style={styles.resolveBtnText}>Approve {proposedScore}</Text>
@@ -468,7 +469,7 @@ export default function ScoringScreen() {
                         styles.completeBtn,
                         isComplete
                           ? { backgroundColor: 'transparent', borderColor: theme.colors.primary }
-                          : { backgroundColor: '#27ae60', borderColor: '#27ae60' },
+                          : { backgroundColor: status.success, borderColor: status.success },
                         score == null && { opacity: 0.35 },
                       ]}
                     >
@@ -486,8 +487,8 @@ export default function ScoringScreen() {
           })}
         </ScrollView>
       ) : (
-        <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: theme.mutedText }]}>Select a team to enter scores.</Text>
+        <View style={c.center}>
+          <Text style={c.emptyText}>Select a team to enter scores.</Text>
         </View>
       )}
     </View>
@@ -495,8 +496,6 @@ export default function ScoringScreen() {
 }
 
 const styles = StyleSheet.create({
-  page:    { flex: 1 },
-  center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
   syncBar:  { paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderBottomWidth: 1 },
   syncText: { fontSize: fontSize.sm, fontWeight: '700' },
   syncHint: { fontSize: fontSize.xs, marginTop: spacing[0.5] },
@@ -517,11 +516,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   teamChipText: { fontSize: fontSize.sm, fontWeight: '600' },
-  errorBox: {
-    backgroundColor: '#fdf2f2', margin: spacing[4], borderRadius: radius.md, padding: spacing[3],
-    borderLeftWidth: 3, borderLeftColor: '#e74c3c',
-  },
-  errorText: { color: '#c0392b', fontSize: fontSize.md },
+  errorBox: { margin: spacing[4], marginBottom: spacing[4] },   // over c.errorBox
   summaryBar: {
     paddingHorizontal: spacing[5],
     paddingVertical: spacing[3],
@@ -560,10 +555,9 @@ const styles = StyleSheet.create({
   },
   resolveBtnText: { fontSize: fontSize.xs, fontWeight: '700', color: '#fff' },
   resolveRow:     { marginTop: spacing[1] },
-  resolvePrompt:  { fontSize: fontSize.xxs, fontWeight: '600', color: '#c0392b', textAlign: 'center', marginBottom: spacing[1] },
+  resolvePrompt:  { fontSize: fontSize.xxs, fontWeight: '600', color: status.dangerText, textAlign: 'center', marginBottom: spacing[1] },
   resolveBtnRow:  { flexDirection: 'row', gap: spacing[2] },
   resolveBtnHalf: { flex: 1, marginTop: 0 },
-  emptyText: { fontSize: fontSize.lg },
 
   playerShotsBox: {
     borderRadius: radius.md, marginTop: spacing[1],

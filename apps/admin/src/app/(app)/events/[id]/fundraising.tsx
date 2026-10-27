@@ -4,19 +4,20 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { formatCents } from '@gfp/shared-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { testDataApi, auctionApi } from '@/lib/api';
 import { eventKeys, useFailedCharges, useFundraising } from '@/lib/queries';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 const formatCurrency = formatCents;
 
 export default function FundraisingScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
+  const c        = useClasses();
 
   const { event, refresh } = useEventDetail();
   const client       = useQueryClient();
@@ -89,7 +90,7 @@ export default function FundraisingScreen() {
   }
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
+    return <View style={c.center}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
   }
 
   // Entry fees are per golfer — progress tracks paid golfers, not teams.
@@ -98,9 +99,9 @@ export default function FundraisingScreen() {
     : 0;
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
+    <ScrollView style={c.page} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.primary }]}>Fundraising</Text>
+        <Text style={c.title}>Fundraising</Text>
         <View style={styles.headerActions}>
           {(event?.isTestMode || (event?.testDataSummary?.totalCount ?? 0) > 0) && (
             <Pressable
@@ -136,10 +137,10 @@ export default function FundraisingScreen() {
       />
 
       {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={[c.errorBox, styles.errorBox]}>
+          <Text style={c.errorText}>{error}</Text>
           <Pressable onPress={() => load()} style={{ marginTop: spacing[2] }}>
-            <Text style={{ color: '#c0392b', fontSize: fontSize.sm, fontWeight: '600' }}>Retry</Text>
+            <Text style={{ color: status.dangerText, fontSize: fontSize.sm, fontWeight: '600' }}>Retry</Text>
           </Pressable>
         </View>
       )}
@@ -247,8 +248,8 @@ export default function FundraisingScreen() {
 
           {/* Failed auction charges */}
           {failedCharges.length > 0 && (
-            <View style={[styles.section, { borderColor: '#e74c3c', borderWidth: 2 }]}>
-              <Text style={[styles.sectionTitle, { color: '#e74c3c' }]}>
+            <View style={[styles.section, { borderColor: status.danger, borderWidth: 2 }]}>
+              <Text style={[styles.sectionTitle, { color: status.danger }]}>
                 Failed Charges ({failedCharges.length})
               </Text>
               <Text style={{ fontSize: fontSize.sm, color: '#666', marginBottom: spacing[2] }}>
@@ -261,7 +262,7 @@ export default function FundraisingScreen() {
                     <Text style={{ fontSize: fontSize.sm, color: '#666' }}>
                       {fc.playerName} · {fc.playerEmail}
                     </Text>
-                    <Text style={{ fontSize: fontSize.sm, color: '#e74c3c', fontWeight: '600' }}>
+                    <Text style={{ fontSize: fontSize.sm, color: status.danger, fontWeight: '600' }}>
                       {formatCurrency(fc.amountCents)}
                     </Text>
                   </View>
@@ -294,13 +295,10 @@ export default function FundraisingScreen() {
 }
 
 const styles = StyleSheet.create({
-  page:    { flex: 1 },
   content: { padding: spacing[8], gap: spacing[4] },
-  center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerActions: { flexDirection: 'row', gap: spacing[2], alignItems: 'center' },
-  title:         { fontSize: fontSize.title, fontWeight: '800' },
-  clearTestBtn:  { backgroundColor: '#e74c3c', borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[2], alignItems: 'center' },
+  clearTestBtn:  { backgroundColor: status.danger, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[2], alignItems: 'center' },
   clearTestText: { fontSize: fontSize.sm, fontWeight: '700', color: '#fff' },
   refreshBtn: {
     borderWidth: 1,
@@ -311,11 +309,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   refreshText: { fontSize: fontSize.md, fontWeight: '600' },
-  errorBox: {
-    backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3],
-    borderLeftWidth: 3, borderLeftColor: '#e74c3c',
-  },
-  errorText: { color: '#c0392b', fontSize: fontSize.md },
+  errorBox: { marginBottom: 0 },   // over c.errorBox
   grandTotal: {
     borderRadius: radius.xl,
     padding: spacing[8],

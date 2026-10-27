@@ -6,7 +6,7 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { useTeamList, usePlayerList } from '@/lib/queries';
-import { useTheme } from '@gfp/ui';
+import { useTheme, useClasses } from '@gfp/ui';
 import { eventsApi, teamsApi, playersApi, type Team, type Player } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
 import { confirmAction } from '@/lib/confirmAction';
@@ -16,13 +16,14 @@ import {
 } from '@/lib/checkIn';
 import { AddCardModal, cardCaptureEnabled } from '@/components/AddCardModal';
 import { formatTime, digitsOnly, fmtPhoneInput, validateGolfer, toPlayerInput } from '@gfp/shared-types';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 type Filter = 'all' | 'pending' | 'checked_in';
 
 export default function RegistrationScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const theme    = useTheme();
+  const c        = useClasses();
 
   const { isMobile, pagePadding } = useResponsive();
 
@@ -162,7 +163,7 @@ export default function RegistrationScreen() {
 
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: pagePadding }]}>
-        <Text style={[styles.title, { color: theme.colors.primary }]}>
+        <Text style={c.title}>
           Registration
         </Text>
         <View style={{ flexDirection: 'row', gap: spacing[2] }}>
@@ -186,11 +187,11 @@ export default function RegistrationScreen() {
           isMobile && styles.statsRowMobile,
         ]}>
           <StatChip label="Total"      value={teams.length}              color={theme.colors.primary} style={isMobile ? styles.statHalf : undefined} />
-          <StatChip label="Checked In" value={checkedIn}                 color="#27ae60"              style={isMobile ? styles.statHalf : undefined} />
+          <StatChip label="Checked In" value={checkedIn}                 color={status.success}              style={isMobile ? styles.statHalf : undefined} />
           {hasEntryFee && (
             <StatChip label={`Golfers Paid (of ${golfersTotal})`} value={golfersPaid} color="#2980b9"   style={isMobile ? styles.statHalf : undefined} />
           )}
-          <StatChip label="Pending"    value={teams.length - checkedIn}  color="#f39c12"              style={isMobile ? styles.statHalf : undefined} />
+          <StatChip label="Pending"    value={teams.length - checkedIn}  color={status.warning}              style={isMobile ? styles.statHalf : undefined} />
         </View>
       )}
 
@@ -214,19 +215,19 @@ export default function RegistrationScreen() {
       </View>
 
       {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={[c.errorBox, styles.errorBox]}>
+          <Text style={c.errorText}>{error}</Text>
         </View>
       )}
 
       {loading ? (
-        <View style={styles.center}>
+        <View style={c.center}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       ) : filtered.length === 0 ? (
         <ScrollView contentContainerStyle={styles.list}>
-          <View style={styles.center}>
-            <Text style={[styles.emptyText, { color: theme.mutedText }]}>No teams match this filter.</Text>
+          <View style={c.center}>
+            <Text style={c.emptyText}>No teams match this filter.</Text>
           </View>
           <GuestsSection
             guests={guests} checkInOpen={checkInOpen} busy={busy}
@@ -276,16 +277,16 @@ export default function RegistrationScreen() {
                   {/* Fee status — per golfer; the button marks the whole roster
                       paid. Suppressed entirely on a free event (D16). */}
                   {!hasEntryFee ? null : team.entryFeePaid ? (
-                    <View style={[styles.pill, { borderColor: '#27ae60' }]}>
-                      <Text style={[styles.pillText, { color: '#27ae60' }]}>✓ Fees Paid</Text>
+                    <View style={[styles.pill, { borderColor: status.success }]}>
+                      <Text style={[styles.pillText, { color: status.success }]}>✓ Fees Paid</Text>
                     </View>
                   ) : (
                     <>
                       {/* Always show the count, including 0 — hiding it at zero
                           left a team with an unpaid roster looking identical to
                           one with no fee at all. */}
-                      <View style={[styles.pill, { borderColor: '#f39c12' }]}>
-                        <Text style={[styles.pillText, { color: '#f39c12' }]}>
+                      <View style={[styles.pill, { borderColor: status.warning }]}>
+                        <Text style={[styles.pillText, { color: status.warning }]}>
                           {team.playersPaid}/{team.players.length} paid
                         </Text>
                       </View>
@@ -335,22 +336,22 @@ export default function RegistrationScreen() {
                             {name}
                           </Text>
                           {player.hasPaymentMethod ? (
-                            <Text style={[styles.cardTag, { color: '#27ae60' }]}>✓ card</Text>
+                            <Text style={[styles.cardTag, { color: status.success }]}>✓ card</Text>
                           ) : cardCaptureEnabled ? (
                             // Tap the warning to key the card in at the desk.
                             <Pressable onPress={() => setCardFor(player)}>
-                              <Text style={[styles.cardTag, styles.cardTagAction, { color: '#f39c12' }]}>
+                              <Text style={[styles.cardTag, styles.cardTagAction, { color: status.warning }]}>
                                 ⚠ add card
                               </Text>
                             </Pressable>
                           ) : (
-                            <Text style={[styles.cardTag, { color: '#f39c12' }]}>⚠ no card</Text>
+                            <Text style={[styles.cardTag, { color: status.warning }]}>⚠ no card</Text>
                           )}
                           {/* Cash/check taken at the desk — one golfer (D11).
                               Hidden on free events, same rule as the team row. */}
                           {hasEntryFee && (
                             player.entryFeePaidCents > 0 ? (
-                              <Text style={[styles.cardTag, { color: '#27ae60' }]}>✓ paid</Text>
+                              <Text style={[styles.cardTag, { color: status.success }]}>✓ paid</Text>
                             ) : (
                               <Pressable
                                 onPress={() => confirmAction(
@@ -372,7 +373,7 @@ export default function RegistrationScreen() {
                             )
                           )}
                           {golferIn ? (
-                            <Text style={[styles.golferDone, { color: '#27ae60' }]}>Checked In</Text>
+                            <Text style={[styles.golferDone, { color: status.success }]}>Checked In</Text>
                           ) : !checkInOpen ? (
                             <Text style={[styles.golferDone, { color: theme.mutedText }]}>Pending</Text>
                           ) : (
@@ -456,7 +457,7 @@ function GuestsSection({ guests, checkInOpen, busy, onCheckIn, theme }: GuestsSe
                 {guest.hasPaymentMethod ? '✓ card' : '⚠ no card'}
               </Text>
               {guestIn ? (
-                <Text style={[styles.golferDone, { color: '#27ae60' }]}>Checked In</Text>
+                <Text style={[styles.golferDone, { color: status.success }]}>Checked In</Text>
               ) : !checkInOpen ? (
                 <Text style={[styles.golferDone, { color: theme.mutedText }]}>Pending</Text>
               ) : (
@@ -493,6 +494,7 @@ interface WalkUpModalProps {
 
 function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistered }: WalkUpModalProps) {
   const theme = useTheme();
+  const c = useClasses();
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
   const [email,     setEmail]     = useState('');
@@ -643,7 +645,7 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
 
           {err && <Text style={styles.modalErr}>{err}</Text>}
 
-          <View style={styles.modalActions}>
+          <View style={c.formActions}>
             <Pressable onPress={handleClose} style={styles.modalCancel}>
               <Text style={[styles.modalCancelText, { color: theme.mutedText }]}>Cancel</Text>
             </Pressable>
@@ -684,7 +686,6 @@ function StatChip({ label, value, color, style }: { label: string; value: number
 const styles = StyleSheet.create({
   page:   { flex: 1, backgroundColor: '#f7f8fa' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing[6], paddingBottom: spacing[3] },
-  title:  { fontSize: fontSize.title, fontWeight: '800' },
   refreshBtn:    { paddingVertical: spacing[2], paddingHorizontal: spacing[3] },
   refreshText:   { fontSize: fontSize.md, fontWeight: '600' },
   walkUpBtn:     { paddingVertical: spacing[2], paddingHorizontal: spacing[4], borderRadius: radius.md },
@@ -699,12 +700,11 @@ const styles = StyleSheet.create({
   inputRow:        { marginBottom: spacing[4] },
   inputLabel:      { fontSize: fontSize.xs, fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: spacing[1] },
   textInput:       { borderWidth: 1.5, borderColor: '#ddd', borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[2], fontSize: fontSize.lg, color: '#222', backgroundColor: '#fafafa' },
-  modalErr:        { color: '#c0392b', fontSize: fontSize.sm, marginTop: spacing[3], marginBottom: spacing[1] },
-  walkUpOffBox:     { backgroundColor: '#fff8e1', borderColor: '#f39c12', borderWidth: 1, borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], gap: spacing[3] },
+  modalErr:        { color: status.dangerText, fontSize: fontSize.sm, marginTop: spacing[3], marginBottom: spacing[1] },
+  walkUpOffBox:     { backgroundColor: '#fff8e1', borderColor: status.warning, borderWidth: 1, borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], gap: spacing[3] },
   walkUpOffText:    { color: '#6d4c00', fontSize: fontSize.sm, lineHeight: 18 },
   walkUpOffBtn:     { alignSelf: 'flex-start', paddingVertical: spacing[2], paddingHorizontal: spacing[4], borderRadius: radius.md, minWidth: 140, alignItems: 'center' },
   walkUpOffBtnText: { fontSize: fontSize.sm, fontWeight: '700' },
-  modalActions:    { flexDirection: 'row', gap: spacing[3], marginTop: spacing[5] },
   modalCancel:     { flex: 1, paddingVertical: spacing[3], borderRadius: radius.md, borderWidth: 1.5, borderColor: '#ddd', alignItems: 'center' },
   modalCancelText: { fontSize: fontSize.md, fontWeight: '700' },
   modalSubmit:     { flex: 2, paddingVertical: spacing[3], borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', minHeight: 44 },
@@ -721,10 +721,7 @@ const styles = StyleSheet.create({
   filterBtn: { paddingVertical: spacing[3], paddingHorizontal: spacing[1], marginRight: spacing[6], borderBottomWidth: 3, borderBottomColor: 'transparent' },
   filterText: { fontSize: fontSize.md },
 
-  errorBox: { margin: spacing[4], backgroundColor: '#fdf2f2', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: '#e74c3c' },
-  errorText: { color: '#c0392b', fontSize: fontSize.md },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: fontSize.lg },
+  errorBox: { margin: spacing[4], marginBottom: spacing[4] },   // over c.errorBox
 
   list: { padding: spacing[4], gap: spacing[3] },
   card: { backgroundColor: '#fff', borderWidth: 1, borderRadius: radius.lg, padding: spacing[4], gap: spacing[3] },
