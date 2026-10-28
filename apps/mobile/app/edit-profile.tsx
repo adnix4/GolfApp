@@ -10,6 +10,7 @@ import { useTheme, useClasses } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { notify, notifyFailure } from '@/lib/notify';
 import { updateMyProfile } from '@/lib/api';
+import { digitsOnly, fmtPhoneInput, isValidPhone, PHONE_INVALID } from '@gfp/shared-types';
 import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function EditProfileScreen() {
@@ -21,13 +22,32 @@ export default function EditProfileScreen() {
 
   const [firstName, setFirstName] = useState(player?.firstName ?? '');
   const [lastName,  setLastName]  = useState(player?.lastName  ?? '');
-  const [phone,     setPhone]     = useState('');
+  // Sessions saved before the API returned the player's phone have none; the
+  // field then starts blank, and saving it untouched leaves the stored one alone.
+  const savedPhone = digitsOnly(player?.phone ?? '');
+  const [phone,     setPhone]     = useState(fmtPhoneInput(savedPhone));
   const [saving,    setSaving]    = useState(false);
+
+  // Opened cold (a reload, a deep link) the screen mounts before the stored
+  // session loads, so the initial values above are empty. Fill them once the
+  // player arrives; later session updates don't overwrite what's being typed.
+  const [filledFor, setFilledFor] = useState(player?.id);
+  if (player && filledFor !== player.id) {
+    setFilledFor(player.id);
+    setFirstName(player.firstName);
+    setLastName(player.lastName);
+    setPhone(fmtPhoneInput(savedPhone));
+  }
 
   async function handleSave() {
     if (!player) return;
     if (!firstName.trim() || !lastName.trim()) {
       notify('Name required', 'Enter both a first and last name, then save again.', undefined, { kind: 'warning' });
+      return;
+    }
+    const digits = digitsOnly(phone);
+    if (digits && !isValidPhone(digits)) {
+      notify('Check your phone number', PHONE_INVALID, undefined, { kind: 'warning' });
       return;
     }
     setSaving(true);
@@ -38,7 +58,8 @@ export default function EditProfileScreen() {
         {
           firstName: firstName.trim(),
           lastName:  lastName.trim(),
-          ...(phone.trim() ? { phone: phone.trim() } : {}),
+          // Sent only when changed; an empty string clears it.
+          ...(digits !== savedPhone ? { phone: digits } : {}),
         },
       );
 
@@ -93,8 +114,8 @@ export default function EditProfileScreen() {
         <Field
           label="Phone (optional)"
           value={phone}
-          onChangeText={setPhone}
-          placeholder="e.g. 555-867-5309"
+          onChangeText={v => setPhone(fmtPhoneInput(digitsOnly(v)))}
+          placeholder="(555) 867-5309"
           keyboardType="phone-pad"
           theme={theme}
         />

@@ -55,7 +55,7 @@ function authHeader(): Record<string, string> {
  * saved card. Check-in happens after join, so this is refreshed by the status
  * poll in session.tsx rather than being fixed at join time.
  */
-export interface PlayerCacheDto  { id: string; firstName: string; lastName: string; email: string; hasPaymentMethod: boolean; isCheckedIn: boolean; }
+export interface PlayerCacheDto  { id: string; firstName: string; lastName: string; email: string; /** Only on your own record; null for teammates. */ phone?: string | null; hasPaymentMethod: boolean; isCheckedIn: boolean; }
 export interface HoleCacheDto    { holeNumber: number; par: number; handicapIndex: number; yardageWhite: number | null; yardageBlue: number | null; yardageRed: number | null; sponsorName: string | null; sponsorLogoUrl: string | null; }
 export interface CourseCacheDto  { id: string; name: string; city: string; state: string; holes: HoleCacheDto[]; }
 export interface SponsorCacheDto { id: string; name: string; logoUrl: string; websiteUrl: string | null; tagline: string | null; tier: string; holeNumbers: number[]; }
