@@ -13,6 +13,8 @@
 //   POST /api/v1/events/{eventId}/teams/{id}/invite/regenerate — new invite link
 //   GET  /api/v1/events/{eventId}/teams/{id}/invite    — invite preview (public)
 //   GET  /api/v1/events/{eventId}/invite?token=        — same, token only (the shared link)
+//   GET  /api/v1/players/{playerId}/team-invite        — can this golfer invite? (mobile)
+//   POST /api/v1/players/{playerId}/team-invite        — the link to share (mobile)
 //
 //   GET  /api/v1/events/{eventId}/free-agents          — free agent board
 //   POST /api/v1/events/{eventId}/free-agents/assign   — manual assignment
@@ -22,6 +24,8 @@
 //   Registration endpoints (register/*) are [AllowAnonymous] — the event's
 //   open/closed status is enforced inside the service, not by auth middleware.
 //   Admin endpoints require [Authorize(Policy = "EventStaff")] or "OrgAdmin".
+//   team-invite is [AllowAnonymous] too: the golfer's X-GFP-Session-Token
+//   (minted at /join) is checked inside the service.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using Microsoft.AspNetCore.Authorization;
@@ -155,6 +159,43 @@ public class TeamController : ControllerBase
 
         var response = await _teamService.GetInvitePreviewAsync(eventId, token, ct);
         return Ok(response);
+    }
+
+    // ── TEAMMATE INVITE (mobile — session token is the auth) ──────────────────
+
+    /// <summary>
+    /// Whether this golfer can invite a teammate right now (registration open,
+    /// team not full) and how many spots are left. Read-only: the mobile Team
+    /// screen calls it to decide whether to show "Invite a teammate".
+    /// </summary>
+    [HttpGet("api/v1/players/{playerId:guid}/team-invite")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(TeammateInviteResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TeammateInviteResponse>> GetTeammateInvite(
+        [FromRoute] Guid playerId,
+        [FromHeader(Name = "X-GFP-Session-Token")] string? sessionToken,
+        CancellationToken ct)
+    {
+        return Ok(await _teamService.GetTeammateInviteAsync(playerId, sessionToken, issueLink: false, ct));
+    }
+
+    /// <summary>
+    /// The team's join link for the golfer to share, created if the team has
+    /// none or it expired. Any teammate may call it. 400 with the reason when
+    /// inviting isn't possible (registration closed, team full, no team).
+    /// </summary>
+    [HttpPost("api/v1/players/{playerId:guid}/team-invite")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(TeammateInviteResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TeammateInviteResponse>> IssueTeammateInvite(
+        [FromRoute] Guid playerId,
+        [FromHeader(Name = "X-GFP-Session-Token")] string? sessionToken,
+        CancellationToken ct)
+    {
+        return Ok(await _teamService.GetTeammateInviteAsync(playerId, sessionToken, issueLink: true, ct));
     }
 
     // ── ADMIN TEAM MANAGEMENT (requires EventStaff or OrgAdmin) ──────────────

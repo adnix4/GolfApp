@@ -581,6 +581,49 @@ export async function updateMyProfile(
   return res.json();
 }
 
+/** The Team tab's "Invite a teammate" (TeammateInviteResponse server-side). */
+export interface TeammateInvite {
+  canInvite: boolean;
+  /** Why not, worded for the golfer; null when canInvite. */
+  reason:    string | null;
+  spotsLeft: number;
+  teamName:  string;
+  eventName: string;
+  /** Only from issueTeammateInvite. */
+  inviteUrl?: string | null;
+  expiresAt?: string | null;
+}
+
+/**
+ * Whether this golfer can invite someone right now: registration still open
+ * and the team not full. Any teammate may. Read-only — nothing is created.
+ */
+export async function fetchTeammateInvite(
+  playerId: string, sessionToken: string,
+): Promise<TeammateInvite> {
+  const res = await gfpFetch(`${BASE}/api/v1/players/${playerId}/team-invite`, {
+    headers: { 'X-GFP-Session-Token': sessionToken },
+  });
+  if (!res.ok) throw await apiFailure(res, 'Invite check failed');
+  return res.json();
+}
+
+/**
+ * The team's join link to share, created on the server if the team has none
+ * yet. A link that already works comes back unchanged, so ones sent earlier
+ * keep working. Fails with the reason when inviting isn't possible any more.
+ */
+export async function issueTeammateInvite(
+  playerId: string, sessionToken: string,
+): Promise<TeammateInvite & { inviteUrl: string }> {
+  const res = await gfpFetch(`${BASE}/api/v1/players/${playerId}/team-invite`, {
+    method:  'POST',
+    headers: { 'X-GFP-Session-Token': sessionToken },
+  });
+  if (!res.ok) throw await apiFailure(res, "Couldn't get an invite link");
+  return res.json();
+}
+
 // The history carries this golfer's private Silent maxima, so the server wants the
 // same session token a bid does — a player id on its own no longer reads it.
 export async function fetchPlayerBidHistory(

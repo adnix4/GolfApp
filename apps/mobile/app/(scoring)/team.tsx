@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useClasses } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { LeaveEventButton } from '@/components/LeaveEventButton';
+import { InviteTeammateButton } from '@/components/InviteTeammateButton';
 import type { PlayerCacheDto } from '@/lib/api';
 import { formatTime } from '@gfp/shared-types';
 import { fontSize, radius, spacing } from '@gfp/theme';
@@ -137,6 +138,8 @@ export default function TeamScreen() {
             </Text>
           )}
         </View>
+
+        <InviteTeammateButton />
 
         <LeaveEventButton />
       </ScrollView>
