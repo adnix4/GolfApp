@@ -3,7 +3,7 @@ import {
   View, Text, FlatList, Pressable, TextInput, StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, AsyncSection, FormModal, PrimaryButton, MoneyInput } from '@gfp/ui';
+import { useTheme, useClasses, AsyncSection, FormModal, PrimaryButton, MoneyInput } from '@gfp/ui';
 import { dollarsToCents } from '@gfp/shared-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { leagueApi } from '@/lib/api';
@@ -16,6 +16,7 @@ const HC_SYSTEMS = ['Club', 'USGA'];
 
 export default function LeaguesScreen() {
   const theme      = useTheme();
+  const c          = useClasses();
   const router     = useRouter();
   const { isMobile } = useResponsive();
 
@@ -123,14 +124,14 @@ export default function LeaguesScreen() {
         submitLabel="Create"
         loading={saving}
       >
-            <Text style={[styles.label, { color: theme.mutedText }]}>League Name</Text>
+            <Text style={c.fieldLabel}>League Name</Text>
             <TextInput
-              style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
+              style={c.input}
               value={name} onChangeText={setName} placeholder="Tuesday Night League"
-              placeholderTextColor={theme.colors.accent}
+              placeholderTextColor="#999"
             />
 
-            <Text style={[styles.label, { color: theme.mutedText }]}>Format</Text>
+            <Text style={c.fieldLabel}>Format</Text>
             <View style={styles.segRow}>
               {FORMATS.map(f => (
                 <Pressable
@@ -145,7 +146,7 @@ export default function LeaguesScreen() {
               ))}
             </View>
 
-            <Text style={[styles.label, { color: theme.mutedText }]}>Handicap System</Text>
+            <Text style={c.fieldLabel}>Handicap System</Text>
             <View style={styles.segRow}>
               {HC_SYSTEMS.map(h => (
                 <Pressable
@@ -161,20 +162,20 @@ export default function LeaguesScreen() {
             </View>
 
             <View style={styles.row}>
-              <View style={{ flex: 1, marginRight: spacing[2] }}>
-                <Text style={[styles.label, { color: theme.mutedText }]}>HC Cap</Text>
+              <View style={styles.half}>
+                <Text style={c.fieldLabel}>HC Cap</Text>
                 <TextInput
-                  style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
+                  style={c.input}
                   value={hcCap} onChangeText={setHcCap} keyboardType="numeric"
-                  placeholderTextColor={theme.colors.accent}
+                  placeholderTextColor="#999"
                 />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.label, { color: theme.mutedText }]}>Dues ($)</Text>
+              <View style={styles.half}>
+                <Text style={c.fieldLabel}>Dues ($)</Text>
                 <MoneyInput
-                  style={[styles.input, { color: theme.colors.primary, borderColor: theme.colors.accent }]}
+                  style={c.input}
                   value={dues} onChangeText={setDues} placeholder="$0.00"
-                  placeholderTextColor={theme.colors.accent}
+                  placeholderTextColor="#999"
                 />
               </View>
             </View>
@@ -194,9 +195,8 @@ const styles = StyleSheet.create({
   cardRow:      { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[2] },
   chip:         { fontSize: fontSize.xxs, fontWeight: '600', paddingHorizontal: spacing[2], paddingVertical: spacing[1], borderRadius: radius.lg },
   cardMeta:     { fontSize: fontSize.xs },
-  label:        { fontSize: fontSize.xs, fontWeight: '600', marginTop: spacing[3], marginBottom: spacing[1] },
-  input:        { borderWidth: 1, borderRadius: radius.md, padding: spacing[3], fontSize: fontSize.md },
   segRow:       { flexDirection: 'row', gap: spacing[2], marginTop: spacing[1] },
   seg:          { flex: 1, paddingVertical: spacing[2], borderRadius: radius.md, borderWidth: 1, alignItems: 'center' },
-  row:          { flexDirection: 'row', marginTop: spacing[1] },
+  row:          { flexDirection: 'row', gap: spacing[2] },
+  half:         { flex: 1 },
 });
