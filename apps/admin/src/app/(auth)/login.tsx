@@ -55,14 +55,14 @@ export default function LoginScreen() {
         <Text style={[styles.heading, { color: theme.colors.primary }]}>Sign in</Text>
 
         {error && (
-          <View style={[c.errorBox, styles.errorBox]}>
+          <View style={c.errorBox}>
             <Text style={c.errorText}>{error}</Text>
           </View>
         )}
 
-        <Text style={[c.fieldLabel, styles.label]}>Email</Text>
+        <Text style={c.fieldLabel}>Email</Text>
         <TextInput
-          style={[c.input, styles.input, { color: theme.colors.primary }]}
+          style={[c.input, { color: theme.colors.primary }]}
           value={email}
           onChangeText={setEmail}
           placeholder="organizer@email.com"
@@ -74,9 +74,9 @@ export default function LoginScreen() {
           editable={!loading}
         />
 
-        <Text style={[c.fieldLabel, styles.label]}>Password</Text>
+        <Text style={c.fieldLabel}>Password</Text>
         <TextInput
-          style={[c.input, styles.input, { color: theme.colors.primary }]}
+          style={[c.input, { color: theme.colors.primary }]}
           value={password}
           onChangeText={setPassword}
           placeholder="••••••••"
@@ -152,8 +152,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: spacing[5],
   },
-  label: { marginTop: spacing[4] },   // over c.fieldLabel
-  input: { paddingHorizontal: spacing[4] },   // over c.input
   button: {
     marginTop: spacing[8],
     paddingVertical: spacing[4],
@@ -167,5 +165,4 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: '700',
   },
-  errorBox: { marginBottom: spacing[2] },   // over c.errorBox
 });

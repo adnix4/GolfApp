@@ -721,7 +721,7 @@ const styles = StyleSheet.create({
   filterBtn: { paddingVertical: spacing[3], paddingHorizontal: spacing[1], marginRight: spacing[6], borderBottomWidth: 3, borderBottomColor: 'transparent' },
   filterText: { fontSize: fontSize.md },
 
-  errorBox: { margin: spacing[4], marginBottom: spacing[4] },   // over c.errorBox
+  errorBox: { marginHorizontal: spacing[4], marginTop: spacing[4] },   // inset: the page has no padding
 
   list: { padding: spacing[4], gap: spacing[3] },
   card: { backgroundColor: '#fff', borderWidth: 1, borderRadius: radius.lg, padding: spacing[4], gap: spacing[3] },

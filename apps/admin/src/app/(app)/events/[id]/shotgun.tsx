@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   saveBtn:       { borderRadius: radius.md, paddingHorizontal: spacing[5], paddingVertical: spacing[2], minWidth: 90, alignItems: 'center' },
   saveBtnText:   { fontSize: fontSize.sm, fontWeight: '800', color: '#fff' },
 
-  errorBox:   { marginHorizontal: spacing[6], marginBottom: spacing[2], gap: spacing[1] },   // over c.errorBox
+  errorBox:   { marginHorizontal: spacing[6], gap: spacing[1] },   // inset to the page header
   errorText:  { fontSize: fontSize.sm },          // over c.errorText
   successBox: { marginHorizontal: spacing[6], marginBottom: spacing[2], backgroundColor: '#f0faf4', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: status.success },
   successText:{ color: '#1a6b3c', fontSize: fontSize.sm, fontWeight: '600' },

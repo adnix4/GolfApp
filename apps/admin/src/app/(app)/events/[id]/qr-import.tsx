@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   page:    { flex: 1, backgroundColor: '#f7f8fa' },
   content: { padding: spacing[8], gap: spacing[4], maxWidth: 680, width: '100%', alignSelf: 'center' },
 
-  title:    { marginBottom: spacing[1] },        // over c.title
+  title:    { marginBottom: spacing[1] },        // title + subtitle
   subtitle: { fontSize: fontSize.md, lineHeight: 20, marginBottom: spacing[1] },
 
   inputCard: { backgroundColor: '#fff', borderWidth: 2, borderRadius: radius.lg, padding: spacing[1], minHeight: 100 },
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   importBtn:     { borderRadius: radius.lg, paddingVertical: spacing[4], alignItems: 'center' },
   importBtnText: { fontSize: fontSize.xl, fontWeight: '800', color: '#fff' },
 
-  errorBox:  { marginBottom: 0 },               // over c.errorBox
+  errorBox:  { marginBottom: 0 },   // the parent's gap spaces it
 
   resultCard:    { borderWidth: 1.5, borderRadius: radius.lg, padding: spacing[4], gap: spacing[2], backgroundColor: '#fff' },
   resultTitle:   { fontSize: fontSize.lg, fontWeight: '800', marginBottom: spacing[1] },

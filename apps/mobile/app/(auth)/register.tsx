@@ -351,7 +351,7 @@ export default function RegisterScreen() {
         </View>
 
         {error && (
-          <View style={[c.errorBox, styles.errorBox]}>
+          <View style={c.errorBox}>
             <Text style={c.errorText}>{error}</Text>
           </View>
         )}
@@ -819,7 +819,6 @@ const styles = StyleSheet.create({
   eventBannerLabel: { fontSize: fontSize.xxs, fontWeight: '600', textTransform: 'uppercase', marginBottom: spacing[1] },
   eventBannerName:  { fontSize: fontSize.xl, fontWeight: '700' },
 
-  errorBox: { borderRadius: radius.lg, padding: spacing[4], marginBottom: spacing[4] },   // over c.errorBox: roomier on a phone
 
   card: {
     borderRadius: radius.xl, padding: spacing[5], marginBottom: spacing[4],

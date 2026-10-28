@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   bigBtnText:  { color: '#fff', fontWeight: '800', fontSize: fontSize.xl },
   sectionTitle: { fontSize: fontSize.xl, fontWeight: '700' },
   miniCard:    { backgroundColor: '#fff', borderRadius: radius.md, padding: spacing[3] },
-  errorBox:    { marginBottom: 0 },        // over c.errorBox
+  errorBox:    { marginBottom: 0 },   // the parent's gap spaces it
   errorText:   { fontWeight: '600' },      // over c.errorText
   successBox:  { backgroundColor: '#f0faf4', borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: status.success },
   successText: { color: '#1a6b3c', fontSize: fontSize.md, fontWeight: '600' },

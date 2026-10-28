@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, Pressable, FlatList, Modal, TextInput,
-  StyleSheet, ActivityIndicator, Image,
+  StyleSheet, ActivityIndicator, Image, ScrollView,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
@@ -229,112 +229,114 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={c.overlay}>
-        <View style={styles.modal}>
-          <Text style={[c.modalTitle, styles.modalTitle]}>
-            {initial ? `Edit — Hole ${initial.holeNumber}` : 'Add Challenge'}
-          </Text>
-
-          {error && <View style={[c.errorBox, styles.errorBox]}><Text style={c.errorText}>{error}</Text></View>}
-
-          {/* Hole selector */}
-          {!initial && (
-            <>
-              <Text style={c.fieldLabel}>Hole Number *</Text>
-              <TextInput
-                style={c.input}
-                value={holeNumber}
-                onChangeText={setHoleNumber}
-                placeholder={`1–${holeCount}`}
-                placeholderTextColor="#999"
-                keyboardType="numeric"
-                editable={!loading}
-              />
-            </>
-          )}
-
-          {/* Quick-pick challenge types */}
-          <Text style={c.fieldLabel}>Challenge Type *</Text>
-          <View style={styles.quickPicks}>
-            {COMMON_CHALLENGES.map(c => (
-              <Pressable
-                key={c}
-                onPress={() => setDescription(c)}
-                style={[
-                  styles.quickChip,
-                  description === c && { backgroundColor: theme.colors.primary },
-                ]}
-              >
-                <Text style={[
-                  styles.quickChipText,
-                  { color: description === c ? '#fff' : theme.colors.primary },
-                ]}>{c}</Text>
-              </Pressable>
-            ))}
-          </View>
-          <TextInput
-            style={[c.input, { marginTop: spacing[2] }]}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Custom description…"
-            placeholderTextColor="#999"
-            editable={!loading}
-          />
-
-          <Text style={c.fieldLabel}>Sponsor (optional)</Text>
-          <TextInput
-            style={c.input}
-            value={sponsorName}
-            onChangeText={setSponsorName}
-            placeholder="ACME Corp"
-            placeholderTextColor="#999"
-            editable={!loading}
-          />
-
-          <Text style={c.fieldLabel}>Sponsor Logo URL (optional)</Text>
-          <TextInput
-            style={c.input}
-            value={sponsorLogoUrl}
-            onChangeText={setSponsorLogoUrl}
-            placeholder="https://example.com/logo.png"
-            placeholderTextColor="#999"
-            autoCapitalize="none"
-            keyboardType="url"
-            editable={!loading}
-          />
-          {sponsorLogoUrl.trim().length > 0 && (
-            <Image
-              source={{ uri: sponsorLogoUrl.trim() }}
-              style={styles.logoPreview}
-              resizeMode="contain"
-              accessibilityLabel="Sponsor logo preview"
+        <ScrollView style={styles.overlayScroll} contentContainerStyle={styles.overlayContent} keyboardShouldPersistTaps="handled">
+          <View style={styles.modal}>
+            <Text style={c.modalTitle}>
+              {initial ? `Edit — Hole ${initial.holeNumber}` : 'Add Challenge'}
+            </Text>
+  
+            {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
+  
+            {/* Hole selector */}
+            {!initial && (
+              <>
+                <Text style={c.fieldLabel}>Hole Number *</Text>
+                <TextInput
+                  style={c.input}
+                  value={holeNumber}
+                  onChangeText={setHoleNumber}
+                  placeholder={`1–${holeCount}`}
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                  editable={!loading}
+                />
+              </>
+            )}
+  
+            {/* Quick-pick challenge types */}
+            <Text style={c.fieldLabel}>Challenge Type *</Text>
+            <View style={styles.quickPicks}>
+              {COMMON_CHALLENGES.map(c => (
+                <Pressable
+                  key={c}
+                  onPress={() => setDescription(c)}
+                  style={[
+                    styles.quickChip,
+                    description === c && { backgroundColor: theme.colors.primary },
+                  ]}
+                >
+                  <Text style={[
+                    styles.quickChipText,
+                    { color: description === c ? '#fff' : theme.colors.primary },
+                  ]}>{c}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <TextInput
+              style={[c.input, { marginTop: spacing[2] }]}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Custom description…"
+              placeholderTextColor="#999"
+              editable={!loading}
             />
-          )}
-
-          <Text style={c.fieldLabel}>Donation Amount (optional)</Text>
-          <MoneyInput
-            style={c.input}
-            value={donationAmt}
-            onChangeText={setDonationAmt}
-            placeholder="$0.00"
-            placeholderTextColor="#999"
-            editable={!loading}
-          />
-
-          <View style={[c.formActions, styles.modalActions]}>
-            <Pressable style={c.cancelBtn} onPress={onClose}>
-              <Text style={c.cancelText}>Cancel</Text>
-            </Pressable>
-            <Pressable
-              style={[c.submitBtn, loading && { opacity: 0.6 }]}
-              onPress={handleSave}
-              disabled={loading}
-            >
-              {loading
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={c.submitText}>Save</Text>}
-            </Pressable>
+  
+            <Text style={c.fieldLabel}>Sponsor (optional)</Text>
+            <TextInput
+              style={c.input}
+              value={sponsorName}
+              onChangeText={setSponsorName}
+              placeholder="ACME Corp"
+              placeholderTextColor="#999"
+              editable={!loading}
+            />
+  
+            <Text style={c.fieldLabel}>Sponsor Logo URL (optional)</Text>
+            <TextInput
+              style={c.input}
+              value={sponsorLogoUrl}
+              onChangeText={setSponsorLogoUrl}
+              placeholder="https://example.com/logo.png"
+              placeholderTextColor="#999"
+              autoCapitalize="none"
+              keyboardType="url"
+              editable={!loading}
+            />
+            {sponsorLogoUrl.trim().length > 0 && (
+              <Image
+                source={{ uri: sponsorLogoUrl.trim() }}
+                style={styles.logoPreview}
+                resizeMode="contain"
+                accessibilityLabel="Sponsor logo preview"
+              />
+            )}
+  
+            <Text style={c.fieldLabel}>Donation Amount (optional)</Text>
+            <MoneyInput
+              style={c.input}
+              value={donationAmt}
+              onChangeText={setDonationAmt}
+              placeholder="$0.00"
+              placeholderTextColor="#999"
+              editable={!loading}
+            />
+  
+            <View style={c.formActions}>
+              <Pressable style={c.cancelBtn} onPress={onClose}>
+                <Text style={c.cancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[c.submitBtn, loading && { opacity: 0.6 }]}
+                onPress={handleSave}
+                disabled={loading}
+              >
+                {loading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={c.submitText}>Save</Text>}
+              </Pressable>
+            </View>
           </View>
-        </View>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -349,7 +351,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: fontSize.xl, fontWeight: '600', marginBottom: spacing[2], textAlign: 'center' },
   emptyHint: { fontSize: fontSize.sm, textAlign: 'center', opacity: 0.8 },
 
-  errorBox: { margin: spacing[4], marginBottom: spacing[4] },   // over c.errorBox
+  errorBox: { marginHorizontal: spacing[4], marginTop: spacing[4] },   // over c.errorBox: inset, the page has no padding
 
   list: { padding: spacing[4], gap: spacing[3] },
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing[4], backgroundColor: '#fff', borderWidth: 1, borderRadius: radius.lg, padding: spacing[4] },
@@ -367,10 +369,11 @@ const styles = StyleSheet.create({
   deleteBtn: { paddingVertical: spacing[1], paddingHorizontal: spacing[3], borderRadius: radius.sm, borderWidth: 1, borderColor: status.danger },
   deleteText: { fontSize: fontSize.xs, fontWeight: '700', color: status.danger },
 
+  // The overlay scrolls when the form is taller than the window, so nothing is cut off.
+  overlayScroll:  { width: '100%' },
+  overlayContent: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[4] },
   modal: { width: '90%', maxWidth: 460, backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[6], gap: spacing[1] },
-  modalTitle: { marginBottom: spacing[2] },     // over c.modalTitle
   quickPicks: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   quickChip: { borderWidth: 1, borderColor: '#ccc', borderRadius: radius.xl, paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
   quickChipText: { fontSize: fontSize.sm, fontWeight: '600' },
-  modalActions: { marginTop: spacing[4] },      // over c.formActions
 });

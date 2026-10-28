@@ -267,7 +267,7 @@ export default function EventSettingsScreen() {
         </Text>
         <View style={styles.extractRow}>
           <TextInput
-            style={[c.input, styles.input, { flex: 1 }]}
+            style={[c.input, { flex: 1 }]}
             value={websiteUrl}
             onChangeText={setWebsiteUrl}
             placeholder="yourcharity.org"
@@ -303,7 +303,7 @@ export default function EventSettingsScreen() {
 
         {/* Logo */}
         <View style={styles.fieldWrap}>
-          <Text style={[c.fieldLabel, styles.label]}>Logo</Text>
+          <Text style={c.fieldLabel}>Logo</Text>
 
           {!!logoUrl && (
             <View style={styles.logoPreview}>
@@ -338,9 +338,9 @@ export default function EventSettingsScreen() {
           )}
           <Text style={[styles.hint, { color: theme.mutedText }]}>PNG recommended — transparent background, at least 512px wide. SVG and ICO are converted automatically. Max 2 MB.</Text>
 
-          <Text style={[c.fieldLabel, styles.label, { marginTop: spacing[3] }]}>Or paste a URL</Text>
+          <Text style={[c.fieldLabel, { marginTop: spacing[3] }]}>Or paste a URL</Text>
           <TextInput
-            style={[c.input, styles.input]}
+            style={c.input}
             value={logoUrl}
             onChangeText={setLogoUrl}
             placeholder="https://cdn.example.com/logo.png  (blank = org default)"
@@ -354,7 +354,7 @@ export default function EventSettingsScreen() {
 
         {/* Mission */}
         <View style={styles.fieldWrap}>
-          <Text style={[c.fieldLabel, styles.label]}>Mission Statement</Text>
+          <Text style={c.fieldLabel}>Mission Statement</Text>
           <TextInput
             style={[styles.textArea, { borderColor: theme.colors.accent }]}
             value={mission}
@@ -374,7 +374,7 @@ export default function EventSettingsScreen() {
         {/* 501(c)(3) */}
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[c.fieldLabel, styles.label, { marginTop: 0 }]}>
+            <Text style={[c.fieldLabel, { marginTop: 0 }]}>
               501(c)(3) Non-Profit
             </Text>
             <Text style={[styles.hint, { color: theme.mutedText }]}>
@@ -485,7 +485,7 @@ export default function EventSettingsScreen() {
 
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[c.fieldLabel, styles.label, { marginTop: 0 }]}>
+            <Text style={[c.fieldLabel, { marginTop: 0 }]}>
               Offline Event Mode
             </Text>
             <Text style={[styles.hint, { color: theme.mutedText }]}>
@@ -503,7 +503,7 @@ export default function EventSettingsScreen() {
 
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[c.fieldLabel, styles.label, { marginTop: 0 }]}>
+            <Text style={[c.fieldLabel, { marginTop: 0 }]}>
               Allow Free Agent Registration
             </Text>
             <Text style={[styles.hint, { color: theme.mutedText }]}>
@@ -521,7 +521,7 @@ export default function EventSettingsScreen() {
 
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[c.fieldLabel, styles.label, { marginTop: 0 }]}>
+            <Text style={[c.fieldLabel, { marginTop: 0 }]}>
               Allow Walk-Up Registration
             </Text>
             <Text style={[styles.hint, { color: theme.mutedText }]}>
@@ -594,8 +594,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: fontSize.xl, fontWeight: '800', marginBottom: spacing[1] },
 
   fieldWrap:    { marginBottom: spacing[1] },
-  label:        { marginTop: spacing[4] },             // over c.fieldLabel
-  input:        { paddingHorizontal: spacing[4] },     // over c.input
   textArea:     { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa', minHeight: 100, textAlignVertical: 'top' },
   hint:         { fontSize: fontSize.xs, marginTop: spacing[1], color: '#888' },
 

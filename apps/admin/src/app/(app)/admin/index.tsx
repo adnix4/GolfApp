@@ -68,7 +68,7 @@ export default function SuperAdminDashboard() {
       </Text>
 
       {error && (
-        <View style={[c.errorBox, styles.errorBox]}>
+        <View style={c.errorBox}>
           <Text style={c.errorText}>{error}</Text>
         </View>
       )}
@@ -216,7 +216,6 @@ const styles = StyleSheet.create({
   pageTitle: { fontSize: fontSize.display, fontWeight: '900', marginBottom: spacing[1] },
   pageSub:   { fontSize: fontSize.md, marginBottom: spacing[5] },
 
-  errorBox:  { marginBottom: spacing[4] },   // over c.errorBox
 
   statsRow:     { flexDirection: 'row', gap: spacing[3], marginBottom: spacing[6] },
   statsRowWrap: { flexWrap: 'wrap' },

@@ -242,7 +242,7 @@ export default function JoinScreen() {
             </Text>
 
             {error && (
-              <View style={styles.errorBox}>
+              <View style={c.errorBox}>
                 <Text style={c.errorText}>{error}</Text>
               </View>
             )}
@@ -315,7 +315,7 @@ export default function JoinScreen() {
             </Text>
 
             {error && (
-              <View style={styles.errorBox}>
+              <View style={c.errorBox}>
                 <Text style={c.errorText}>{error}</Text>
               </View>
             )}
@@ -430,7 +430,7 @@ export default function JoinScreen() {
             </Text>
 
             {error && (
-              <View style={styles.errorBox}>
+              <View style={c.errorBox}>
                 <Text style={c.errorText}>{error}</Text>
               </View>
             )}
@@ -622,7 +622,7 @@ export default function JoinScreen() {
         {showManual && (
           <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
             {error && (
-              <View style={styles.errorBox}>
+              <View style={c.errorBox}>
                 <Text style={c.errorText}>{error}</Text>
               </View>
             )}
@@ -721,12 +721,8 @@ const styles = StyleSheet.create({
   },
   joinBtnText: { fontSize: fontSize.xl, fontWeight: '700', color: '#fff' },
 
-  errorBox: {
-    backgroundColor: status.dangerBg, borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[2],
-    borderLeftWidth: 3, borderLeftColor: status.danger,
-  },
   noticeBox: {
-    backgroundColor: '#fff8e1', borderColor: '#f39c12', borderWidth: 1, borderRadius: radius.lg,
+    backgroundColor: '#fff8e1', borderColor: status.warning, borderWidth: 1, borderRadius: radius.lg,
     padding: spacing[3], marginBottom: spacing[4], flexDirection: 'row', alignItems: 'center', gap: spacing[3],
   },
   noticeText:    { flex: 1, color: '#6d4c00', fontSize: fontSize.md },
