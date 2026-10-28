@@ -23,7 +23,7 @@
  * scoring, flights and pairings read it) — see validateLeagueMember().
  */
 
-import { digitsOnly } from './phone';
+import { digitsOnly, isValidPhone, PHONE_INVALID } from './phone';
 
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const HANDICAP_MIN = 0;
@@ -80,7 +80,7 @@ export function validateGolfer(g: GolferFields, rules: GolferRules = {}): string
 
   const phone = digitsOnly(g.phone ?? '');
   if (rules.phoneRequired && !phone) return `${who}Phone number is required.`;
-  if (phone && phone.length !== 10)  return `${who}Phone number must be 10 digits.`;
+  if (phone && !isValidPhone(phone)) return `${who}${PHONE_INVALID}`;
 
   const hcp = parseHandicap(g.handicap);
   if (hcp === null) {
