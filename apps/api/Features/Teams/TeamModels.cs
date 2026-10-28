@@ -236,6 +236,25 @@ public record UpdateTeamRequest
 /// Regenerates the invite token for a team (e.g. if it expired or was compromised).
 /// Returns the new invite URL.
 /// </summary>
+/// <summary>
+/// The mobile Team screen's "Invite a teammate" button. Any golfer on the team
+/// may invite, proving who they are with the session token from /join.
+/// GET answers whether to show the button; POST also returns the link.
+/// </summary>
+public record TeammateInviteResponse
+{
+    public bool      CanInvite { get; init; }
+    /// <summary>Why not, worded for the golfer. Null when CanInvite.</summary>
+    public string?   Reason    { get; init; }
+    public int       SpotsLeft { get; init; }
+    public string    TeamName  { get; init; } = string.Empty;
+    public string    EventName { get; init; } = string.Empty;
+    /// <summary>POST only: the team's join link (/e/{slug}/{code}/join?token=…).</summary>
+    public string?   InviteUrl { get; init; }
+    /// <summary>POST only: when the link stops working — the round's start.</summary>
+    public DateTime? ExpiresAt { get; init; }
+}
+
 public record RegenerateInviteResponse
 {
     public string InviteToken   { get; init; } = string.Empty;

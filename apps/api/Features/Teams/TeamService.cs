@@ -631,6 +631,68 @@ public class TeamService
         };
     }
 
+    // ── TEAMMATE INVITE (mobile Team screen) ──────────────────────────────────
+
+    /// <summary>
+    /// Any golfer on a team can invite another while registration is open and
+    /// the team has room. <paramref name="issueLink"/> false (GET) only reports
+    /// whether to show the button; true (POST) also returns the link, minting
+    /// one when the team has none (a desk-registered or once-full team) or it
+    /// expired. A working link is never replaced: ones already sent stay valid.
+    ///
+    /// Auth is the per-player session token from /join. A wrong token gets the
+    /// same NotFound as a missing player, like the profile edit.
+    /// </summary>
+    public async Task<TeammateInviteResponse> GetTeammateInviteAsync(
+        Guid playerId, string? sessionToken, bool issueLink, CancellationToken ct = default)
+    {
+        var player = await _db.Players
+            .Include(p => p.Team!).ThenInclude(t => t.Players)
+            .Include(p => p.Event).ThenInclude(e => e.Organization)
+            .FirstOrDefaultAsync(p => p.Id == playerId, ct);
+
+        if (player is null || !Common.PlayerSessionAuth.Matches(player.SessionToken, sessionToken))
+            throw new NotFoundException("Player", playerId);
+
+        var team = player.Team;
+        var evt  = player.Event;
+        var spotsLeft = team is null ? 0 : Math.Max(0, team.MaxPlayers - team.Players.Count);
+
+        string? reason =
+            team is null                    ? "You're not on a team yet."
+            : !IsOpenForRegistration(evt)   ? "Registration for this event has closed."
+            : spotsLeft == 0                ? "Your team is full."
+            : null;
+
+        var response = new TeammateInviteResponse
+        {
+            CanInvite = reason is null,
+            Reason    = reason,
+            SpotsLeft = spotsLeft,
+            TeamName  = team?.Name ?? string.Empty,
+            EventName = evt.Name,
+        };
+        if (!issueLink) return response;
+        if (reason is not null) throw new ValidationException(reason);
+
+        if (team!.InviteToken is null || team.InviteExpiresAt is null || team.InviteExpiresAt <= DateTime.UtcNow)
+        {
+            var (token, expiresAt) = GenerateInviteToken(team.Id, evt);
+            team.InviteToken     = token;
+            team.InviteExpiresAt = expiresAt;
+            await _db.SaveChangesAsync(ct);
+
+            _logger.LogInformation(
+                "Player {PlayerId} issued a teammate invite for team {TeamId}", playerId, team.Id);
+        }
+
+        return response with
+        {
+            InviteUrl = BuildInviteUrl(evt, team),
+            ExpiresAt = team.InviteExpiresAt,
+        };
+    }
+
     // ── FREE AGENT BOARD ──────────────────────────────────────────────────────
 
     /// <summary>
@@ -874,14 +936,7 @@ public class TeamService
         if (evt is null)
             throw new NotFoundException("Event", eventId);
 
-        var config      = DeserializeConfig(evt.ConfigJson);
-        var allowWalkUp = config.AllowWalkUps ?? false;
-
-        var isOpen = evt.Status == EventStatus.Draft
-            || evt.Status == EventStatus.Registration
-            || evt.Status == EventStatus.Active && allowWalkUp;
-
-        if (!isOpen)
+        if (!IsOpenForRegistration(evt))
             throw new ValidationException(
                 evt.Status == EventStatus.Active
                     ? "Walk-up registration must be enabled in event settings to add teams to an Active event."
@@ -889,6 +944,16 @@ public class TeamService
 
         return evt;
     }
+
+    /// <summary>
+    /// Whether golfers can still register or join a team: Draft (test mode),
+    /// Registration, or Active with walk-ups allowed. The teammate-invite button
+    /// uses the same rule, so it only appears while its link would work.
+    /// </summary>
+    private bool IsOpenForRegistration(Event evt) =>
+        evt.Status == EventStatus.Draft
+        || evt.Status == EventStatus.Registration
+        || evt.Status == EventStatus.Active && (DeserializeConfig(evt.ConfigJson).AllowWalkUps ?? false);
 
     /// <summary>
     /// Checks that the event hasn't reached its max_teams limit.
