@@ -3,7 +3,7 @@ import {
   View, Text, Pressable, Modal, TextInput, StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useTheme, useClasses } from '@gfp/ui';
-import { digitsOnly, fmtPhoneInput } from '@gfp/shared-types';
+import { digitsOnly, fmtPhoneInput, isValidPhone, PHONE_INVALID } from '@gfp/shared-types';
 import { playersApi, type Team, type Player, type AddPlayerPayload } from '@/lib/api';
 import { formStyles } from './formStyles';
 import { fontSize, radius, spacing } from '@gfp/theme';
@@ -64,8 +64,8 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError(`"${email.trim()}" is not a valid email address.`); return false;
     }
-    if (phone.trim() && digitsOnly(phone).length !== 10) {
-      setError('Phone number must be 10 digits.'); return false;
+    if (digitsOnly(phone) && !isValidPhone(phone)) {
+      setError(PHONE_INVALID); return false;
     }
     if (handicap.trim() && isNaN(Number(handicap))) {
       setError('Handicap must be a number.'); return false;
@@ -85,7 +85,8 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
           firstName: firstName.trim(),
           lastName:  lastName.trim(),
           email:     email.trim() || undefined,
-          phone:     phone.trim() || undefined,
+          // Digits, and only when changed: an emptied field clears the stored number.
+          ...(digitsOnly(phone) !== digitsOnly(player.phone ?? '') ? { phone: digitsOnly(phone) } : {}),
           ...(handicap.trim() ? { handicapIndex: Number(handicap) } : {}),
           ...(teamChanged
             ? selectedTeamId === null
@@ -98,7 +99,7 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
           firstName: firstName.trim(),
           lastName:  lastName.trim(),
           email:     email.trim() || undefined,
-          phone:     phone.trim() || undefined,
+          phone:     digitsOnly(phone) || undefined,
           ...(handicap.trim() ? { handicapIndex: Number(handicap) } : {}),
           teamId: teamId ?? undefined,
         };
