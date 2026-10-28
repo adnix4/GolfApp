@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using GolfFundraiserPro.Api.Common;
 using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Enums;
@@ -68,7 +69,7 @@ public class PlayerService
             FirstName     = request.FirstName,
             LastName      = request.LastName,
             Email         = request.Email ?? string.Empty,
-            Phone         = request.Phone,
+            Phone         = PhoneNumber.Normalize(request.Phone),
             HandicapIndex = request.HandicapIndex,
             CheckInStatus = CheckInStatus.Pending,
             // Only the guest case is tagged. Golfers added here keep the existing
@@ -130,9 +131,12 @@ public class PlayerService
         if (player is null)
             throw new NotFoundException("Player", playerId);
 
+        // Validate before touching the entity: a bad phone rejects the whole edit.
+        var phone = request.Phone is null ? null : PhoneNumber.Normalize(request.Phone);
+
         if (request.FirstName  is not null)  player.FirstName     = request.FirstName;
         if (request.LastName   is not null)  player.LastName      = request.LastName;
-        if (request.Phone      is not null)  player.Phone         = request.Phone;
+        if (request.Phone      is not null)  player.Phone         = phone;
         if (request.HandicapIndex.HasValue)  player.HandicapIndex = request.HandicapIndex;
 
         if (request.ClearTeam == true)

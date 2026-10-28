@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using GolfFundraiserPro.Api.Common;
 using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
@@ -283,6 +284,7 @@ public class MobileService
                         FirstName        = freeAgent.FirstName,
                         LastName         = freeAgent.LastName,
                         Email            = freeAgent.Email,
+                        Phone            = freeAgent.Phone,
                         HasPaymentMethod = freeAgent.HasPaymentMethod,
                         IsCheckedIn      = freeAgent.CheckInStatus == CheckInStatus.CheckedIn,
                     },
@@ -430,6 +432,7 @@ public class MobileService
                 FirstName        = player.FirstName,
                 LastName         = player.LastName,
                 Email            = player.Email,
+                Phone            = player.Phone,
                 HasPaymentMethod = player.HasPaymentMethod,
                 IsCheckedIn      = player.CheckInStatus == CheckInStatus.CheckedIn,
             },
@@ -684,9 +687,12 @@ public class MobileService
             throw new NotFoundException("Player", playerId);
         }
 
+        // Validate before touching the entity: a bad phone rejects the whole edit.
+        var phone = request.Phone is null ? null : PhoneNumber.Normalize(request.Phone);
+
         if (request.FirstName is not null) player.FirstName = request.FirstName.Trim();
         if (request.LastName  is not null) player.LastName  = request.LastName.Trim();
-        if (request.Phone     is not null) player.Phone     = request.Phone.Trim();
+        if (request.Phone     is not null) player.Phone     = phone;
 
         await _db.SaveChangesAsync(ct);
 
@@ -698,6 +704,7 @@ public class MobileService
             FirstName        = player.FirstName,
             LastName         = player.LastName,
             Email            = player.Email,
+            Phone            = player.Phone,
             HasPaymentMethod = player.HasPaymentMethod,
             IsCheckedIn      = player.CheckInStatus == CheckInStatus.CheckedIn,
         };
