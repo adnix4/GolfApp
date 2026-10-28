@@ -187,6 +187,11 @@ public record PlayerCacheDto
     public string FirstName        { get; init; } = string.Empty;
     public string LastName         { get; init; } = string.Empty;
     public string Email            { get; init; } = string.Empty;
+    /// <summary>
+    /// The session's OWN phone (10 digits), so Edit Profile can show it. Left
+    /// null in TeamCacheDto.Players: a golfer never receives teammates' numbers.
+    /// </summary>
+    public string? Phone           { get; init; }
     public bool   HasPaymentMethod { get; init; }
     /// <summary>
     /// True once the golfer has checked in at the event. Mirrors the second

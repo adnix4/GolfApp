@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { digitsOnly, fmtPhoneInput, fmtPhone } from '../phone';
+import { digitsOnly, fmtPhoneInput, fmtPhone, isValidPhone } from '../phone';
 
 describe('digitsOnly', () => {
   it('strips non-digit characters', () => {
@@ -7,7 +7,13 @@ describe('digitsOnly', () => {
   });
 
   it('caps at 10 digits', () => {
-    expect(digitsOnly('15558675309123')).toBe('1555867530');
+    expect(digitsOnly('55586753091234')).toBe('5558675309');
+  });
+
+  it('drops a leading US country code once past 10 digits', () => {
+    expect(digitsOnly('+1 (555) 867-5309')).toBe('5558675309');
+    expect(digitsOnly('15558675309')).toBe('5558675309');
+    expect(digitsOnly('1555')).toBe('1555');   // still typing: nothing dropped yet
   });
 
   it('returns empty string for empty input', () => {
@@ -54,5 +60,19 @@ describe('fmtPhone', () => {
   it('falls back to raw value when not 10 digits', () => {
     expect(fmtPhone('555')).toBe('555');
     expect(fmtPhone('+44 20 7946 0958')).toBe('+44 20 7946 0958');
+  });
+});
+
+describe('isValidPhone', () => {
+  it('accepts a complete US number in any common format', () => {
+    for (const v of ['5558675309', '(555) 867-5309', '555.867.5309', '+1 555 867 5309']) {
+      expect(isValidPhone(v)).toBe(true);
+    }
+  });
+
+  it('rejects short numbers and impossible area codes or exchanges', () => {
+    for (const v of ['', '555-1234', '(055) 867-5309', '(155) 867-5309', '(555) 067-5309', '(555) 167-5309']) {
+      expect(isValidPhone(v)).toBe(false);
+    }
   });
 });

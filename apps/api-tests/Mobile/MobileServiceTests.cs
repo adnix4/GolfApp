@@ -107,13 +107,37 @@ public class MobileServiceTests
         var w = Seed();
         var dto = await w.Svc.UpdateSelfAsync(w.PlayerId, new UpdateSelfRequest
         {
-            SessionToken = w.SessionToken, FirstName = "  Sam  ", LastName = "Smith", Phone = " 555-1234 ",
+            SessionToken = w.SessionToken, FirstName = "  Sam  ", LastName = "Smith", Phone = " (555) 867-5309 ",
         });
 
         Assert.Equal("Sam", dto.FirstName);     // trimmed
         Assert.Equal("Smith", dto.LastName);
+        Assert.Equal("5558675309", dto.Phone);  // returned so Edit Profile can show it
         var p = w.Db.Players.Single(p => p.Id == w.PlayerId);
-        Assert.Equal("555-1234", p.Phone);       // trimmed + persisted
+        Assert.Equal("5558675309", p.Phone);     // stored as 10 digits
+    }
+
+    [Fact]
+    public async Task UpdateSelf_rejects_a_malformed_phone_and_saves_nothing()
+    {
+        var w = Seed();
+        await Assert.ThrowsAsync<ValidationException>(() => w.Svc.UpdateSelfAsync(w.PlayerId, new UpdateSelfRequest
+        {
+            SessionToken = w.SessionToken, FirstName = "Sam", Phone = "555-1234",
+        }));
+
+        var p = w.Db.Players.Single(p => p.Id == w.PlayerId);
+        Assert.NotEqual("Sam", p.FirstName);
+    }
+
+    [Fact]
+    public async Task UpdateSelf_clears_the_phone_with_an_empty_string()
+    {
+        var w = Seed();
+        await w.Svc.UpdateSelfAsync(w.PlayerId, new UpdateSelfRequest { SessionToken = w.SessionToken, Phone = "5558675309" });
+        await w.Svc.UpdateSelfAsync(w.PlayerId, new UpdateSelfRequest { SessionToken = w.SessionToken, Phone = "" });
+
+        Assert.Null(w.Db.Players.Single(p => p.Id == w.PlayerId).Phone);
     }
 
     [Fact]

@@ -46,7 +46,8 @@ describe('validateGolfer', () => {
 
   it('requires a phone only when asked, and then 10 digits', () => {
     expect(validateGolfer(ava, { phoneRequired: true })).toMatch(/phone number is required/i);
-    expect(validateGolfer({ ...ava, phone: '555-1234' })).toMatch(/10 digits/);
+    expect(validateGolfer({ ...ava, phone: '555-1234' })).toMatch(/10-digit US phone/);
+    expect(validateGolfer({ ...ava, phone: '(155) 867-5309' })).toMatch(/10-digit US phone/);
     expect(validateGolfer({ ...ava, phone: '(555) 867-5309' }, { phoneRequired: true })).toBeNull();
   });
 

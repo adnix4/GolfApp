@@ -932,7 +932,7 @@ async function phaseTeamInvite(ctx) {
   const reg = await api('POST', `/events/${ev.id}/register/team`, { body: {
     teamName, maxPlayers: 4,
     players: [
-      { firstName: 'Cap', lastName: 'Tain', email: `e2e.inv.0.${ctx.stamp}@example.com`, phone: '5550000001', handicapIndex: 9.5 },
+      { firstName: 'Cap', lastName: 'Tain', email: `e2e.inv.0.${ctx.stamp}@example.com`, phone: '5552000001', handicapIndex: 9.5 },
       { firstName: 'Mate', lastName: 'One',  email: `e2e.inv.1.${ctx.stamp}@example.com` },
     ],
   }});
@@ -956,12 +956,12 @@ async function phaseTeamInvite(ctx) {
 
   await api('POST', `/events/${ev.id}/register/join`, { body: {
     inviteToken: token,
-    player: { firstName: 'Late', lastName: 'Comer', email: `e2e.inv.2.${ctx.stamp}@example.com`, phone: '5550000002', handicapIndex: 17.3 },
+    player: { firstName: 'Late', lastName: 'Comer', email: `e2e.inv.2.${ctx.stamp}@example.com`, phone: '5552000002', handicapIndex: 17.3 },
   }});
   const team = await api('GET', `/events/${ev.id}/teams/${reg.team.id}`, { token: ctx.token });
   const late = (team.players ?? []).find(p => p.lastName === 'Comer');
   if ((team.players ?? []).length !== 3 || !late) fail('teammate joins through the link', JSON.stringify(team.players));
-  if (late.handicapIndex !== 17.3 || late.phone !== '5550000002') {
+  if (late.handicapIndex !== 17.3 || late.phone !== '5552000002') {
     fail('joiner keeps phone + handicap', `handicapIndex ${late.handicapIndex}, phone ${late.phone}`);
   }
   const cap = team.players.find(p => p.lastName === 'Tain');

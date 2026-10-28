@@ -30,6 +30,7 @@
 
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using GolfFundraiserPro.Api.Common;
 using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
@@ -126,7 +127,7 @@ public class TeamService
             FirstName        = p.FirstName,
             LastName         = p.LastName,
             Email            = p.Email.ToLowerInvariant(),
-            Phone            = p.Phone,
+            Phone            = PhoneNumber.Normalize(p.Phone),
             HandicapIndex    = p.HandicapIndex,
             RegistrationType = RegistrationType.FullTeam,
             CheckInStatus    = CheckInStatus.Pending,
@@ -236,7 +237,7 @@ public class TeamService
             FirstName        = request.Player.FirstName,
             LastName         = request.Player.LastName,
             Email            = request.Player.Email.ToLowerInvariant(),
-            Phone            = request.Player.Phone,
+            Phone            = PhoneNumber.Normalize(request.Player.Phone),
             HandicapIndex    = request.Player.HandicapIndex,
             RegistrationType = RegistrationType.IndividualJoin,
             CheckInStatus    = CheckInStatus.Pending,
@@ -315,7 +316,7 @@ public class TeamService
             FirstName        = request.Player.FirstName,
             LastName         = request.Player.LastName,
             Email            = request.Player.Email.ToLowerInvariant(),
-            Phone            = request.Player.Phone,
+            Phone            = PhoneNumber.Normalize(request.Player.Phone),
             HandicapIndex    = request.Player.HandicapIndex,
             RegistrationType = RegistrationType.FreeAgent,
             SkillLevel       = request.SkillLevel,

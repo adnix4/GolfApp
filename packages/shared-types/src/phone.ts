@@ -5,11 +5,26 @@
  */
 
 /**
- * Strip everything that isn't a digit and cap at 10 digits.
+ * Strip everything that isn't a digit and cap at 10 digits. A leading US
+ * country code is dropped once the number runs past 10 digits, so a pasted
+ * '+1 (555) 867-5309' keeps the right ten.
  * '(555) 867-5309 ext.4' → '5558675309'
  */
 export function digitsOnly(v: string): string {
-  return v.replace(/\D/g, '').slice(0, 10);
+  const d = v.replace(/\D/g, '');
+  return (d.length > 10 && d[0] === '1' ? d.slice(1) : d).slice(0, 10);
+}
+
+/** What a phone field says when the number isn't one. Same text as the API. */
+export const PHONE_INVALID = 'Enter a 10-digit US phone number, like (555) 867-5309.';
+
+/**
+ * A complete US (NANP) number: 10 digits, and neither the area code nor the
+ * exchange starts with 0 or 1. Mirrors PhoneNumber.Normalize in the API.
+ */
+export function isValidPhone(raw: string | null | undefined): boolean {
+  const d = digitsOnly(raw ?? '');
+  return d.length === 10 && d[0] >= '2' && d[3] >= '2';
 }
 
 /**
