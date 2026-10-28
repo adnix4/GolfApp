@@ -23,7 +23,8 @@ import {
   StyleSheet, Text, View,
 } from 'react-native';
 import { useTheme } from './ThemeProvider';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { useClasses } from '../styles/useClasses';
+import { neutral, radius, spacing, status } from '@gfp/theme';
 
 export interface FormModalProps {
   visible: boolean;
@@ -37,6 +38,8 @@ export interface FormModalProps {
   cancelLabel?: string;
   /** Disables submit + shows a spinner inside it. */
   loading?: boolean;
+  /** Disables submit without a spinner (e.g. nothing selected yet). */
+  submitDisabled?: boolean;
   /** Renders the submit button in a destructive red color. */
   destructive?: boolean;
   /** Hide the submit button (useful for read-only/info modals). */
@@ -54,13 +57,15 @@ export function FormModal({
   submitLabel,
   cancelLabel = 'Cancel',
   loading = false,
+  submitDisabled = false,
   destructive = false,
   hideSubmit = false,
   maxWidth = 480,
   children,
 }: FormModalProps) {
   const theme = useTheme();
-  const submitBg = destructive ? '#e74c3c' : theme.colors.primary;
+  const c = useClasses();
+  const submitBg = destructive ? status.danger : theme.buttonBackground;
   // Label derived per-fill: a custom brand may pick a light primary where
   // hardcoded white would vanish. Danger red always takes white.
   const submitFg = destructive ? '#fff' : theme.buttonLabel;
@@ -72,25 +77,25 @@ export function FormModal({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <View style={c.overlay}>
         <ScrollView
           contentContainerStyle={styles.overlayScroll}
           keyboardShouldPersistTaps="handled"
         >
           <View style={[styles.modal, { maxWidth }]}>
-            <Text style={[styles.title, { color: theme.colors.primary }]}>{title}</Text>
+            <Text style={c.modalTitle}>{title}</Text>
 
             {children}
 
-            <View style={styles.actions}>
+            <View style={c.formActions}>
               <Pressable
-                style={[styles.cancelBtn, { borderColor: theme.colors.accent }]}
+                style={c.cancelBtn}
                 onPress={onClose}
                 disabled={loading}
                 accessibilityRole="button"
                 accessibilityLabel={cancelLabel}
               >
-                <Text style={[styles.cancelText, { color: theme.colors.primary }]}>
+                <Text style={c.cancelText}>
                   {cancelLabel}
                 </Text>
               </Pressable>
@@ -98,18 +103,19 @@ export function FormModal({
               {hideSubmit ? null : (
                 <Pressable
                   style={[
-                    styles.submitBtn,
+                    c.submitBtn,
                     { backgroundColor: submitBg },
-                    loading && styles.disabled,
+                    (loading || submitDisabled) && styles.disabled,
                   ]}
                   onPress={onSubmit}
-                  disabled={loading}
+                  disabled={loading || submitDisabled}
                   accessibilityRole="button"
                   accessibilityLabel={submitLabel}
+                  accessibilityState={{ disabled: loading || submitDisabled, busy: loading }}
                 >
                   {loading
                     ? <ActivityIndicator color={submitFg} />
-                    : <Text style={[styles.submitText, { color: submitFg }]}>{submitLabel}</Text>}
+                    : <Text style={[c.submitText, { color: submitFg }]}>{submitLabel}</Text>}
                 </Pressable>
               )}
             </View>
@@ -121,12 +127,6 @@ export function FormModal({
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   overlayScroll: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -135,44 +135,11 @@ const styles = StyleSheet.create({
   },
   modal: {
     width: '100%',
-    backgroundColor: '#fff',
+    backgroundColor: neutral.panel,
     borderRadius: radius.xl,
     padding: spacing[8],
     boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.15)',
     elevation: 12,
-  },
-  title: {
-    fontSize: fontSize.xxl,
-    fontWeight: '800',
-    marginBottom: spacing[4],
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing[3],
-    marginTop: spacing[6],
-  },
-  cancelBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    paddingVertical: spacing[3],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelText: {
-    fontSize: fontSize.lg,
-    fontWeight: '600',
-  },
-  submitBtn: {
-    flex: 2,
-    borderRadius: radius.lg,
-    paddingVertical: spacing[3],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitText: {
-    fontSize: fontSize.lg,
-    fontWeight: '700',
   },
   disabled: {
     opacity: 0.6,
