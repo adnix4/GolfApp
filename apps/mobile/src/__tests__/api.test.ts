@@ -16,6 +16,7 @@ import {
   fetchEventStatus, EventNotFoundError,
   fetchMyCheckout, confirmMyCheckout,
   fetchInvitePreview, joinTeam,
+  fetchTeammateInvite, issueTeammateInvite,
 } from '../lib/api';
 import type { PendingScore } from '../lib/api';
 
@@ -622,5 +623,32 @@ describe('joinTeam', () => {
     mockErr(400, { error: 'This team is already full.' });
     await expect(joinTeam('ev-1', { inviteToken: 'a.b', player: { firstName: 'A', lastName: 'B', email: 'a@b.co' } }))
       .rejects.toThrow('This team is already full.');
+  });
+});
+
+describe('teammate invite (Team tab)', () => {
+  it('asks whether this golfer can invite, proving who they are with the session token', async () => {
+    mockOk({ canInvite: true, reason: null, spotsLeft: 2, teamName: 'Eagles', eventName: 'Gala' });
+    const res = await fetchTeammateInvite('pl-1', 'sess-tok');
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/api/v1/players/pl-1/team-invite');
+    expect(init.method).toBeUndefined();
+    expect((init.headers as Record<string, string>)['X-GFP-Session-Token']).toBe('sess-tok');
+    expect(res.spotsLeft).toBe(2);
+  });
+
+  it('posts for the link to share', async () => {
+    mockOk({ canInvite: true, spotsLeft: 1, teamName: 'Eagles', eventName: 'Gala', inviteUrl: 'https://x/e/o/C/join?token=t' });
+    const res = await issueTeammateInvite('pl-1', 'sess-tok');
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/api/v1/players/pl-1/team-invite');
+    expect(init.method).toBe('POST');
+    expect((init.headers as Record<string, string>)['X-GFP-Session-Token']).toBe('sess-tok');
+    expect(res.inviteUrl).toBe('https://x/e/o/C/join?token=t');
+  });
+
+  it('surfaces why not (e.g. the team filled up meanwhile)', async () => {
+    mockErr(400, { error: 'Your team is full.' });
+    await expect(issueTeammateInvite('pl-1', 'sess-tok')).rejects.toThrow('Your team is full.');
   });
 });

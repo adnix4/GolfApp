@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, TextInput, Pressable, StyleSheet, Share,
+  View, Text, TextInput, Pressable, StyleSheet,
   ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -15,6 +15,7 @@ import {
   type GolferFields,
 } from '@gfp/shared-types';
 import { GfpLogo } from '@/components/GfpLogo';
+import { shareTeamInvite } from '@/lib/teamInvite';
 import {
   registerTeam, registerFreeAgent, joinTeam, fetchInvitePreview, confirmEntryFee,
   type SkillLevel, type AgeGroup, type TeamInvitePreview,
@@ -686,11 +687,8 @@ function InviteTeammatesCard({ url, expiresAt, spotsLeft, teamName, eventName }:
 
   async function handleShare() {
     setShareError(null);
-    const message = `Join my team "${teamName}" for ${eventName}: ${url}`;
     try {
-      // iOS shows `url` as a link preview alongside the message; Android and
-      // web read the message, which already carries the link.
-      await Share.share(Platform.OS === 'ios' ? { message: `Join my team "${teamName}" for ${eventName}`, url } : { message });
+      await shareTeamInvite({ url, teamName, eventName });
     } catch {
       setShareError("Couldn't open sharing on this device — press and hold the link to copy it.");
     }
