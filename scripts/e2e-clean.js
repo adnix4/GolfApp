@@ -1477,6 +1477,33 @@ async function phaseTransactions(ctx) {
                   `expected the price to hold at 5000, got ${raise.currentHighBidCents}`);
   }
   pass('proxy raise holds the public price', c.dim('$50.00, lot still held'));
+
+  // The mobile offline queue resends a bid until it hears back, so a resend
+  // after a lost response must return the original, not record it again. A
+  // pledge is the case that costs money: a second row would double the gift.
+  const fan = await api('POST', `/events/${ctx.eventId}/auction/items`, {
+    token: ctx.token,
+    body: {
+      title: 'E2E Fund-a-Need', description: 'For the resend path',
+      auctionType: 'DonationSilent', startingBidCents: 1000, bidIncrementCents: 100,
+      closesAt: new Date(Date.now() + 36e5).toISOString(),
+    },
+  });
+  const clientRequestId = require('crypto').randomUUID();
+  const send = () => api('POST', `/auction/items/${fan.id}/pledge`, { body: {
+    playerId, amountCents: 2500, sessionToken: ctx.sessionToken, clientRequestId,
+  }});
+  const first  = await send();
+  const second = await send();
+  if (first.id !== second.id) {
+    fail('pledge resend', `a resent pledge made a second row: ${first.id} then ${second.id}`);
+  }
+  const items  = await api('GET', `/events/${ctx.eventId}/auction/items/public`);
+  const raised = items.find(i => i.id === fan.id)?.totalRaisedCents;
+  if (raised !== 2500) {
+    fail('pledge resend', `expected the $25 pledge counted once (2500), got ${raised}`);
+  }
+  pass('resent pledge counted once', c.dim('same client request id → same pledge, $25.00 raised'));
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────

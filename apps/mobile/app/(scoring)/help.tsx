@@ -12,91 +12,102 @@ const TABS = [
     name: 'Scorecard',
     icon: '⛳',
     color: '#2ecc71',
-    desc: 'Enter your team\'s score for each hole. Tap a hole row to open the score entry panel — enter the gross score and optional putts. Scores are saved instantly to your device.',
+    desc: 'Score one hole at a time. For each golfer, tap + and − to count their Drive, Approach and Putt strokes, then tap Complete Hole. Use Prev and Next to move between holes. Scores are saved on your device instantly.',
     tips: [
-      'You can score in any order — holes don\'t need to be entered sequentially.',
-      'The score indicator shows your running total and difference from par.',
-      'If playing individual stroke: enter each player\'s strokes separately.',
-      'Your scores sync to the server automatically when you have a connection.',
+      'The chips at the top show the hole\'s par, your score, handicap, yardages, and your round so far.',
+      'Your team score follows the event\'s format — for example, a scramble adds the shots used, best ball takes the lowest score.',
+      'Made a mistake? Go back to the hole and tap ✎ Edit Score.',
+      'Hole sponsors and hole challenges show on the holes they belong to — tap a sponsor for details.',
+      'The scorecard is read-only until the organizer opens scoring.',
     ],
   },
   {
     name: 'Standings',
     icon: '🏆',
     color: status.warning,
-    desc: 'Live leaderboard showing all teams ranked by score relative to par. Your team is highlighted. The leaderboard refreshes every 30 seconds when online.',
+    desc: 'Live leaderboard ranked by score relative to par — or by points in a Stableford event. Teams are ranked together, or golfers individually in a stroke play event. It updates as scores come in.',
     tips: [
-      'Scores shown here may lag behind mobile entries by up to 30 seconds.',
       'An "E" means even par; negative numbers are under par (better).',
-      'Teams are shown as incomplete until all holes are scored.',
+      'The Thru column shows how many holes a team has finished; "F" means finished.',
+      'With no connection — or when the organizer has turned on Offline Event Mode — live updates pause, and the screen shows when it was last updated.',
     ],
   },
   {
     name: 'Team',
     icon: '👥',
     color: '#3498db',
-    desc: 'Shows everyone on your team for this event — names, and which hole each player is currently on.',
+    desc: 'Your team for this event: the format, your starting hole or tee time, the course, and the roster.',
     tips: [
-      'Your player is highlighted in the list.',
-      'Contact your team captain if your name appears incorrectly.',
+      'Tap the edit button on your own row to update your name or phone.',
+      'Use Invite a Teammate to share a link that adds someone to your team.',
+      'Contact your event organizer if a teammate\'s name appears incorrectly.',
     ],
   },
   {
     name: 'Auction',
     icon: '🎁',
     color: '#9b59b6',
-    desc: 'Browse silent auction items and place bids. The Live tab shows the current live auction item being called by the auctioneer. My Bids shows your bidding history.',
+    desc: 'Browse auction items and place bids. The Live tab shows the item the auctioneer is calling right now. My Bids shows your bidding history.',
     tips: [
-      'Silent auction items have a closing time — bids accepted until then.',
-      'Live auction: watch for the current item and bid before the auctioneer closes.',
-      'Bids placed offline are queued and submitted when you reconnect.',
-      'You\'ll be notified if you\'re outbid on a silent item (if push notifications are enabled).',
+      'To bid, save a card or check in at the registration desk.',
+      'Silent items use a maximum bid: enter the most you\'ll pay and the app bids for you, one step at a time, up to that amount.',
+      'Silent items have a closing time and may extend if a bid comes in at the last moment.',
+      'You\'ll be notified if you\'re outbid (if notifications are enabled).',
+      'Won something? Tap the banner at the top to check out and pay.',
     ],
   },
   {
     name: 'League',
     icon: '📊',
     color: status.danger,
-    desc: 'Shows your season statistics for this league event: handicap index, standings, total points, and round history. Only visible when the event is part of a league season.',
-    tips: [
-      'Your handicap is updated automatically after each round is completed.',
-      'Points are calculated using Stableford scoring based on handicap.',
-    ],
+    desc: 'A preview of league play. Season stats will appear here when your organizer runs a league.',
+    tips: [],
   },
 ];
 
 const END_OF_ROUND = [
   {
-    step: 'QR Transfer',
-    icon: '📱',
-    color: '#3498db',
-    desc: 'Navigate to the QR Transfer screen after your last hole. A QR code containing your full scorecard is generated on-device. Show it to the event staff to scan and import your scores instantly.',
+    step: 'Round Summary',
+    icon: '☁️',
+    color: '#2ecc71',
+    desc: 'After your last hole, the Round Summary shows your totals and every hole. Tap "Sync scores to server" to make sure the organizer has your latest results.',
     tips: [
-      'Maximize screen brightness for the easiest scan.',
-      'This works even if you had no internet during the round.',
-      'QR Transfer is the fastest way to submit scores at a big event.',
+      'Scores also sync automatically in the background whenever you\'re online.',
+      'Tap a hole number to open it on the scorecard and change it.',
+      'If the organizer entered a hole\'s score, your change is sent to them to approve.',
+      'Any score conflicts are listed here — contact the event organizer to resolve them.',
     ],
   },
   {
-    step: 'Sync Scores',
-    icon: '☁️',
-    color: '#2ecc71',
-    desc: 'If your device has a connection, the Sync screen lets you review your scores and confirm submission directly to the server. Any conflicts (scores entered by a different device for the same hole) are shown for review.',
+    step: 'Scorecard QR',
+    icon: '📱',
+    color: '#3498db',
+    desc: 'On the Round Summary, tap "Generate Scorecard QR" to show your whole scorecard as a QR code. Event staff can scan it to import your scores.',
     tips: [
-      'Sync happens automatically in the background when online.',
-      'If a conflict is shown, the admin will resolve it from the dashboard.',
-      'After sync, your scores are locked on the server.',
+      'Maximize screen brightness for the easiest scan.',
+      'This works even if you had no internet during the round.',
+      'The QR option is available while scoring is open.',
     ],
   },
 ];
 
 const OFFLINE_TIPS = [
   'All scores are saved to your device instantly — no connection needed.',
-  'A red "No connection" banner appears at the top when offline.',
+  'A "No connection — scores saved locally" banner appears at the top when offline.',
   'Scores sync automatically the moment your connection returns.',
-  'You can complete an entire round offline and sync at the end.',
-  'Auction bids placed offline are queued and sent when you reconnect.',
-  'If you lose your phone, your admin can enter scores manually from the admin dashboard.',
+  'No signal at the course? Tap "Start Offline" on the pre-flight check to begin anyway.',
+  'Bids on silent items and silent pledges made offline are queued and sent when you reconnect. If one can\'t be sent within 30 minutes, it\'s dropped.',
+  'Live auction bidding needs a connection.',
+  'If you lose your phone, the organizer can enter your scores from the admin dashboard.',
+];
+
+const JOIN_STEPS = [
+  'From the main screen, select your tournament from the event list — or tap "Have a different event code?" and enter the code from your organizer.',
+  'Enter the email address you registered with, then the 6-digit code we email you.',
+  'Not registered yet? Tap "Not registered yet? Sign up" to start a team, join one with your captain\'s invite link, or sign up with no team yet.',
+  'With no team yet, you\'ll wait on a "Check Again" screen until the organizer places you on a team.',
+  'Guests who aren\'t golfing go straight to the Auction — there\'s no scorecard for guests.',
+  'If you\'re on the wrong team, contact your event organizer to reassign you.',
 ];
 
 // ── Components ────────────────────────────────────────────────────────────────
@@ -208,14 +219,9 @@ export default function HelpScreen() {
           </View>
         </Section>
 
-        <Section title="How to Join an Event" subtitle="If you need to re-enter or switch events" defaultOpen={false}>
+        <Section title="How to Join an Event" subtitle="Signing up, joining, and switching events" defaultOpen={false}>
           <View style={{ gap: spacing[3] }}>
-            {[
-              'From the main screen, select your tournament from the event list.',
-              'Enter the email address you registered with — your team assignment is automatic.',
-              'If your event isn\'t listed, ask your event organizer for the event code and enter it manually.',
-              'If you\'re on the wrong team, contact your event admin to reassign you.',
-            ].map((tip, i) => (
+            {JOIN_STEPS.map((tip, i) => (
               <View key={i} style={styles.tipRow}>
                 <Text style={[styles.tipDot, { color: theme.colors.primary }]}>•</Text>
                 <Text style={[styles.tipText, { color: theme.mutedText }]}>{tip}</Text>

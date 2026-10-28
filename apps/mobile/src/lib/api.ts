@@ -484,11 +484,13 @@ export async function placeBid(
   playerId: string,
   amountCents: number,
   sessionToken: string,
+  /** Sent so a resend returns the original bid instead of a second one (bidQueue.ts). */
+  clientRequestId?: string,
 ): Promise<BidResponse> {
   const res = await gfpFetch(`${BASE}/api/v1/auction/items/${itemId}/bid`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, amountCents, sessionToken }),
+    body: JSON.stringify({ playerId, amountCents, sessionToken, clientRequestId }),
   });
   if (!res.ok) {
     throw await apiFailure(res, 'Bid failed');
@@ -501,11 +503,13 @@ export async function pledge(
   playerId: string,
   amountCents: number,
   sessionToken: string,
+  /** Sent so a resend returns the original pledge instead of a second one (bidQueue.ts). */
+  clientRequestId?: string,
 ): Promise<BidResponse> {
   const res = await gfpFetch(`${BASE}/api/v1/auction/items/${itemId}/pledge`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, amountCents, sessionToken }),
+    body: JSON.stringify({ playerId, amountCents, sessionToken, clientRequestId }),
   });
   if (!res.ok) {
     throw await apiFailure(res, 'Pledge failed');

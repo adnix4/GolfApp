@@ -50,6 +50,12 @@ P4 — FEATURES / POLISH
           belongs on a proxy lot at all. Decision needed, not a coded fix.
      [x] D23 check-in token shortened to 66 chars (fits varchar(128), no
           migration); TT12 fixed with it; e2e checks it on Postgres 2026-10-24
+     U9   mobile League tab always shows the promo — the API never sends the
+          league ids. Decision needed: wire it up, hide it, or relabel it.
+     U10  admin has no screen to enter league round scores — Open Scoring /
+          Close Round exist, but only the API accepts the scores.
+     U11  admin has no screen to create league flights — the API and the
+          standings support them, the admin client's createFlight is unused.
      U7   follow-ups from the 2026-08-02/03 work (sponsors, ticker, TV branding,
           bid confirmation). (a) was the security item and is FIXED 2026-08-15 —
           it was pulled forward out of this tier, as the note said to. (b)-(m)
@@ -1335,7 +1341,11 @@ Captured while filling API test-coverage holes. Mark [x] when done.
             alone fails a colour-blind golfer and reads poorly on a phone in
             sunlight. One line in the card render if it should go.
 
-        (l) STALE HELP COPY, STILL. help.tsx:51 and :96 tell golfers bids are
+        (l) [x] FIXED 2026-10-28 — the queue was built: mobile src/lib/bidQueue.ts
+            (Silent lots + silent pledges, 30-minute expiry, live stays online-only)
+            with server de-duplication on bids.client_request_id (Phase19), and
+            the help copy now describes it. Original note:
+            STALE HELP COPY, STILL. help.tsx:51 and :96 tell golfers bids are
             queued offline and sent on reconnect. handleBid has never done that,
             and the confirmation dialog makes the online-only path more obvious.
             Either build the queue or fix the copy.
@@ -1446,3 +1456,57 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         aggregate, or individual golfers who merely register as a team? If
         individual, (1) is wrong for Stroke and (2) is the honest stopgap until
         (3). BestBall is unambiguous either way — lowest ball counts.
+
+  [ ] U9. (OPEN, added 2026-10-28) THE MOBILE LEAGUE TAB NEVER SHOWS REAL STATS.
+        Found in the help-page audit. The League tab is always on the tab bar,
+        and apps/mobile/app/(scoring)/league.tsx shows the golfer's season
+        summary only when the session carries leagueId + seasonId + memberId;
+        otherwise it falls back to LeaguePromo. The mobile JoinEventResponse
+        type declares those three fields (apps/mobile/src/lib/api.ts:88), but
+        the API never sets them — nothing under apps/api/Features/Mobile/
+        mentions LeagueId, SeasonId or MemberId. So every golfer, in every
+        event, sees the promo screen. League rounds are not tournament events
+        (LeagueRound is its own entity), so there is no event for a join to
+        tie to a season today.
+        HELP COPY (2026-10-28): apps/mobile/app/(scoring)/help.tsx now carries
+        interim text — "A preview of league play. Season stats will appear here
+        when your organizer runs a league." Rewrite it once this is decided.
+        DECISION NEEDED — pick one:
+        (1) WIRE IT UP. Decide how a golfer's session links to a league member
+            (a league round played as an event, or a member looked up by
+            email), have the join return leagueId/seasonId/memberId, and
+            check that the member-summary endpoint
+            (/api/v1/leagues/{id}/seasons/{sid}/members/{mid}/summary) can be
+            reached with a player session token rather than an organizer JWT.
+        (2) HIDE IT. href: null on the League tab when the session has no
+            league ids (like the guest rule for Scorecard/Team), keeping the
+            promo off golfers' phones until (1) exists.
+        (3) KEEP THE PROMO, FIX THE COPY. Say on the tab and in help that it
+            is a preview of league play.
+        Whichever is chosen, update the help text to match.
+
+  [ ] U10. (OPEN, added 2026-10-28) NO ADMIN SCREEN ENTERS LEAGUE SCORES.
+        Found in the help-page audit. The season Rounds tab offers Generate
+        Pairings, Open Scoring and Close Round, but nothing in apps/admin sends
+        scores: the only way in is POST
+        /api/v1/leagues/{id}/seasons/{sid}/rounds/{rid}/scores
+        (apps/api/Features/League/LeagueController.cs:159), which the
+        seed-league-season skill and the e2e harness call directly. An
+        organizer can open a round but cannot fill it, so Close Round has
+        nothing to recalculate handicaps, standings or skins from.
+        HELP COPY: the admin Leagues section lists Open Scoring and Close
+        Round and does not mention entering scores. Add a line once this exists.
+        FIX: a per-round score grid (members from the pairings x holes, or a
+        gross total per member if the engine only needs that), plus an admin
+        api.ts method for the endpoint. Decide whether golfers can also score
+        league rounds from mobile — that ties into U9.
+
+  [ ] U11. (OPEN, added 2026-10-28) NO ADMIN SCREEN CREATES LEAGUE FLIGHTS.
+        Found in the help-page audit. POST .../seasons/{sid}/flights exists
+        (LeagueController.cs:63) and the admin client has createFlight
+        (apps/admin/src/lib/api.ts:1045), but no screen calls it, so flights
+        can only be made through the API. Standings and pairing already read
+        flights.
+        HELP COPY: the admin Leagues section says members are organized into
+        flights. Either add the screen (Roster or Overview tab: name + optional
+        handicap range, then assign members) or drop that phrase from the help.

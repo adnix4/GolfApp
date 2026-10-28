@@ -11,32 +11,40 @@ const STATUS_FLOW = [
     status: 'Draft',       color: '#95a5a6',
     next: 'Open Registration',
     req:  'Set a Start Date & Time on the Overview tab.',
-    what: 'Build your event: set date, attach course, add teams, configure sponsors and auction.',
+    what: 'Build your event: set the date, attach a course, add teams, configure sponsors and the auction. Use Seed Test Data to preview the flow — golfers can join a Draft event only with its event code.',
   },
   {
     status: 'Registration', color: '#3498db',
     next: 'Go Active',
-    req:  'Attach a Course on the Overview tab.',
-    what: 'Golfers find and join via the mobile app. Monitor sign-ups on the Teams tab.',
+    req:  'Attach a Course and clear any test data.',
+    what: 'Golfers find the event in the mobile app and on the public site, sign up, and join. Monitor sign-ups on the Teams tab.',
   },
   {
     status: 'Active',       color: '#2ecc71',
     next: 'Open Scoring',
-    req:  'All teams checked in (recommended).',
-    what: 'Check in teams (Registration tab). Assign starting holes (Shotgun tab). Run Live Auction.',
+    req:  'Every team checked in — or use "Open Scoring anyway".',
+    what: 'Check in golfers (Registration tab), take entry fees, and confirm starting holes (Shotgun tab). The auction can run.',
   },
   {
     status: 'Scoring',      color: status.warning,
     next: 'Mark Complete',
     req:  'All teams have finished their round.',
-    what: 'Golfers enter scores on mobile. Monitor Leaderboard. Run Live Auction. QR Import backups.',
+    what: 'Golfers enter scores on mobile. Late arrivals can still check in. Monitor the Leaderboard and run the Live Auction.',
   },
   {
     status: 'Completed',    color: status.success,
     next: null,
     req:  null,
-    what: 'Final results published. Fundraising summary available.',
+    what: 'Scoring is closed and final results are published. The auction can keep running into the banquet; settle up on the Checkout tab.',
   },
+];
+
+const TESTING_TIPS = [
+  'In Draft, "Seed Test Data" on the Overview tab adds realistic test teams, scores and donations so you can walk through the event.',
+  'During Registration, the Testing Mode switch on the Scoring tab turns test mode on or off.',
+  'Golfers in a test event see a "Test Mode" banner, and their scores stay off the live leaderboard.',
+  'Opening Registration clears test registrations and scores automatically.',
+  'An event cannot go Active while test data remains — clear it with "Clear Test Data" on the Fundraising tab.',
 ];
 
 const TAB_REFERENCE = [
@@ -47,11 +55,13 @@ const TAB_REFERENCE = [
       {
         name: 'Overview',
         when: 'Anytime',
-        desc: 'Shows the event setup checklist while in Draft — complete items here to unlock registration. After Draft, shows the current status description and the button to advance. Edit event name, format, start date, and holes using the Edit button.',
+        desc: 'Shows the event setup checklist while in Draft — complete items here to unlock registration. After Draft, shows the current status and the button to advance. Edit the event name, format, start date, holes and entry fee with the Edit button.',
         tips: [
           'The "Open Registration" button is disabled until a Start Date is set.',
-          '"Go Active" is disabled until a Course is attached.',
-          'You can cancel the event from this tab at any status.',
+          'Clicking "Go Active" without a Course attached shows a warning — add the course from there, then go Active.',
+          '"Open Scoring" stays disabled until every team is checked in. "Open Scoring anyway →" lists who is missing and lets you start; they can still check in late.',
+          'Mark Complete warns you if teams are still on the course or auction lots are still open.',
+          'You can cancel the event at any status before Completed. Cancelling cannot be undone.',
         ],
       },
     ],
@@ -62,29 +72,31 @@ const TAB_REFERENCE = [
     tabs: [
       {
         name: 'Teams',
-        when: 'Draft through Scoring',
-        desc: 'View all registered teams and their players. Add teams manually with the "+ Add Team" button. Each team card shows its status (pending, checked-in, complete) and player count.',
+        when: 'Anytime',
+        desc: 'View every registered team and its players. Add teams with "+ Register Team", edit or remove teams and players, and check in a whole team or one golfer at a time.',
         tips: [
-          'You can add teams in any event status — even Draft.',
           'Pre-loading teams before Registration opens is the recommended workflow.',
-          'Player emails must match the pre-registered list for mobile self-registration to work.',
+          'Golfers join the mobile app with the email on their player record, so get emails right.',
+          'Golfers can also register themselves on mobile or the public site — start a team, join one with an invite link, or sign up with no team yet.',
         ],
       },
       {
         name: 'Registration',
-        when: 'Active (day of event)',
-        desc: 'Check-in screen. Mark each team as "Checked In" as they arrive at the course. Use the filter tabs to quickly see who is still pending.',
+        when: 'Active and Scoring',
+        desc: 'The check-in desk. Check in teams or individual golfers as they arrive, take entry fees ("Take Fee", or "Mark All Paid" for a team), and see who has a card on file for the auction. Use the filter to see who is still pending. Guests — non-golfers there for the auction — are listed separately.',
         tips: [
-          'Checked-in teams are highlighted so you can track arrival progress at a glance.',
-          'Checking in is separate from scoring — it confirms the team is physically present.',
+          'Late arrivals can still be checked in after scoring opens.',
+          'Checking in also lets a golfer without a saved card bid in the auction.',
+          '"+ Walk-Up" registers a new team on the day once walk-ups are allowed (Settings tab).',
         ],
       },
       {
         name: 'Free Agents',
         when: 'Registration through Scoring',
-        desc: 'Players who joined via the mobile app but could not be matched to a team. This happens with walk-up registrations or unrecognized emails. Assign them to an existing team or create a new one.',
+        desc: 'Golfers who registered with "No team yet", or were added here by hand. Assign each to an existing team. Until they are assigned, they wait on a "Check Again" screen in the mobile app.',
         tips: [
-          'Resolve free agents before Opening Scoring for clean team assignments.',
+          'Assign free agents before opening scoring — once the round starts, an unassigned golfer cannot join.',
+          'Turn free-agent sign-up on or off in the Settings tab.',
         ],
       },
     ],
@@ -95,35 +107,35 @@ const TAB_REFERENCE = [
     tabs: [
       {
         name: 'Scoring',
-        when: 'Scoring status',
-        desc: 'Manual score entry grid. Use this to enter or correct scores for any team, hole-by-hole. Useful if a team loses their phone or mobile sync fails.',
+        when: 'Active through Scoring',
+        desc: 'Manual score entry. Pick a team and enter strokes hole by hole — use it to transcribe paper cards, or when a phone is lost. Scores follow the event format. Resolve score conflicts and confirm holes-in-one here.',
         tips: [
-          'Admin scores override conflicting mobile scores.',
-          'Scores entered here appear immediately on the Leaderboard.',
+          'Your scores win. If a golfer later changes a hole you entered, the change waits for your approval.',
+          'Scores entered here appear on the Leaderboard after a refresh.',
         ],
       },
       {
         name: 'Leaderboard',
         when: 'Scoring through Completed',
-        desc: 'Live standings ranked by total score relative to par. Updates automatically as mobile scores sync in. Medal icons mark the top three positions.',
+        desc: 'Standings by golfer or by team (toggle at the top), ranked by score to par — or by points for Stableford. Use Refresh to pull the latest scores.',
         tips: [
-          'Display this on a screen at your event for real-time excitement.',
-          'The public leaderboard URL is available after the event is Active.',
+          'For a screen at the event, use the public live-scores page — it updates on its own.',
+          'The public event pages are available from Registration onward.',
         ],
       },
       {
         name: 'Shotgun',
-        when: 'Active (Shotgun Start format only)',
-        desc: 'Assign each team a starting hole (1–18). Use the Auto-Assign button to randomly distribute remaining unassigned teams. Prevents duplicate hole assignments.',
+        when: 'Before Go Active (Shotgun Start only)',
+        desc: 'Give each team a starting hole. Auto-Assign gives every team without a hole a random one and keeps the holes you have already set. Two teams on the same hole are flagged and block saving.',
         tips: [
-          'Only relevant for events with "Shotgun Start" selected as the start type.',
-          'Assign holes before checking teams in so assignments are ready at arrival.',
+          'Only relevant for events with "Shotgun Start" as the start type.',
+          'Any team still without a hole gets one automatically when the event goes Active.',
         ],
       },
       {
         name: 'QR Import',
         when: 'Scoring through Completed',
-        desc: 'At the end of the round, golfers show a QR code on their phone (End of Round → QR Transfer screen). Scan it here to import their full scorecard without manual entry.',
+        desc: 'Golfers can show their scorecard as a QR code on their phone (Round Summary → Generate Scorecard QR, while scoring is open). Scan it with a USB barcode scanner — it types into the field like a keyboard — or paste the code, then click Import Scores.',
         tips: [
           'Increase screen brightness on the golfer\'s phone for easier scanning.',
           'Works even if the golfer had no internet connection during the round.',
@@ -138,22 +150,24 @@ const TAB_REFERENCE = [
       {
         name: 'Fundraising',
         when: 'Anytime',
-        desc: 'Live revenue dashboard. Shows total proceeds broken down by source: silent auction, live auction, donations, and sponsorships. Refreshes automatically.',
-        tips: ['Set this up on a second monitor for real-time fundraising visibility.'],
+        desc: 'Revenue dashboard: total raised, broken down into entry fees, donations, sponsors, hole challenges and auction, with entry-fee collection and donation details. Use Refresh for the latest numbers.',
+        tips: [
+          'A failed auction charge can be re-charged or waived from here.',
+          '"Clear Test Data" removes all test records before the event goes Active.',
+        ],
       },
       {
         name: 'Sponsors',
-        when: 'Draft through Completed',
-        desc: 'Add sponsor organizations with logos and assign them to a tier (Title, Gold, Silver, Bronze). Title and Gold sponsors can be pinned to specific holes for hole sponsorship signs.',
+        when: 'Anytime',
+        desc: 'Add sponsors with logos and assign a tier: Title, Gold, Hole, Silver or Bronze. Any sponsor can be placed on holes, so their name and logo appear on the mobile scorecard at those holes.',
         tips: [
-          'Sponsor logos appear in event emails and the mobile app sponsor carousel.',
-          'Hole sponsors appear on golfers\' scorecards at the assigned hole.',
+          'Sponsor logos appear in event emails, the Print Kit sponsor sheet and the mobile app.',
         ],
       },
       {
         name: 'Challenges',
-        when: 'Draft through Active',
-        desc: 'Set up hole-specific contests: Closest-to-Pin, Longest Drive, or custom. Each challenge is attached to a specific hole number. Optionally assign a sponsor name for recognition.',
+        when: 'Anytime — set up before play',
+        desc: 'Set up hole contests such as Closest to Pin, Longest Drive or Longest Putt, or write your own. Each challenge is attached to a hole, with an optional prize and sponsor.',
         tips: [
           'Challenges appear on the mobile Scorecard at the relevant hole.',
           'No limit on the number of challenges per event.',
@@ -161,22 +175,30 @@ const TAB_REFERENCE = [
       },
       {
         name: 'Auction Items',
-        when: 'Draft through Scoring',
-        desc: 'Create items for silent auction, live auction, or donation opportunities. Upload photos, set starting bid, bid increment, and closing time. Donations use fixed-amount buttons.',
+        when: 'Anytime',
+        desc: 'Create silent and live auction lots and Fund-a-Need donation items. Set the starting bid, bid increment, optional buy-now price and closing time, and upload photos. "End Auction" closes every lot still open.',
         tips: [
-          'Silent auction items close automatically at their set time.',
-          'Live auction items are controlled manually from the Live Auction tab.',
-          'Golfers can browse and bid on silent items from their mobile Auction tab.',
+          'Silent items close automatically at their set time, and extend if a bid lands at the last moment.',
+          'Silent lots use proxy bidding: golfers enter a maximum and the app bids for them by the increment.',
+          'Live auction items are controlled from the Live Auction tab.',
         ],
       },
       {
         name: 'Live Auction',
-        when: 'Active or Scoring',
-        desc: 'Auctioneer control panel. Start a session, select the current item, call a bid amount, and advance or close bidding. Golfers see the live bid update on their mobile app in real time.',
+        when: 'Anytime — usually at the banquet',
+        desc: 'Auctioneer control panel. Start the session, step through items with "Next Item", update the called amount as the room bids, and award each item to its winner by player ID. Golfers see the current item and price on their mobile Live tab.',
         tips: [
-          'One live auction session can be active per event at a time.',
-          'Pause and resume the session between items as needed.',
-          'All bids are recorded even if a golfer is offline — they sync on reconnect.',
+          'One live auction session runs per event at a time.',
+          'Live bidding needs a connection — golfers can\'t queue live bids offline.',
+        ],
+      },
+      {
+        name: 'Checkout',
+        when: 'After lots close',
+        desc: 'Where winners and Fund-a-Need pledgers settle up. Nothing is charged when the auction closes: charge the card on file, or record cash or a check (with its number), then mark items as handed over.',
+        tips: [
+          'The totals at the top show who is still to settle, what is outstanding, and what has been collected.',
+          'Search by name to find a winner quickly at the desk.',
         ],
       },
     ],
@@ -187,26 +209,30 @@ const TAB_REFERENCE = [
     tabs: [
       {
         name: 'Print Kit',
-        when: 'Active (before play begins)',
-        desc: 'Generates a printable PDF packet: the event QR code for golfer sign-in, starting hole assignments for Shotgun format, and paper scorecards for each team.',
-        tips: ['Print before golfers arrive so everything is ready at check-in.'],
+        when: 'Before play begins',
+        desc: 'Four printouts, each opened in a print-ready window: team scorecards, the leaderboard, a sponsor sheet grouped by tier, and the tee time schedule.',
+        tips: [
+          'Allow pop-ups for the dashboard so the print windows can open.',
+          'Print the leaderboard at the end of the round for the trophy presentation.',
+        ],
       },
       {
         name: 'Email Builder',
-        when: 'Draft through Registration',
-        desc: 'Build a custom event announcement or invitation email. Add/remove sections: header, event details, mission statement, call-to-action, QR code, sponsor logos, and footer. Preview before sending.',
+        when: 'Anytime — most useful before Registration',
+        desc: 'Build an event email from sections you can add, remove and reorder: hero banner, where & when, mission statement, pricing & register, registration QR, sponsor showcase and footer. Send it, preview or print it as a PDF, or export the HTML.',
         tips: [
-          'Include the QR code section so recipients can join directly from the email.',
+          'Include the Registration QR section so recipients can sign up straight from the email.',
           'The mission statement section is ideal for 501(c)(3) events.',
         ],
       },
       {
         name: 'Settings',
-        when: 'Anytime',
-        desc: 'Customize the event color theme — primary, action, accent, highlight, and surface colors. The theme is reflected in the mobile app (when the golfer joins this event) and on the public leaderboard page.',
+        when: 'Anytime (organizers only)',
+        desc: 'Event branding — logo, mission statement and the five brand colors, or "Brand from Website" to pull them from your site — plus event options: Offline Event Mode, free-agent sign-up and walk-up registration. "Show dismissed warnings again" brings back any warnings you hid.',
         tips: [
-          'Use your organization\'s brand colors for a cohesive look.',
-          'Contrast warnings appear if text will be hard to read on the chosen background.',
+          'Leave the colors on "Clear (use org)" to use your organization\'s theme.',
+          'Contrast warnings appear if text will be hard to read on the chosen colors.',
+          'Event Staff accounts don\'t see this tab.',
         ],
       },
     ],
@@ -308,6 +334,17 @@ export default function EventHelpScreen() {
       <Section title="Status Progression" subtitle="What each status means and how to advance">
         <View style={{ gap: spacing[4] }}>
           {STATUS_FLOW.map(item => <StatusStep key={item.status} item={item} />)}
+        </View>
+      </Section>
+
+      <Section title="Testing Mode" subtitle="Preview the event with test data before golfers arrive" defaultOpen={false}>
+        <View style={{ gap: spacing[2] }}>
+          {TESTING_TIPS.map((tip, i) => (
+            <View key={i} style={styles.tipRow}>
+              <Text style={[styles.tipIcon, { color: status.warning }]}>→</Text>
+              <Text style={[styles.tipText, { color: theme.mutedText }]}>{tip}</Text>
+            </View>
+          ))}
         </View>
       </Section>
 

@@ -331,6 +331,10 @@ namespace GolfFundraiserPro.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("auction_item_id");
 
+                    b.Property<Guid?>("ClientRequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("client_request_id");
+
                     b.Property<bool>("IsTest")
                         .HasColumnType("boolean")
                         .HasColumnName("is_test");
@@ -347,6 +351,11 @@ namespace GolfFundraiserPro.Api.Data.Migrations
 
                     b.HasIndex("AuctionItemId")
                         .HasDatabaseName("IX_bids_auction_item_id");
+
+                    b.HasIndex("ClientRequestId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_bids_client_request_id")
+                        .HasFilter("client_request_id IS NOT NULL");
 
                     b.HasIndex("PlayerId");
 

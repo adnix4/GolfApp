@@ -23,6 +23,10 @@ import {
   AuctionItemDto, AuctionSessionDto, PlayerBidHistoryItem, CheckoutCartDto,
 } from '@/lib/api';
 import { checkoutCounts, checkoutHeadline } from '@/lib/checkoutSummary';
+import { describeBidError } from '@/lib/bidMessages';
+import {
+  canQueueOffline, enqueueBid, isTransientFailure, newRequestId, useBidQueue, QUEUE_MAX_AGE_MS,
+} from '@/lib/bidQueue';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 type Tab = 'items' | 'history' | 'live';
@@ -83,36 +87,15 @@ function PhotoViewer({ url, screenWidth, screenHeight, onClose }: {
   );
 }
 
-/**
- * Turns the server's bid rejection codes into something a golfer can act on.
- * These arrive as bare machine strings ("BID_TOO_LOW:5000") and used to be shown
- * verbatim, so the one message that told the golfer what to do next — the actual
- * minimum — was buried in a code.
- */
-function describeBidError(raw: string): string {
-  if (raw === 'NO_PAYMENT_METHOD')
-    return 'To bid, either save a card or check in at the registration desk.';
-  if (raw === 'AUCTION_CLOSED')
-    return 'This item just closed. Pull down to refresh the list.';
-
-  const tooLow = raw.match(/^BID_TOO_LOW:(\d+)$/);
-  if (tooLow)
-    return `That is below the minimum — bids on this item start at ${formatCentsShort(Number(tooLow[1]))}.`;
-
-  // A session-token mismatch comes back as the generic player-not-found text.
-  if (/was not found/i.test(raw))
-    return 'Your session has expired. Rejoin the event and try again.';
-
-  return raw || 'Something went wrong. Please try again.';
-}
-
 export default function AuctionScreen() {
   const theme  = useTheme();
   const c      = useClasses();
   const router = useRouter();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const { session } = useSession();
+  const { session, networkTier } = useSession();
   const player = session?.player;
+  // Bids confirmed with no connection, waiting to send (lib/bidQueue.ts).
+  const queuedBids = useBidQueue(st => st.queued).filter(q => q.playerId === player?.id);
   const eventId = session?.event?.id;
   const eventCode = session?.event?.eventCode;
 
@@ -285,13 +268,47 @@ export default function AuctionScreen() {
   async function submitBid(item: AuctionItemDto, cents: number) {
     if (!player?.id) return;
     const isDonation = isDonationItem(item.auctionType);
+    // One id for this bid however many times it is sent: if the request below
+    // dies after the server took it, the queued resend is recognised, not
+    // placed again.
+    const requestId = newRequestId();
+    const queueIt = async (attempted: boolean) => {
+      await enqueueBid({
+        requestId, eventId: eventId!, playerId: player.id, itemId: item.id,
+        itemTitle: item.title, kind: isDonation ? 'pledge' : 'bid',
+        amountCents: cents, queuedAt: Date.now(), attempted,
+      });
+      notify(
+        isDonation ? 'Pledge queued' : 'Bid queued',
+        `No connection right now. Your ${fmt(cents)} ${isDonation ? 'pledge' : 'bid'} on ${item.title} ` +
+        `will be sent as soon as you're back online. If it can't be sent within ` +
+        `${QUEUE_MAX_AGE_MS / 60_000} minutes it won't be placed.`,
+        undefined,
+        { highlight: item.title },
+      );
+      setBidAmt('');
+      setSelectedItem(null);
+    };
+
+    // Offline before we start: a Silent lot or silent pledge waits in the
+    // queue; a Live lot can't — the auctioneer has moved on by the time it lands.
+    if (networkTier === 'offline') {
+      if (canQueueOffline(item.auctionType)) {
+        await queueIt(false);
+      } else {
+        setBidError("Live bidding needs a connection. Try again when you're back online.");
+      }
+      bidInFlightRef.current = false;
+      return;
+    }
+
     setBidding(true);
     try {
       if (isDonation) {
-        await pledge(item.id, player.id, cents, session!.sessionToken);
+        await pledge(item.id, player.id, cents, session!.sessionToken, requestId);
         notify('Pledge recorded', `Thank you — your ${fmt(cents)} pledge is in.`, undefined, { highlight: item.title });
       } else {
-        const res = await placeBid(item.id, player.id, cents, session!.sessionToken);
+        const res = await placeBid(item.id, player.id, cents, session!.sessionToken, requestId);
         // A proxy bid can be accepted and lose in the same breath — someone
         // else's standing max was already higher. Saying "Bid placed!" and
         // nothing else would leave that golfer thinking they were in the lead.
@@ -310,6 +327,13 @@ export default function AuctionScreen() {
       setSelectedItem(null);
       refresh();
     } catch (e: unknown) {
+      // No answer at all (the signal dropped mid-send): queue it rather than
+      // make the golfer retype it. The shared requestId makes this safe even if
+      // the first send actually landed.
+      if (isTransientFailure(e) && canQueueOffline(item.auctionType)) {
+        await queueIt(true);
+        return;
+      }
       setBidError(describeBidError(e instanceof Error ? e.message : ''));
       // Someone else may have raised the item since this screen last rendered —
       // pull the current amounts in so the message and the label agree.
@@ -355,6 +379,16 @@ export default function AuctionScreen() {
       {loadError && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorBannerText}>Could not load auction data. Pull down to retry.</Text>
+        </View>
+      )}
+
+      {/* Bids confirmed offline, not yet sent */}
+      {queuedBids.length > 0 && (
+        <View style={styles.paymentWarning}>
+          <Text style={styles.paymentWarningText}>
+            ⏳ {queuedBids.length === 1 ? '1 bid is' : `${queuedBids.length} bids are`} waiting
+            to send — {queuedBids.length === 1 ? 'it goes' : 'they go'} out when you're back online.
+          </Text>
         </View>
       )}
 

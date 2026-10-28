@@ -80,6 +80,10 @@ public record PlaceBidRequest
     /// another player's name.</summary>
     [Required]
     public string SessionToken { get; init; } = string.Empty;
+    /// <summary>Optional id the client generated for this bid. A repeat of an id
+    /// already placed returns that bid instead of placing another — the mobile
+    /// offline queue resends until it hears back.</summary>
+    public Guid? ClientRequestId { get; init; }
 }
 
 public record BidResponse
@@ -109,6 +113,9 @@ public record PledgeRequest
     /// server-side.</summary>
     [Required]
     public string SessionToken { get; init; } = string.Empty;
+    /// <summary>Optional client-generated id; a repeat returns the original
+    /// pledge rather than donating twice. See PlaceBidRequest.ClientRequestId.</summary>
+    public Guid? ClientRequestId { get; init; }
 }
 
 public record AwardRequest
