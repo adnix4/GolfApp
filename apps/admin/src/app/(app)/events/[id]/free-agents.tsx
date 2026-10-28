@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   // so two side by side overflow the 420px modal.
   halfInput: { flex: 1, minWidth: 0 },
 
-  errorBox: { margin: spacing[4], marginBottom: spacing[4] },   // over c.errorBox
+  errorBox: { marginHorizontal: spacing[4], marginTop: spacing[4] },   // inset: the page has no padding
 
   actionBar: { flexDirection: 'row', alignItems: 'center', padding: spacing[3], paddingHorizontal: spacing[5], gap: spacing[3] },
   actionBarText: { flex: 1, fontSize: fontSize.md, fontWeight: '600' },

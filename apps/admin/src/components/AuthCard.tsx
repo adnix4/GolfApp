@@ -36,9 +36,9 @@ export function AuthField({ label, ...input }: { label: string } & TextInputProp
   const c = useClasses();
   return (
     <>
-      <Text style={[c.fieldLabel, authStyles.label]}>{label}</Text>
+      <Text style={c.fieldLabel}>{label}</Text>
       <TextInput
-        style={[c.input, authStyles.input, { color: theme.colors.primary }]}
+        style={[c.input, { color: theme.colors.primary }]}
         placeholderTextColor="#999"
         {...input}
       />
@@ -72,7 +72,7 @@ export function AuthError({ message }: { message: string | null }) {
   const c = useClasses();
   if (!message) return null;
   return (
-    <View style={[c.errorBox, authStyles.errorBox]}>
+    <View style={c.errorBox}>
       <Text style={c.errorText}>{message}</Text>
     </View>
   );
@@ -101,12 +101,9 @@ export const authStyles = StyleSheet.create({
   logoText:    { fontSize: 32, fontWeight: '800' },
   logoSub:     { fontSize: fontSize.sm, fontWeight: '500', letterSpacing: 1, textTransform: 'uppercase', marginTop: spacing[1] },
   heading:     { fontSize: fontSize.title, fontWeight: '700', marginBottom: spacing[5] },
-  label:       { marginTop: spacing[4] },   // over c.fieldLabel
-  input:       { paddingHorizontal: spacing[4] },   // over c.input
   button:      { marginTop: spacing[8], paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
   buttonDisabled: { opacity: 0.6 },
   buttonText:  { fontSize: fontSize.xl, fontWeight: '700' },
-  errorBox:    { marginBottom: spacing[2] },   // over c.errorBox
   note:        { fontSize: fontSize.md, lineHeight: 20, marginBottom: spacing[2] },
   linkRow:     { marginTop: spacing[5], alignItems: 'center' },
   link:        { fontSize: fontSize.md, fontWeight: '600', textDecorationLine: 'underline' },

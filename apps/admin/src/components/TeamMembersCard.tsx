@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   sub:         { fontSize: fontSize.sm, color: '#666', marginTop: spacing[0.5] },
   textBtn:     { paddingHorizontal: spacing[2], paddingVertical: spacing[2] },
   danger:      { color: status.dangerText, fontSize: fontSize.md, fontWeight: '700' },
-  input:       { paddingHorizontal: spacing[4], marginTop: spacing[2] },   // over c.input
+  input:       { marginTop: spacing[2] },   // below its label
   roleRow:     { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3] },
   roleChip:    { borderWidth: 1.5, borderRadius: radius.full, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
   roleText:    { fontSize: fontSize.sm, fontWeight: '700' },

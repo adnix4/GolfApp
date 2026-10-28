@@ -100,9 +100,9 @@ export default function RegisterScreen() {
     const err = fieldErrors[errorKey];
     return (
       <View style={styles.fieldWrap}>
-        <Text style={[c.fieldLabel, styles.label]}>{label}</Text>
+        <Text style={c.fieldLabel}>{label}</Text>
         <TextInput
-          style={[c.input, styles.input, !!err && c.inputError]}
+          style={[c.input, !!err && c.inputError]}
           value={value}
           onChangeText={v => {
             onChangeText(v);
@@ -147,7 +147,7 @@ export default function RegisterScreen() {
         </Text>
 
         {error && (
-          <View style={[c.errorBox, styles.errorBox]}>
+          <View style={c.errorBox}>
             <Text style={c.errorText}>{error}</Text>
           </View>
         )}
@@ -211,7 +211,7 @@ export default function RegisterScreen() {
         {/* 501(c)3 toggle */}
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[c.fieldLabel, styles.label, { marginBottom: spacing[0.5] }]}>
+            <Text style={[c.fieldLabel, { marginBottom: spacing[0.5] }]}>
               501(c)(3) Non-Profit
             </Text>
             <Text style={[styles.hint, { color: theme.mutedText }]}>
@@ -266,14 +266,11 @@ const styles = StyleSheet.create({
   subheading: { fontSize: fontSize.md, lineHeight: 22, marginBottom: spacing[5] },
 
   fieldWrap: { marginBottom: spacing[1] },
-  label:     { marginTop: spacing[4] },   // over c.fieldLabel
-  input:     { paddingHorizontal: spacing[4] },   // over c.input
   hint:      { fontSize: fontSize.xs, marginTop: spacing[1] },
   fieldError:{ color: status.danger, fontSize: fontSize.xs, marginTop: spacing[1] },
 
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[4], marginBottom: spacing[1] },
 
-  errorBox:  { marginBottom: spacing[2] },   // over c.errorBox
 
   submitBtn:  { marginTop: spacing[6], paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
   submitText: { fontSize: fontSize.xl, fontWeight: '800', color: '#fff' },

@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   teamChipText: { fontSize: fontSize.sm, fontWeight: '600' },
-  errorBox: { margin: spacing[4], marginBottom: spacing[4] },   // over c.errorBox
+  errorBox: { marginHorizontal: spacing[4], marginTop: spacing[4] },   // inset: the page has no padding
   summaryBar: {
     paddingHorizontal: spacing[5],
     paddingVertical: spacing[3],

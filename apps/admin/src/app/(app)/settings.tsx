@@ -256,7 +256,7 @@ function OrgSettings() {
 
         {/* Slug (read-only) */}
         <View style={styles.fieldWrap}>
-          <Text style={[c.fieldLabel, styles.label]}>URL Slug</Text>
+          <Text style={c.fieldLabel}>URL Slug</Text>
           <View style={[styles.readonlyBox, { borderColor: theme.colors.accent + '55' }]}>
             <Text style={[styles.readonlyText, { color: theme.mutedText }]}>{slug}</Text>
           </View>
@@ -267,9 +267,9 @@ function OrgSettings() {
 
         {/* Name */}
         <View style={styles.fieldWrap}>
-          <Text style={[c.fieldLabel, styles.label]}>Organization Name *</Text>
+          <Text style={c.fieldLabel}>Organization Name *</Text>
           <TextInput
-            style={[c.input, styles.input]}
+            style={c.input}
             value={name}
             onChangeText={v => { setName(v); setError(null); }}
             placeholder="Clear Lake High School Boosters"
@@ -282,7 +282,7 @@ function OrgSettings() {
 
         {/* Logo */}
         <View style={styles.fieldWrap}>
-          <Text style={[c.fieldLabel, styles.label]}>Logo</Text>
+          <Text style={c.fieldLabel}>Logo</Text>
 
           {/* Preview */}
           {!!logoUrl && (
@@ -314,11 +314,11 @@ function OrgSettings() {
           <Text style={[styles.hint, { color: theme.mutedText }]}>PNG recommended — transparent background, at least 512px wide. SVG and ICO are converted automatically. Max 2 MB.</Text>
 
           {/* URL field — fallback / alternative */}
-          <Text style={[c.fieldLabel, styles.label, { marginTop: spacing[3] }]}>
+          <Text style={[c.fieldLabel, { marginTop: spacing[3] }]}>
             Or paste a URL
           </Text>
           <TextInput
-            style={[c.input, styles.input]}
+            style={c.input}
             value={logoUrl}
             onChangeText={setLogoUrl}
             placeholder="https://cdn.example.com/logo.png"
@@ -332,7 +332,7 @@ function OrgSettings() {
 
         {/* Mission */}
         <View style={styles.fieldWrap}>
-          <Text style={[c.fieldLabel, styles.label]}>Mission Statement</Text>
+          <Text style={c.fieldLabel}>Mission Statement</Text>
           <TextInput
             style={[styles.textArea, { borderColor: theme.colors.accent }]}
             value={mission}
@@ -352,7 +352,7 @@ function OrgSettings() {
         {/* 501(c)3 */}
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[c.fieldLabel, styles.label, { marginTop: 0 }]}>
+            <Text style={[c.fieldLabel, { marginTop: 0 }]}>
               501(c)(3) Non-Profit
             </Text>
             <Text style={[styles.hint, { color: theme.mutedText }]}>
@@ -458,8 +458,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: fontSize.xl, fontWeight: '800', marginBottom: spacing[1] },
 
   fieldWrap:    { marginBottom: spacing[1] },
-  label:        { marginTop: spacing[4] },   // over c.fieldLabel
-  input:        { paddingHorizontal: spacing[4] },   // over c.input
   textArea:     { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa', minHeight: 100, textAlignVertical: 'top' },
   readonlyBox:  { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], backgroundColor: '#f5f5f5' },
   readonlyText: { fontSize: fontSize.lg, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },

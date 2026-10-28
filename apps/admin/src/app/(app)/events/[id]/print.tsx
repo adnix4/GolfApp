@@ -83,7 +83,7 @@ export default function PrintKitScreen() {
       </Text>
 
       {error && (
-        <View style={[c.errorBox, styles.errorBox]}>
+        <View style={c.errorBox}>
           <Text style={c.errorText}>{error}</Text>
         </View>
       )}
@@ -428,9 +428,8 @@ function buildTeeTimeHtml(event: EventDetail, teams: Team[]): string {
 
 const styles = StyleSheet.create({
   page:     { flex: 1, padding: spacing[8], backgroundColor: '#f7f8fa' },
-  title:    { marginBottom: spacing[2] },        // over c.title
+  title:    { marginBottom: spacing[1] },   // title + subtitle
   subtitle: { fontSize: fontSize.md, lineHeight: 20, marginBottom: spacing[5] },
-  errorBox: { marginBottom: spacing[4] },        // over c.errorBox
 
   cards: { gap: spacing[4] },
   card: {

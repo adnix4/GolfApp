@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   refreshText: { fontSize: fontSize.md, fontWeight: '600' },
-  errorBox: { marginBottom: 0 },   // over c.errorBox
+  errorBox: { marginBottom: 0 },   // the parent's gap spaces it
   grandTotal: {
     borderRadius: radius.xl,
     padding: spacing[8],

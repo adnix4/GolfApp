@@ -355,7 +355,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={c.overlay}>
         <View style={styles.modal}>
-          <Text style={[c.modalTitle, styles.modalTitle]}>
+          <Text style={c.modalTitle}>
             {isEdit ? 'Edit Sponsor' : 'Add Sponsor'}
           </Text>
           {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
@@ -491,7 +491,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
           </ScrollView>
 
           {/* Action buttons — outside scroll so they stay visible */}
-          <View style={[c.formActions, styles.modalActions]}>
+          <View style={c.formActions}>
             <Pressable style={c.cancelBtn} onPress={onClose}>
               <Text style={c.cancelText}>Cancel</Text>
             </Pressable>
@@ -549,7 +549,6 @@ const styles = StyleSheet.create({
   deleteBtn: { paddingHorizontal: spacing[3], paddingVertical: spacing[1] },
   deleteBtnText: { fontSize: fontSize.xs, fontWeight: '600', color: status.danger },
   modal:    { width: '100%', maxWidth: 480, backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[8], maxHeight: '90%' },
-  modalTitle: { marginBottom: spacing[3] },     // over c.modalTitle
   modalScroll: { maxHeight: 500 },
   pillRow: { marginBottom: spacing[1] },
   pill: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderRadius: radius.xxl, borderWidth: 1, borderColor: '#ccc', marginRight: spacing[2], backgroundColor: '#fafafa' },
@@ -560,7 +559,6 @@ const styles = StyleSheet.create({
   },
   holeHint: { fontSize: fontSize.xs, marginBottom: spacing[1] },
   holeSelectionSummary: { fontSize: fontSize.xs, fontWeight: '600', marginTop: spacing[2] },
-  modalActions: { marginTop: spacing[4] },      // over c.formActions
   logoPreviewWrap: { alignItems: 'center', marginBottom: spacing[2] },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginBottom: spacing[2] },
   uploadBtn: { borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
