@@ -1099,6 +1099,15 @@ public class Bid
     [Column("placed_at")]
     public DateTime PlacedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// Id the phone generated for this bid. A bid queued offline is resent until
+    /// it gets an answer, so the same request can land twice when the first
+    /// response is lost; a repeat id returns the original bid instead of placing
+    /// (or, for a pledge, donating) a second time. Null for clients that don't send one.
+    /// </summary>
+    [Column("client_request_id")]
+    public Guid? ClientRequestId { get; set; }
+
     /// <summary>True for admin-generated test data; cleared when moving to Active.</summary>
     [Column("is_test")]
     public bool IsTest { get; set; } = false;

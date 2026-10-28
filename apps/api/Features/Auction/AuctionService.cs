@@ -214,7 +214,8 @@ public class AuctionService
         Guid? LeaderId,
         DateTime? NewClosesAt,
         bool ClosedByBuyNow,
-        Guid? PreviousHighBidderId);
+        Guid? PreviousHighBidderId,
+        bool Replayed = false);
 
     public async Task<BidResponse> PlaceBidAsync(Guid itemId, PlaceBidRequest req, CancellationToken ct)
     {
@@ -239,8 +240,10 @@ public class AuctionService
         var closedByBuyNow       = outcome.ClosedByBuyNow;
         var previousHighBidderId = outcome.PreviousHighBidderId;
 
-        // Fire SignalR events after commit
-        var evt = await _db.Events.FirstOrDefaultAsync(e => e.Id == item.EventId, ct);
+        // A replayed request already broadcast and notified the first time.
+        var evt = outcome.Replayed
+            ? null
+            : await _db.Events.FirstOrDefaultAsync(e => e.Id == item.EventId, ct);
         if (evt is not null)
         {
             if (newClosesAt.HasValue)
@@ -279,11 +282,11 @@ public class AuctionService
             Id                  = bid.Id,
             AuctionItemId       = itemId,
             PlayerId            = req.PlayerId,
-            AmountCents         = req.AmountCents,
+            AmountCents         = bid.AmountCents,
             PlacedAt            = bid.PlacedAt,
             IsWinning           = usesProxy
                 ? leaderId == req.PlayerId
-                : !isDonation && item.CurrentHighBidCents == req.AmountCents,
+                : !isDonation && item.CurrentHighBidCents == bid.AmountCents,
             CurrentHighBidCents = item.CurrentHighBidCents,
             NewClosesAt         = newClosesAt,
         };
@@ -319,9 +322,6 @@ public class AuctionService
 
         var now0 = DateTime.UtcNow;
 
-        if (AuctionBidRules.IsItemClosed(item.Status, item.ClosesAt, now0))
-            throw new ValidationException("AUCTION_CLOSED");
-
         var player = await _db.Players.FirstOrDefaultAsync(p => p.Id == req.PlayerId, ct)
             ?? throw new NotFoundException("Player", req.PlayerId);
 
@@ -329,6 +329,24 @@ public class AuctionService
         // by the player themselves — verify the session token minted at /join.
         if (!Common.PlayerSessionAuth.Matches(player.SessionToken, req.SessionToken))
             throw new NotFoundException("Player", req.PlayerId);
+
+        // A resend of a bid that already landed (offline queue, lost response):
+        // hand back the original. Checked before the closed test — the first
+        // attempt may have been what closed the item (buy-now), or the timer may
+        // have run out since. The item row lock above serializes this per item.
+        if (req.ClientRequestId is Guid requestId)
+        {
+            var prior = await _db.Bids.FirstOrDefaultAsync(b => b.ClientRequestId == requestId, ct);
+            if (prior is not null)
+            {
+                if (prior.PlayerId != req.PlayerId || prior.AuctionItemId != itemId)
+                    throw new ValidationException("DUPLICATE_REQUEST_ID");
+                return await ReplayOutcomeAsync(item, prior, ct);
+            }
+        }
+
+        if (AuctionBidRules.IsItemClosed(item.Status, item.ClosesAt, now0))
+            throw new ValidationException("AUCTION_CLOSED");
 
         if (AuctionBidRules.NeedsPaymentMethod(player.HasPaymentMethod, player.CheckInStatus))
             throw new ValidationException("NO_PAYMENT_METHOD");
@@ -388,6 +406,7 @@ public class AuctionService
             PlayerId      = req.PlayerId,
             AmountCents   = req.AmountCents,
             PlacedAt      = now0,
+            ClientRequestId = req.ClientRequestId,
         };
         _db.Bids.Add(bid);
 
@@ -438,12 +457,41 @@ public class AuctionService
             newClosesAt, closedByBuyNow, previousHighBidderId);
     }
 
+    /// <summary>
+    /// Outcome for a resent bid that already exists: nothing is written, and the
+    /// flags that drive post-commit side effects are all off. Under proxy bidding
+    /// the leader is re-resolved, since other bids may have landed since.
+    /// </summary>
+    private async Task<BidOutcome> ReplayOutcomeAsync(AuctionItem item, Bid prior, CancellationToken ct)
+    {
+        var isDonation = item.AuctionType is AuctionType.DonationSilent or AuctionType.DonationLive;
+        var usesProxy  = AuctionBidRules.UsesProxyBidding(item.AuctionType);
+
+        Guid? leaderId = null;
+        if (usesProxy)
+        {
+            var rows = await _db.Bids
+                .Where(b => b.AuctionItemId == item.Id)
+                .Select(b => new { b.PlayerId, b.AmountCents, b.PlacedAt })
+                .ToListAsync(ct);
+            leaderId = AuctionBidRules.ResolveProxy(
+                    rows.Select(r => new AuctionBidRules.ProxyBid(r.PlayerId, r.AmountCents, r.PlacedAt)).ToList(),
+                    item.StartingBidCents, item.BidIncrementCents)
+                .LeaderPlayerId;
+        }
+
+        return new BidOutcome(
+            item, prior, usesProxy, isDonation, leaderId,
+            NewClosesAt: null, ClosedByBuyNow: false, PreviousHighBidderId: null, Replayed: true);
+    }
+
     public async Task<BidResponse> PledgeAsync(Guid itemId, PledgeRequest req, CancellationToken ct)
         => await PlaceBidAsync(itemId, new PlaceBidRequest
         {
-            PlayerId     = req.PlayerId,
-            AmountCents  = req.AmountCents,
-            SessionToken = req.SessionToken,
+            PlayerId        = req.PlayerId,
+            AmountCents     = req.AmountCents,
+            SessionToken    = req.SessionToken,
+            ClientRequestId = req.ClientRequestId,
         }, ct);
 
     public async Task AwardItemAsync(Guid itemId, AwardRequest req, CancellationToken ct)

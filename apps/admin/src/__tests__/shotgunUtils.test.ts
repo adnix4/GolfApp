@@ -18,13 +18,50 @@ describe('autoAssignHoles', () => {
     TEAMS.forEach(t => expect(result[t.id]).toBeDefined());
   });
 
-  it('assigns in alphabetical order (Albatrosses → hole 1, Birdies → hole 2, …)', () => {
-    const result = autoAssignHoles(TEAMS, 18);
-    // Alphabetical: Albatrosses, Birdies, Condors, Eagles
-    expect(result['t4']).toBe('1'); // Albatrosses
-    expect(result['t2']).toBe('2'); // Birdies
-    expect(result['t3']).toBe('3'); // Condors
-    expect(result['t1']).toBe('4'); // Eagles
+  it('never gives two teams the same hole while holes remain', () => {
+    for (let run = 0; run < 50; run++) {
+      const values = Object.values(autoAssignHoles(TEAMS, 18));
+      expect(new Set(values).size).toBe(TEAMS.length);
+    }
+  });
+
+  it('draws holes at random, not in name order', () => {
+    // A seeded generator, so the draw is repeatable.
+    let seed = 7;
+    const rng = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const draws = new Set<string>();
+    for (let run = 0; run < 20; run++) {
+      const r = autoAssignHoles(TEAMS, 18, {}, rng);
+      draws.add(TEAMS.map(t => r[t.id]).join(','));
+    }
+    expect(draws.size).toBeGreaterThan(1);
+  });
+
+  it('can start a team on any hole, not just the first few', () => {
+    // random() → 0 every time leaves the last element in place on each swap,
+    // so the shuffled hole list starts at hole 2 rather than hole 1.
+    const result = autoAssignHoles([{ id: 'x', name: 'Solo' }], 18, {}, () => 0);
+    expect(result['x']).toBe('2');
+  });
+
+  it('keeps holes the organizer already set and fills the rest around them', () => {
+    for (let run = 0; run < 50; run++) {
+      const result = autoAssignHoles(TEAMS, 18, { t1: '5', t3: '9' });
+      expect(result['t1']).toBe('5');
+      expect(result['t3']).toBe('9');
+      expect(['5', '9']).not.toContain(result['t2']);
+      expect(['5', '9']).not.toContain(result['t4']);
+      expect(result['t2']).not.toBe(result['t4']);
+    }
+  });
+
+  it('replaces blank or out-of-range entries', () => {
+    const result = autoAssignHoles(TEAMS, 18, { t1: '', t2: '40', t3: 'x' });
+    TEAMS.forEach(t => {
+      const n = Number(result[t.id]);
+      expect(n).toBeGreaterThanOrEqual(1);
+      expect(n).toBeLessThanOrEqual(18);
+    });
   });
 
   it('wraps around when there are more teams than holes', () => {
@@ -56,8 +93,9 @@ describe('autoAssignHoles', () => {
   });
 
   it('handles a single team', () => {
-    const result = autoAssignHoles([{ id: 'x', name: 'Solo' }], 18);
-    expect(result['x']).toBe('1');
+    const hole = Number(autoAssignHoles([{ id: 'x', name: 'Solo' }], 18)['x']);
+    expect(hole).toBeGreaterThanOrEqual(1);
+    expect(hole).toBeLessThanOrEqual(18);
   });
 });
 

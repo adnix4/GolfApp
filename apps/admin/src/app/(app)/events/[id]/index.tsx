@@ -26,6 +26,7 @@ import {
   eventStatusColor, eventStatusLabel, NEXT_TRANSITIONS,
   scoringGate, scoringGateHint, openScoringEarlyCopy,
   completionGate, markCompleteCopy, markCompleteUncheckedCopy, cancelEventCopy,
+  goActiveNeedsCourseCopy,
 } from '@/lib/eventStatus';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
 
@@ -74,6 +75,14 @@ export default function EventOverviewScreen() {
   const markListsStale = () => queryClient.invalidateQueries({ queryKey: eventKeys.all(event.id) });
 
   async function handleStatusChange(newStatus: string) {
+
+    // Going Active needs a course (the API refuses without one) — warn and
+    // offer to add it rather than sending a request that will fail.
+    if (newStatus === 'Active' && !event.course) {
+      const copy = goActiveNeedsCourseCopy();
+      confirmAction(copy.title, copy.message, () => setShowCourse(true), copy.confirmText, { kind: 'warning' });
+      return;
+    }
 
     // If moving to Registration and test data exists → warn first
     if (newStatus === 'Registration' && (event.testDataSummary?.totalCount ?? 0) > 0) {

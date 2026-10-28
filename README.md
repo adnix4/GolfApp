@@ -3,7 +3,7 @@
 **Golf Scramble Made Easy** — A complete tournament management platform for non-profit fundraising events.
 
 Built in six feature phases, all delivered; work since has continued past them
-(schema migrations run to `Phase14`). This is the monorepo housing all
+(schema migrations run to `Phase19`). This is the monorepo housing all
 applications and shared packages.
 
 ---
@@ -37,7 +37,7 @@ golf-fundraiser-pro/              ← Turborepo monorepo root
 
 | Layer | Technology | Notes |
 |---|---|---|
-| Backend API | ASP.NET Core Web API (.NET 8) | C# 12, EF Core, Minimal API style |
+| Backend API | ASP.NET Core Web API (.NET 8) | C# 12, EF Core, controller-based |
 | Database | PostgreSQL 16 + PostGIS 3.4 | PostGIS required for GPS features |
 | Cache | Redis 7 | Leaderboard cache + SignalR backplane |
 | Admin Dashboard | Expo Router web | Shares UI components with mobile |
@@ -52,7 +52,7 @@ golf-fundraiser-pro/              ← Turborepo monorepo root
 
 ## Prerequisites
 
-- **Node.js 20+** and **npm 10+**
+- **Node.js 24.3+** and **npm 10+** (enforced by `engines` in the root `package.json`)
 - **.NET 8 SDK** — [download](https://dotnet.microsoft.com/download/dotnet/8)
 - **Docker Desktop** — for PostgreSQL, Redis, pgAdmin
 - **EAS CLI** — `npm install -g eas-cli` (for mobile builds; the Expo CLI itself
@@ -152,8 +152,9 @@ npm run dev
 **Terminal 4 — Mobile (optional):**
 ```bash
 cd apps/mobile
-npm start
-# Scan QR with Expo Go app on your phone
+npm run dev
+# Metro on port 8200. Open it in a development build (expo-dev-client) —
+# Expo Go can't load the app's native modules (Stripe, etc.)
 ```
 
 Or start all JavaScript apps at once from the root:
@@ -177,6 +178,8 @@ npm run type-check     # tsc --noEmit across all TypeScript workspaces
 npm run test           # Run tests in all workspaces
 npm run check-updates  # Outdated deps + watchlist version-drift check (72h install cooldown)
 npm run audit:prod     # Production dependency audit gate — the same one CI runs
+npm run e2e            # Clean-build end-to-end harness (e2e:fast skips the clean build)
+npm run db:backup      # Dump the local database (db:restore loads a dump)
 npm run clean          # Delete all build artifacts + node_modules
 ```
 
@@ -232,7 +235,7 @@ cd ../apps/api && dotnet ef database update
 
 | Workflow | Trigger | Action |
 |---|---|---|
-| `ci.yml` | Every PR + push to main | Lint, type-check, .NET build + tests, production dependency audit |
+| `ci.yml` | Every PR + push to main | Lint, type-check, JS unit tests, .NET build + tests, Metro web-bundle builds, e2e harness, production dependency audit, dependency-pin check |
 | `deploy-api.yml` | Merge to main (apps/api changed) | Docker build → ghcr.io, then Railway redeploy |
 | `deploy-admin.yml` | Merge to main (apps/admin changed) | EAS Hosting deploy |
 | `eas-build.yml` | Manual or version tag | EAS Build iOS + Android |
@@ -270,8 +273,9 @@ All six feature phases have shipped. Each row names code you can go read.
 | Phase 6 | Per-event branding, GPS cup location | ✅ Shipped | `packages/theme`, PostGIS columns |
 
 Work has continued past the numbered phases — per-player session tokens
-(`Phase11` migration), per-golfer entry fees (`Phase14`), auction checkout,
-blob storage, and scoreboard branding.
+(`Phase11` migration), per-golfer entry fees (`Phase14`), auction checkout
+(`Phase16`), organizer invites and the Event Staff role (`Phase18`), offline
+bid resends (`Phase19`), blob storage, and scoreboard branding.
 
 **Feature-complete is not pilot-ready.** The remaining path to a real event —
 accounts and domain, a staging environment, a dress rehearsal, mobile

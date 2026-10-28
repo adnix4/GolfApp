@@ -252,6 +252,23 @@ export function cancelEventCopy(): {
   };
 }
 
+/**
+ * Warning for Go Active with no course attached. The API refuses the
+ * transition (EventService.ValidateStatusTransition), so say why up front and
+ * offer the fix instead of letting the request fail.
+ */
+export function goActiveNeedsCourseCopy(): {
+  title: string; message: string; confirmText: string;
+} {
+  return {
+    title: 'Add a course first',
+    message:
+      'You need to enter a course before this event can go Active. The ' +
+      'scorecard uses its holes and pars.',
+    confirmText: 'Add Course',
+  };
+}
+
 /** Fallback color for an unknown status, matching previous inline defaults. */
 export const EVENT_STATUS_COLOR_FALLBACK = '#aaa';
 

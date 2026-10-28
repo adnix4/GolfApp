@@ -42,10 +42,10 @@ export default function ShotgunScreen() {
     setAssignments(init);
   }, [teams, loading]);
 
-  // Auto-assign: distribute teams evenly across holes 1..event.holes
+  // Auto-assign: a random hole for each team still blank; holes already set stay
   function handleAutoAssign() {
     if (!event) return;
-    setAssignments(autoAssignHoles(teams, event.holes));
+    setAssignments(prev => autoAssignHoles(teams, event.holes, prev));
     setSuccess(false);
   }
 

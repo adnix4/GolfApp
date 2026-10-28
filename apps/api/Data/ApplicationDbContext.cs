@@ -466,6 +466,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             bid.HasIndex(b => b.AuctionItemId)
                .HasDatabaseName("IX_bids_auction_item_id");
 
+            // One bid per phone-generated request id (offline bid queue replays).
+            bid.HasIndex(b => b.ClientRequestId)
+               .IsUnique()
+               .HasDatabaseName("IX_bids_client_request_id")
+               .HasFilter("client_request_id IS NOT NULL");
+
             bid.HasOne(b => b.AuctionItem)
                .WithMany(i => i.Bids)
                .HasForeignKey(b => b.AuctionItemId)

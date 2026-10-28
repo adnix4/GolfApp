@@ -8,6 +8,9 @@ import { useRouter } from 'expo-router';
 import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsyncedScores, upsertPendingScore, markScoresSynced, markHoleComplete, reopenHole as reopenStoredHole, loadCompletedHoleNumbers, loadSyncedHoleNumbers, clearPendingScores, mergeServerScores, getDeviceId } from './store';
 import { attemptSync } from './backgroundSync';
 import { useNetworkTier, POLL_INTERVAL_MS, type NetworkTier } from './useNetworkTier';
+import { clearQueuedBids, flushBidQueue, loadQueuedBids } from './bidQueue';
+import { describeFlushResults } from './bidMessages';
+import { notify } from './notify';
 
 const SCORES_PULL_FRESH_MS = 10_000;
 
@@ -63,6 +66,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async function init() {
       try {
         const [id, saved] = await Promise.all([getDeviceId(), loadSession()]);
+        // Bids queued offline before the app closed — the auction banner reads these.
+        await loadQueuedBids().catch(() => {});
         setDeviceId(id);
         if (saved) {
           setSessionState(saved);
@@ -137,6 +142,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // propagated here (see updateEventStatus) so a mid-round Completed flip
       // can't yank the golfer off the scorecard. Sponsors refetch only when
       // the version bumps; seeds silently on the first observation.
+      // Bids confirmed while offline go out first, on reconnect and then every
+      // tick until the queue is empty (lib/bidQueue.ts). Never throws.
+      void sendQueuedBids();
       try {
         const { themeJson, sponsorsVersion, player } = await fetchEventStatus(
           session.event.eventCode,
@@ -167,6 +175,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // Anything else (offline, 5xx) is transient — retry next tick.
         if (e instanceof EventNotFoundError && !cancelled) await forgetMissingEvent();
       }
+    };
+    const sendQueuedBids = async () => {
+      try {
+        const results = await flushBidQueue(session.player.id, session.sessionToken);
+        const popup   = describeFlushResults(results);
+        if (popup && !cancelled) {
+          notify(popup.title, popup.message, undefined, {
+            highlights: popup.highlights.map(text => ({ text, kind: 'item' as const })),
+            ...(popup.warning && { kind: 'warning' as const }),
+          });
+        }
+      } catch { /* storage hiccup — the bids stay queued for the next tick */ }
     };
     poll();
     const id = setInterval(poll, POLL_INTERVAL_MS[networkTier]);
@@ -206,6 +226,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // misconfigured server rather than a deleted event, rejoining brings them back.
   const forgetMissingEvent = useCallback(async () => {
     lastSponsorsVersion.current = null;
+    // One session at a time, so whatever is queued belongs to the vanished event.
+    await clearQueuedBids().catch(() => {});
     try { await clearSession(); } catch { /* still reset in-memory state */ }
     setSessionState(null);
     setPendingScores([]);
@@ -222,6 +244,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     lastSponsorsVersion.current = null;
     try {
       if (session?.team) await clearPendingScores(session.event.id, session.team.id);
+      if (session) await clearQueuedBids(session.event.id);
       await clearSession();
     } catch { /* ignore DB errors on clear — we still reset in-memory state */ }
     setSessionState(null);
