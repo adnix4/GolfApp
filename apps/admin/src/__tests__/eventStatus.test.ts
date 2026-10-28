@@ -4,6 +4,7 @@ import {
   eventStatusColor, eventStatusLabel,
   scoringGate, scoringGateHint, openScoringEarlyCopy,
   completionGate, markCompleteCopy, markCompleteUncheckedCopy, cancelEventCopy,
+  goActiveNeedsCourseCopy,
 } from '../lib/eventStatus';
 
 /** Builds a leaderboard-shaped row; `thru` below `holes` means unfinished. */
@@ -243,5 +244,13 @@ describe('cancelEventCopy', () => {
     const c = cancelEventCopy();
     expect(c.confirmText).toBe('Cancel Event');
     expect(c.message).toContain('cannot be undone');
+  });
+});
+
+describe('goActiveNeedsCourseCopy', () => {
+  it('says a course is required and offers to add one', () => {
+    const c = goActiveNeedsCourseCopy();
+    expect(c.message).toContain('course before this event can go Active');
+    expect(c.confirmText).toBe('Add Course');
   });
 });
