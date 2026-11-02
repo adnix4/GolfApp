@@ -205,11 +205,19 @@ public class LeagueService
     {
         await GetOwnedSeasonAsync(leagueId, seasonId, ct);
 
+        var name = req.Name.Trim();
+        if (name.Length == 0)
+            throw new ValidationException("Give the flight a name.");
+        if (req.MinHandicap > req.MaxHandicap)
+            throw new ValidationException("The lowest handicap can't be above the highest.");
+        if (await _db.Flights.AnyAsync(f => f.SeasonId == seasonId && f.Name == name, ct))
+            throw new ValidationException($"This season already has a flight named {name}.");
+
         var flight = new Flight
         {
             Id         = Guid.NewGuid(),
             SeasonId   = seasonId,
-            Name       = req.Name,
+            Name       = name,
             MinHandicap = req.MinHandicap,
             MaxHandicap = req.MaxHandicap
         };
@@ -302,7 +310,12 @@ public class LeagueService
             .FirstOrDefaultAsync(m => m.Id == memberId && m.SeasonId == seasonId, ct)
             ?? throw new NotFoundException("Member not found.");
 
-        if (req.FlightId      is not null) member.FlightId      = req.FlightId;
+        if (req.FlightId is not null
+            && !await _db.Flights.AnyAsync(f => f.Id == req.FlightId && f.SeasonId == seasonId, ct))
+            throw new NotFoundException("Flight not found in this season.");
+
+        if (req.ClearFlight)                member.FlightId      = null;
+        else if (req.FlightId is not null)  member.FlightId      = req.FlightId;
         if (req.HandicapIndex is not null) member.HandicapIndex  = req.HandicapIndex.Value;
         if (req.DuesPaid      is not null) member.DuesPaid       = req.DuesPaid.Value;
         if (req.Status        is not null &&
@@ -399,7 +412,10 @@ public class LeagueService
                 Notes        = r.Notes,
                 PairingCount = r.Pairings.Count,
                 ScoredCount  = r.Scores.Select(s => s.MemberId).Distinct().Count(),
-                AbsenceCount = r.Absences.Count
+                AbsenceCount = r.Absences.Count,
+                HoleCount    = _db.CourseHoles.Any(h => h.CourseId == r.CourseId)
+                    ? _db.CourseHoles.Count(h => h.CourseId == r.CourseId)
+                    : 18
             })
             .ToListAsync(ct);
     }
@@ -679,6 +695,8 @@ public class LeagueService
 
     // ── SCORING ───────────────────────────────────────────────────────────────
 
+    private const int MaxGrossPerHole = 20;
+
     public async Task SubmitScoreAsync(
         Guid orgId, Guid leagueId, Guid seasonId, Guid roundId,
         SubmitLeagueScoreRequest req, CancellationToken ct)
@@ -690,6 +708,16 @@ public class LeagueService
         var member = await _db.LeagueMembers
             .FirstOrDefaultAsync(m => m.Id == req.MemberId && m.SeasonId == seasonId, ct)
             ?? throw new NotFoundException("Member not found in this season.");
+
+        int totalHoles = round.CourseId.HasValue
+            ? await _db.CourseHoles.CountAsync(h => h.CourseId == round.CourseId, ct)
+            : 18;
+        if (totalHoles == 0) totalHoles = 18;
+
+        if (req.HoleNumber < 1 || req.HoleNumber > totalHoles)
+            throw new ValidationException($"Hole number must be between 1 and {totalHoles}.");
+        if (req.GrossScore < 1 || req.GrossScore > MaxGrossPerHole)
+            throw new ValidationException($"A hole score must be between 1 and {MaxGrossPerHole}.");
 
         // Get hole par and handicap_index from course
         short holePar = 4;
@@ -707,9 +735,6 @@ public class LeagueService
 
         // Course handicap (simplified Phase 5a — no slope/rating)
         int courseHandicap = (int)Math.Round(member.HandicapIndex);
-        int totalHoles = round.CourseId.HasValue
-            ? await _db.CourseHoles.CountAsync(h => h.CourseId == round.CourseId, ct)
-            : 18;
 
         // Strokes received on this hole: 1 if holeHcpIdx <= courseHandicap
         int strokesOnHole = holeHcpIdx <= courseHandicap ? 1 : 0;

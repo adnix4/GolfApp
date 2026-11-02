@@ -981,6 +981,18 @@ export interface LeagueRound {
   id: string; seasonId: string; courseId: string | null; courseName: string | null;
   roundDate: string; status: string; notes: string | null;
   pairingCount: number; scoredCount: number; absenceCount: number;
+  holeCount: number;
+}
+
+export interface LeagueHoleScore {
+  holeNumber: number; par: number; grossScore: number;
+  netScore: number; stablefordPoints: number;
+}
+
+export interface LeagueScorecard {
+  memberId: string; memberName: string; handicapIndex: number;
+  grossTotal: number; netTotal: number; stablefordTotal: number;
+  holes: LeagueHoleScore[];
 }
 
 export interface RoundAbsence {
@@ -1052,7 +1064,7 @@ export const leagueApi = {
   addMember: (leagueId: string, seasonId: string, payload: { firstName: string; lastName: string; email: string; handicapIndex: number; flightId?: string; status?: string }) =>
     request<LeagueMember>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/members`, { method: 'POST', body: payload }),
 
-  updateMember: (leagueId: string, seasonId: string, memberId: string, payload: Partial<{ flightId: string; handicapIndex: number; duesPaid: boolean; status: string }>) =>
+  updateMember: (leagueId: string, seasonId: string, memberId: string, payload: Partial<{ flightId: string; clearFlight: boolean; handicapIndex: number; duesPaid: boolean; status: string }>) =>
     request<LeagueMember>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/members/${memberId}`, { method: 'PATCH', body: payload }),
 
   overrideHandicap: (leagueId: string, seasonId: string, memberId: string, newIndex: number, reason: string) =>
@@ -1090,7 +1102,10 @@ export const leagueApi = {
     request<SkinRow[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/skins`),
 
   getScorecards: (leagueId: string, seasonId: string, roundId: string) =>
-    request<unknown[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/scorecards`),
+    request<LeagueScorecard[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/scorecards`),
+
+  submitScore: (leagueId: string, seasonId: string, roundId: string, payload: { memberId: string; holeNumber: number; grossScore: number }) =>
+    request<void>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/scores`, { method: 'POST', body: payload }),
 
   reportAbsence: (leagueId: string, seasonId: string, roundId: string, memberId: string) =>
     request<RoundAbsence>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/absence`, {

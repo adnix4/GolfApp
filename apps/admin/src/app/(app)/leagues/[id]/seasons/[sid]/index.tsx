@@ -7,14 +7,19 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme, useClasses } from '@gfp/ui';
 import { formatCentsShort, formatDateOnly, validateLeagueMember, toPlayerInput } from '@gfp/shared-types';
 import {
-  leagueApi, LeagueMember, LeagueRound,
+  leagueApi, LeagueMember, LeagueRound, LeagueScorecard,
   StandingRow, SkinRow, PairingGroup, HandicapHistoryRow, RoundAbsence,
 } from '@/lib/api';
 import {
   PairingsPreviewModal, HandicapHistoryModal, OverrideHandicapModal,
   AddMemberModal, AbsencesModal, AddSubModal, AddRoundModal,
+  EnterScoresModal, AddFlightModal, AssignFlightModal,
   type AddMemberFields, type AddSubFields,
 } from '@/components/seasonModals';
+import {
+  buildFlightPayload, changedHoles, flightRangeLabel, holeInputsFrom, scorableMembers,
+  EMPTY_FLIGHT, type FlightFields, type HoleInputs,
+} from '@/lib/leagueAdmin';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { validatePickerDateTime } from '@/lib/dateTime';
 import { useLeagueName } from '../../_layout';
@@ -78,6 +83,23 @@ export default function SeasonDashboardScreen() {
 
   const [syncSaving, setSyncSaving] = useState(false);
 
+  const [scoreRound, setScoreRound]         = useState<LeagueRound | null>(null);
+  const [scoreMembers, setScoreMembers]     = useState<LeagueMember[]>([]);
+  const [scorecards, setScorecards]         = useState<LeagueScorecard[]>([]);
+  const [scoreMemberId, setScoreMemberId]   = useState('');
+  const [holeInputs, setHoleInputs]         = useState<HoleInputs>({});
+  const [scoreSaving, setScoreSaving]       = useState(false);
+  const [scoreErr, setScoreErr]             = useState<string | null>(null);
+  const [scoreNotice, setScoreNotice]       = useState<string | null>(null);
+
+  const [showAddFlight, setShowAddFlight]   = useState(false);
+  const [flightFields, setFlightFields]     = useState<FlightFields>(EMPTY_FLIGHT);
+  const [flightErr, setFlightErr]           = useState<string | null>(null);
+  const [flightSaving, setFlightSaving]     = useState(false);
+  const [flightMember, setFlightMember]     = useState<LeagueMember | null>(null);
+  const [selFlightId, setSelFlightId]       = useState('');
+  const [assignSaving, setAssignSaving]     = useState(false);
+
   // After a change: refetch this season behind what it shows (no spinner) and
   // mark the league's other cached screens stale, since counts move too.
   const markLeagueStale = () => queryClient.invalidateQueries({ queryKey: leagueKeys.all });
@@ -114,6 +136,76 @@ export default function SeasonDashboardScreen() {
     if (!id || !sid) return;
     try { await leagueApi.closeRound(id, sid, round.id); await markLeagueStale(); }
     catch (e: unknown) { setError((e as Error).message); }
+  }
+
+  async function handleOpenScores(round: LeagueRound) {
+    if (!id || !sid || !dashboard) return;
+    try {
+      const [cards, absent] = await Promise.all([
+        leagueApi.getScorecards(id, sid, round.id),
+        leagueApi.getAbsences(id, sid, round.id),
+      ]);
+      setScorecards(cards);
+      setScoreMembers(scorableMembers(dashboard.roster, absent));
+      setScoreMemberId(''); setHoleInputs({}); setScoreErr(null); setScoreNotice(null);
+      setScoreRound(round);
+    } catch (e: unknown) { setError((e as Error).message); }
+  }
+
+  function handleSelectScoreMember(memberId: string) {
+    setScoreMemberId(memberId);
+    setHoleInputs(holeInputsFrom(scorecards.find(s => s.memberId === memberId)));
+    setScoreErr(null); setScoreNotice(null);
+  }
+
+  // One request per hole: the API upserts, so a failure part-way loses nothing
+  // and pressing Save again sends only what still differs.
+  async function handleSaveScores() {
+    if (!id || !sid || !scoreRound || !scoreMemberId) return;
+    const card = scorecards.find(s => s.memberId === scoreMemberId);
+    const { error: problem, changes } = changedHoles(holeInputs, card, scoreRound.holeCount);
+    if (problem) { setScoreErr(problem); return; }
+    setScoreErr(null);
+    setScoreSaving(true);
+    try {
+      for (const change of changes) {
+        await leagueApi.submitScore(id, sid, scoreRound.id, { memberId: scoreMemberId, ...change });
+      }
+      setScorecards(await leagueApi.getScorecards(id, sid, scoreRound.id));
+      const saved = scoreMembers.find(m => m.id === scoreMemberId);
+      setScoreNotice(saved ? `Saved ${saved.firstName} ${saved.lastName}.` : 'Saved.');
+      setScoreMemberId(''); setHoleInputs({});
+      await markLeagueStale();
+    } catch (e: unknown) {
+      setScoreErr((e as Error).message);
+      leagueApi.getScorecards(id, sid, scoreRound.id).then(setScorecards).catch(() => undefined);
+    } finally { setScoreSaving(false); }
+  }
+
+  async function handleAddFlight() {
+    if (!id || !sid) return;
+    const { error: problem, payload } = buildFlightPayload(flightFields);
+    if (problem || !payload) { setFlightErr(problem ?? null); return; }
+    setFlightErr(null);
+    setFlightSaving(true);
+    try {
+      await leagueApi.createFlight(id, sid, payload);
+      setShowAddFlight(false); setFlightFields(EMPTY_FLIGHT);
+      await markLeagueStale();
+    } catch (e: unknown) { setFlightErr((e as Error).message); }
+    finally { setFlightSaving(false); }
+  }
+
+  async function handleAssignFlight() {
+    if (!id || !sid || !flightMember) return;
+    setAssignSaving(true);
+    try {
+      await leagueApi.updateMember(id, sid, flightMember.id,
+        selFlightId ? { flightId: selFlightId } : { clearFlight: true });
+      setFlightMember(null);
+      await markLeagueStale();
+    } catch (e: unknown) { setError((e as Error).message); setFlightMember(null); }
+    finally { setAssignSaving(false); }
   }
 
   async function handleLoadSkins(round: LeagueRound) {
@@ -375,11 +467,29 @@ export default function SeasonDashboardScreen() {
               <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
                 Roster ({dashboard.roster.length})
               </Text>
-              <Pressable style={[styles.smallBtn, { backgroundColor: theme.colors.primary }]}
-                onPress={() => setShowAddMember(true)}>
-                <Text style={{ color: theme.colors.surface, fontSize: fontSize.sm }}>+ Add</Text>
-              </Pressable>
+              <View style={styles.memberActions}>
+                <Pressable style={[styles.iconBtn, styles.headerBtn, { borderColor: theme.colors.accent }]}
+                  onPress={() => setShowAddFlight(true)}>
+                  <Text style={{ color: theme.colors.primary, fontSize: fontSize.sm }}>+ Flight</Text>
+                </Pressable>
+                <Pressable style={[styles.smallBtn, { backgroundColor: theme.colors.primary }]}
+                  onPress={() => setShowAddMember(true)}>
+                  <Text style={{ color: theme.colors.surface, fontSize: fontSize.sm }}>+ Add</Text>
+                </Pressable>
+              </View>
             </View>
+            {dashboard.flights.length > 0 && (
+              <View style={styles.flightList}>
+                {dashboard.flights.map(f => (
+                  <View key={f.id} style={[styles.flightChip, { borderColor: theme.colors.accent }]}>
+                    <Text style={[styles.memberName, { color: theme.colors.primary }]}>{f.name}</Text>
+                    <Text style={[styles.memberMeta, { color: theme.mutedText }]}>
+                      {[flightRangeLabel(f), `${f.memberCount} members`].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
             {dashboard.roster.map(m => (
               <View key={m.id} style={[styles.memberRow, { borderColor: theme.colors.accent }]}>
                 <View style={{ flex: 1 }}>
@@ -393,6 +503,10 @@ export default function SeasonDashboardScreen() {
                   </Text>
                 </View>
                 <View style={styles.memberActions}>
+                  <Pressable style={[styles.iconBtn, { borderColor: theme.colors.accent }]}
+                    onPress={() => { setFlightMember(m); setSelFlightId(m.flightId ?? ''); }}>
+                    <Text style={{ fontSize: fontSize.xs, color: theme.colors.primary }}>Flight</Text>
+                  </Pressable>
                   <Pressable style={[styles.iconBtn, { borderColor: theme.colors.accent }]}
                     onPress={() => openHandicapHistory(m)}>
                     <Text style={{ fontSize: fontSize.xs, color: theme.colors.action }}>HC History</Text>
@@ -441,6 +555,12 @@ export default function SeasonDashboardScreen() {
                       <Pressable style={[styles.actionBtn, { backgroundColor: '#f59e0b22' }]}
                         onPress={() => handleOpenScoring(r)}>
                         <Text style={{ color: '#d97706', fontSize: fontSize.xs }}>Open Scoring</Text>
+                      </Pressable>
+                    )}
+                    {r.status === 'Scoring' && (
+                      <Pressable style={[styles.actionBtn, { backgroundColor: theme.colors.primary + '22' }]}
+                        onPress={() => handleOpenScores(r)}>
+                        <Text style={{ color: theme.colors.primary, fontSize: fontSize.xs }}>Enter Scores</Text>
                       </Pressable>
                     )}
                     {r.status === 'Scoring' && (
@@ -644,6 +764,43 @@ export default function SeasonDashboardScreen() {
         onSave={handleAddSub}
       />
 
+      <EnterScoresModal
+        visible={!!scoreRound}
+        round={scoreRound}
+        members={scoreMembers}
+        scorecards={scorecards}
+        selMemberId={scoreMemberId}
+        inputs={holeInputs}
+        saving={scoreSaving}
+        error={scoreErr}
+        notice={scoreNotice}
+        onSelectMember={handleSelectScoreMember}
+        onChangeHole={(hole, value) => { setHoleInputs(prev => ({ ...prev, [hole]: value })); setScoreErr(null); }}
+        onClose={() => setScoreRound(null)}
+        onSave={handleSaveScores}
+      />
+
+      <AddFlightModal
+        visible={showAddFlight}
+        fields={flightFields}
+        saving={flightSaving}
+        error={flightErr}
+        onChange={next => { setFlightFields(next); setFlightErr(null); }}
+        onCancel={() => { setShowAddFlight(false); setFlightErr(null); }}
+        onSave={handleAddFlight}
+      />
+
+      <AssignFlightModal
+        visible={!!flightMember}
+        member={flightMember}
+        flights={dashboard?.flights ?? []}
+        selFlightId={selFlightId}
+        saving={assignSaving}
+        onSelect={setSelFlightId}
+        onCancel={() => setFlightMember(null)}
+        onSave={handleAssignFlight}
+      />
+
       <AddRoundModal
         visible={showAddRound}
         date={rDate}
@@ -700,6 +857,9 @@ const styles = StyleSheet.create({
   memberActions: { flexDirection: 'row', gap: spacing[2] },
   iconBtn:       { paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.sm, borderWidth: 1 },
   smallBtn:      { paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.md },
+  headerBtn:     { paddingVertical: spacing[2], borderRadius: radius.md },
+  flightList:    { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[2] },
+  flightChip:    { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
   tableRow:      { flexDirection: 'row', paddingVertical: spacing[2], borderBottomWidth: 1 },
   tableHeader:   { paddingVertical: spacing[3], borderRadius: radius.sm },
   tableCell:     { flex: 1, fontSize: fontSize.sm, textAlign: 'center' },
