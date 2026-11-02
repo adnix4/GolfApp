@@ -224,6 +224,143 @@ public class LeagueServiceTests
             }, default));
     }
 
+    private static async Task<(Ctx c, Guid leagueId, Guid seasonId, Guid roundId, LeagueMember member)> ScoringRound(
+        int courseHoles = 0)
+    {
+        var c = Build();
+        var leagueId = await NewLeague(c);
+        var seasonId = await NewSeason(c, leagueId);
+
+        Guid? courseId = null;
+        if (courseHoles > 0)
+        {
+            courseId = Guid.NewGuid();
+            var course = new Course { Id = courseId.Value, OrgId = c.OrgId, Name = "C" };
+            for (short h = 1; h <= courseHoles; h++)
+                course.Holes.Add(new CourseHole { Id = Guid.NewGuid(), CourseId = courseId.Value, HoleNumber = h, Par = 4, HandicapIndex = h });
+            c.Db.Courses.Add(course);
+        }
+
+        var member = new LeagueMember
+        {
+            Id = Guid.NewGuid(), SeasonId = seasonId, FirstName = "A", LastName = "B",
+            Email = "a@x.com", HandicapIndex = 1, Status = MemberStatus.Active,
+        };
+        c.Db.LeagueMembers.Add(member);
+        var roundId = Guid.NewGuid();
+        c.Db.LeagueRounds.Add(new LeagueRound
+        {
+            Id = roundId, SeasonId = seasonId, CourseId = courseId, Status = RoundStatus.Scoring,
+            RoundDate = DateOnly.FromDateTime(DateTime.UtcNow),
+        });
+        await c.Db.SaveChangesAsync();
+        return (c, leagueId, seasonId, roundId, member);
+    }
+
+    [Theory]
+    [InlineData(0, 4)]
+    [InlineData(19, 4)]
+    [InlineData(1, 0)]
+    [InlineData(1, 21)]
+    public async Task SubmitScore_rejects_holes_and_scores_off_the_card(short hole, short gross)
+    {
+        var (c, leagueId, seasonId, roundId, member) = await ScoringRound();
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            c.Svc.SubmitScoreAsync(c.OrgId, leagueId, seasonId, roundId, new SubmitLeagueScoreRequest
+            {
+                MemberId = member.Id, HoleNumber = hole, GrossScore = gross,
+            }, default));
+        Assert.Empty(c.Db.LeagueScores);
+    }
+
+    [Fact]
+    public async Task SubmitScore_uses_the_courses_hole_count()
+    {
+        var (c, leagueId, seasonId, roundId, member) = await ScoringRound(courseHoles: 9);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            c.Svc.SubmitScoreAsync(c.OrgId, leagueId, seasonId, roundId, new SubmitLeagueScoreRequest
+            {
+                MemberId = member.Id, HoleNumber = 10, GrossScore = 4,
+            }, default));
+    }
+
+    [Theory]
+    [InlineData(0, 18)]
+    [InlineData(9, 9)]
+    public async Task GetRounds_reports_the_hole_count(int courseHoles, int expected)
+    {
+        var (c, leagueId, seasonId, _, _) = await ScoringRound(courseHoles);
+
+        var rounds = await c.Svc.GetRoundsAsync(c.OrgId, leagueId, seasonId, default);
+
+        Assert.Equal(expected, rounds.Single().HoleCount);
+    }
+
+    // ── Flights ───────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task CreateFlight_trims_the_name_and_rejects_a_duplicate()
+    {
+        var c = Build();
+        var leagueId = await NewLeague(c);
+        var seasonId = await NewSeason(c, leagueId);
+
+        var flight = await c.Svc.CreateFlightAsync(c.OrgId, leagueId, seasonId,
+            new CreateFlightRequest { Name = " A " }, default);
+
+        Assert.Equal("A", flight.Name);
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            c.Svc.CreateFlightAsync(c.OrgId, leagueId, seasonId, new CreateFlightRequest { Name = "A" }, default));
+    }
+
+    [Fact]
+    public async Task CreateFlight_rejects_a_backwards_range()
+    {
+        var c = Build();
+        var leagueId = await NewLeague(c);
+        var seasonId = await NewSeason(c, leagueId);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            c.Svc.CreateFlightAsync(c.OrgId, leagueId, seasonId,
+                new CreateFlightRequest { Name = "A", MinHandicap = 10, MaxHandicap = 5 }, default));
+    }
+
+    [Fact]
+    public async Task UpdateMember_assigns_and_clears_a_flight()
+    {
+        var (c, leagueId, seasonId, _, member) = await ScoringRound();
+        var flight = await c.Svc.CreateFlightAsync(c.OrgId, leagueId, seasonId,
+            new CreateFlightRequest { Name = "A" }, default);
+
+        await c.Svc.UpdateMemberAsync(c.OrgId, leagueId, seasonId, member.Id,
+            new UpdateMemberRequest { FlightId = flight.Id }, default);
+        Assert.Equal(flight.Id, c.Db.LeagueMembers.Single().FlightId);
+
+        // A patch that doesn't mention the flight leaves it alone.
+        await c.Svc.UpdateMemberAsync(c.OrgId, leagueId, seasonId, member.Id,
+            new UpdateMemberRequest { DuesPaid = true }, default);
+        Assert.Equal(flight.Id, c.Db.LeagueMembers.Single().FlightId);
+
+        await c.Svc.UpdateMemberAsync(c.OrgId, leagueId, seasonId, member.Id,
+            new UpdateMemberRequest { ClearFlight = true }, default);
+        Assert.Null(c.Db.LeagueMembers.Single().FlightId);
+    }
+
+    [Fact]
+    public async Task UpdateMember_rejects_a_flight_from_another_season()
+    {
+        var (c, leagueId, seasonId, _, member) = await ScoringRound();
+        var otherSeason = await NewSeason(c, leagueId);
+        var other = await c.Svc.CreateFlightAsync(c.OrgId, leagueId, otherSeason,
+            new CreateFlightRequest { Name = "A" }, default);
+
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            c.Svc.UpdateMemberAsync(c.OrgId, leagueId, seasonId, member.Id,
+                new UpdateMemberRequest { FlightId = other.Id }, default));
+    }
+
     // ── Status transitions ──────────────────────────────────────────────────────
 
     [Fact]

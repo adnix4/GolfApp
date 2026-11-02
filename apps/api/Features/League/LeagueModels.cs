@@ -135,6 +135,8 @@ public record AddMemberRequest
 public record UpdateMemberRequest
 {
     public Guid?   FlightId      { get; init; }
+    /// <summary>Moves the member to "No flight". A null FlightId means "leave it alone".</summary>
+    public bool    ClearFlight   { get; init; }
     public double? HandicapIndex { get; init; }
     public bool?   DuesPaid      { get; init; }
     public string? Status        { get; init; }
@@ -162,6 +164,8 @@ public record LeagueRoundResponse
     public int      PairingCount  { get; init; }
     public int      ScoredCount   { get; init; }
     public int      AbsenceCount  { get; init; }
+    /// <summary>Holes a card needs: the course's, or 18 when the round has none.</summary>
+    public int      HoleCount     { get; init; } = 18;
 }
 
 // ── ABSENCE ────────────────────────────────────────────────────────────────────

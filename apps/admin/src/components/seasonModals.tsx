@@ -18,8 +18,9 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { useTheme, useClasses, FormModal } from '@gfp/ui';
 import { DateTimeField } from './DateTimeField';
 import type {
-  HandicapHistoryRow, LeagueMember, LeagueRound, PairingGroup, RoundAbsence,
+  FlightSummary, HandicapHistoryRow, LeagueMember, LeagueRound, LeagueScorecard, PairingGroup, RoundAbsence,
 } from '@/lib/api';
+import type { FlightFields, HoleInputs } from '@/lib/leagueAdmin';
 import { formatDateOnly, formatDate } from '@gfp/shared-types';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
 
@@ -307,6 +308,179 @@ export function AbsencesModal({
   );
 }
 
+// ── ENTER SCORES ──────────────────────────────────────────────────────────────
+
+export function EnterScoresModal({
+  visible, round, members, scorecards, selMemberId, inputs, saving, error, notice,
+  onSelectMember, onChangeHole, onClose, onSave,
+}: {
+  visible:        boolean;
+  round:          LeagueRound | null;
+  members:        LeagueMember[];
+  scorecards:     LeagueScorecard[];
+  selMemberId:    string;
+  inputs:         HoleInputs;
+  saving:         boolean;
+  error:          string | null;
+  notice:         string | null;
+  onSelectMember: (id: string) => void;
+  onChangeHole:   (hole: number, value: string) => void;
+  onClose:        () => void;
+  onSave:         () => void;
+}) {
+  const theme = useTheme();
+  const c = useClasses();
+  const holes = Array.from({ length: round?.holeCount ?? 18 }, (_, i) => i + 1);
+  return (
+    <FormModal
+      visible={visible}
+      title={`Enter Scores — ${formatDateOnly(round?.roundDate)}`}
+      onClose={onClose}
+      cancelLabel="Close"
+      onSubmit={onSave}
+      submitLabel="Save Scores"
+      loading={saving}
+      submitDisabled={!selMemberId}
+      maxWidth={560}
+    >
+      <Text style={c.fieldHint}>Select Member</Text>
+      <ScrollView style={[mStyles.picker, { borderColor: theme.colors.accent }]}>
+        {members.map(m => {
+          const card = scorecards.find(s => s.memberId === m.id);
+          return (
+            <Pressable
+              key={m.id}
+              style={[mStyles.scoreMember, { backgroundColor: selMemberId === m.id ? theme.colors.primary + '22' : 'transparent' }]}
+              onPress={() => onSelectMember(m.id)}
+            >
+              <Text style={{ flex: 1, color: theme.colors.primary, fontSize: fontSize.sm }}>
+                {m.lastName}, {m.firstName}
+              </Text>
+              {card && (
+                <Text style={[c.muted, { fontSize: fontSize.xs }]}>
+                  {card.holes.length}/{holes.length} holes · {card.grossTotal} gross
+                </Text>
+              )}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      {notice && <Text style={{ color: status.success, fontSize: fontSize.sm }}>{notice}</Text>}
+      {selMemberId !== '' && (
+        <>
+          <Text style={c.fieldLabel}>Gross Score by Hole</Text>
+          <View style={mStyles.holeGrid}>
+            {holes.map(h => (
+              <View key={h} style={mStyles.holeCell}>
+                <Text style={[c.muted, { fontSize: fontSize.xs }]}>{h}</Text>
+                <TextInput
+                  style={[c.input, mStyles.holeInput]}
+                  value={inputs[h] ?? ''}
+                  onChangeText={v => onChangeHole(h, v)}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  accessibilityLabel={`Hole ${h} gross score`}
+                />
+              </View>
+            ))}
+          </View>
+        </>
+      )}
+      {error && <Text style={{ color: status.danger, fontSize: fontSize.sm }}>{error}</Text>}
+    </FormModal>
+  );
+}
+
+// ── FLIGHTS ───────────────────────────────────────────────────────────────────
+
+export function AddFlightModal({
+  visible, fields, saving, error, onChange, onCancel, onSave,
+}: {
+  visible:  boolean;
+  fields:   FlightFields;
+  saving:   boolean;
+  error:    string | null;
+  onChange: (next: FlightFields) => void;
+  onCancel: () => void;
+  onSave:   () => void;
+}) {
+  const c = useClasses();
+  return (
+    <FormModal
+      visible={visible}
+      title="Add Flight"
+      onClose={onCancel}
+      onSubmit={onSave}
+      submitLabel="Add Flight"
+      loading={saving}
+    >
+      <Text style={c.fieldLabel}>Name</Text>
+      <TextInput
+        style={c.input}
+        value={fields.name}
+        onChangeText={name => onChange({ ...fields, name })}
+        placeholder="A Flight"
+        placeholderTextColor={PLACEHOLDER}
+        maxLength={100}
+      />
+      <Text style={c.fieldLabel}>Lowest Handicap (optional)</Text>
+      <TextInput
+        style={c.input}
+        value={fields.minHandicap}
+        onChangeText={minHandicap => onChange({ ...fields, minHandicap })}
+        keyboardType="numbers-and-punctuation"
+      />
+      <Text style={c.fieldLabel}>Highest Handicap (optional)</Text>
+      <TextInput
+        style={c.input}
+        value={fields.maxHandicap}
+        onChangeText={maxHandicap => onChange({ ...fields, maxHandicap })}
+        keyboardType="numbers-and-punctuation"
+      />
+      <Text style={c.fieldHint}>The range is a guide for you. Assign each member to a flight from the roster.</Text>
+      {error && <Text style={{ color: status.danger, fontSize: fontSize.sm }}>{error}</Text>}
+    </FormModal>
+  );
+}
+
+export function AssignFlightModal({
+  visible, member, flights, selFlightId, saving, onSelect, onCancel, onSave,
+}: {
+  visible:     boolean;
+  member:      LeagueMember | null;
+  flights:     FlightSummary[];
+  selFlightId: string;
+  saving:      boolean;
+  onSelect:    (id: string) => void;
+  onCancel:    () => void;
+  onSave:      () => void;
+}) {
+  const theme = useTheme();
+  const options = [{ id: '', name: 'No flight' }, ...flights];
+  return (
+    <FormModal
+      visible={visible}
+      title={`Flight — ${member?.firstName ?? ''} ${member?.lastName ?? ''}`}
+      onClose={onCancel}
+      onSubmit={onSave}
+      submitLabel="Save"
+      loading={saving}
+    >
+      <ScrollView style={[mStyles.picker, { borderColor: theme.colors.accent }]}>
+        {options.map(f => (
+          <Pressable
+            key={f.id}
+            style={{ padding: spacing[2], backgroundColor: selFlightId === f.id ? theme.colors.primary + '22' : 'transparent' }}
+            onPress={() => onSelect(f.id)}
+          >
+            <Text style={{ color: theme.colors.primary, fontSize: fontSize.sm }}>{f.name}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </FormModal>
+  );
+}
+
 // ── ADD ROUND ─────────────────────────────────────────────────────────────────
 
 export function AddRoundModal({
@@ -363,6 +537,10 @@ export function AddRoundModal({
 // ── LOCAL LAYOUT ──────────────────────────────────────────────────────────────
 
 const mStyles = StyleSheet.create({
+  scoreMember:  { flexDirection: 'row', alignItems: 'center', gap: spacing[2], padding: spacing[2] },
+  holeGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  holeCell:     { width: 52, alignItems: 'center', gap: spacing[0.5] },
+  holeInput:    { width: 48, textAlign: 'center', paddingHorizontal: spacing[1] },
   row:           { flexDirection: 'row', gap: spacing[2] },
   half:          { flex: 1 },
   fieldError:    { fontSize: fontSize.xs, color: status.danger, marginTop: spacing[1] },

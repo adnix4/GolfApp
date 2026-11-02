@@ -52,9 +52,9 @@ P4 — FEATURES / POLISH
           migration); TT12 fixed with it; e2e checks it on Postgres 2026-10-24
      U9   mobile League tab always shows the promo — the API never sends the
           league ids. Decision needed: wire it up, hide it, or relabel it.
-     U10  admin has no screen to enter league round scores — Open Scoring /
+     [x] U10 admin hole-by-hole league score entry 2026-11-02 (was: Open Scoring /
           Close Round exist, but only the API accepts the scores.
-     U11  admin has no screen to create league flights — the API and the
+     [x] U11 admin creates flights + assigns members 2026-11-02 (was: the API and the
           standings support them, the admin client's createFlight is unused.
      U7   follow-ups from the 2026-08-02/03 work (sponsors, ticker, TV branding,
           bid confirmation). (a) was the security item and is FIXED 2026-08-15 —
@@ -1485,7 +1485,12 @@ Captured while filling API test-coverage holes. Mark [x] when done.
             is a preview of league play.
         Whichever is chosen, update the help text to match.
 
-  [ ] U10. (OPEN, added 2026-10-28) NO ADMIN SCREEN ENTERS LEAGUE SCORES.
+  [x] U10. (DONE 2026-11-02, added 2026-10-28) NO ADMIN SCREEN ENTERS LEAGUE SCORES.
+        DONE: Rounds tab > Enter Scores (Scoring rounds only): pick a member,
+        one gross box per hole, Save sends the changed holes. Absent members
+        are left out. API now rejects holes off the card and gross outside
+        1-20, and sends holeCount on each round. Whether golfers score league
+        rounds from mobile is still open under U9.
         Found in the help-page audit. The season Rounds tab offers Generate
         Pairings, Open Scoring and Close Round, but nothing in apps/admin sends
         scores: the only way in is POST
@@ -1501,7 +1506,11 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         api.ts method for the endpoint. Decide whether golfers can also score
         league rounds from mobile — that ties into U9.
 
-  [ ] U11. (OPEN, added 2026-10-28) NO ADMIN SCREEN CREATES LEAGUE FLIGHTS.
+  [x] U11. (DONE 2026-11-02, added 2026-10-28) NO ADMIN SCREEN CREATES LEAGUE FLIGHTS.
+        DONE: Roster tab > + Flight (name + optional range), and a Flight
+        button per member, including back to No flight (new clearFlight on
+        the member PATCH). The API checks the flight is in the season.
+        The handicap range is advisory: nothing auto-assigns from it.
         Found in the help-page audit. POST .../seasons/{sid}/flights exists
         (LeagueController.cs:63) and the admin client has createFlight
         (apps/admin/src/lib/api.ts:1045), but no screen calls it, so flights
