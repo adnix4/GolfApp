@@ -1082,7 +1082,7 @@ export const leagueApi = {
     request<LeagueRound>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds`, { method: 'POST', body: payload }),
 
   generatePairings: (leagueId: string, seasonId: string, roundId: string, maxPerGroup?: number) =>
-    request<PairingGroup[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/generate-pairings?maxPerGroup=${maxPerGroup ?? 4}`),
+    request<PairingGroup[]>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/generate-pairings?maxPerGroup=${maxPerGroup ?? 4}`, { method: 'POST', body: {} }),
 
   savePairings: (leagueId: string, seasonId: string, roundId: string, groups: { memberIds: string[]; teeTime?: string; startingHole?: number }[], lock?: boolean) =>
     request<void>(`/api/v1/leagues/${leagueId}/seasons/${seasonId}/rounds/${roundId}/pairings`, {

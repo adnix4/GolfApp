@@ -1,13 +1,11 @@
 using Xunit;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using GolfFundraiserPro.Api.Common.Middleware;
 using GolfFundraiserPro.Api.Data;
 using GolfFundraiserPro.Api.Domain.Entities;
 using GolfFundraiserPro.Api.Domain.Enums;
-using GolfFundraiserPro.Api.Features.Emails;
 using GolfFundraiserPro.Api.Features.League;
-using GolfFundraiserPro.Api.Features.Notifications;
 using WebAPI.Tests.Helpers;
 
 namespace WebAPI.Tests.Services;
@@ -30,15 +28,13 @@ public class LeagueServiceTests
     private static Ctx Build()
     {
         var db = InMemoryDbFactory.Create();
-        var config = new ConfigurationBuilder().Build();
         var svc = new LeagueService(
             db,
             new HandicapEngine(db, NullLogger<HandicapEngine>.Instance),
             new StandingsCalculator(db),
             new SkinsCalculator(db),
             new PairingEngine(db),
-            new EmailService(db, config, NullLogger<EmailService>.Instance),
-            new PushNotificationService(new NullHttpClientFactory(), NullLogger<PushNotificationService>.Instance),
+            new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
             NullLogger<LeagueService>.Instance);
         return new Ctx { Db = db, Svc = svc, OrgId = Guid.NewGuid() };
     }
@@ -296,6 +292,38 @@ public class LeagueServiceTests
         var rounds = await c.Svc.GetRoundsAsync(c.OrgId, leagueId, seasonId, default);
 
         Assert.Equal(expected, rounds.Single().HoleCount);
+    }
+
+    // ── Org isolation ─────────────────────────────────────────────────────────
+
+    public static TheoryData<string, Func<LeagueService, Guid, Guid, Guid, Guid, Guid, Task>> CrossOrgCalls => new()
+    {
+        { "members",   (s, org, l, se, _, _) => s.GetMembersAsync(org, l, se, default) },
+        { "flights",   (s, org, l, se, _, _) => s.GetFlightsAsync(org, l, se, default) },
+        { "rounds",    (s, org, l, se, _, _) => s.GetRoundsAsync(org, l, se, default) },
+        { "standings", (s, org, l, se, _, _) => s.GetStandingsAsync(org, l, se, default) },
+        { "flight",    (s, org, l, se, _, _) => s.CreateFlightAsync(org, l, se, new CreateFlightRequest { Name = "X" }, default) },
+        { "update",    (s, org, l, se, _, m) => s.UpdateMemberAsync(org, l, se, m, new UpdateMemberRequest { DuesPaid = true }, default) },
+        { "override",  (s, org, l, se, _, m) => s.OverrideHandicapAsync(org, l, se, m, new OverrideHandicapRequest { NewIndex = 1, Reason = "x" }, default) },
+        { "score",     (s, org, l, se, r, m) => s.SubmitScoreAsync(org, l, se, r, new SubmitLeagueScoreRequest { MemberId = m, HoleNumber = 1, GrossScore = 4 }, default) },
+        { "cards",     (s, org, l, se, r, _) => s.GetRoundScorecardsAsync(org, l, se, r, default) },
+        { "skins",     (s, org, l, se, r, _) => s.GetSkinsAsync(org, l, se, r, default) },
+        { "open",      (s, org, l, se, r, _) => s.OpenScoringAsync(org, l, se, r, default) },
+        { "close",     (s, org, l, se, r, _) => s.CloseRoundAsync(org, l, se, r, 0, default) },
+        { "absences",  (s, org, l, se, r, _) => s.GetRoundAbsencesAsync(org, l, se, r, default) },
+    };
+
+    [Theory]
+    [MemberData(nameof(CrossOrgCalls))]
+    public async Task Another_orgs_admin_cannot_reach_a_season(
+        string _, Func<LeagueService, Guid, Guid, Guid, Guid, Guid, Task> call)
+    {
+        var (c, leagueId, seasonId, roundId, member) = await ScoringRound();
+
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            call(c.Svc, Guid.NewGuid(), leagueId, seasonId, roundId, member.Id));
+
+        Assert.Empty(c.Db.LeagueScores);
     }
 
     // ── Flights ───────────────────────────────────────────────────────────────

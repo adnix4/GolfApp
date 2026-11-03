@@ -13,11 +13,11 @@ import {
 import {
   PairingsPreviewModal, HandicapHistoryModal, OverrideHandicapModal,
   AddMemberModal, AbsencesModal, AddSubModal, AddRoundModal,
-  EnterScoresModal, AddFlightModal, AssignFlightModal,
+  CloseRoundModal, EnterScoresModal, AddFlightModal, AssignFlightModal,
   type AddMemberFields, type AddSubFields,
 } from '@/components/seasonModals';
 import {
-  buildFlightPayload, changedHoles, flightRangeLabel, holeInputsFrom, scorableMembers,
+  buildFlightPayload, changedHoles, flightRangeLabel, holeInputsFrom, parseSkinsPot, scorableMembers,
   EMPTY_FLIGHT, type FlightFields, type HoleInputs,
 } from '@/lib/leagueAdmin';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
@@ -92,6 +92,11 @@ export default function SeasonDashboardScreen() {
   const [scoreErr, setScoreErr]             = useState<string | null>(null);
   const [scoreNotice, setScoreNotice]       = useState<string | null>(null);
 
+  const [closingRound, setClosingRound]     = useState<LeagueRound | null>(null);
+  const [skinsPot, setSkinsPot]             = useState('');
+  const [closeErr, setCloseErr]             = useState<string | null>(null);
+  const [closeSaving, setCloseSaving]       = useState(false);
+
   const [showAddFlight, setShowAddFlight]   = useState(false);
   const [flightFields, setFlightFields]     = useState<FlightFields>(EMPTY_FLIGHT);
   const [flightErr, setFlightErr]           = useState<string | null>(null);
@@ -132,10 +137,18 @@ export default function SeasonDashboardScreen() {
     catch (e: unknown) { setError((e as Error).message); }
   }
 
-  async function handleCloseRound(round: LeagueRound) {
-    if (!id || !sid) return;
-    try { await leagueApi.closeRound(id, sid, round.id); await markLeagueStale(); }
-    catch (e: unknown) { setError((e as Error).message); }
+  async function handleCloseRound() {
+    if (!id || !sid || !closingRound) return;
+    const { error: problem, cents } = parseSkinsPot(skinsPot);
+    if (problem) { setCloseErr(problem); return; }
+    setCloseErr(null);
+    setCloseSaving(true);
+    try {
+      await leagueApi.closeRound(id, sid, closingRound.id, cents);
+      setClosingRound(null); setSkinsPot('');
+      await markLeagueStale();
+    } catch (e: unknown) { setCloseErr((e as Error).message); }
+    finally { setCloseSaving(false); }
   }
 
   async function handleOpenScores(round: LeagueRound) {
@@ -565,7 +578,7 @@ export default function SeasonDashboardScreen() {
                     )}
                     {r.status === 'Scoring' && (
                       <Pressable style={[styles.actionBtn, { backgroundColor: '#16a34a22' }]}
-                        onPress={() => handleCloseRound(r)}>
+                        onPress={() => setClosingRound(r)}>
                         <Text style={{ color: '#16a34a', fontSize: fontSize.xs }}>Close Round</Text>
                       </Pressable>
                     )}
@@ -762,6 +775,17 @@ export default function SeasonDashboardScreen() {
         onChange={next => { setSubFields(next); setSubErr(null); }}
         onCancel={() => { setShowSubModal(false); setSubErr(null); }}
         onSave={handleAddSub}
+      />
+
+      <CloseRoundModal
+        visible={!!closingRound}
+        round={closingRound}
+        skinsPot={skinsPot}
+        saving={closeSaving}
+        error={closeErr}
+        setSkinsPot={v => { setSkinsPot(v); setCloseErr(null); }}
+        onCancel={() => { setClosingRound(null); setSkinsPot(''); setCloseErr(null); }}
+        onConfirm={handleCloseRound}
       />
 
       <EnterScoresModal
