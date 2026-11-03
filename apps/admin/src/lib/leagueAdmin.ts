@@ -46,6 +46,17 @@ export function scorableMembers(roster: LeagueMember[], absences: RoundAbsence[]
     .sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
 }
 
+/** Skins pot in dollars per player per hole, as cents. Blank means no skins. */
+export function parseSkinsPot(text: string): { error?: string; cents: number } {
+  const trimmed = text.trim();
+  if (trimmed === '') return { cents: 0 };
+  const dollars = Number(trimmed);
+  if (!Number.isFinite(dollars) || dollars < 0) {
+    return { error: 'Enter the skins pot as a dollar amount, or leave it blank.', cents: 0 };
+  }
+  return { cents: Math.round(dollars * 100) };
+}
+
 export interface FlightFields { name: string; minHandicap: string; maxHandicap: string }
 
 export const EMPTY_FLIGHT: FlightFields = { name: '', minHandicap: '', maxHandicap: '' };

@@ -19,8 +19,7 @@ public class LeagueService
     private readonly StandingsCalculator       _standings;
     private readonly SkinsCalculator           _skins;
     private readonly PairingEngine             _pairing;
-    private readonly EmailService              _email;
-    private readonly PushNotificationService   _push;
+    private readonly IServiceScopeFactory      _scopes;
     private readonly ILogger<LeagueService>    _logger;
 
     public LeagueService(
@@ -29,8 +28,7 @@ public class LeagueService
         StandingsCalculator       standings,
         SkinsCalculator           skins,
         PairingEngine             pairing,
-        EmailService              email,
-        PushNotificationService   push,
+        IServiceScopeFactory      scopes,
         ILogger<LeagueService>    logger)
     {
         _db        = db;
@@ -38,8 +36,7 @@ public class LeagueService
         _standings = standings;
         _skins     = skins;
         _pairing   = pairing;
-        _email     = email;
-        _push      = push;
+        _scopes    = scopes;
         _logger    = logger;
     }
 
@@ -136,7 +133,7 @@ public class LeagueService
         Guid orgId, Guid leagueId, Guid seasonId, CancellationToken ct)
     {
         await GetOwnedLeagueAsync(orgId, leagueId, ct);
-        var season = await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        var season = await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
 
         var members = await GetMembersAsync(orgId, leagueId, seasonId, ct);
         var rounds  = await GetRoundsAsync(orgId, leagueId, seasonId, ct);
@@ -184,7 +181,7 @@ public class LeagueService
     public async Task<List<FlightResponse>> GetFlightsAsync(
         Guid orgId, Guid leagueId, Guid seasonId, CancellationToken ct)
     {
-        await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
         return await _db.Flights
             .Where(f => f.SeasonId == seasonId)
             .Select(f => new FlightResponse
@@ -203,7 +200,7 @@ public class LeagueService
     public async Task<FlightResponse> CreateFlightAsync(
         Guid orgId, Guid leagueId, Guid seasonId, CreateFlightRequest req, CancellationToken ct)
     {
-        await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
 
         var name = req.Name.Trim();
         if (name.Length == 0)
@@ -237,7 +234,7 @@ public class LeagueService
     public async Task<List<LeagueMemberResponse>> GetMembersAsync(
         Guid orgId, Guid leagueId, Guid seasonId, CancellationToken ct)
     {
-        await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
         var sandbagged = await _handicap.DetectSandbaggersAsync(seasonId, ct);
 
         return await _db.LeagueMembers
@@ -267,7 +264,7 @@ public class LeagueService
     public async Task<LeagueMemberResponse> AddMemberAsync(
         Guid orgId, Guid leagueId, Guid seasonId, AddMemberRequest req, CancellationToken ct)
     {
-        await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
 
         if (!Enum.TryParse<MemberStatus>(req.Status, ignoreCase: true, out var status))
             status = MemberStatus.Active;
@@ -305,7 +302,7 @@ public class LeagueService
         Guid orgId, Guid leagueId, Guid seasonId, Guid memberId,
         UpdateMemberRequest req, CancellationToken ct)
     {
-        await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
         var member = await _db.LeagueMembers
             .FirstOrDefaultAsync(m => m.Id == memberId && m.SeasonId == seasonId, ct)
             ?? throw new NotFoundException("Member not found.");
@@ -344,7 +341,7 @@ public class LeagueService
         Guid orgId, Guid leagueId, Guid seasonId, Guid memberId,
         OverrideHandicapRequest req, CancellationToken ct)
     {
-        await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
         var member = await _db.LeagueMembers
             .FirstOrDefaultAsync(m => m.Id == memberId && m.SeasonId == seasonId, ct)
             ?? throw new NotFoundException("Member not found.");
@@ -371,7 +368,7 @@ public class LeagueService
     public async Task<List<HandicapHistoryRow>> GetHandicapHistoryAsync(
         Guid orgId, Guid leagueId, Guid seasonId, Guid memberId, CancellationToken ct)
     {
-        await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
         return await _db.HandicapHistories
             .Include(h => h.Round)
             .Where(h => h.MemberId == memberId)
@@ -396,7 +393,7 @@ public class LeagueService
     public async Task<List<LeagueRoundResponse>> GetRoundsAsync(
         Guid orgId, Guid leagueId, Guid seasonId, CancellationToken ct)
     {
-        await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
         return await _db.LeagueRounds
             .Include(r => r.Course)
             .Where(r => r.SeasonId == seasonId)
@@ -423,7 +420,7 @@ public class LeagueService
     public async Task<LeagueRoundResponse> CreateRoundAsync(
         Guid orgId, Guid leagueId, Guid seasonId, CreateRoundRequest req, CancellationToken ct)
     {
-        await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
 
         var round = new LeagueRound
         {
@@ -456,7 +453,7 @@ public class LeagueService
         Guid orgId, Guid leagueId, Guid seasonId, Guid roundId,
         int maxPerGroup, CancellationToken ct)
     {
-        await GetOwnedRoundAsync(leagueId, seasonId, roundId, ct);
+        await GetOwnedRoundAsync(orgId, leagueId, seasonId, roundId, ct);
         return await _pairing.GenerateAsync(roundId, maxPerGroup, ct);
     }
 
@@ -464,7 +461,7 @@ public class LeagueService
         Guid orgId, Guid leagueId, Guid seasonId, Guid roundId,
         SavePairingsRequest req, CancellationToken ct)
     {
-        await GetOwnedRoundAsync(leagueId, seasonId, roundId, ct);
+        await GetOwnedRoundAsync(orgId, leagueId, seasonId, roundId, ct);
 
         var existing = await _db.LeaguePairings
             .Where(p => p.RoundId == roundId)
@@ -513,8 +510,14 @@ public class LeagueService
     {
         try
         {
+            // Runs after the request has ended, when the injected DbContext is gone.
+            using var scope = _scopes.CreateScope();
+            var db    = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var email = scope.ServiceProvider.GetRequiredService<EmailService>();
+            var push  = scope.ServiceProvider.GetRequiredService<PushNotificationService>();
+
             // Load all members in this season (keyed by id)
-            var allMembers = await _db.LeagueMembers
+            var allMembers = await db.LeagueMembers
                 .Where(m => m.SeasonId == seasonId)
                 .ToListAsync(ct);
             var memberMap = allMembers.ToDictionary(m => m.Id);
@@ -524,14 +527,14 @@ public class LeagueService
                 .Where(m => m.PlayerId.HasValue)
                 .Select(m => m.PlayerId!.Value)
                 .ToList();
-            var playerTokens = await _db.Players
+            var playerTokens = await db.Players
                 .Where(p => playerIds.Contains(p.Id) && p.ExpoPushToken != null)
                 .Select(p => new { p.Id, p.ExpoPushToken })
                 .ToListAsync(ct);
             var tokenByPlayerId = playerTokens.ToDictionary(p => p.Id, p => p.ExpoPushToken!);
 
             // Round number: count of rounds in season sorted by date up to this one
-            var roundNum = await _db.LeagueRounds
+            var roundNum = await db.LeagueRounds
                 .Where(r => r.SeasonId == seasonId && r.RoundDate <= round.RoundDate)
                 .CountAsync(ct);
 
@@ -558,10 +561,10 @@ public class LeagueService
 
                     // Push notification
                     if (member.PlayerId.HasValue && tokenByPlayerId.TryGetValue(member.PlayerId.Value, out var token))
-                        await _push.SendAsync(new[] { token }, "Your Pairings Are Ready!", pushBody, null, ct);
+                        await push.SendAsync(new[] { token }, "Your Pairings Are Ready!", pushBody, null, ct);
 
                     // Email
-                    await _email.SendAsync(orgId, EmailTriggerType.RoundResult, member.Email,
+                    await email.SendAsync(orgId, EmailTriggerType.RoundResult, member.Email,
                         $"{member.FirstName} {member.LastName}", new Dictionary<string, string>
                         {
                             ["FIRST_NAME"]   = member.FirstName,
@@ -585,7 +588,7 @@ public class LeagueService
     public async Task OpenScoringAsync(
         Guid orgId, Guid leagueId, Guid seasonId, Guid roundId, CancellationToken ct)
     {
-        var round = await GetOwnedRoundAsync(leagueId, seasonId, roundId, ct);
+        var round = await GetOwnedRoundAsync(orgId, leagueId, seasonId, roundId, ct);
         if (round.Status != RoundStatus.Open && round.Status != RoundStatus.Scheduled)
             throw new ValidationException("Round must be Scheduled or Open to open scoring.");
         round.Status = RoundStatus.Scoring;
@@ -596,11 +599,11 @@ public class LeagueService
         Guid orgId, Guid leagueId, Guid seasonId, Guid roundId,
         int skinsPotCentsPerHolePerPlayer, CancellationToken ct)
     {
-        var round = await GetOwnedRoundAsync(leagueId, seasonId, roundId, ct);
+        var round = await GetOwnedRoundAsync(orgId, leagueId, seasonId, roundId, ct);
         if (round.Status != RoundStatus.Scoring)
             throw new ValidationException("Round must be in Scoring status to close.");
 
-        var season = await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        var season = await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
 
         round.Status = RoundStatus.Closed;
 
@@ -640,13 +643,18 @@ public class LeagueService
     {
         try
         {
+            // Runs after the request has ended, when the injected DbContext is gone.
+            using var scope = _scopes.CreateScope();
+            var db    = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var email = scope.ServiceProvider.GetRequiredService<EmailService>();
+
             // Round result emails
-            var scoredMembers = await _db.LeagueMembers
+            var scoredMembers = await db.LeagueMembers
                 .Where(m => scoredMemberIds.Contains(m.Id))
                 .ToListAsync(ct);
 
             // Load scores for this round grouped by member
-            var roundScores = await _db.LeagueScores
+            var roundScores = await db.LeagueScores
                 .Where(s => s.RoundId == roundId)
                 .GroupBy(s => s.MemberId)
                 .Select(g => new
@@ -663,7 +671,7 @@ public class LeagueService
                 var rs = roundScores.FirstOrDefault(r => r.MemberId == m.Id);
                 if (rs is null) continue;
 
-                await _email.SendAsync(orgId, EmailTriggerType.RoundResult, m.Email,
+                await email.SendAsync(orgId, EmailTriggerType.RoundResult, m.Email,
                     $"{m.FirstName} {m.LastName}", new Dictionary<string, string>
                     {
                         ["FIRST_NAME"]   = m.FirstName,
@@ -677,7 +685,7 @@ public class LeagueService
             // Handicap update emails
             foreach (var update in handicapUpdates)
             {
-                await _email.SendAsync(orgId, EmailTriggerType.HandicapUpdate, update.Email,
+                await email.SendAsync(orgId, EmailTriggerType.HandicapUpdate, update.Email,
                     update.Name, new Dictionary<string, string>
                     {
                         ["FIRST_NAME"]    = update.Name.Split(' ').First(),
@@ -701,7 +709,7 @@ public class LeagueService
         Guid orgId, Guid leagueId, Guid seasonId, Guid roundId,
         SubmitLeagueScoreRequest req, CancellationToken ct)
     {
-        var round = await GetOwnedRoundAsync(leagueId, seasonId, roundId, ct);
+        var round = await GetOwnedRoundAsync(orgId, leagueId, seasonId, roundId, ct);
         if (round.Status != RoundStatus.Scoring)
             throw new ValidationException("Scoring is not open for this round.");
 
@@ -773,7 +781,7 @@ public class LeagueService
     public async Task<List<LeagueRoundScorecard>> GetRoundScorecardsAsync(
         Guid orgId, Guid leagueId, Guid seasonId, Guid roundId, CancellationToken ct)
     {
-        await GetOwnedRoundAsync(leagueId, seasonId, roundId, ct);
+        await GetOwnedRoundAsync(orgId, leagueId, seasonId, roundId, ct);
 
         var scores = await _db.LeagueScores
             .AsNoTracking()
@@ -827,7 +835,7 @@ public class LeagueService
     public async Task<List<StandingRow>> GetStandingsAsync(
         Guid orgId, Guid leagueId, Guid seasonId, CancellationToken ct)
     {
-        await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
         return await _db.Standings
             .Include(s => s.Member)
             .ThenInclude(m => m.Flight)
@@ -856,7 +864,7 @@ public class LeagueService
     public async Task<List<SkinRow>> GetSkinsAsync(
         Guid orgId, Guid leagueId, Guid seasonId, Guid roundId, CancellationToken ct)
     {
-        await GetOwnedRoundAsync(leagueId, seasonId, roundId, ct);
+        await GetOwnedRoundAsync(orgId, leagueId, seasonId, roundId, ct);
         return await _db.Skins
             .Include(s => s.Winner)
             .Where(s => s.RoundId == roundId)
@@ -940,7 +948,7 @@ public class LeagueService
         Guid orgId, Guid leagueId, Guid seasonId, Guid roundId,
         ReportAbsenceRequest req, CancellationToken ct)
     {
-        await GetOwnedRoundAsync(leagueId, seasonId, roundId, ct);
+        await GetOwnedRoundAsync(orgId, leagueId, seasonId, roundId, ct);
         var member = await _db.LeagueMembers
             .FirstOrDefaultAsync(m => m.Id == req.MemberId && m.SeasonId == seasonId, ct)
             ?? throw new NotFoundException("Member not found.");
@@ -974,7 +982,7 @@ public class LeagueService
     public async Task<List<RoundAbsenceResponse>> GetRoundAbsencesAsync(
         Guid orgId, Guid leagueId, Guid seasonId, Guid roundId, CancellationToken ct)
     {
-        await GetOwnedRoundAsync(leagueId, seasonId, roundId, ct);
+        await GetOwnedRoundAsync(orgId, leagueId, seasonId, roundId, ct);
         return await _db.RoundAbsences
             .Include(a => a.Member)
             .Include(a => a.Sub)
@@ -998,7 +1006,7 @@ public class LeagueService
         Guid orgId, Guid leagueId, Guid seasonId, Guid roundId,
         AddSubstituteRequest req, CancellationToken ct)
     {
-        await GetOwnedRoundAsync(leagueId, seasonId, roundId, ct);
+        await GetOwnedRoundAsync(orgId, leagueId, seasonId, roundId, ct);
 
         var absence = await _db.RoundAbsences
             .FirstOrDefaultAsync(a => a.RoundId == roundId && a.MemberId == req.AbsentMemberId, ct)
@@ -1111,7 +1119,7 @@ public class LeagueService
         UpdateSeasonSyncRequest req, CancellationToken ct)
     {
         await GetOwnedLeagueAsync(orgId, leagueId, ct);
-        var season = await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        var season = await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
         season.SyncHandicapToPlayer = req.SyncHandicapToPlayer;
         await _db.SaveChangesAsync(ct);
     }
@@ -1121,7 +1129,7 @@ public class LeagueService
     public async Task<byte[]> GetPairingsPdfBytesAsync(
         Guid orgId, Guid leagueId, Guid seasonId, Guid roundId, CancellationToken ct)
     {
-        var round = await GetOwnedRoundAsync(leagueId, seasonId, roundId, ct);
+        var round = await GetOwnedRoundAsync(orgId, leagueId, seasonId, roundId, ct);
         var course = round.CourseId.HasValue
             ? await _db.Courses.FindAsync(new object?[] { round.CourseId.Value }, ct)
             : null;
@@ -1210,7 +1218,7 @@ public class LeagueService
         Guid orgId, Guid leagueId, Guid seasonId, CancellationToken ct)
     {
         await GetOwnedLeagueAsync(orgId, leagueId, ct);
-        var season = await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        var season = await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
         var rows   = await GetStandingsAsync(orgId, leagueId, seasonId, ct);
 
         var league = await _db.Leagues.FindAsync(new object?[] { season.LeagueId }, ct);
@@ -1303,17 +1311,17 @@ public class LeagueService
     }
 
     private async Task<Season> GetOwnedSeasonAsync(
-        Guid leagueId, Guid seasonId, CancellationToken ct)
+        Guid orgId, Guid leagueId, Guid seasonId, CancellationToken ct)
     {
         var season = await _db.Seasons.FirstOrDefaultAsync(
-            s => s.Id == seasonId && s.LeagueId == leagueId, ct);
+            s => s.Id == seasonId && s.LeagueId == leagueId && s.League.OrgId == orgId, ct);
         return season ?? throw new NotFoundException("Season not found.");
     }
 
     private async Task<LeagueRound> GetOwnedRoundAsync(
-        Guid leagueId, Guid seasonId, Guid roundId, CancellationToken ct)
+        Guid orgId, Guid leagueId, Guid seasonId, Guid roundId, CancellationToken ct)
     {
-        var season = await GetOwnedSeasonAsync(leagueId, seasonId, ct);
+        var season = await GetOwnedSeasonAsync(orgId, leagueId, seasonId, ct);
         var round = await _db.LeagueRounds.FirstOrDefaultAsync(
             r => r.Id == roundId && r.SeasonId == seasonId, ct);
         return round ?? throw new NotFoundException("Round not found.");

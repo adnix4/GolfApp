@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildFlightPayload, changedHoles, flightRangeLabel, holeInputsFrom, scorableMembers,
+  buildFlightPayload, changedHoles, flightRangeLabel, holeInputsFrom, parseSkinsPot, scorableMembers,
 } from '../lib/leagueAdmin';
 import type { LeagueMember, LeagueScorecard, RoundAbsence } from '../lib/api';
 
@@ -56,6 +56,19 @@ describe('scorableMembers', () => {
     ];
     const absences = [{ memberId: '4' }] as RoundAbsence[];
     expect(scorableMembers(roster, absences).map(m => m.id)).toEqual(['2', '5', '1']);
+  });
+});
+
+describe('parseSkinsPot', () => {
+  it('treats blank as no skins and converts dollars to cents', () => {
+    expect(parseSkinsPot(' ')).toEqual({ cents: 0 });
+    expect(parseSkinsPot('2')).toEqual({ cents: 200 });
+    expect(parseSkinsPot('0.25')).toEqual({ cents: 25 });
+    expect(parseSkinsPot('1.10')).toEqual({ cents: 110 });
+  });
+
+  it.each(['-1', 'two'])('rejects %s', value => {
+    expect(parseSkinsPot(value).error).toBeTruthy();
   });
 });
 

@@ -308,6 +308,50 @@ export function AbsencesModal({
   );
 }
 
+// ── CLOSE ROUND ───────────────────────────────────────────────────────────────
+
+export function CloseRoundModal({
+  visible, round, skinsPot, saving, error, setSkinsPot, onCancel, onConfirm,
+}: {
+  visible:     boolean;
+  round:       LeagueRound | null;
+  skinsPot:    string;
+  saving:      boolean;
+  error:       string | null;
+  setSkinsPot: (v: string) => void;
+  onCancel:    () => void;
+  onConfirm:   () => void;
+}) {
+  const theme = useTheme();
+  const c = useClasses();
+  return (
+    <FormModal
+      visible={visible}
+      title={`Close Round — ${formatDateOnly(round?.roundDate)}`}
+      onClose={onCancel}
+      onSubmit={onConfirm}
+      submitLabel="Close Round"
+      destructive
+      loading={saving}
+    >
+      <Text style={{ color: theme.colors.primary, fontSize: fontSize.sm }}>
+        {round?.scoredCount ?? 0} members have scores. Closing updates handicaps and standings and
+        emails results. You can't reopen the round or change its scores afterwards.
+      </Text>
+      <Text style={c.fieldLabel}>Skins Pot ($ per player, per hole)</Text>
+      <TextInput
+        style={c.input}
+        value={skinsPot}
+        onChangeText={setSkinsPot}
+        keyboardType="decimal-pad"
+        placeholder="Leave blank for no skins"
+        placeholderTextColor={PLACEHOLDER}
+      />
+      {error && <Text style={{ color: status.danger, fontSize: fontSize.sm }}>{error}</Text>}
+    </FormModal>
+  );
+}
+
 // ── ENTER SCORES ──────────────────────────────────────────────────────────────
 
 export function EnterScoresModal({

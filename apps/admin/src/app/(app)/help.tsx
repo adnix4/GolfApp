@@ -121,7 +121,7 @@ const TAB_GROUPS = [
 const LEAGUE_ITEMS = [
   'Create a League from the Leagues navigation item.',
   'Add Seasons to the league, then add members with their handicaps.',
-  'Add Rounds to a season. For each round: Generate Pairings, Open Scoring, Enter Scores for each member, then Close Round.',
+  'Add Rounds to a season. For each round: Generate Pairings, Open Scoring, Enter Scores for each member, then Close Round. Set a skins pot when you close, or leave it blank for no skins.',
   'Create flights from the Roster tab with + Flight, then use the Flight button on each member to assign them.',
   'Closing a round recalculates handicaps, updates the standings, and resolves skins.',
   'The Season Dashboard has Overview, Roster, Rounds, Handicaps, Standings, and Skins tabs, with printable pairings and a standings PDF.',
