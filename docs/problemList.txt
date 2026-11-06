@@ -59,7 +59,8 @@ P4 — FEATURES / POLISH
      U7   follow-ups from the 2026-08-02/03 work (sponsors, ticker, TV branding,
           bid confirmation). (a) was the security item and is FIXED 2026-08-15 —
           it was pulled forward out of this tier, as the note said to. (b)-(m)
-          remain, and are decisions or polish rather than defects.
+          remain, and are decisions or polish rather than defects. (b) and (d)
+          FIXED 2026-11-06.
      Test-structure review (2026-10-03) — work in this order:
      [x] T6  harness refuses busy ports + requires its own servers 2026-10-03
      [x] T5  CI exports admin + mobile web bundles on every PR 2026-10-03
@@ -1262,7 +1263,13 @@ Captured while filling API test-coverage holes. Mark [x] when done.
             AuctionItemResponse with the caller's max would remove the second
             request altogether, and with it this endpoint's whole exposure.
 
-        (b) A SPONSOR PLACEMENT TOGGLE WOULD BE WIPED BY THE ADMIN FORM.
+        (b) [x] FIXED 2026-11-06 — the admin sponsor form now merges the holes
+            into the sponsor's existing placements (apps/admin/src/lib/
+            sponsorPlacements.ts, 4 tests). VERIFIED on the local API: a sponsor
+            with landingPage:false kept it through an edit and stayed off the
+            public page; the old payload ({holeNumbers} only) put it back on.
+            Original note:
+            A SPONSOR PLACEMENT TOGGLE WOULD BE WIPED BY THE ADMIN FORM.
             IsLandingPageSponsor is now opt-OUT (absent key = show), because the
             admin form never wrote landingPage at all and every sponsor on every
             event was therefore hidden from the public page and the ticker. The
@@ -1277,7 +1284,17 @@ Captured while filling API test-coverage holes. Mark [x] when done.
             landing page's sponsor banner was empty everywhere and now is not.
             Intended, but no organizer asked for it and none were told.
 
-        (d) PRE-EXISTING, NOW MORE VISIBLE — hole challenges can never render on
+        (d) [x] FIXED 2026-11-06 — the public event's sponsors now carry
+            holeNumbers (EventService.GetPublicEventAsync + an API test), and the
+            web page also fetches /pub/events/{code}/challenges, so the card shows
+            each contest on its hole (description, prize, sponsor), hole sponsors
+            with no contest, and all-day challenges last (holeChallenges.ts,
+            8 tests). The never-sent challengeDescription field was removed.
+            VERIFIED: rendered page for a seeded event listed Hole 3 Closest to the
+            Pin / Pin Co, Hole 7 Pin Co, Hole 12 Longest Drive, All day
+            Hole-in-One with its prize; the opted-out sponsor did not appear.
+            Original note:
+            PRE-EXISTING, NOW MORE VISIBLE — hole challenges can never render on
             the event page. web PublicSponsorInfo declares optional holeNumbers /
             challengeDescription, and page.tsx computes hasChallenges from
             s.holeNumbers, but the API's PublicSponsorInfo (EventModels.cs:568)

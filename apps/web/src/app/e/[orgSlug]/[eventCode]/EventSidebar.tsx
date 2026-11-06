@@ -5,12 +5,13 @@ import { DonateWidget } from './EventActions';
 import type {
   PublicEventData, PublicFundraisingInfo, PublicSponsorInfo,
 } from '@/lib/api';
+import type { HoleChallengeRow } from './holeChallenges';
 
 /**
  * Right-hand column of the public event page. Renders any combination of:
  * - Donation thermometer (when grandTotalCents > 0)
  * - Donate widget (during registration/active/scoring/completed)
- * - Hole-challenges list (when any hole sponsors exist)
+ * - Hole-challenges list (when any challenge or hole sponsor exists)
  * - Sorted sponsor banner
  *
  * Caller decides whether to render this at all via hasSidebar.
@@ -18,16 +19,15 @@ import type {
 export default function EventSidebar({
   event,
   showDonate,
+  holeChallenges,
 }: {
-  event:      PublicEventData;
-  showDonate: boolean;
+  event:          PublicEventData;
+  showDonate:     boolean;
+  holeChallenges: HoleChallengeRow[];  // from buildHoleChallengeRows
 }) {
   const tierOrder      = ['title', 'gold', 'hole', 'silver', 'bronze'];
   const sortedSponsors = [...event.sponsors].sort(
     (a, b) => tierOrder.indexOf(a.tier) - tierOrder.indexOf(b.tier),
-  );
-  const holeChallenges = sortedSponsors.filter(
-    s => s.holeNumbers && s.holeNumbers.length > 0,
   );
 
   return (
@@ -51,7 +51,7 @@ export default function EventSidebar({
       )}
 
       {holeChallenges.length > 0 && (
-        <HoleChallengesWidget sponsors={holeChallenges} />
+        <HoleChallengesWidget rows={holeChallenges} />
       )}
 
       {sortedSponsors.length > 0 && (
@@ -92,25 +92,17 @@ function DonationThermometer({ fundraising }: { fundraising: PublicFundraisingIn
   );
 }
 
-function HoleChallengesWidget({ sponsors }: { sponsors: PublicSponsorInfo[] }) {
-  // Flatten sponsors → one entry per hole number, sorted ascending
-  const entries = sponsors
-    .flatMap(s => (s.holeNumbers ?? []).map(h => ({
-      hole: h,
-      name: s.name,
-      desc: s.challengeDescription ?? null,
-    })))
-    .sort((a, b) => a.hole - b.hole);
-
+function HoleChallengesWidget({ rows }: { rows: HoleChallengeRow[] }) {
   return (
     <div style={w.card}>
       <h3 style={w.title}>🏆 Hole Challenges</h3>
-      {entries.map((e, i) => (
-        <div key={i} style={w.holeRow}>
-          <span style={w.holeNum}>Hole {e.hole}</span>
+      {rows.map(r => (
+        <div key={r.key} style={w.holeRow}>
+          <span style={w.holeNum}>{r.hole == null ? 'All day' : `Hole ${r.hole}`}</span>
           <div style={w.holeInfo}>
-            {e.desc && <span style={w.holeDesc}>{e.desc}</span>}
-            <span style={w.holeSponsor}>{e.name}</span>
+            {r.description && <span style={w.holeDesc}>{r.description}</span>}
+            {r.prize && <span style={w.holeSponsor}>Prize: {r.prize}</span>}
+            {r.sponsorName && <span style={w.holeSponsor}>{r.sponsorName}</span>}
           </div>
         </div>
       ))}

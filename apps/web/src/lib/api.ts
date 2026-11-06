@@ -83,7 +83,16 @@ export interface PublicSponsorInfo {
   tagline:              string | null;
   tier:                 string;
   holeNumbers?:         number[];     // hole-sponsor associations
-  challengeDescription?: string;      // e.g. "Closest to Pin"
+}
+
+/** A hole contest from GET /pub/events/{code}/challenges (results omitted). */
+export interface PublicChallenge {
+  id:               string;
+  holeNumber:       number | null;    // null = all-day challenge
+  challengeType:    string;
+  description:      string;           // e.g. "Closest to the Pin"
+  prizeDescription: string | null;
+  sponsorName:      string | null;
 }
 
 export interface PublicFundraisingInfo {
@@ -316,6 +325,23 @@ export async function fetchPublicAuctionItems(
       ...i,
       photoUrls: (i.photoUrls ?? []).map(u => resolveUploadUrl(u)),
     }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Hole challenges for the event page sidebar. Same 60 s revalidate as the
+ * event itself; an error or a 404 just means no challenges card ([]).
+ */
+export async function fetchPublicChallenges(eventCode: string): Promise<PublicChallenge[]> {
+  try {
+    const res = await fetch(`${BASE}/api/v1/pub/events/${eventCode}/challenges`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return [];
+    const data: { challenges?: PublicChallenge[] } = await res.json();
+    return data.challenges ?? [];
   } catch {
     return [];
   }

@@ -6,7 +6,8 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme, AdaptiveLogoFrame, MoneyInput, useClasses } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
-import { sponsorsApi, type Sponsor, type CreateSponsorPayload, type SponsorPlacements } from '@/lib/api';
+import { sponsorsApi, type Sponsor, type CreateSponsorPayload } from '@/lib/api';
+import { mergeSponsorPlacements } from '@/lib/sponsorPlacements';
 import { useSponsorList } from '@/lib/queries';
 import { UPLOAD_ABORTED } from '@/lib/upload';
 import { UploadProgress } from '@/components/UploadProgress';
@@ -307,7 +308,11 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
         ? dollarsToCents(donationAmt)
         : undefined;
 
-      const placements: SponsorPlacements = { holeNumbers: selectedHoles };
+      // Merge, don't replace: keeps flags this form doesn't show (U7(b)).
+      const placements = mergeSponsorPlacements(
+        isEdit ? initialData?.placements : undefined,
+        selectedHoles,
+      );
 
       const payload: CreateSponsorPayload = {
         name: name.trim(),

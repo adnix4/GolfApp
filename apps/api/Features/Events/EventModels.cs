@@ -571,6 +571,8 @@ public record PublicSponsorInfo
     public string  LogoUrl { get; init; } = string.Empty;
     public string? Tagline { get; init; }
     public string  Tier    { get; init; } = string.Empty;
+    /// <summary>Holes this sponsor is placed on; drives the event page's Hole Challenges card.</summary>
+    public List<int> HoleNumbers { get; init; } = new();
 }
 
 public record PublicFundraisingInfo
