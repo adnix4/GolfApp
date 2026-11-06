@@ -232,6 +232,25 @@ public class EventServiceTests
     }
 
     [Fact]
+    public async Task GetPublicEvent_sponsors_carry_hole_numbers_for_the_challenges_card()
+    {
+        // U7(d): the web event page shows Hole Challenges only when a sponsor
+        // has holeNumbers, and this DTO used to drop them, so it never showed.
+        var c = Build();
+        AddSponsor(c, "Pin Co",   SponsorTier.Hole, """{"holeNumbers":[7,3]}""");
+        AddSponsor(c, "Banner",   SponsorTier.Gold, "{}");
+        AddSponsor(c, "Hidden",   SponsorTier.Hole, """{"landingPage":false,"holeNumbers":[9]}""");
+        AddSponsor(c, "Garbled",  SponsorTier.Hole, "not json");
+
+        var resp = await c.Svc.GetPublicEventAsync("GALA0001");
+
+        Assert.Equal(new[] { 7, 3 }, resp.Sponsors.Single(s => s.Name == "Pin Co").HoleNumbers);
+        Assert.Empty(resp.Sponsors.Single(s => s.Name == "Banner").HoleNumbers);
+        Assert.Empty(resp.Sponsors.Single(s => s.Name == "Garbled").HoleNumbers);
+        Assert.DoesNotContain(resp.Sponsors, s => s.Name == "Hidden"); // opt-out still honoured
+    }
+
+    [Fact]
     public async Task GetPublicEvent_sums_to_zero_with_no_donations()
     {
         var c = Build();

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { fetchPublicEvent, fetchPublicLeaderboard } from '@/lib/api';
+import { fetchPublicChallenges, fetchPublicEvent, fetchPublicLeaderboard } from '@/lib/api';
 import { formatDate } from '@gfp/shared-types';
 import EventRegistrationSection from './EventActions';
 import EventHeader from './EventHeader';
@@ -8,6 +8,7 @@ import EventInfoCard from './EventInfoCard';
 import LiveScoresBanner from './LiveScoresBanner';
 import LeaderboardCard from './LeaderboardCard';
 import EventSidebar from './EventSidebar';
+import { buildHoleChallengeRows } from './holeChallenges';
 import { buildThemeCss, gridCss, s } from './eventPageStyles';
 
 // ── METADATA ──────────────────────────────────────────────────────────────────
@@ -53,13 +54,17 @@ export default async function EventPage(
   if (!event) notFound();
 
   const showLeaderboard = ['active', 'scoring', 'completed'].includes(event.status);
-  const leaderboard     = showLeaderboard ? await fetchPublicLeaderboard(eventCode) : null;
+  const [leaderboard, challenges] = await Promise.all([
+    showLeaderboard ? fetchPublicLeaderboard(eventCode) : Promise.resolve(null),
+    fetchPublicChallenges(eventCode),
+  ]);
+  const holeChallenges  = buildHoleChallengeRows(event.sponsors, challenges);
   const showDonate      = ['registration', 'active', 'scoring', 'completed'].includes(event.status);
 
   // Sidebar is rendered when at least one widget has something to show.
   const hasSponsors    = event.sponsors.length > 0;
   const hasFundraising = event.fundraising.grandTotalCents > 0;
-  const hasChallenges  = event.sponsors.some(s => s.holeNumbers && s.holeNumbers.length > 0);
+  const hasChallenges  = holeChallenges.length > 0;
   const hasSidebar     = hasSponsors || hasFundraising || hasChallenges || showDonate;
 
   const jsonLd = {
@@ -170,7 +175,7 @@ export default async function EventPage(
             {/* ── SIDEBAR ── */}
             {hasSidebar && (
               <aside style={s.sidebar}>
-                <EventSidebar event={event} showDonate={showDonate} />
+                <EventSidebar event={event} showDonate={showDonate} holeChallenges={holeChallenges} />
               </aside>
             )}
           </div>

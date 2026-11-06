@@ -877,10 +877,11 @@ public class EventService
             .OrderBy(s => s.Tier)
             .Select(s => new PublicSponsorInfo
             {
-                Name    = s.Name,
-                LogoUrl = s.LogoUrl,
-                Tagline = s.Tagline,
-                Tier    = s.Tier.ToString(),
+                Name        = s.Name,
+                LogoUrl     = s.LogoUrl,
+                Tagline     = s.Tagline,
+                Tier        = s.Tier.ToString(),
+                HoleNumbers = ExtractHoleNumbers(s.PlacementsJson),
             })
             .ToList();
 
