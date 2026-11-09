@@ -318,7 +318,7 @@ export default function ScoringLayout() {
         <Tabs.Screen
           name="league"
           options={{
-            title: 'League',
+            title: 'League Preview',
             tabBarLabel: 'League',
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'ribbon' : 'ribbon-outline'} size={22} color={color as string} />
