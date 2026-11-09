@@ -117,6 +117,8 @@ export interface PublicEventData {
   sponsors:         PublicSponsorInfo[];
   fundraising:      PublicFundraisingInfo;
   freeAgentEnabled: boolean;
+  /** The API will accept a sign-up now: Registration, or Active with walk-ups on. */
+  registrationOpen: boolean;
   resolvedLogoUrl:   string | null;
   resolvedThemeJson: string | null;
   missionStatement:  string | null;
@@ -189,6 +191,10 @@ function normalizePublicEvent(e: PublicEventData): PublicEventData {
     // API serializes the status enum as PascalCase ("Registration"); every
     // consumer under /e/… branches on lowercase, so normalize once here.
     status: e.status.toLowerCase(),
+    // An API from before registrationOpen existed omits it (web and API deploy
+    // separately). Fall back to the one status that is always open, so sign-up
+    // never vanishes from a Registration event during a deploy.
+    registrationOpen: e.registrationOpen ?? e.status.toLowerCase() === 'registration',
     resolvedLogoUrl: resolveUploadUrl(e.resolvedLogoUrl),
     sponsors: e.sponsors.map(s => ({ ...s, logoUrl: resolveUploadUrl(s.logoUrl) })),
   };
@@ -440,6 +446,16 @@ async function postJson(url: string, body: unknown): Promise<{ ok: boolean; stat
   return { ok: res.ok, status: res.status, data };
 }
 
+/**
+ * The message to show for a failed call. The API's own errors carry it in
+ * `error` (ExceptionHandlingMiddleware); ASP.NET's model-binding 400s use
+ * ProblemDetails `detail` / `title`. Reading only detail/title hid every
+ * API reason behind the generic fallback.
+ */
+export function apiError(data: any, fallback: string): string {
+  return data?.detail ?? data?.error ?? data?.title ?? fallback;
+}
+
 /** Pull the entry-fee payment fields off a RegistrationConfirmResponse. */
 function paymentFields(data: any): Pick<RegistrationResult, 'entryFeeClientSecret' | 'entryFeeCents' | 'inviteUrl' | 'inviteExpiresAt'> {
   return {
@@ -452,19 +468,19 @@ function paymentFields(data: any): Pick<RegistrationResult, 'entryFeeClientSecre
 
 export async function registerTeam(eventId: string, payload: RegisterTeamPayload): Promise<RegistrationResult> {
   const { ok, data } = await postJson(`${BASE}/api/v1/events/${eventId}/register/team`, payload);
-  if (!ok) return { ok: false, message: data?.detail ?? data?.title ?? 'Registration failed.' };
+  if (!ok) return { ok: false, message: apiError(data, 'Registration failed.') };
   return { ok: true, message: 'Team registered! Check your email for next steps.', ...paymentFields(data) };
 }
 
 export async function joinTeam(eventId: string, payload: JoinTeamPayload): Promise<RegistrationResult> {
   const { ok, data } = await postJson(`${BASE}/api/v1/events/${eventId}/register/join`, payload);
-  if (!ok) return { ok: false, message: data?.detail ?? data?.title ?? 'Could not join team.' };
+  if (!ok) return { ok: false, message: apiError(data, 'Could not join team.') };
   return { ok: true, message: "You've been added to the team!", ...paymentFields(data) };
 }
 
 export async function registerFreeAgent(eventId: string, payload: RegisterFreeAgentPayload): Promise<RegistrationResult> {
   const { ok, data } = await postJson(`${BASE}/api/v1/events/${eventId}/register/free-agent`, payload);
-  if (!ok) return { ok: false, message: data?.detail ?? data?.title ?? 'Registration failed.' };
+  if (!ok) return { ok: false, message: apiError(data, 'Registration failed.') };
   return { ok: true, message: "You're on the free agent list — the organizer will be in touch!", ...paymentFields(data) };
 }
 
@@ -499,7 +515,7 @@ export interface DonateResult {
 
 export async function submitDonation(eventCode: string, payload: DonatePayload): Promise<DonateResult> {
   const { ok, data } = await postJson(`${BASE}/api/v1/pub/events/${eventCode}/donate`, payload);
-  if (!ok) return { ok: false, message: data?.detail ?? data?.title ?? 'Donation failed.' };
+  if (!ok) return { ok: false, message: apiError(data, 'Donation failed.') };
   return { ok: true, message: data?.message ?? 'Thank you for your donation!' };
 }
 
@@ -519,7 +535,7 @@ export async function createDonationIntent(
   payload:   DonatePayload,
 ): Promise<DonateIntentResult> {
   const { ok, data } = await postJson(`${BASE}/api/v1/pub/events/${eventCode}/donate/intent`, payload);
-  if (!ok) return { ok: false, message: data?.detail ?? data?.title ?? 'Could not start the donation.' };
+  if (!ok) return { ok: false, message: apiError(data, 'Could not start the donation.') };
   return { ok: true, message: '', clientSecret: data.clientSecret, amountCents: data.amountCents };
 }
 

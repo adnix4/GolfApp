@@ -129,7 +129,10 @@ export default async function EventPage(
                 <LiveScoresBanner orgSlug={orgSlug} eventCode={eventCode} />
               )}
 
-              {['registration', 'active'].includes(event.status) && (
+              {/* Only while the API would accept the sign-up: Registration, or
+                  Active with walk-ups on. Once online registration is over the
+                  buttons go, rather than leading to a refused form. */}
+              {event.registrationOpen && (
                 <EventRegistrationSection
                   eventId={event.id}
                   orgName={event.orgName}

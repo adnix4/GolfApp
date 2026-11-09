@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { fetchPublicEvent } from '@/lib/api';
 import { buildThemeCss } from '../eventPageStyles';
@@ -26,6 +26,9 @@ export default async function JoinLandingPage(
   const { orgSlug, eventCode } = await params;
   const event = await fetchPublicEvent(eventCode);
   if (!event) notFound();
+  // Online registration is over (Active without walk-ups, or later): an old
+  // email or QR code lands on the event page, not on a form the API refuses.
+  if (!event.registrationOpen) redirect(`/e/${orgSlug}/${event.eventCode}`);
 
   const themeCss = buildThemeCss(event.resolvedThemeJson);
 

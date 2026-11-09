@@ -39,4 +39,15 @@ public static class EventStatusRules
     /// </remarks>
     public static bool CheckInAllowed(EventStatus status)
         => status is EventStatus.Active or EventStatus.Scoring;
+
+    /// <summary>
+    /// True when golfers can still register or join a team: Draft (test mode),
+    /// Registration, or Active with walk-ups allowed. The registration
+    /// endpoints enforce this, and the public event page shows its sign-up
+    /// buttons only when it holds, so a golfer never sees a form the API
+    /// would refuse.
+    /// </summary>
+    public static bool RegistrationOpen(EventStatus status, bool allowWalkUps)
+        => status is EventStatus.Draft or EventStatus.Registration
+           || (status == EventStatus.Active && allowWalkUps);
 }

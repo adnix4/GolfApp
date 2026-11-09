@@ -952,9 +952,8 @@ public class TeamService
     /// uses the same rule, so it only appears while its link would work.
     /// </summary>
     private bool IsOpenForRegistration(Event evt) =>
-        evt.Status == EventStatus.Draft
-        || evt.Status == EventStatus.Registration
-        || evt.Status == EventStatus.Active && (DeserializeConfig(evt.ConfigJson).AllowWalkUps ?? false);
+        Events.EventStatusRules.RegistrationOpen(
+            evt.Status, DeserializeConfig(evt.ConfigJson).AllowWalkUps ?? false);
 
     /// <summary>
     /// Checks that the event hasn't reached its max_teams limit.
