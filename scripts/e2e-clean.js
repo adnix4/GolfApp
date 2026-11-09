@@ -680,6 +680,139 @@ async function phaseConflict(ctx) {
   pass('admin approval puts the hole back on the board', c.dim('+1 · 13 · thru 3'));
 }
 
+// ── live leaderboard push (T9) ────────────────────────────────────────────────
+// Spectator boards, the TV scoreboard and the admin leaderboard all repaint
+// from SignalR, not from polling. Every check above reads the REST board, so
+// nothing caught the push itself breaking. This connects a real SignalR client
+// to /hubs/tournament (through the Redis backplane, on Postgres) and asserts:
+//   - a phone sync → LeaderboardRefreshed carrying the new standings;
+//   - an admin hole completion → ScoreUpdated (team, hole, gross, rank) and a
+//     refreshed board;
+//   - a scramble ace → HoleInOneAlert;
+//   - a burst of syncs is coalesced (≤ 2 broadcasts inside the 1.5 s window)
+//     and the last one carries the final state;
+//   - a client in ANOTHER event's group hears none of it.
+// The client is resolved from apps/web, which declares it, so this does not
+// lean on npm hoisting it to the root.
+function signalR() {
+  return require(require.resolve('@microsoft/signalr', { paths: [path.join(ROOT, 'apps', 'web')] }));
+}
+
+async function hubClient(code) {
+  const sr = signalR();
+  const conn = new sr.HubConnectionBuilder()
+    .withUrl(`${API.replace(/\/api\/v1$/, '')}/hubs/tournament`)
+    .configureLogging(sr.LogLevel.Error)
+    .build();
+  const got = [];                                 // { name, payload, at }
+  for (const name of ['LeaderboardRefreshed', 'ScoreUpdated', 'HoleInOneAlert']) {
+    // Block body: a handler that returns a value is taken as a reply to the
+    // server, which logs "Result given … server is not expecting a result".
+    conn.on(name, payload => { got.push({ name, payload, at: Date.now() }); });
+  }
+  await conn.start();
+  await conn.invoke('JoinEvent', code);
+  // Resolves with the first message (after index `from`) that satisfies ok,
+  // or null at the deadline, so the caller can fail with what DID arrive.
+  const until = async (name, ok = () => true, { from = 0, timeoutMs = 8000 } = {}) => {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      const hit = got.slice(from).find(m => m.name === name && ok(m.payload));
+      if (hit) return hit;
+      if (Date.now() > deadline) return null;
+      await sleep(100);
+    }
+  };
+  return { conn, got, until };
+}
+
+async function phaseSignalR(ctx) {
+  phase('Live leaderboard push (T9)');
+  phaseStart = Date.now();
+  const e     = await setupScoringEvent(ctx, 'Scramble', ['Lena Live', 'Max Live']);
+  const other = await setupScoringEvent(ctx, 'Scramble', ['Olga Other', 'Pat Other']);
+  const watch = await hubClient(e.code);
+  const stray = await hubClient(other.code);
+  const team  = p => (p.standings ?? []).find(r => r.teamId === e.teamId);
+  try {
+    pass('hub connected and joined the event group', c.dim(e.code));
+
+    // Phone sync, holes 1-2: 4 + 5 on pars 4, 5 → E (9), thru 2.
+    phaseStart = Date.now();
+    const sync = await syncAs(e, [{ holeNumber: 1, grossScore: 4 }, { holeNumber: 2, grossScore: 5 }]);
+    if (sync.accepted !== 2) fail('push setup sync', JSON.stringify(sync));
+    const first = await watch.until('LeaderboardRefreshed',
+      p => team(p)?.holesComplete === 2 && team(p)?.grossTotal === 9);
+    if (!first) {
+      fail('phone sync pushes the board', `no LeaderboardRefreshed thru 2 / 9; got ${JSON.stringify(watch.got)}`);
+    }
+    pass('phone sync pushes LeaderboardRefreshed', c.dim(`E · 9 · thru 2 in ${first.at - phaseStart} ms`));
+
+    // Admin enters and completes hole 3 (par 3) at 3: ScoreUpdated is
+    // immediate and carries the team's new totals; the board follows.
+    phaseStart = Date.now();
+    let mark = watch.got.length;
+    await api('POST', `/events/${e.eventId}/scores`, { token: ctx.token,
+      body: { teamId: e.teamId, holeNumber: 3, grossScore: 3 } });
+    await api('POST', `/events/${e.eventId}/teams/${e.teamId}/holes/3/complete`, { token: ctx.token,
+      body: { complete: true } });
+    const upd = await watch.until('ScoreUpdated', p => p.holeNumber === 3, { from: mark });
+    const u = upd?.payload;
+    if (!u || u.teamId !== e.teamId || u.grossScore !== 3 || u.toParTotal !== 0 || u.rank !== 1) {
+      fail('admin completion pushes ScoreUpdated',
+        `expected team ${e.teamId} hole 3 gross 3, E, rank 1; got ${JSON.stringify(u ?? watch.got.slice(mark))}`);
+    }
+    const second = await watch.until('LeaderboardRefreshed',
+      p => team(p)?.holesComplete === 3 && team(p)?.grossTotal === 12, { from: mark });
+    if (!second) {
+      fail('admin completion pushes the board', `no LeaderboardRefreshed thru 3 / 12; got ${JSON.stringify(watch.got.slice(mark))}`);
+    }
+    pass('admin completion pushes ScoreUpdated + the board', c.dim('hole 3 · E · rank 1 · thru 3'));
+
+    // A scramble ace: the team row at 1 on hole 6 (par 3).
+    phaseStart = Date.now();
+    mark = watch.got.length;
+    await syncAs(e, [{ holeNumber: 6, grossScore: 1 }]);
+    const ace = await watch.until('HoleInOneAlert', p => p.holeNumber === 6, { from: mark });
+    if (!ace) fail('ace pushes HoleInOneAlert', `none for hole 6; got ${JSON.stringify(watch.got.slice(mark))}`);
+    pass('scramble ace pushes HoleInOneAlert', c.dim('hole 6'));
+
+    // Coalescing: a concurrent burst of syncs inside one window. The board is
+    // recomputed per broadcast, so an uncoalesced storm is the load spike the
+    // broadcaster exists to absorb. Wait out the current window first so the
+    // count starts clean.
+    phaseStart = Date.now();
+    await sleep(1800);
+    mark = watch.got.length;
+    const t0 = Date.now();
+    await Promise.all([4, 5, 7, 8, 9].map(h =>
+      syncAs(e, [{ holeNumber: h, grossScore: E2E_PARS[h - 1] }])));
+    const burstMs = Date.now() - t0;
+    // Holes 1-9 now: 4 5 3 | 4 4 1 | 5 4 4 = 34 on par 36 → -2.
+    const last = await watch.until('LeaderboardRefreshed',
+      p => team(p)?.holesComplete === 9 && team(p)?.grossTotal === 34 && team(p)?.toPar === -2, { from: mark });
+    if (!last) {
+      fail('burst ends on the final board', `no LeaderboardRefreshed thru 9 / 34 / -2; got ${JSON.stringify(watch.got.slice(mark))}`);
+    }
+    await sleep(1800);                            // let any trailing flush land
+    const burst = watch.got.slice(mark).filter(m => m.name === 'LeaderboardRefreshed');
+    if (burstMs < 1200 && burst.length > 2) {
+      fail('burst is coalesced', `${burst.length} broadcasts for a ${burstMs} ms burst of 5 syncs (expected ≤ 2)`);
+    }
+    pass('burst of 5 syncs coalesced', c.dim(burstMs < 1200
+      ? `${burst.length} broadcast(s) · final -2 · thru 9`
+      : `burst took ${burstMs} ms, so the count was not asserted · final -2 · thru 9`));
+
+    // Group isolation: the other event's client heard nothing at all.
+    if (stray.got.length) {
+      fail('pushes stay in their event group', `idle event got ${stray.got.length} message(s): ${JSON.stringify(stray.got[0])}`);
+    }
+    pass('another event\'s client hears nothing', c.dim(`${watch.got.length} messages here · 0 there`));
+  } finally {
+    await Promise.allSettled([watch.conn.stop(), stray.conn.stop()]);
+  }
+}
+
 // ── league round (T9) ─────────────────────────────────────────────────────────
 // Closing a round runs HandicapEngine → StandingsCalculator → SkinsCalculator in
 // one call, and the handicap query was only ever unit-tested on EF InMemory.
@@ -1524,6 +1657,7 @@ async function phaseTransactions(ctx) {
     await phaseWebhooks(ctx);
     await phaseFormats(ctx);
     await phaseConflict(ctx);
+    await phaseSignalR(ctx);
     await phaseLeague(ctx);
     await phaseQrTransfer(ctx);
     await phaseCheckinQr(ctx);

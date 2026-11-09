@@ -100,7 +100,7 @@ function LeaguePromo() {
           standings, and flight-based matchups.
         </Text>
         <View style={[promoStyles.heroBadge, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
-          <Text style={promoStyles.heroBadgeText}>Not linked to this event</Text>
+          <Text style={promoStyles.heroBadgeText}>Preview · not part of this event</Text>
         </View>
       </View>
 
@@ -122,9 +122,13 @@ function LeaguePromo() {
         <Text style={[promoStyles.ctaTitle, { color: theme.colors.primary }]}>
           Interested in League Play?
         </Text>
+        {/* problemList U9: kept as a preview by decision (2026-11-06). A golfer's
+            session is never linked to a league season today, so do not promise
+            stats appearing here until that link exists. */}
         <Text style={[promoStyles.ctaBody, { color: theme.mutedText }]}>
-          Ask your event organizer to link this tournament to a league season.
-          Once linked, your stats and rankings will appear here automatically.
+          This tab is a preview of league play. Leagues are run by your organizer
+          as a separate season, and your league stats are not shown in this app yet.
+          Ask your organizer if they run one.
         </Text>
       </View>
     </ScrollView>

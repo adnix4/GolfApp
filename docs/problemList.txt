@@ -50,8 +50,8 @@ P4 — FEATURES / POLISH
           belongs on a proxy lot at all. Decision needed, not a coded fix.
      [x] D23 check-in token shortened to 66 chars (fits varchar(128), no
           migration); TT12 fixed with it; e2e checks it on Postgres 2026-10-24
-     U9   mobile League tab always shows the promo — the API never sends the
-          league ids. Decision needed: wire it up, hide it, or relabel it.
+     [x] U9  League tab kept as a preview by decision 2026-11-06; promo, header
+          and help now say it is a preview (wiring it up stays a future feature)
      [x] U10 admin hole-by-hole league score entry 2026-11-02 (was: Open Scoring /
           Close Round exist, but only the API accepts the scores.
      [x] U11 admin creates flights + assigns members 2026-11-02 (was: the API and the
@@ -60,13 +60,13 @@ P4 — FEATURES / POLISH
           bid confirmation). (a) was the security item and is FIXED 2026-08-15 —
           it was pulled forward out of this tier, as the note said to. (b)-(m)
           remain, and are decisions or polish rather than defects. (b) and (d)
-          FIXED 2026-11-06.
+          FIXED 2026-11-06; (k) decided 2026-11-06 (keep the words).
      Test-structure review (2026-10-03) — work in this order:
      [x] T6  harness refuses busy ports + requires its own servers 2026-10-03
      [x] T5  CI exports admin + mobile web bundles on every PR 2026-10-03
      [x] T8  e2e drives mobile scorecard + admin sign-in in a browser 2026-10-03
      [x] T7  CI runs the e2e harness (real Postgres/Redis + browser) 2026-10-03
-     T9   e2e: formats + conflict 2026-10-03, Stripe webhooks 2026-10-04; league 2026-10-26; SignalR open
+     [x] T9 e2e: formats + conflict 2026-10-03, Stripe webhooks 2026-10-04; league 2026-10-26; SignalR 2026-11-06
      [x] T10 web + ui have tests (logic-level, node env) 2026-10-03
      [x] T11 lap timings; API coverage in CI; turbo staleness moot 2026-10-03
      [x] T12 harness-only: fresh Edge profile's extensions abort requests; flags fix 2026-10-03
@@ -1017,7 +1017,8 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         events → "✗ admin sign-in". Both probes reverted.
         NOT RUN IN CI until T7 (the harness itself is local-only).
 
-[ ] T9. (E2E SCOPE) THE TOURNAMENT PHASE PLAYS ONE FORMAT, HAPPY PATH ONLY (2026-10-03).
+[x] T9. (E2E SCOPE) THE TOURNAMENT PHASE PLAYS ONE FORMAT, HAPPY PATH ONLY (2026-10-03).
+        ALL PARTS DONE 2026-11-06 (SignalR was the last).
         It plays Scramble, 9 holes, no conflicts. Exercised only by InMemory
         unit tests, or not at all: BestBall/Stableford/Stroke (U8), the admin-wins
         conflict and proposed_score approval, Stripe webhooks (the verify skill
@@ -1072,7 +1073,24 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         VERIFIED: making ties stop carrying (SkinsCalculator) fails the skins
         check; adding 1 to the differential (HandicapEngine) fails the
         handicaps check. Full harness green with neither change.
-        STILL OPEN: the SignalR leaderboard push.
+        SIGNALR PUSH DONE 2026-11-06 ("Live leaderboard push (T9)" phase): a real
+        @microsoft/signalr client (resolved from apps/web) joins the event group on
+        /hubs/tournament, through the Redis backplane on Postgres:
+        - a phone sync of holes 1-2 → LeaderboardRefreshed with the team at
+          E / 9 / thru 2 (about 40 ms after the sync);
+        - an admin entry + completion of hole 3 → ScoreUpdated (team, hole 3,
+          gross 3, toParTotal 0, rank 1) and a board at thru 3 / 12;
+        - a scramble ace on hole 6 → HoleInOneAlert;
+        - a concurrent burst of 5 syncs → at most 2 broadcasts inside the 1.5 s
+          coalescing window (1 in the first run), ending on the final board
+          -2 / 34 / thru 9. The count is only asserted when the burst itself
+          took under 1.2 s, so a slow runner cannot make it flaky;
+        - a client joined to a DIFFERENT event hears nothing.
+        VERIFIED: making LeaderboardBroadcaster.SendAsync return before sending
+        fails the phase at "phone sync pushes the board" (got []). Full harness
+        green without that change (--fast --skip-gates, 1.4 min).
+        NOT COVERED: the web/admin/mobile clients' own SignalR handlers (they are
+        exercised only by unit tests); the polling fallback when the socket drops.
 
 [x] T10. (COVERAGE) apps/web AND packages/ui HAVE NO TESTS (2026-10-03).
         apps/web has 29 source files and no `test` script. packages/ui has 13
@@ -1353,7 +1371,10 @@ Captured while filling API test-coverage holes. Mark [x] when done.
             "Your Max Bid" line — deliberately indistinguishable from "never bid
             on this", which is the safe direction but does hide the failure.
 
-        (k) THE "· Winning" / "· Outbid" WORD BESIDE THE AMOUNT WAS NOT ASKED
+        (k) [x] DECIDED 2026-11-06 — KEEP THE WORDS (user decision). Colour alone
+            fails a colour-blind golfer and reads poorly in sunlight. Do not
+            remove them. Original note:
+            THE "· Winning" / "· Outbid" WORD BESIDE THE AMOUNT WAS NOT ASKED
             FOR. The request was colour only; the word was added because colour
             alone fails a colour-blind golfer and reads poorly on a phone in
             sunlight. One line in the card render if it should go.
@@ -1474,7 +1495,14 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         individual, (1) is wrong for Stroke and (2) is the honest stopgap until
         (3). BestBall is unambiguous either way — lowest ball counts.
 
-  [ ] U9. (OPEN, added 2026-10-28) THE MOBILE LEAGUE TAB NEVER SHOWS REAL STATS.
+  [x] U9. (DECIDED 2026-11-06, added 2026-10-28) THE MOBILE LEAGUE TAB NEVER SHOWS REAL STATS.
+        DECISION: option (3), keep the promo and fix the copy. Done the same day:
+        the promo badge reads "Preview · not part of this event", the call to
+        action no longer promises stats "appearing automatically once linked"
+        (no such link exists), the screen title is "League Preview", and the
+        help entry says it is a preview of a separate season run by the
+        organizer. The tab label stays "League". If league play is ever wired
+        to golfer sessions, option (1) below is the plan; rewrite this copy then.
         Found in the help-page audit. The League tab is always on the tab bar,
         and apps/mobile/app/(scoring)/league.tsx shows the golfer's season
         summary only when the session carries leagueId + seasonId + memberId;

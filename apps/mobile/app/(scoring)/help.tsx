@@ -60,7 +60,7 @@ const TABS = [
     name: 'League',
     icon: '📊',
     color: status.danger,
-    desc: 'A preview of league play. Season stats will appear here when your organizer runs a league.',
+    desc: 'A preview of league play. Leagues are a separate season run by your organizer, not part of this event, and league stats are not shown in this app yet.',
     tips: [],
   },
 ];
