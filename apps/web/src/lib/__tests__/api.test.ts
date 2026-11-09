@@ -31,6 +31,22 @@ describe('fetchPublicEvent', () => {
     expect((await fetchPublicEvent('ABC'))?.status).toBe('registration');
   });
 
+  it("takes the API's registrationOpen when it sends one", async () => {
+    stubFetch(() => json({ ...event, status: 'Active', registrationOpen: true }));
+    expect((await fetchPublicEvent('ABC'))?.registrationOpen).toBe(true);
+    stubFetch(() => json({ ...event, registrationOpen: false }));
+    expect((await fetchPublicEvent('ABC'))?.registrationOpen).toBe(false);
+  });
+
+  // Web and API deploy separately: an older API omits the field, and the page
+  // must not hide sign-up on a Registration event because of it.
+  it('without registrationOpen, treats only Registration as open', async () => {
+    stubFetch(() => json(event));
+    expect((await fetchPublicEvent('ABC'))?.registrationOpen).toBe(true);
+    stubFetch(() => json({ ...event, status: 'Active' }));
+    expect((await fetchPublicEvent('ABC'))?.registrationOpen).toBe(false);
+  });
+
   // The bug this guards: rendering "/uploads/…" raw resolves it against the web
   // app's own origin and 404s (it hit every relative logo across admin + web).
   it('absolutizes root-relative upload URLs against the API, leaves absolute ones alone', async () => {

@@ -191,6 +191,10 @@ function normalizePublicEvent(e: PublicEventData): PublicEventData {
     // API serializes the status enum as PascalCase ("Registration"); every
     // consumer under /e/… branches on lowercase, so normalize once here.
     status: e.status.toLowerCase(),
+    // An API from before registrationOpen existed omits it (web and API deploy
+    // separately). Fall back to the one status that is always open, so sign-up
+    // never vanishes from a Registration event during a deploy.
+    registrationOpen: e.registrationOpen ?? e.status.toLowerCase() === 'registration',
     resolvedLogoUrl: resolveUploadUrl(e.resolvedLogoUrl),
     sponsors: e.sponsors.map(s => ({ ...s, logoUrl: resolveUploadUrl(s.logoUrl) })),
   };
