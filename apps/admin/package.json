@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~58.0.15",
+    "@expo/metro-runtime": "~58.0.17",
     "@gfp/shared-types": "*",
     "@gfp/theme": "*",
     "@gfp/ui": "*",
@@ -21,9 +21,9 @@
     "@stripe/stripe-js": "^9.12.1",
     "@tanstack/react-query": "~5.104.5",
     "expo": "~58.0.16",
-    "expo-constants": "~58.0.14",
-    "expo-linking": "~58.0.15",
-    "expo-router": "~58.0.24",
+    "expo-constants": "~58.0.15",
+    "expo-linking": "~58.0.16",
+    "expo-router": "~58.0.30",
     "expo-status-bar": "~58.0.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
