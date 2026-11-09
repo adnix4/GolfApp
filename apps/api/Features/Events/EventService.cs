@@ -906,6 +906,7 @@ public class EventService
                 GrandTotalCents = evt.DonationsCents,
             },
             FreeAgentEnabled = config.FreeAgentEnabled ?? false,
+            RegistrationOpen = EventStatusRules.RegistrationOpen(evt.Status, config.AllowWalkUps ?? false),
             // Resolved branding: event value wins, org value as fallback
             ResolvedLogoUrl   = evt.LogoUrl   ?? evt.OrgLogoUrl,
             ResolvedThemeJson = evt.ThemeJson  ?? evt.OrgThemeJson,

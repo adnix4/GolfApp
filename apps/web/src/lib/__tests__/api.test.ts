@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
-  deviceHeaders, fetchActiveEvents, fetchPublicEvent, fetchPublicEventStatus, fetchPublicLeaderboard,
+  apiError, deviceHeaders, fetchActiveEvents, fetchPublicEvent, fetchPublicEventStatus, fetchPublicLeaderboard,
 } from '../api';
 
 // BASE defaults to the local API when NEXT_PUBLIC_API_URL is unset (as here).
@@ -108,5 +108,22 @@ describe('deviceHeaders', () => {
   it('is empty during SSR (no window)', () => {
     expect(typeof window).toBe('undefined');
     expect(deviceHeaders()).toEqual({});
+  });
+});
+
+describe('apiError', () => {
+  it("shows the API's own reason, which it sends as `error`", () => {
+    const body = { error: 'Walk-up registration must be enabled in event settings to add teams to an Active event.', code: 'VALIDATION_ERROR' };
+    expect(apiError(body, 'Registration failed.')).toBe(body.error);
+  });
+
+  it('still reads ASP.NET ProblemDetails (detail, then title)', () => {
+    expect(apiError({ detail: 'd', title: 't' }, 'x')).toBe('d');
+    expect(apiError({ title: 'One or more validation errors occurred.' }, 'x')).toBe('One or more validation errors occurred.');
+  });
+
+  it('falls back when the body is empty or not JSON', () => {
+    expect(apiError(null, 'Registration failed.')).toBe('Registration failed.');
+    expect(apiError({}, 'Donation failed.')).toBe('Donation failed.');
   });
 });

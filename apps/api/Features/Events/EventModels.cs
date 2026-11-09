@@ -510,6 +510,13 @@ public record PublicEventResponse
     public bool FreeAgentEnabled { get; init; }
 
     /// <summary>
+    /// Whether the registration endpoints will accept a sign-up right now
+    /// (EventStatusRules.RegistrationOpen). False once an event is Active
+    /// without walk-ups, so the page hides its sign-up buttons.
+    /// </summary>
+    public bool RegistrationOpen { get; init; }
+
+    /// <summary>
     /// Resolved branding: event value when set, otherwise org value.
     /// Clients should use these instead of the old OrgLogoUrl field.
     /// </summary>

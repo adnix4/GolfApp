@@ -63,6 +63,20 @@ public class EventStatusRulesTests
         Assert.Empty(EventStatusRules.AllowedNext(EventStatus.Cancelled));
     }
 
+    [Theory]
+    [InlineData(EventStatus.Draft,        false, true)]
+    [InlineData(EventStatus.Registration, false, true)]
+    [InlineData(EventStatus.Active,       false, false)]  // online registration is over
+    [InlineData(EventStatus.Active,       true,  true)]   // day-of walk-ups
+    [InlineData(EventStatus.Scoring,      true,  false)]
+    [InlineData(EventStatus.Completed,    true,  false)]
+    [InlineData(EventStatus.Cancelled,    true,  false)]
+    public void RegistrationOpen_follows_status_and_walk_ups(
+        EventStatus status, bool allowWalkUps, bool expected)
+    {
+        Assert.Equal(expected, EventStatusRules.RegistrationOpen(status, allowWalkUps));
+    }
+
     [Fact]
     public void AllowedNext_Active_contains_only_Scoring_and_Cancelled()
     {
