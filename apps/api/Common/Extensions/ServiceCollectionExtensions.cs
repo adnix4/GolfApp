@@ -480,7 +480,11 @@ public static class ServiceCollectionExtensions
                         "http://localhost:8080")  // nginx reverse proxy
                     .AllowAnyMethod()
                     .AllowAnyHeader()
-                    .AllowCredentials(); // needed for httpOnly cookie refresh token
+                    .AllowCredentials() // needed for httpOnly cookie refresh token
+                    // Browsers reuse the preflight for 10 min instead of sending an
+                    // OPTIONS before every status/leaderboard poll (custom X-GFP-*
+                    // headers make each poll a non-simple request).
+                    .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
             });
 
             options.AddPolicy("GfpProduction", policy =>
@@ -498,7 +502,11 @@ public static class ServiceCollectionExtensions
                     .WithOrigins(origins)
                     .AllowAnyMethod()
                     .AllowAnyHeader()
-                    .AllowCredentials(); // needed for httpOnly cookie refresh token
+                    .AllowCredentials() // needed for httpOnly cookie refresh token
+                    // Browsers reuse the preflight for 10 min instead of sending an
+                    // OPTIONS before every status/leaderboard poll (custom X-GFP-*
+                    // headers make each poll a non-simple request).
+                    .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
             });
         });
 

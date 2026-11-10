@@ -8,10 +8,14 @@ import { useSession } from '@/lib/session';
 import { confirmLeaveEvent, unsyncedHoleCount } from '@/lib/confirmLeave';
 import { shouldShowTabs } from '@/lib/scoringTabs';
 import { fetchEventStatus } from '@/lib/api';
+import { isForeground, onForeground } from '@/lib/foregroundPoll';
 import { fontSize, radius, spacing } from '@gfp/theme';
 
 
-const POLL_MS = 5000;
+// Waiting-screen check for "has scoring opened yet". 15 s matches the
+// leaderboard/auction fallback cadence; it was 5 s, which made the pre-scoring
+// screen the API's busiest caller. "Check Again" still checks on demand.
+const POLL_MS = 15_000;
 
 // Scoring-area safety net (problemList A4): a screen crash mid-round shows a
 // retry card instead of unmounting the scorer. Pending scores live in SQLite
@@ -82,7 +86,8 @@ export default function ScoringLayout() {
     if (!session || scoringOpen) return;
 
     async function poll() {
-      if (!session) return;
+      // Nobody is looking at a backgrounded app or hidden tab; catch up on return.
+      if (!session || !isForeground()) return;
       try {
         const { status, themeJson } = await fetchEventStatus(session.event.eventCode);
         setLiveStatus(status);
@@ -92,8 +97,10 @@ export default function ScoringLayout() {
 
     poll();
     pollRef.current = setInterval(poll, POLL_MS);
+    const stopForeground = onForeground(poll);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      stopForeground();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the closure reads only session.event.eventCode (the dep); the guard is a null check
   }, [session?.event.eventCode, scoringOpen]);
