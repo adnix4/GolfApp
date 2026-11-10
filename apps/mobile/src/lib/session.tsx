@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsyncedScores, upsertPendingScore, markScoresSynced, markHoleComplete, reopenHole as reopenStoredHole, loadCompletedHoleNumbers, loadSyncedHoleNumbers, clearPendingScores, mergeServerScores, getDeviceId } from './store';
 import { attemptSync } from './backgroundSync';
 import { useNetworkTier, POLL_INTERVAL_MS, type NetworkTier } from './useNetworkTier';
+import { isForeground, onForeground } from './foregroundPoll';
 import { clearQueuedBids, flushBidQueue, loadQueuedBids } from './bidQueue';
 import { describeFlushResults } from './bidMessages';
 import { notify } from './notify';
@@ -145,6 +146,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // Bids confirmed while offline go out first, on reconnect and then every
       // tick until the queue is empty (lib/bidQueue.ts). Never throws.
       void sendQueuedBids();
+      // The bid flush above runs regardless (an item may close while the phone
+      // is pocketed); the status/branding read is for a screen nobody is
+      // looking at, so it waits for the app to come back (onForeground below).
+      if (!isForeground()) return;
       try {
         const { themeJson, sponsorsVersion, player } = await fetchEventStatus(
           session.event.eventCode,
@@ -190,7 +195,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
     poll();
     const id = setInterval(poll, POLL_INTERVAL_MS[networkTier]);
-    return () => { cancelled = true; clearInterval(id); };
+    const stopForeground = onForeground(() => { void poll(); });
+    return () => { cancelled = true; clearInterval(id); stopForeground(); };
   // No team in the deps — this half must keep polling for team-less golfers.
   // Safe to omit session and the three mutators: the mutators are
   // useCallback(..., []) and write through setSessionState(prev => ...), so they

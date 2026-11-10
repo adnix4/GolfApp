@@ -41,6 +41,7 @@ P2 — CORRECTNESS THE ORGANIZER WILL HIT ON THE DAY  (tier clear)
 
 P3 — PERFORMANCE BEFORE A REAL CROWD
      [x] D18  both queries split 2026-08-01
+     PF1  mobile still POLLS /status (15 s waiting screen, 30 s session); push it over SignalR
 
 P4 — FEATURES / POLISH
      [x] U4  proxy bidding, Silent items only, steps by the item's increment 2026-08-01
@@ -1564,3 +1565,19 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         HELP COPY: the admin Leagues section says members are organized into
         flights. Either add the screen (Roster or Overview tab: name + optional
         handicap range, then assign members) or drop that phrase from the help.
+
+  [ ] PF1. (OPEN, added 2026-11-09) MOBILE LEARNS STATUS CHANGES BY POLLING, NOT PUSH.
+        Every golfer device polls GET /pub/events/{code}/status: the pre-scoring
+        waiting screen every 15 s (app/(scoring)/_layout.tsx POLL_MS) and the
+        session status/check-in/branding loop every 30 s on Wi-Fi, 60 s on cellular
+        (src/lib/session.tsx). Each request is ~2 ms, but 100+ phones at a shotgun
+        start make this the API's steadiest load.
+        ALREADY DONE 2026-11-09 (perf/quiet-api-polling): waiting screen 5 s -> 15 s;
+        both loops skip ticks while the app is backgrounded / the tab is hidden
+        and catch up on return (src/lib/foregroundPoll.ts); CORS preflight cached
+        10 min (SetPreflightMaxAge), which removed the OPTIONS before every web poll;
+        dev request/SQL logging dropped to Warning.
+        REMAINING FIX: apps/mobile has no SignalR client. The hub already pushes
+        ScoreUpdated / CheckInUpdated / SponsorsChanged to the event group; add an
+        EventStatusChanged (+ theme) broadcast on the status PATCH and a mobile hub
+        connection, then keep the poll only as a slow fallback like the web's 15 s.
