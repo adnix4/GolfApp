@@ -1,0 +1,35 @@
+{
+  "_comment": "Accepted high/critical advisories in the API's NuGet packages. Read by scripts/audit-nuget.js, which runs in CI. Same rules as .audit-allowlist.json: every entry needs a reason and a reviewBy date; the build fails once reviewBy passes, and again if the entry stops matching anything. Do not add an entry to silence a finding that has a usable patched version - upgrade instead.",
+  "allow": [
+    {
+      "advisory": "GHSA-wr8v-9x5q-ggcm",
+      "package": "Microsoft.AspNetCore.SignalR.StackExchangeRedis",
+      "reason": "CVE-2026-114147 (ASP.NET Core DoS), published 2026-11-11. Only fix on the 8.0 line is 8.0.34, published 2026-11-10 13:11 UTC and still inside the repo's 72h install cooldown. Bump every Microsoft 8.0.33 reference to 8.0.34 once it clears (2026-11-13 13:11 UTC) and delete this entry.",
+      "reviewBy": "2026-11-14"
+    },
+    {
+      "advisory": "GHSA-v76p-62qx-wwq2",
+      "package": "SixLabors.ImageSharp",
+      "reason": "REACHABLE, decision pending. Tiled fax TIFF decoder heap OOB write. ImageNormalizer.Rescale calls Image.Load with the default configuration, which sniffs TIFF from content regardless of declared type, on organizer uploads, RemoteLogoFetcher (server-fetched logo URLs) and brand extraction (scraped sites). Fixed in 3.2.0, but 3.2.0 fails the build without a Six Labors license key. Options: obtain a license, or drop TIFF from ImageSharp's decoder configuration, or replace ImageSharp. Short date on purpose.",
+      "reviewBy": "2026-11-25"
+    },
+    {
+      "advisory": "GHSA-j3p4-wp97-rph4",
+      "package": "SixLabors.ImageSharp",
+      "reason": "HistogramEqualization processor. The API never calls it (ImageNormalizer only resizes and encodes PNG). Fixed in 3.2.0, which needs a Six Labors license key; resolved together with GHSA-v76p-62qx-wwq2.",
+      "reviewBy": "2026-11-25"
+    },
+    {
+      "advisory": "GHSA-j9gm-c75j-xc9q",
+      "package": "SixLabors.ImageSharp",
+      "reason": "TIFF CCITT T4 ENCODER. The API only encodes PNG, never TIFF. Fixed in 3.2.0, which needs a Six Labors license key; resolved together with GHSA-v76p-62qx-wwq2.",
+      "reviewBy": "2026-11-25"
+    },
+    {
+      "advisory": "GHSA-jjfr-hcj7-qf5w",
+      "package": "SixLabors.ImageSharp",
+      "reason": "TIFF CCITT T6 ENCODER. The API only encodes PNG, never TIFF. Fixed in 3.2.0, which needs a Six Labors license key; resolved together with GHSA-v76p-62qx-wwq2.",
+      "reviewBy": "2026-11-25"
+    }
+  ]
+}

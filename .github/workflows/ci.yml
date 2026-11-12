@@ -163,6 +163,8 @@ jobs:
   # 2026-08-14), so instead each accepted high is named in .audit-allowlist.json
   # with a reason and an expiry date. The script fails on anything unlisted, on
   # an entry past its reviewBy, and on an entry that has stopped matching.
+  # scripts/audit-nuget.js applies the same rules to apps/api's NuGet packages
+  # (its steps live in the dependency-audit job below).
   web-bundles:
     # Nothing else in CI runs Metro: lint/type-check/vitest pass on code that
     # cannot bundle (an unresolvable import, a bad metro.config.js). Admin's
@@ -258,6 +260,20 @@ jobs:
         if: always()
         run: npm audit || true
 
+      # The API's NuGet packages had no audit at all until 2026-11-11, when they
+      # turned out to still be at their project-creation versions with high
+      # advisories. Same rules as audit:prod, own allowlist
+      # (.audit-allowlist.nuget.json). The script restores the API itself.
+      - name: Set up .NET 8 SDK
+        if: always()
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: NuGet audit (API packages, high+ fails unless allowlisted)
+        if: always()
+        run: npm run audit:nuget
+
   # ── SDK PIN INTEGRITY ─────────────────────────────────────────────────────
   # Fails when a manifest pin or an installed version has drifted away from the
   # version the installed Expo SDK actually targets, or away from the Node/React version
@@ -323,7 +339,7 @@ jobs:
             exit 1
           fi
           if [[ "${{ needs.dependency-audit.result }}" != "success" ]]; then
-            echo "Dependency audit failed (high/critical in production deps)"
+            echo "Dependency audit failed (high/critical in production npm deps or API NuGet packages)"
             exit 1
           fi
           echo "All CI checks passed ✓"
