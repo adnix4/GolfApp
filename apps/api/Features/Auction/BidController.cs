@@ -1,14 +1,18 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace GolfFundraiserPro.Api.Features.Auction;
 
 /// <summary>
-/// Player-facing bidding endpoints.
-/// AllowAnonymous — players use player_id in body (same as mobile score sync).
+/// Player-facing bidding endpoints, plus the staff-only live-auction award.
+///
+/// The player routes are AllowAnonymous per ACTION, not on the class: players
+/// authenticate with the per-player session token in the body or query (same as
+/// mobile score sync). A class-level [AllowAnonymous] overrides any [Authorize]
+/// on an action, which is how Award was once reachable without a login.
 /// </summary>
 [ApiController]
-[AllowAnonymous]
 public class BidController : ControllerBase
 {
     private readonly AuctionService _auction;
@@ -21,6 +25,7 @@ public class BidController : ControllerBase
     /// Silent auction bid. Validates eligibility, minimum, timing, extension.
     /// </summary>
     [HttpPost("api/v1/auction/items/{itemId:guid}/bid")]
+    [AllowAnonymous]
     public async Task<IActionResult> PlaceBid(
         [FromRoute] Guid itemId,
         [FromBody] PlaceBidRequest req,
@@ -35,6 +40,7 @@ public class BidController : ControllerBase
     /// Instant-win at buy_now_price. Closes item immediately.
     /// </summary>
     [HttpPost("api/v1/auction/items/{itemId:guid}/buy-now")]
+    [AllowAnonymous]
     public async Task<IActionResult> BuyNow(
         [FromRoute] Guid itemId,
         [FromBody] PlaceBidRequest req,
@@ -49,6 +55,7 @@ public class BidController : ControllerBase
     /// Donation item pledge. Multiple winners allowed.
     /// </summary>
     [HttpPost("api/v1/auction/items/{itemId:guid}/pledge")]
+    [AllowAnonymous]
     public async Task<IActionResult> Pledge(
         [FromRoute] Guid itemId,
         [FromBody] PledgeRequest req,
@@ -60,7 +67,8 @@ public class BidController : ControllerBase
 
     /// <summary>
     /// POST /api/v1/auction/items/{id}/award
-    /// Admin: assign live auction winner. Body: { playerId, amountCents }.
+    /// Staff: assign a live auction winner. Body: { playerId, amountCents }.
+    /// Scoped to the caller's org; the winner must be a golfer in the item's event.
     /// </summary>
     [HttpPost("api/v1/auction/items/{itemId:guid}/award")]
     [Authorize(Policy = "EventStaff")]
@@ -69,7 +77,7 @@ public class BidController : ControllerBase
         [FromBody] AwardRequest req,
         CancellationToken ct)
     {
-        await _auction.AwardItemAsync(itemId, req, ct);
+        await _auction.AwardItemAsync(GetOrgId(), itemId, req, ct);
         return Ok(new { awarded = true });
     }
 
@@ -81,6 +89,7 @@ public class BidController : ControllerBase
     /// controller: anonymous route, token in the query string.
     /// </summary>
     [HttpGet("api/v1/players/{playerId:guid}/bids")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetPlayerBids(
         [FromRoute] Guid playerId,
         [FromQuery] string? sessionToken,
@@ -89,4 +98,8 @@ public class BidController : ControllerBase
         var history = await _auction.GetPlayerBidsAsync(playerId, sessionToken, ct);
         return Ok(history);
     }
+
+    private Guid GetOrgId() =>
+        Guid.Parse(User.FindFirstValue("orgId")
+            ?? throw new UnauthorizedAccessException("No orgId claim in token."));
 }
