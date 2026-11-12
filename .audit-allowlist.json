@@ -1,11 +1,4 @@
 {
   "_comment": "Accepted high/critical advisories in PRODUCTION dependencies. Read by scripts/audit-prod.js, which runs in CI. Every entry needs a reason and a reviewBy date; the build fails once reviewBy passes, and again if the entry stops matching anything. Do not add an entry to silence a finding that has a patched version available - upgrade instead.",
-  "allow": [
-    {
-      "advisory": "GHSA-mrhx-c7xc-m3w5",
-      "package": "zod",
-      "reason": "Dev tooling only, never shipped. The only vulnerable copy is zod 3.25.76 nested under expo > @expo/cli, which pins zod ^3.25.76 (every 58.1.x through 58.1.15) and uses it solely to validate dev-tools plugin schemas in the local dev server. App code uses zod 4.6.7 (patched; the advisory's first fix is 4.6.6). Advisory range is '< 4.6.6' with no patched 3.x release, so nothing to upgrade to until @expo/cli moves to zod 4.",
-      "reviewBy": "2026-11-15"
-    }
-  ]
+  "allow": []
 }
