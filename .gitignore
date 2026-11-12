@@ -36,6 +36,10 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# Six Labors (ImageSharp) license. This repo is PUBLIC: the key reaches builds
+# only as the SixLaborsLicenseKey env var / CI secret, or a local file here.
+sixlabors.lic
+
 # ── TURBOREPO ────────────────────────────────────────────────────────────────
 # Turborepo's local file-system cache.
 # The .turbo directory holds hashed task outputs cached locally.

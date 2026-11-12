@@ -95,6 +95,13 @@ jobs:
           tags:    ${{ steps.meta.outputs.tags }}
           labels:  ${{ steps.meta.outputs.labels }}
 
+          # ImageSharp >= 3.2 fails Release builds without a Six Labors
+          # license. Passed as a BuildKit secret (mounted for the publish RUN
+          # only, never stored in a layer) — NOT a build-arg, which would land
+          # in the public image's history. See apps/api/Dockerfile.
+          secrets: |
+            sixlabors_license_key=${{ secrets.SIXLABORS_LICENSE_KEY }}
+
           # Cache Docker layers between builds using GitHub Actions cache.
           # Dramatically speeds up builds when only a few files changed.
           cache-from: type=gha

@@ -122,6 +122,12 @@ jobs:
 
       - name: Build API (Release configuration)
         # Build the full solution so the test project is also compiled.
+        # ImageSharp >= 3.2 validates a Six Labors license before compiling and
+        # FAILS Release builds without one (Debug only warns). The repo is
+        # public, so the key lives only in the SIXLABORS_LICENSE_KEY secret;
+        # MSBuild reads the env var as the SixLaborsLicenseKey property.
+        env:
+          SixLaborsLicenseKey: ${{ secrets.SIXLABORS_LICENSE_KEY }}
         run: dotnet build GolfApp.sln --no-restore -c Release
 
       - name: Run API unit tests (with coverage)
