@@ -14,6 +14,8 @@
     "test": "turbo run test",
     "check-updates": "node scripts/check-updates.js",
     "audit:prod": "node scripts/audit-prod.js",
+    "audit:nuget": "node scripts/audit-nuget.js",
+    "check-updates:nuget": "node scripts/check-nuget-updates.js",
     "e2e": "node scripts/e2e-clean.js",
     "e2e:fast": "node scripts/e2e-clean.js --fast",
     "db:backup": "node scripts/db-backup.js",

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # ─────────────────────────────────────────────────────────────────────────────
 # apps/api/Dockerfile — Golf Fundraiser Pro API
 # ─────────────────────────────────────────────────────────────────────────────
@@ -21,6 +22,18 @@
 #   • .github/workflows/deploy-api.yml — builds this image for production deploy
 #   • Local: `docker build -f apps/api/Dockerfile -t gfp-api .`
 #            `docker run -p 5000:5000 --env-file .env.local gfp-api`
+#
+# SIX LABORS LICENSE (ImageSharp >= 3.2):
+#   The Release publish below fails without a license key. It arrives as a
+#   BuildKit SECRET, never a build-arg: build-args are recorded in the image
+#   history, and the image is pushed from a public repo. The secret is visible
+#   only to the one RUN that mounts it and is not written to any layer.
+#     CI:    deploy-api.yml passes secrets.SIXLABORS_LICENSE_KEY
+#     Local: SixLaborsLicenseKey=<key> docker build --secret \
+#              id=sixlabors_license_key,env=SixLaborsLicenseKey \
+#              -f apps/api/Dockerfile -t gfp-api .
+#            (or keep apps/api/sixlabors.lic — gitignored — which COPY picks
+#             up in the build stage only; the runtime stage never sees it)
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── STAGE 1: BUILD ────────────────────────────────────────────────────────────
@@ -43,7 +56,10 @@ WORKDIR /src/apps/api
 #   -c Release       → optimized build (no debug symbols, no dev tools)
 #   -o /app/publish  → output directory
 #   --no-restore     → skip restore (already done above)
-RUN dotnet publish -c Release -o /app/publish --no-restore
+#   secret mount     → exposes the license as $SixLaborsLicenseKey for this
+#                      RUN only (see SIX LABORS LICENSE above)
+RUN --mount=type=secret,id=sixlabors_license_key,env=SixLaborsLicenseKey \
+    dotnet publish -c Release -o /app/publish --no-restore
 
 # ── STAGE 2: RUNTIME ──────────────────────────────────────────────────────────
 # Use the ASP.NET runtime image (not SDK) — much smaller, no build tools.
