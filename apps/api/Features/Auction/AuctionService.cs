@@ -494,12 +494,22 @@ public class AuctionService
             ClientRequestId = req.ClientRequestId,
         }, ct);
 
-    public async Task AwardItemAsync(Guid itemId, AwardRequest req, CancellationToken ct)
+    public async Task AwardItemAsync(Guid orgId, Guid itemId, AwardRequest req, CancellationToken ct)
     {
+        // Another org's item reads as not found, so an id from a different
+        // tournament reveals nothing about whether it exists.
         var item = await _db.AuctionItems
             .Include(i => i.Event)
-            .FirstOrDefaultAsync(i => i.Id == itemId, ct)
+            .FirstOrDefaultAsync(i => i.Id == itemId && i.Event.OrgId == orgId, ct)
             ?? throw new NotFoundException("AuctionItem", itemId);
+
+        if (req.AmountCents <= 0)
+            throw new ValidationException("Winning amount must be greater than zero.");
+
+        var winnerInEvent = await _db.Players
+            .AnyAsync(p => p.Id == req.PlayerId && p.EventId == item.EventId, ct);
+        if (!winnerInEvent)
+            throw new ValidationException("The winner must be a golfer registered for this event.");
 
         if (item.Status is AuctionItemStatus.Closed or AuctionItemStatus.Awarded)
             throw new ValidationException("Item is already closed.");
