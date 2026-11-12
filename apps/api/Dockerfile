@@ -4,7 +4,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #
 # MULTI-STAGE BUILD STRATEGY:
-#   Stage 1 (build)    — uses the full .NET 8 SDK image (large, ~700MB)
+#   Stage 1 (build)    — uses the full .NET 10 SDK image (large, ~700MB)
 #                         to restore packages and compile the application.
 #   Stage 2 (runtime)  — uses the minimal ASP.NET runtime image (~200MB)
 #                         to run the compiled binary.
@@ -37,7 +37,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── STAGE 1: BUILD ────────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 
 WORKDIR /src
 
@@ -63,7 +63,7 @@ RUN --mount=type=secret,id=sixlabors_license_key,env=SixLaborsLicenseKey \
 
 # ── STAGE 2: RUNTIME ──────────────────────────────────────────────────────────
 # Use the ASP.NET runtime image (not SDK) — much smaller, no build tools.
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
 WORKDIR /app
 
@@ -83,15 +83,11 @@ ENV ASPNETCORE_URLS=http://+:5000
 EXPOSE 5000
 
 # ── HEALTH CHECK ──────────────────────────────────────────────────────────────
-# Docker checks this endpoint to determine if the container is healthy.
-# Railway uses this for zero-downtime deploys — the old container stays live
-# until the new one reports healthy.
-HEALTHCHECK \
-    --interval=30s \
-    --timeout=10s \
-    --start-period=40s \
-    --retries=3 \
-    CMD curl -f http://localhost:5000/api/health || exit 1
+# No Docker HEALTHCHECK on purpose. The aspnet runtime image ships without
+# curl/wget, so the old `CMD curl -f …/api/health` could never succeed and the
+# container would only ever report "unhealthy". Railway ignores Dockerfile
+# HEALTHCHECKs anyway: set the service's Healthcheck Path to /api/health in
+# Railway → Service → Settings for zero-downtime deploys.
 
 # ── ENTRYPOINT ────────────────────────────────────────────────────────────────
 # Run the compiled API binary. The assembly name matches AssemblyName in .csproj.

@@ -13,7 +13,7 @@ applications and shared packages.
 ```
 golf-fundraiser-pro/              ← Turborepo monorepo root
   apps/
-    api/       → ASP.NET Core .NET 8  — REST API (port 5000)
+    api/       → ASP.NET Core .NET 10 — REST API (port 5000)
     admin/     → Expo Router web      — Organizer dashboard (port 8081)
     mobile/    → Expo SDK 58          — iOS/Android scoring app
     web/       → Next.js 16           — Public leaderboard + landing page (port 3000)
@@ -37,7 +37,7 @@ golf-fundraiser-pro/              ← Turborepo monorepo root
 
 | Layer | Technology | Notes |
 |---|---|---|
-| Backend API | ASP.NET Core Web API (.NET 8) | C# 12, EF Core, controller-based |
+| Backend API | ASP.NET Core Web API (.NET 10) | C# 14, EF Core, controller-based |
 | Database | PostgreSQL 16 + PostGIS 3.4 | PostGIS required for GPS features |
 | Cache | Redis 7 | Leaderboard cache + SignalR backplane |
 | Admin Dashboard | Expo Router web | Shares UI components with mobile |
@@ -53,7 +53,7 @@ golf-fundraiser-pro/              ← Turborepo monorepo root
 ## Prerequisites
 
 - **Node.js 24.3+** and **npm 10+** (enforced by `engines` in the root `package.json`)
-- **.NET 8 SDK** — [download](https://dotnet.microsoft.com/download/dotnet/8)
+- **.NET 10 SDK** — [download](https://dotnet.microsoft.com/download/dotnet/10.0)
 - **Docker Desktop** — for PostgreSQL, Redis, pgAdmin
 - **EAS CLI** — `npm install -g eas-cli` (for mobile builds; the Expo CLI itself
   ships with the `expo` dependency and is run via `npx expo`)
