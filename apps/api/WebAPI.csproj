@@ -69,27 +69,28 @@
   -->
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>GolfFundraiserPro.Api</AssemblyName>
     <RootNamespace>GolfFundraiserPro.Api</RootNamespace>
     <!-- Treat nullable warnings as errors — prevents null reference bugs -->
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <WarningsAsErrors>CS8600;CS8602;CS8603;CS8604</WarningsAsErrors>
+    <!-- ASP0026: an [Authorize] overridden by an [AllowAnonymous] farther out
+         (class level). That made the auction award endpoint public (PR #168). -->
+    <WarningsAsErrors>CS8600;CS8602;CS8603;CS8604;ASP0026</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- ── SWAGGER ── -->
     <PackageReference Include="AWSSDK.S3" Version="4.0.100.2" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.33" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="8.0.33" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="10.0.14" />
     <PackageReference Include="StackExchange.Redis" Version="2.8.16" />
     <PackageReference Include="Stripe.net" Version="45.0.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
 
     <!-- ── EF CORE + POSTGRES ── -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.33">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
       <!--
         PrivateAssets="all" means this package is used at development time
         (for running migrations) but is NOT included in the published output.
@@ -98,18 +99,18 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <!--
       NetTopologySuite integration for Npgsql — enables GEOGRAPHY column mapping.
       UseNetTopologySuite() must be called on NpgsqlDataSourceBuilder in Program.cs.
     -->
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="8.0.11" />
-    <PackageReference Include="NetTopologySuite" Version="2.5.0" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="10.0.3" />
+    <PackageReference Include="NetTopologySuite" Version="2.6.0" />
 
     <!-- ── AUTHENTICATION ── -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.33" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.33" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.7.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.14" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.14" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
 
     <!-- ── EMAIL ── -->
     <PackageReference Include="SendGrid" Version="9.29.3" />

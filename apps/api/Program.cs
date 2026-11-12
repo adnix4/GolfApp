@@ -190,7 +190,7 @@ if (string.Equals(app.Configuration["TRUST_FORWARDED_HEADERS"], "true", StringCo
     // The platform proxy's address isn't knowable ahead of time on PaaS, so
     // clear the loopback-only defaults; the opt-in flag above IS the trust
     // decision. (Collection-initializer syntax would ADD, not clear.)
-    forwardedOptions.KnownNetworks.Clear();
+    forwardedOptions.KnownIPNetworks.Clear();
     forwardedOptions.KnownProxies.Clear();
     app.UseForwardedHeaders(forwardedOptions);
     app.Logger.LogInformation("Forwarded headers trusted (TRUST_FORWARDED_HEADERS=true).");

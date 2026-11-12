@@ -110,11 +110,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up .NET 8 SDK
+      - name: Set up .NET 10 SDK
         uses: actions/setup-dotnet@v4
         with:
-          # Pinned to .NET 8 — matches the TargetFramework in apps/api/WebAPI.csproj
-          dotnet-version: '8.0.x'
+          # Pinned to .NET 10 — matches the TargetFramework in apps/api/WebAPI.csproj
+          dotnet-version: '10.0.x'
 
       - name: Restore NuGet packages
         # `dotnet restore` on the solution restores both the API and test projects.
@@ -221,10 +221,10 @@ jobs:
           node-version: '24'
           cache: 'npm'
 
-      - name: Set up .NET 8 SDK
+      - name: Set up .NET 10 SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
@@ -270,11 +270,11 @@ jobs:
       # turned out to still be at their project-creation versions with high
       # advisories. Same rules as audit:prod, own allowlist
       # (.audit-allowlist.nuget.json). The script restores the API itself.
-      - name: Set up .NET 8 SDK
+      - name: Set up .NET 10 SDK
         if: always()
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: NuGet audit (API packages, high+ fails unless allowlisted)
         if: always()
