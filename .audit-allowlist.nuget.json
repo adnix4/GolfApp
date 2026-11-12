@@ -1,11 +1,4 @@
 {
   "_comment": "Accepted high/critical advisories in the API's NuGet packages. Read by scripts/audit-nuget.js, which runs in CI. Same rules as .audit-allowlist.json: every entry needs a reason and a reviewBy date; the build fails once reviewBy passes, and again if the entry stops matching anything. Do not add an entry to silence a finding that has a usable patched version - upgrade instead.",
-  "allow": [
-    {
-      "advisory": "GHSA-wr8v-9x5q-ggcm",
-      "package": "Microsoft.AspNetCore.SignalR.StackExchangeRedis",
-      "reason": "CVE-2026-114147 (ASP.NET Core DoS), published 2026-11-11. Only fix on the 8.0 line is 8.0.34, published 2026-11-10 13:11 UTC and still inside the repo's 72h install cooldown. Bump every Microsoft 8.0.33 reference to 8.0.34 once it clears (2026-11-13 13:11 UTC) and delete this entry.",
-      "reviewBy": "2026-11-14"
-    }
-  ]
+  "allow": []
 }

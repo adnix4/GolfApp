@@ -84,13 +84,13 @@
   <ItemGroup>
     <!-- ── SWAGGER ── -->
     <PackageReference Include="AWSSDK.S3" Version="4.0.100.2" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="10.0.14" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="10.0.15" />
     <PackageReference Include="StackExchange.Redis" Version="2.8.16" />
     <PackageReference Include="Stripe.net" Version="45.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
 
     <!-- ── EF CORE + POSTGRES ── -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15">
       <!--
         PrivateAssets="all" means this package is used at development time
         (for running migrations) but is NOT included in the published output.
@@ -108,8 +108,8 @@
     <PackageReference Include="NetTopologySuite" Version="2.6.0" />
 
     <!-- ── AUTHENTICATION ── -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.14" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.14" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.15" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.15" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
 
     <!-- ── EMAIL ── -->
