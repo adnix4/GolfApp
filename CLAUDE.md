@@ -3,7 +3,7 @@
 ## Project structure
 
 Monorepo with four apps:
-- `apps/api` — ASP.NET Core 8 Web API (C#, EF Core, PostgreSQL)
+- `apps/api` — ASP.NET Core 10 Web API (C#, EF Core, PostgreSQL)
 - `apps/mobile` — Expo / React Native scorer app (TypeScript)
 - `apps/admin` — Expo Router / React Native Web organizer dashboard (TypeScript), served by Metro (dev: `expo start --web` on `localhost:8081`; prod: `expo export --platform web` static bundle)
 - `apps/web` — Next.js public front door / marketing + golfer find-your-event (TypeScript, `localhost:3000`)
