@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GolfFundraiserPro.Api.Features.Scores;
 using System.ComponentModel.DataAnnotations;
 
@@ -82,12 +83,14 @@ public record PendingScoreInput
 
     /// <summary>
     /// The same breakdown as an object — what the mobile app actually sends
-    /// (apps/mobile/src/lib/api.ts syncScores: <c>playerShots: { id: n }</c>).
-    /// Until U8 nothing bound it, so every phone's breakdown was dropped on the
-    /// floor; the server needs it to score non-scramble formats. Used when
-    /// <see cref="PlayerShotsJson"/> is absent.
+    /// (apps/mobile/src/lib/api.ts batchSync). Each value is either the
+    /// golfer's <c>{ drive, approach, putt }</c> or a plain stroke total: an
+    /// organizer-entered golfer the phone hasn't re-split, or a phone build
+    /// from before the breakdown was synced. Parsed and re-written by
+    /// <see cref="FormatScoring.NormalizeShotsJson"/>, which drops anything
+    /// malformed. Used when <see cref="PlayerShotsJson"/> is absent.
     /// </summary>
-    public Dictionary<string, int>? PlayerShots { get; init; }
+    public Dictionary<string, JsonElement>? PlayerShots { get; init; }
 
     /// <summary>Unix ms timestamp when the score was first written to SQLite on-device.</summary>
     public long? ClientTimestampMs { get; init; }
@@ -340,4 +343,13 @@ public record TeamHoleScoreDto
 
     /// <summary>The golfer-proposed value awaiting admin approval, if any.</summary>
     public short? ProposedScore { get; init; }
+
+    /// <summary>
+    /// Per-golfer strokes on the hole, keyed by player id: an object
+    /// <c>{ drive, approach, putt }</c> when a phone recorded the split, a
+    /// number when only a total exists (typed on the admin scorecard). Null
+    /// when the hole has no per-golfer breakdown. Lets the phone show the
+    /// server's split instead of discarding it whenever the gross moves.
+    /// </summary>
+    public Dictionary<string, object>? PlayerShots { get; init; }
 }

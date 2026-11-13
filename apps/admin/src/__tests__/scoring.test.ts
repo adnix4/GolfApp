@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sumPlayerShots, resolveGrossScore, needsAceConfirmation, aceGolferIds } from '../lib/scoring';
+import { sumPlayerShots, resolveGrossScore, needsAceConfirmation, aceGolferIds, parseStoredShots, buildShotsJson, storedShotTotal } from '../lib/scoring';
 
 describe('sumPlayerShots', () => {
   it('adds every golfer on the hole', () => {
@@ -108,5 +108,33 @@ describe('needsAceConfirmation', () => {
 
   it('does not treat one golfer’s single used shot in a scramble as an ace', () => {
     expect(needsAceConfirmation(true, 'Scramble', 4, { a: 1, b: 2, c: 1 })).toBe(false);
+  });
+});
+
+describe('stored per-golfer shots (phone split or desk total)', () => {
+  const phone = { drive: 1, approach: 2, putt: 1 };
+
+  it('reads totals from both shapes and skips what it cannot read', () => {
+    const { totals, entries } = parseStoredShots(JSON.stringify({ ann: phone, bo: 3, cal: 0, dee: 'x' }));
+    expect(totals).toEqual({ ann: 4, bo: 3 });
+    expect(entries).toEqual({ ann: phone, bo: 3 });
+    expect(parseStoredShots('not json').totals).toEqual({});
+    expect(parseStoredShots(null).totals).toEqual({});
+    expect(storedShotTotal({ putt: 2 })).toBe(2);
+  });
+
+  it('saves the edited golfer as a desk total and keeps teammates’ phone splits', () => {
+    const { entries } = parseStoredShots(JSON.stringify({ ann: phone, bo: 3 }));
+    const json = buildShotsJson({ ann: 4, bo: 2 }, entries, 'bo');
+    expect(JSON.parse(json!)).toEqual({ ann: phone, bo: 2 });
+  });
+
+  it('turns an edited phone golfer into a desk total', () => {
+    const { entries } = parseStoredShots(JSON.stringify({ ann: phone }));
+    expect(JSON.parse(buildShotsJson({ ann: 5 }, entries, 'ann')!)).toEqual({ ann: 5 });
+  });
+
+  it('saves nothing once every golfer is back at zero', () => {
+    expect(buildShotsJson({ ann: 0 }, { ann: 1 }, 'ann')).toBeUndefined();
   });
 });

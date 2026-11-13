@@ -64,6 +64,65 @@ public class FormatScoringTests
         Assert.Equal(5, FormatScoring.TeamHoleGross(EventFormat.BestBall, shots, 0));
     }
 
+    // ── Shot breakdowns (drive / approach / putt) ────────────────────────────
+
+    [Fact]
+    public void ParseShots_sums_a_phone_breakdown_and_reads_admin_totals_beside_it()
+    {
+        var json = $$"""{"{{A}}":{"drive":1,"approach":2,"putt":1},"{{B}}":3}""";
+
+        var shots = FormatScoring.ParseShots(json);
+        Assert.Equal(4, shots[A]);
+        Assert.Equal(3, shots[B]);
+        Assert.Equal(7, FormatScoring.TeamHoleGross(EventFormat.Scramble, shots, 0));
+
+        var detail = FormatScoring.ParseShotDetail(json);
+        Assert.Equal(new FormatScoring.ShotBreakdown(1, 2, 1), detail[A].Breakdown);
+        Assert.Null(detail[B].Breakdown);   // organizer-typed total, no split
+    }
+
+    [Fact]
+    public void ParseShotDetail_treats_missing_parts_as_zero()
+    {
+        var detail = FormatScoring.ParseShotDetail($$$"""{"{{{A}}}":{"putt":2}}""");
+        Assert.Equal(new FormatScoring.ShotBreakdown(0, 0, 2), detail[A].Breakdown);
+        Assert.Equal(2, detail[A].Total);
+    }
+
+    [Theory]
+    [InlineData("""{"drive":-1,"approach":3,"putt":1}""")]   // negative part
+    [InlineData("""{"drive":1.5,"approach":1,"putt":1}""")]  // fractional
+    [InlineData("""{"drive":"1","approach":1,"putt":1}""")]  // string
+    [InlineData("""{"drive":0,"approach":0,"putt":0}""")]    // nothing entered
+    [InlineData("""{"drive":1,"approach":20,"putt":0}""")]   // over the single-ball limit
+    [InlineData("21")]                                       // total over the limit
+    [InlineData("[1,2,1]")]
+    [InlineData("true")]
+    public void ParseShotDetail_drops_a_golfer_with_an_unusable_value(string value)
+    {
+        var detail = FormatScoring.ParseShotDetail($$"""{"{{A}}":{{value}},"{{B}}":4}""");
+        Assert.False(detail.ContainsKey(A));
+        Assert.Equal(4, detail[B].Total);
+    }
+
+    [Fact]
+    public void NormalizeShotsJson_rewrites_canonically_and_round_trips()
+    {
+        var raw = $$"""{ "{{A}}": {"putt":1, "drive":1, "approach":2, "extra":9}, "{{B}}": 3, "junk": 4, "{{C}}": 0 }""";
+
+        var normalized = FormatScoring.NormalizeShotsJson(raw);
+
+        Assert.Equal($$"""{"{{A}}":{"drive":1,"approach":2,"putt":1},"{{B}}":3}""", normalized);
+        Assert.Equal(normalized, FormatScoring.NormalizeShotsJson(normalized));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("{}")]
+    [InlineData("not json")]
+    public void NormalizeShotsJson_is_null_when_nothing_usable_is_left(string? raw)
+        => Assert.Null(FormatScoring.NormalizeShotsJson(raw));
+
     // ── Stableford (Rule 21.1) ────────────────────────────────────────────────
 
     [Theory]

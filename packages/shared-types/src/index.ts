@@ -310,8 +310,11 @@ export interface ScoreDTO {
   holeNumber:  number;
   grossScore:  number;
   putts:       number | null;
-  /** Phase 2: per-player shot breakdown stored as JSONB */
-  playerShots: Record<UUID, number> | null;
+  /**
+   * Per-player shots stored as JSONB: { drive, approach, putt } when a phone
+   * recorded the split, a plain total when it was typed on the admin scorecard.
+   */
+  playerShots: Record<UUID, number | { drive: number; approach: number; putt: number }> | null;
   deviceId:    string;
   submittedAt: ISOTimestamp;
   syncedAt:    ISOTimestamp | null;

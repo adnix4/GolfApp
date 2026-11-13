@@ -5,7 +5,7 @@ import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useObserve } from 'expo-observe';
 import { useTheme, useClasses } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
-import { fetchPublicChallenges, type ChallengeCacheDto, type HoleCacheDto, type PlayerCacheDto, type PlayerShotBreakdown, type SponsorCacheDto } from '@/lib/api';
+import { fetchPublicChallenges, type ChallengeCacheDto, type HoleCacheDto, type PlayerCacheDto, type PlayerShotEntry, type SponsorCacheDto } from '@/lib/api';
 import { HoleInOneModal, SponsorModal, HoleInfoModal } from '@/components/scorecardComponents';
 import { ScorecardSummary } from '@/components/scorecard/ScorecardSummary';
 import { ScoringHeader } from '@/components/scorecard/ScoringHeader';
@@ -18,9 +18,9 @@ import { screenStyles } from '@/components/scorecard/scorecardStyles';
 import { useScorecardLayout } from '@/lib/scorecardLayout';
 import { resolveChipsLayout, type ChipSpec } from '@/lib/chipsFit';
 import { formatToPar } from '@/lib/toPar';
-import { strokesByPlayer } from '@/lib/holeUtils';
+import { isAdminTotal, shotTotal, splitAdminTotal, strokesByPlayer, toBreakdown } from '@/lib/holeUtils';
 import {
-  teamHoleGross, teamHolePar, teamStablefordPoints, aceGolferIds, countingPlayerId,
+  teamHoleGross, teamHolePar, teamStablefordPoints, aceGolferIds, countingPlayerId, MAX_GOLFER_HOLE_STROKES,
 } from '@gfp/shared-types';
 import { holeCompleteHaptic } from '@/lib/haptics';
 
@@ -201,20 +201,12 @@ export default function ScorecardScreen() {
   const hasShots     = grossScore > 0;
   const holeConflict = currentScore?.conflict ?? false;
 
-  function changePlayerShots(
-    playerId: string,
-    type:    'drive' | 'approach' | 'putt',
-    delta:   number,
-  ) {
-    if (!scoringEnabled) return;
-
-    const existing = playerBreakdown[playerId] ?? { drive: 0, approach: 0, putt: 0 };
-    const updated  = { ...existing, [type]: Math.max(0, existing[type] + delta) };
-    const all      = { ...playerBreakdown, [playerId]: updated };
-
-    const cleaned: Record<string, PlayerShotBreakdown> = {};
-    for (const [pid, b] of Object.entries(all)) {
-      if (b.drive + b.approach + b.putt > 0) cleaned[pid] = b;
+  // Writes the hole's per-golfer shots and the team numbers they produce.
+  // Organizer-entered golfers stay plain totals, which carry no putts.
+  function writePlayerShots(all: Record<string, PlayerShotEntry>) {
+    const cleaned: Record<string, PlayerShotEntry> = {};
+    for (const [pid, e] of Object.entries(all)) {
+      if (shotTotal(e) > 0) cleaned[pid] = e;
     }
 
     const gross      = teamHoleGross(format, strokesByPlayer(cleaned)) ?? 0;
@@ -222,8 +214,8 @@ export default function ScorecardScreen() {
     // holds all of them.
     const counting   = countingPlayerId(format, strokesByPlayer(cleaned));
     const totalPutts = counting
-      ? cleaned[counting].putt
-      : Object.values(cleaned).reduce((s, b) => s + b.putt, 0);
+      ? toBreakdown(cleaned[counting]).putt
+      : Object.values(cleaned).reduce<number>((s, e) => s + toBreakdown(e).putt, 0);
 
     upsertScore({
       holeNumber:        currentHoleNumber,
@@ -233,6 +225,32 @@ export default function ScorecardScreen() {
       clientTimestampMs: Date.now(),
     });
     // HIO is only shown on explicit hole completion, not on shot entry
+  }
+
+  function changePlayerShots(
+    playerId: string,
+    type:    'drive' | 'approach' | 'putt',
+    delta:   number,
+  ) {
+    if (!scoringEnabled) return;
+    const existing = toBreakdown(playerBreakdown[playerId]);
+    const updated  = { ...existing, [type]: Math.max(0, existing[type] + delta) };
+    // The server drops a golfer over the single-ball limit; stop the stepper there.
+    if (shotTotal(updated) > MAX_GOLFER_HOLE_STROKES) return;
+    writePlayerShots({ ...playerBreakdown, [playerId]: updated });
+  }
+
+  // Edit on an organizer-entered golfer: reopen the hole and turn their total
+  // into steppers holding the same total, so the team score doesn't move
+  // until the golfer changes a stroke. A changed total goes to the organizer
+  // to approve when the hole is completed again.
+  async function handleEditAdminTotal(playerId: string) {
+    const entry = playerBreakdown[playerId];
+    if (!scoringEnabled || !isAdminTotal(entry)) return;
+    if (isCurrentHoleDone) await reopenHole(currentHoleNumber);
+    setOrganizerEditHole(currentHoleNumber);
+    setExpandedPlayer(playerId);
+    writePlayerShots({ ...playerBreakdown, [playerId]: splitAdminTotal(entry) });
   }
 
   async function handleComplete() {
@@ -258,7 +276,9 @@ export default function ScorecardScreen() {
   // the organizer to approve — the conflict notice then shows it as pending.
   async function handleEdit() {
     if (!scoringEnabled || !isCurrentHoleDone) return;
-    setOrganizerEditHole(currentScore && !currentScore.playerShots ? currentHoleNumber : null);
+    const organizerScored = !!currentScore && (
+      !currentScore.playerShots || Object.values(currentScore.playerShots).some(isAdminTotal));
+    setOrganizerEditHole(organizerScored ? currentHoleNumber : null);
     await reopenHole(currentHoleNumber);
   }
 
@@ -397,6 +417,7 @@ export default function ScorecardScreen() {
           shotSize={shotSize}
           onExpand={setExpandedPlayer}
           onChangeShots={changePlayerShots}
+          onEditAdminTotal={(id) => { void handleEditAdminTotal(id); }}
         />
       </ScrollView>
 

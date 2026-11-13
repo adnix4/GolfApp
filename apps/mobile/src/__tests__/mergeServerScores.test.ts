@@ -142,6 +142,43 @@ describe('mergeServerScores', () => {
     expect(mockDb._scores.get('tm1:1')!.player_shots).toBeNull();
   });
 
+  it('adopts the server breakdown, organizer totals included, when the gross changed', async () => {
+    seed({ hole_number: 1, gross_score: 4, player_shots: JSON.stringify({ p1: { drive: 1, approach: 1, putt: 2 } }) });
+    const serverShots = { p1: { drive: 1, approach: 2, putt: 1 }, p2: 2 };
+    const changed = await mergeServerScores('ev1', 'tm1', [
+      { holeNumber: 1, grossScore: 6, putts: 1, isConflicted: false, playerShots: serverShots },
+    ]);
+    expect(changed).toBe(true);
+    const rows = await loadPendingScores('ev1', 'tm1');
+    expect(rows[0].playerShots).toEqual(serverShots);
+  });
+
+  it('picks up a changed split even when the gross is the same', async () => {
+    // A teammate's phone moved a stroke from approach to putt: same total.
+    seed({ hole_number: 1, gross_score: 4, player_shots: JSON.stringify({ p1: { drive: 1, approach: 2, putt: 1 } }) });
+    const changed = await mergeServerScores('ev1', 'tm1', [
+      { holeNumber: 1, grossScore: 4, putts: 2, isConflicted: false, playerShots: { p1: { drive: 1, approach: 1, putt: 2 } } },
+    ]);
+    expect(changed).toBe(true);
+    expect(JSON.parse(mockDb._scores.get('tm1:1')!.player_shots!)).toEqual({ p1: { drive: 1, approach: 1, putt: 2 } });
+  });
+
+  it('treats the same shots in a different key order as already in sync', async () => {
+    seed({ hole_number: 1, gross_score: 7, player_shots: JSON.stringify({ p2: 3, p1: { putt: 1, drive: 1, approach: 2 } }) });
+    const changed = await mergeServerScores('ev1', 'tm1', [
+      { holeNumber: 1, grossScore: 7, putts: null, isConflicted: false, playerShots: { p1: { drive: 1, approach: 2, putt: 1 }, p2: 3 } },
+    ]);
+    expect(changed).toBe(false);
+  });
+
+  it('clears the local breakdown when the server says the hole has none', async () => {
+    seed({ hole_number: 1, gross_score: 4, player_shots: JSON.stringify({ p1: { drive: 1, approach: 1, putt: 2 } }) });
+    await mergeServerScores('ev1', 'tm1', [
+      { holeNumber: 1, grossScore: 5, putts: null, isConflicted: false, playerShots: null },
+    ]);
+    expect(mockDb._scores.get('tm1:1')!.player_shots).toBeNull();
+  });
+
   it('reads existing rows once for the whole card, not once per hole', async () => {
     for (let h = 1; h <= 18; h++) seed({ hole_number: h });
     await mergeServerScores('ev1', 'tm1',

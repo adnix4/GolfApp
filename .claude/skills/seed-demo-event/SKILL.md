@@ -111,8 +111,12 @@ Always surface the exact `…/e/{slug}/{code}` and `…/scores` URLs after each 
   each stroke credited to the golfer whose shot the team used (the tee shot
   leans to the team's first golfer). The counts sum to the team gross; the server
   recomputes the scramble score from them (format-driven scoring, U8). Admin
-  entry sends `playerShotsJson` (a JSON string); mobile sync sends `playerShots`
-  (a `{ playerId: strokes }` map), exactly as the Expo app does.
+  entry sends `playerShotsJson` (a JSON string of plain totals — the desk has
+  no split); mobile sync sends `playerShots` as
+  `{ playerId: { drive, approach, putt } }`, exactly as the Expo app does. On
+  the phone, admin-scored golfers show as a highlighted total tagged "Admin"
+  with an Edit button; mobile-synced ones show Drive / Approach / Putt.
+  Teams scored before 2026-11-12 have totals only on every hole.
 - **Admin holes are marked complete:** the leaderboard counts only COMPLETED
   holes (U1), so every admin-entered score is followed by
   `POST …/teams/{id}/holes/{n}/complete` — what the admin scorecard does. Mobile

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Xunit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -98,6 +99,10 @@ public class MobileServiceTests
 
     private static PendingScoreInput Pending(short hole, short gross, string? shots = null) =>
         new() { HoleNumber = hole, GrossScore = gross, PlayerShotsJson = shots };
+
+    /// <summary>A playerShots map as the phone posts it — each value a total or a breakdown.</summary>
+    private static Dictionary<string, JsonElement> PhoneShots(params (Guid Player, object Value)[] golfers) =>
+        golfers.ToDictionary(g => g.Player.ToString(), g => JsonSerializer.SerializeToElement(g.Value));
 
     // ── UpdateSelfAsync — IDOR protection ─────────────────────────────────────────
 
@@ -706,6 +711,81 @@ public class MobileServiceTests
     }
 
     [Fact]
+    public async Task GetTeamScores_returns_each_golfers_breakdown_or_admin_total()
+    {
+        var w = Seed();
+        var other = Guid.NewGuid();
+        await w.Svc.BatchSyncAsync(SyncReq(w, w.SessionToken, "dev-A",
+            new PendingScoreInput
+            {
+                HoleNumber  = 1,
+                GrossScore  = 1,
+                PlayerShots = PhoneShots(
+                    (w.PlayerId, new { drive = 1, approach = 1, putt = 1 }),
+                    (other, 2)),              // organizer total the phone kept as is
+            },
+            Pending(2, 4)));                  // no breakdown at all
+
+        var res = await w.Svc.GetTeamScoresAsync(World.Code, w.TeamId);
+
+        var hole1 = res.Holes.Single(h => h.HoleNumber == 1);
+        Assert.Equal((short)5, hole1.GrossScore);   // scramble: 3 + 2, recomputed
+        // Serialized as the phone reads it.
+        var wire = JsonSerializer.Serialize(hole1.PlayerShots);
+        Assert.Equal(
+            $$"""{"{{w.PlayerId}}":{"drive":1,"approach":1,"putt":1},"{{other}}":2}""",
+            wire);
+        Assert.Null(res.Holes.Single(h => h.HoleNumber == 2).PlayerShots);
+    }
+
+    [Fact]
+    public async Task BatchSync_stores_the_breakdown_canonically_and_drops_bad_golfers()
+    {
+        var w = Seed();
+        var bad = Guid.NewGuid();
+        await w.Svc.BatchSyncAsync(SyncReq(w, w.SessionToken, "dev-A", new PendingScoreInput
+        {
+            HoleNumber  = 1,
+            GrossScore  = 99,
+            PlayerShots = PhoneShots(
+                (w.PlayerId, new { putt = 2, drive = 1, approach = 1 }),
+                (bad, new { drive = -3, approach = 0, putt = 0 })),
+        }));
+
+        var row = w.Db.Scores.Single(s => s.TeamId == w.TeamId);
+        Assert.Equal($$$"""{"{{{w.PlayerId}}}":{"drive":1,"approach":1,"putt":2}}""", row.PlayerShotsJson);
+        Assert.Equal((short)4, row.GrossScore);
+    }
+
+    [Fact]
+    public async Task BatchSync_resplitting_an_admin_total_without_changing_it_is_not_a_conflict()
+    {
+        // Mobile "Edit" on an organizer-entered golfer opens the same total as
+        // a drive/approach split. Same gross -> accepted, no approval needed.
+        var w = Seed();
+        w.Db.Scores.Add(new Score
+        {
+            Id = Guid.NewGuid(), EventId = w.EventId, TeamId = w.TeamId, HoleNumber = 1,
+            GrossScore = 4, PlayerShotsJson = $$"""{"{{w.PlayerId}}":4}""",
+            DeviceId = "admin-desk", Source = ScoreSource.AdminEntry, SubmittedAt = DateTime.UtcNow,
+        });
+        w.Db.SaveChanges();
+
+        var res = await w.Svc.BatchSyncAsync(SyncReq(w, w.SessionToken, "dev-A", new PendingScoreInput
+        {
+            HoleNumber  = 1,
+            GrossScore  = 4,
+            PlayerShots = PhoneShots((w.PlayerId, new { drive = 1, approach = 3, putt = 0 })),
+        }));
+
+        Assert.Equal(1, res.Accepted);
+        Assert.Equal(0, res.Conflicts);
+        var row = w.Db.Scores.Single(s => s.TeamId == w.TeamId);
+        Assert.False(row.IsConflicted);
+        Assert.Contains("\"approach\":3", row.PlayerShotsJson);
+    }
+
+    [Fact]
     public async Task GetTeamScores_unknown_event_throws_NotFound()
     {
         var w = Seed();
@@ -757,7 +837,7 @@ public class MobileServiceTests
         {
             HoleNumber  = 1,
             GrossScore  = 9,     // an old build's scramble-style sum
-            PlayerShots = new Dictionary<string, int> { [w.PlayerId.ToString()] = 4, [other.ToString()] = 5 },
+            PlayerShots = PhoneShots((w.PlayerId, 4), (other, 5)),
         }));
 
         Assert.Equal(1, res.Accepted);
@@ -777,7 +857,7 @@ public class MobileServiceTests
         {
             HoleNumber  = 1,
             GrossScore  = 24,
-            PlayerShots = Enumerable.Range(0, 4).ToDictionary(_ => Guid.NewGuid().ToString(), _ => 6),
+            PlayerShots = PhoneShots(Enumerable.Range(0, 4).Select(_ => (Guid.NewGuid(), (object)6)).ToArray()),
         }));
 
         Assert.Equal(1, res.Accepted);

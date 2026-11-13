@@ -170,9 +170,23 @@ describe('batchSync', () => {
     mockOk(syncResponse);
     await batchSync('ev1', 'tm1', 'dev-001', scores, 'tok-1');
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    // Hole 2 has playerShots
+    // Hole 2 has playerShots — sent as the drive/approach/putt split, which
+    // the server stores (it sums them itself for the format).
     const hole2 = body.scores.find((s: { holeNumber: number }) => s.holeNumber === 2);
-    expect(hole2.playerShots).toEqual({ p1: 2, p2: 1 });
+    expect(hole2.playerShots).toEqual({
+      p1: { drive: 1, approach: 1, putt: 0 },
+      p2: { drive: 0, approach: 0, putt: 1 },
+    });
+  });
+
+  it('sends an organizer-entered golfer as the plain total it is', async () => {
+    mockOk(syncResponse);
+    await batchSync('ev1', 'tm1', 'dev-001', [{
+      holeNumber: 3, grossScore: 5, putts: 1, clientTimestampMs: 1,
+      playerShots: { p1: { drive: 1, approach: 0, putt: 1 }, p2: 3 },
+    }], 'tok-1');
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.scores[0].playerShots).toEqual({ p1: { drive: 1, approach: 0, putt: 1 }, p2: 3 });
   });
 
   it('sends null for playerShots when not provided', async () => {

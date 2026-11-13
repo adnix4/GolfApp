@@ -53,8 +53,8 @@ export function HoleNotices({
       {organizerEditHole === currentHoleNumber && !isCurrentHoleDone && scoringEnabled && (
         <View style={[styles.conflictNotice, { backgroundColor: '#fff7e6', borderColor: '#f0a500' }]}>
           <Text style={styles.conflictNoticeText}>
-            This hole was scored by the organizer. When you tap Complete Hole, your change is
-            sent to them to approve.
+            This hole was scored by the organizer. When you tap Complete Hole, a change to
+            the hole's score is sent to them to approve.
           </Text>
         </View>
       )}

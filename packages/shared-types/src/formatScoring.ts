@@ -22,6 +22,13 @@
 /** Per-golfer strokes on a hole, keyed by player id. */
 export type HoleShots = Record<string, number>;
 
+/**
+ * Most strokes one golfer can have on a hole (the single-ball limit). The
+ * server drops a golfer above it (FormatScoring.MaxGolferHoleStrokes), so the
+ * steppers stop here rather than let a save lose the golfer.
+ */
+export const MAX_GOLFER_HOLE_STROKES = 20;
+
 /** Golfers who actually have a score on the hole (a 0 is "not entered", not a score). */
 function scoredStrokes(shots: HoleShots | null | undefined): number[] {
   if (!shots) return [];

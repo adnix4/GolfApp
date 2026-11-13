@@ -1,5 +1,5 @@
 import { getDb } from './db';
-import type { JoinEventResponse, PendingScore } from './api';
+import type { JoinEventResponse, PendingScore, PlayerShotEntry, TeamHoleScore } from './api';
 
 const DEVICE_KEY  = 'gfp:deviceId';
 const SESSION_KEY = 'gfp:session';
@@ -245,11 +245,15 @@ export async function markScoresSynced(
 // push sync sends it up and the server's conflict detection takes over. Every
 // other hole adopts the server's value, marked synced + completed, with the
 // conflict flag tracking whether the golfer's proposed value awaits approval.
+// The server's per-golfer shots come with it (a split, or an organizer's
+// total), so the card shows how the hole was actually played. A server that
+// predates playerShots on the pull omits the field: then a breakdown is kept
+// only while the gross still matches it.
 // Returns true when at least one local row changed (so callers can refresh UI).
 export async function mergeServerScores(
   eventId: string,
   teamId:  string,
-  holes:   { holeNumber: number; grossScore: number; putts: number | null; isConflicted: boolean }[],
+  holes:   Pick<TeamHoleScore, 'holeNumber' | 'grossScore' | 'putts' | 'isConflicted' | 'playerShots'>[],
 ): Promise<boolean> {
   const db = await getDb();
   let changed = false;
@@ -278,16 +282,26 @@ export async function mergeServerScores(
     if (existing && existing.synced_at === null) continue;
 
     const newConflict = h.isConflicted ? 1 : 0;
+    const serverSentShots = h.playerShots !== undefined;
+    const serverShots = h.playerShots && Object.keys(h.playerShots).length > 0
+      ? JSON.stringify(h.playerShots)
+      : null;
     // Already in sync — nothing to write.
-    if (existing && existing.gross_score === h.grossScore && (existing.conflict ?? 0) === newConflict) {
+    if (existing
+        && existing.gross_score === h.grossScore
+        && (existing.conflict ?? 0) === newConflict
+        && (!serverSentShots || shotsKey(existing.player_shots) === shotsKey(serverShots))) {
       continue;
     }
 
-    // Only the conflict flag moved: the golfer's per-player shot breakdown still
-    // adds up to this gross, so keep it. An admin-changed gross invalidates it.
-    const playerShots = existing && existing.gross_score === h.grossScore
-      ? existing.player_shots
-      : null;
+    // The server's breakdown is authoritative when it sends one. From an older
+    // server: only the conflict flag moved → the local breakdown still adds up
+    // to this gross, so keep it; an admin-changed gross invalidates it.
+    const playerShots = serverSentShots
+      ? serverShots
+      : existing && existing.gross_score === h.grossScore
+        ? existing.player_shots
+        : null;
 
     const now = new Date().toISOString();
     await db.runAsync(
@@ -302,6 +316,20 @@ export async function mergeServerScores(
   }
 
   return changed;
+}
+
+/** Order-independent identity of a stored player_shots blob, for change detection. */
+function shotsKey(raw: string | null): string {
+  if (!raw) return '';
+  try {
+    const shots = JSON.parse(raw) as Record<string, PlayerShotEntry>;
+    return Object.keys(shots).sort().map(id => {
+      const e = shots[id];
+      return typeof e === 'number' ? `${id}=${e}` : `${id}=${e.drive}/${e.approach}/${e.putt}`;
+    }).join(',');
+  } catch {
+    return raw;
+  }
 }
 
 export async function clearPendingScores(

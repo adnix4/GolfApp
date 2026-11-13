@@ -135,11 +135,19 @@ export interface PlayerShotBreakdown {
   putt:     number;
 }
 
+/**
+ * One golfer's shots on a hole: the drive / approach / putt split the phone
+ * records, or a plain number when the organizer typed the golfer's total on
+ * the admin scorecard (no split exists). Same shape the server stores and
+ * returns — see FormatScoring.ParseShotDetail.
+ */
+export type PlayerShotEntry = PlayerShotBreakdown | number;
+
 export interface PendingScore {
   holeNumber:        number;
   grossScore:        number;
   putts:             number | null;
-  playerShots?:      Record<string, PlayerShotBreakdown>; // playerId → { drive, approach, putt }
+  playerShots?:      Record<string, PlayerShotEntry>; // playerId → { drive, approach, putt } | admin total
   clientTimestampMs: number;
   /** True when the golfer's value for this hole is awaiting admin approval (server-flagged conflict). */
   conflict?:         boolean;
@@ -247,6 +255,8 @@ export interface TeamHoleScore {
   putts:         number | null;
   isConflicted:  boolean;
   proposedScore: number | null;
+  /** Per-golfer shots as the server stores them; null/absent = no breakdown. */
+  playerShots?:  Record<string, PlayerShotEntry> | null;
 }
 
 export interface TeamScorecard {
@@ -906,11 +916,9 @@ export async function batchSync(
         holeNumber:        s.holeNumber,
         grossScore:        s.grossScore,
         putts:             s.putts,
-        playerShots:       s.playerShots
-          ? Object.fromEntries(
-              Object.entries(s.playerShots).map(([id, b]) => [id, b.drive + b.approach + b.putt]),
-            )
-          : null,
+        // Sent as is: the split per golfer (an admin total stays a number).
+        // The server sums it for the format and stores the split.
+        playerShots:       s.playerShots ?? null,
         clientTimestampMs: s.clientTimestampMs,
       })),
     }),

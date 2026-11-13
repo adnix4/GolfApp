@@ -23,6 +23,71 @@ export type { HoleShots };
  * their own strokes. Best Ball takes the lowest; Stroke and Stableford keep
  * each golfer's number (the team row holds the aggregate).
  */
+/**
+ * One golfer's entry in scores.player_shots: a total typed on this desk, or
+ * the { drive, approach, putt } split a golfer's phone recorded.
+ */
+export type StoredShotEntry = number | { drive?: number; approach?: number; putt?: number };
+
+/** A stored entry's stroke count, whichever shape it is in (0 if unreadable). */
+export function storedShotTotal(entry: unknown): number {
+  if (typeof entry === 'number') return Number.isInteger(entry) && entry > 0 ? entry : 0;
+  if (entry && typeof entry === 'object') {
+    const e = entry as Record<string, unknown>;
+    const part = (k: string) => (typeof e[k] === 'number' ? (e[k] as number) : 0);
+    const total = part('drive') + part('approach') + part('putt');
+    return total > 0 ? total : 0;
+  }
+  return 0;
+}
+
+/**
+ * Reads a hole's playerShotsJson into per-golfer totals (what this screen's
+ * steppers show) plus the raw entries, so a save can keep the splits golfers'
+ * phones recorded. Unreadable JSON reads as no breakdown.
+ */
+export function parseStoredShots(json: string | null | undefined): {
+  totals:  HoleShots;
+  entries: Record<string, StoredShotEntry>;
+} {
+  const totals: HoleShots = {};
+  const entries: Record<string, StoredShotEntry> = {};
+  if (!json) return { totals, entries };
+  let parsed: unknown;
+  try { parsed = JSON.parse(json); } catch { return { totals, entries }; }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { totals, entries };
+  for (const [id, entry] of Object.entries(parsed as Record<string, unknown>)) {
+    const total = storedShotTotal(entry);
+    if (total === 0) continue;
+    totals[id]  = total;
+    entries[id] = entry as StoredShotEntry;
+  }
+  return { totals, entries };
+}
+
+/**
+ * The playerShotsJson to save after the desk changed one golfer. That golfer
+ * becomes the plain total typed here (the desk has no drive/approach/putt
+ * split — the phone shows it as an "Admin" total). Every other golfer keeps
+ * the entry already stored, so a phone's split survives an edit to a
+ * teammate. Undefined when no golfer has strokes left.
+ */
+export function buildShotsJson(
+  totals:   HoleShots,
+  entries:  Record<string, StoredShotEntry>,
+  editedId: string,
+): string | undefined {
+  const out: Record<string, StoredShotEntry> = {};
+  for (const [id, total] of Object.entries(totals)) {
+    if (total <= 0) continue;
+    const stored = entries[id];
+    out[id] = id !== editedId && stored !== undefined && storedShotTotal(stored) === total
+      ? stored
+      : total;
+  }
+  return Object.keys(out).length > 0 ? JSON.stringify(out) : undefined;
+}
+
 export function sumPlayerShots(shots: HoleShots | undefined): number {
   if (!shots) return 0;
   return Object.values(shots).reduce((total, n) => total + n, 0);
