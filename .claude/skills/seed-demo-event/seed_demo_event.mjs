@@ -722,6 +722,23 @@ function scrambleShots(gross, playerIds) {
   return shots;
 }
 
+/**
+ * The same credited strokes split by shot type, as the phone records them:
+ * the first stroke is the drive, the last the putt that holed out, anything
+ * between an approach (a hole-in-one is a lone drive). Golfers are credited by
+ * the scrambleShots rule. Returns { playerId: { drive, approach, putt } }.
+ */
+function scrambleShotSplit(gross, playerIds) {
+  const split = {};
+  for (let s = 0; s < gross; s++) {
+    const who  = s === 0 && rand(2) === 0 ? playerIds[0] : playerIds[rand(playerIds.length)];
+    const type = s === 0 ? 'drive' : s === gross - 1 ? 'putt' : 'approach';
+    split[who] ??= { drive: 0, approach: 0, putt: 0 };
+    split[who][type] += 1;
+  }
+  return split;
+}
+
 /** Holes in the order a team plays them from its shotgun hole: 7, 8 … 18, 1 … 6. */
 function playOrder(startingHole) {
   const start = startingHole ?? 1;
@@ -786,9 +803,17 @@ async function completeHole(state, token, teamId, hole) {
   });
 }
 
-// One score for the mobile sync endpoint, per-golfer strokes as a map.
+// One score for the mobile sync endpoint. Per-golfer strokes go up split into
+// drive / approach / putt, exactly as the Expo app sends them; the admin path
+// above sends plain totals (the desk has no split), so the demo shows both
+// kinds of row on the phone.
 function syncScore(hole, playerIds, gross = scrambleGross(hole)) {
-  return { holeNumber: hole, grossScore: gross, playerShots: scrambleShots(gross, playerIds), clientTimestampMs: Date.now() };
+  const split = scrambleShotSplit(gross, playerIds);
+  const putts = Object.values(split).reduce((n, b) => n + b.putt, 0);
+  return {
+    holeNumber: hole, grossScore: gross, putts: putts || null,
+    playerShots: split, clientTimestampMs: Date.now(),
+  };
 }
 
 // Joins as a real player (the mobile join flow) to mint that player's session

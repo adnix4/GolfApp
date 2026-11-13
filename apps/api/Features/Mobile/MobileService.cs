@@ -529,10 +529,13 @@ public class MobileService
             // The format decides what the golfers' strokes add up to (U8). The
             // phone's own total is not trusted — builds before U8 summed every
             // golfer regardless of format, and some are still in the field.
-            var shotsJson = pending.PlayerShotsJson
+            // Each golfer's value is a { drive, approach, putt } split or a
+            // plain total; stored in canonical form, never as the raw client JSON.
+            var shotsJson = FormatScoring.NormalizeShotsJson(
+                pending.PlayerShotsJson
                 ?? (pending.PlayerShots is { Count: > 0 } byPlayer
                     ? JsonSerializer.Serialize(byPlayer)
-                    : null);
+                    : null));
             var gross = FormatScoring.TeamHoleGross(
                 evt.Format, FormatScoring.ParseShots(shotsJson), pending.GrossScore);
 
@@ -647,21 +650,43 @@ public class MobileService
         if (!teamExists)
             throw new NotFoundException("Team", teamId);
 
-        var holes = await _db.Scores
+        var rows = await _db.Scores
             .AsNoTracking()
             .Where(s => s.EventId == evt.Id && s.TeamId == teamId)
             .OrderBy(s => s.HoleNumber)
-            .Select(s => new TeamHoleScoreDto
+            .Select(s => new
             {
-                HoleNumber    = s.HoleNumber,
-                GrossScore    = s.GrossScore,
-                Putts         = s.Putts,
-                IsConflicted  = s.IsConflicted,
-                ProposedScore = s.ProposedScore,
+                s.HoleNumber, s.GrossScore, s.Putts, s.IsConflicted, s.ProposedScore, s.PlayerShotsJson,
             })
             .ToListAsync(ct);
 
+        var holes = rows.Select(s => new TeamHoleScoreDto
+        {
+            HoleNumber    = s.HoleNumber,
+            GrossScore    = s.GrossScore,
+            Putts         = s.Putts,
+            IsConflicted  = s.IsConflicted,
+            ProposedScore = s.ProposedScore,
+            PlayerShots   = ToPlayerShotsDto(FormatScoring.ParseShotDetail(s.PlayerShotsJson)),
+        }).ToList();
+
         return new TeamScorecardResponse { TeamId = teamId, Holes = holes };
+    }
+
+    /// <summary>
+    /// player_shots for the wire: a breakdown serializes as
+    /// <c>{ drive, approach, putt }</c>, a total as a number (see
+    /// <see cref="TeamHoleScoreDto.PlayerShots"/>).
+    /// </summary>
+    private static Dictionary<string, object>? ToPlayerShotsDto(
+        IReadOnlyDictionary<Guid, FormatScoring.GolferShots> shots)
+    {
+        if (shots.Count == 0) return null;
+        return shots.ToDictionary(
+            kv => kv.Key.ToString(),
+            kv => kv.Value.Breakdown is { } b
+                ? new { drive = b.Drive, approach = b.Approach, putt = b.Putt }
+                : (object)kv.Value.Total);
     }
 
     // ── SELF-SERVICE PROFILE UPDATE ───────────────────────────────────────────

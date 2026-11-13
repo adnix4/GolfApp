@@ -58,8 +58,11 @@ public class ScoreService
 
         // The format decides what the golfers' strokes add up to (U8) — the
         // server recomputes rather than trusting the client's arithmetic.
+        // Golfers may carry a phone's { drive, approach, putt } split or an
+        // organizer-typed total; stored canonically, never as the raw string.
+        var shotsJson = FormatScoring.NormalizeShotsJson(request.PlayerShotsJson);
         var gross = FormatScoring.TeamHoleGross(
-            evt.Format, FormatScoring.ParseShots(request.PlayerShotsJson), request.GrossScore);
+            evt.Format, FormatScoring.ParseShots(shotsJson), request.GrossScore);
 
         var existing = await _db.Scores
             .FirstOrDefaultAsync(s =>
@@ -88,7 +91,7 @@ public class ScoreService
             {
                 existing.GrossScore      = gross;
                 existing.Putts           = request.Putts;
-                existing.PlayerShotsJson = request.PlayerShotsJson;
+                existing.PlayerShotsJson = shotsJson;
                 existing.DeviceId        = request.DeviceId;
                 existing.SubmittedAt     = DateTime.UtcNow;
                 existing.IsConflicted    = false;
@@ -107,7 +110,7 @@ public class ScoreService
                 HoleNumber      = request.HoleNumber,
                 GrossScore      = gross,
                 Putts           = request.Putts,
-                PlayerShotsJson = request.PlayerShotsJson,
+                PlayerShotsJson = shotsJson,
                 DeviceId        = request.DeviceId,
                 SubmittedAt     = DateTime.UtcNow,
                 Source          = ScoreSource.AdminEntry,
@@ -351,7 +354,7 @@ public class ScoreService
 
         if (request.GrossScore.HasValue)       score.GrossScore      = request.GrossScore.Value;
         if (request.Putts.HasValue)            score.Putts           = request.Putts;
-        if (request.PlayerShotsJson is not null) score.PlayerShotsJson = request.PlayerShotsJson;
+        if (request.PlayerShotsJson is not null) score.PlayerShotsJson = FormatScoring.NormalizeShotsJson(request.PlayerShotsJson);
 
         // Same rule as SubmitAsync: a recorded breakdown decides the gross (U8).
         score.GrossScore = FormatScoring.TeamHoleGross(

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getHoleOrder } from '../lib/holeUtils';
+import { getHoleOrder, isAdminTotal, shotTotal, splitAdminTotal, strokesByPlayer, toBreakdown } from '../lib/holeUtils';
 
 describe('getHoleOrder', () => {
   // ── Standard starts (no shotgun) ──────────────────────────────────────────
@@ -64,5 +64,36 @@ describe('getHoleOrder', () => {
     for (let start = 1; start <= 9; start++) {
       expect(getHoleOrder(start, 9)[0]).toBe(start);
     }
+  });
+});
+
+describe('per-golfer shot entries', () => {
+  const split = { drive: 1, approach: 2, putt: 1 };
+
+  it('totals a split and an organizer-entered total alike', () => {
+    expect(shotTotal(split)).toBe(4);
+    expect(shotTotal(3)).toBe(3);
+    expect(shotTotal(undefined)).toBe(0);
+    expect(strokesByPlayer({ p1: split, p2: 3 })).toEqual({ p1: 4, p2: 3 });
+  });
+
+  it('tells an organizer total from a split', () => {
+    expect(isAdminTotal(3)).toBe(true);
+    expect(isAdminTotal(split)).toBe(false);
+    expect(isAdminTotal(undefined)).toBe(false);
+  });
+
+  it('gives steppers nothing to show for an organizer total', () => {
+    expect(toBreakdown(3)).toEqual({ drive: 0, approach: 0, putt: 0 });
+    expect(toBreakdown(split)).toBe(split);
+  });
+
+  it('opens an organizer total for editing without changing it', () => {
+    for (const total of [1, 2, 4, 9]) {
+      const opened = splitAdminTotal(total);
+      expect(shotTotal(opened)).toBe(total);
+      expect(opened.drive).toBe(1);
+    }
+    expect(splitAdminTotal(0)).toEqual({ drive: 0, approach: 0, putt: 0 });
   });
 });

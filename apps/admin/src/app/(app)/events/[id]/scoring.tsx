@@ -9,8 +9,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { scoresApi, testDataApi, type Scorecard } from '@/lib/api';
 import { eventKeys, useTeams, useLeaderboard, useChallenges } from '@/lib/queries';
 import { useResponsive } from '@/lib/responsive';
-import { resolveGrossScore, needsAceConfirmation, aceGolferIds } from '@/lib/scoring';
-import { countingPlayerId, isOwnBallFormat, stablefordPoints, FORMAT_LABELS } from '@gfp/shared-types';
+import { resolveGrossScore, needsAceConfirmation, aceGolferIds, parseStoredShots, buildShotsJson, type StoredShotEntry } from '@/lib/scoring';
+import { countingPlayerId, isOwnBallFormat, stablefordPoints, FORMAT_LABELS, MAX_GOLFER_HOLE_STROKES } from '@gfp/shared-types';
 import { TestDataWarningModal } from '@/components/TestDataWarningModal';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
 
@@ -35,6 +35,8 @@ export default function ScoringScreen() {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [scorecard,    setScorecard]    = useState<Scorecard | null>(null);
   const [playerShotsByHole, setPlayerShotsByHole] = useState<Record<number, Record<string, number>>>({});
+  /** The stored per-golfer entries behind those totals: phone splits are kept on save. */
+  const [storedShotsByHole, setStoredShotsByHole] = useState<Record<number, Record<string, StoredShotEntry>>>({});
   const [saving,       setSaving]       = useState<number | null>(null);
   const [actionError,  setError]        = useState<string | null>(null);
   const error = actionError
@@ -61,23 +63,31 @@ export default function ScoringScreen() {
     try {
       const sc = await scoresApi.getScorecard(id, teamId);
       setScorecard(sc);
-      // Hydrate per-player shots from stored JSON on each hole
+      // Hydrate per-player shots from stored JSON on each hole. A golfer's
+      // entry is a total typed here or a phone's drive/approach/putt split;
+      // the steppers show totals either way.
       const hydrated: Record<number, Record<string, number>> = {};
+      const stored:   Record<number, Record<string, StoredShotEntry>> = {};
       for (const hole of sc.holes) {
-        if (hole.playerShotsJson) {
-          try { hydrated[hole.holeNumber] = JSON.parse(hole.playerShotsJson); } catch { /* ignore */ }
+        const { totals, entries } = parseStoredShots(hole.playerShotsJson);
+        if (Object.keys(totals).length > 0) {
+          hydrated[hole.holeNumber] = totals;
+          stored[hole.holeNumber]   = entries;
         }
       }
       setPlayerShotsByHole(hydrated);
+      setStoredShotsByHole(stored);
     } catch {
       setScorecard(null);
       setPlayerShotsByHole({});
+      setStoredShotsByHole({});
     }
   }, [id]);
 
   useEffect(() => {
     if (selectedTeam) {
       setPlayerShotsByHole({});
+      setStoredShotsByHole({});
       loadScorecard(selectedTeam);
     }
   }, [selectedTeam, loadScorecard]);
@@ -107,7 +117,8 @@ export default function ScoringScreen() {
   async function handlePlayerShotChange(holeNumber: number, playerId: string, delta: number) {
     if (!selectedTeam) return;
     const current = playerShotsByHole[holeNumber]?.[playerId] ?? 0;
-    const next    = Math.max(0, current + delta);
+    const next    = Math.min(MAX_GOLFER_HOLE_STROKES, Math.max(0, current + delta));
+    if (next === current) return;
     const newHoleShots = { ...(playerShotsByHole[holeNumber] ?? {}), [playerId]: next };
     if (next === 0) delete newHoleShots[playerId];
     setPlayerShotsByHole(prev => ({ ...prev, [holeNumber]: newHoleShots }));
@@ -125,9 +136,9 @@ export default function ScoringScreen() {
         teamId: selectedTeam,
         holeNumber,
         grossScore,
-        playerShotsJson: Object.keys(newHoleShots).length > 0
-          ? JSON.stringify(newHoleShots)
-          : undefined,
+        // The golfer changed here becomes a typed total; teammates keep
+        // the split their phone recorded.
+        playerShotsJson: buildShotsJson(newHoleShots, storedShotsByHole[holeNumber] ?? {}, playerId),
       });
       await reloadAfterSave(selectedTeam);
     } catch (e: any) {

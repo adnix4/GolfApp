@@ -38,13 +38,35 @@ public static class FormatScoring
     public const short MaxTeamHolePutts = 80;
 
     /// <summary>
-    /// Parses scores.player_shots ({ "player-uuid": strokes }). Malformed JSON,
-    /// non-GUID keys and non-positive counts are dropped — a golfer at 0 has
-    /// no score on the hole, not a score of 0.
+    /// One golfer's strokes on a hole may not exceed this (the single-ball
+    /// limit). A larger value can only come from a broken or hostile client.
     /// </summary>
-    public static IReadOnlyDictionary<Guid, int> ParseShots(string? json)
+    public const int MaxGolferHoleStrokes = 20;
+
+    /// <summary>A golfer's strokes on a hole split by shot type, as the phone records them.</summary>
+    public sealed record ShotBreakdown(int Drive, int Approach, int Putt)
     {
-        var result = new Dictionary<Guid, int>();
+        public int Total => Drive + Approach + Putt;
+    }
+
+    /// <summary>
+    /// One golfer's strokes on a hole. <see cref="Breakdown"/> is null when
+    /// only a total was recorded: typed on the admin scorecard, or synced by a
+    /// phone build from before the breakdown was sent.
+    /// </summary>
+    public sealed record GolferShots(int Total, ShotBreakdown? Breakdown);
+
+    /// <summary>
+    /// Parses scores.player_shots. Each golfer's value is either a total
+    /// (<c>"player-uuid": 4</c>) or a breakdown
+    /// (<c>"player-uuid": { "drive": 1, "approach": 2, "putt": 1 }</c>, missing
+    /// parts are 0). Malformed JSON, non-GUID keys, negative or non-integer
+    /// parts, totals over <see cref="MaxGolferHoleStrokes"/> and zero totals
+    /// are dropped: a golfer at 0 has no score on the hole, not a score of 0.
+    /// </summary>
+    public static IReadOnlyDictionary<Guid, GolferShots> ParseShotDetail(string? json)
+    {
+        var result = new Dictionary<Guid, GolferShots>();
         if (string.IsNullOrWhiteSpace(json)) return result;
 
         try
@@ -55,9 +77,7 @@ public static class FormatScoring
             foreach (var prop in doc.RootElement.EnumerateObject())
             {
                 if (!Guid.TryParse(prop.Name, out var playerId)) continue;
-                if (prop.Value.ValueKind != JsonValueKind.Number) continue;
-                if (!prop.Value.TryGetInt32(out var strokes) || strokes <= 0) continue;
-                result[playerId] = strokes;
+                if (ReadGolferShots(prop.Value) is { } shots) result[playerId] = shots;
             }
         }
         catch (JsonException)
@@ -66,6 +86,82 @@ public static class FormatScoring
         }
 
         return result;
+    }
+
+    /// <summary>Per-golfer stroke totals ({ player → strokes }) — what the format rules read.</summary>
+    public static IReadOnlyDictionary<Guid, int> ParseShots(string? json)
+        => ParseShotDetail(json).ToDictionary(kv => kv.Key, kv => kv.Value.Total);
+
+    /// <summary>
+    /// The canonical scores.player_shots JSON for a parsed set: totals as
+    /// numbers, breakdowns as { drive, approach, putt }. Null when empty, so a
+    /// hole with no usable breakdown stores no breakdown.
+    /// </summary>
+    public static string? SerializeShots(IReadOnlyDictionary<Guid, GolferShots> shots)
+    {
+        if (shots.Count == 0) return null;
+
+        using var buffer = new MemoryStream();
+        using (var w = new Utf8JsonWriter(buffer))
+        {
+            w.WriteStartObject();
+            foreach (var (playerId, s) in shots)
+            {
+                var key = playerId.ToString();
+                if (s.Breakdown is { } b)
+                {
+                    w.WriteStartObject(key);
+                    w.WriteNumber("drive", b.Drive);
+                    w.WriteNumber("approach", b.Approach);
+                    w.WriteNumber("putt", b.Putt);
+                    w.WriteEndObject();
+                }
+                else
+                {
+                    w.WriteNumber(key, s.Total);
+                }
+            }
+            w.WriteEndObject();
+        }
+        return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
+    }
+
+    /// <summary>
+    /// Re-writes client-sent player_shots JSON in canonical form, dropping
+    /// anything <see cref="ParseShotDetail"/> rejects. Every write path stores
+    /// this, never the raw client string.
+    /// </summary>
+    public static string? NormalizeShotsJson(string? json)
+        => SerializeShots(ParseShotDetail(json));
+
+    private static GolferShots? ReadGolferShots(JsonElement value)
+    {
+        switch (value.ValueKind)
+        {
+            case JsonValueKind.Number:
+                return value.TryGetInt32(out var total) && total > 0 && total <= MaxGolferHoleStrokes
+                    ? new GolferShots(total, null)
+                    : null;
+
+            case JsonValueKind.Object:
+                if (!TryReadPart(value, "drive", out var drive)
+                    || !TryReadPart(value, "approach", out var approach)
+                    || !TryReadPart(value, "putt", out var putt))
+                    return null;
+                var b = new ShotBreakdown(drive, approach, putt);
+                return b.Total > 0 && b.Total <= MaxGolferHoleStrokes ? new GolferShots(b.Total, b) : null;
+
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>A missing part is 0; a present one must be a non-negative integer.</summary>
+    private static bool TryReadPart(JsonElement obj, string name, out int part)
+    {
+        part = 0;
+        if (!obj.TryGetProperty(name, out var el)) return true;
+        return el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out part) && part >= 0;
     }
 
     /// <summary>
