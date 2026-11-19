@@ -58,14 +58,14 @@ export const TeamRow = memo(function TeamRow({
             size="sm"
           />
           <View style={styles.actionBtns}>
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${team.name}`}
               style={[styles.editBtn, { borderColor: theme.colors.accent }]}
               onPress={() => onEditTeam(team)}
             >
               <Text style={[styles.editBtnText, { color: theme.mutedText }]}>Edit</Text>
             </Pressable>
             {team.players.length === 0 && (
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${team.name}`}
                 style={[styles.editBtn, { borderColor: '#e74c3c' }]}
                 onPress={() => onRemoveTeam(team)}
               >
@@ -73,7 +73,7 @@ export const TeamRow = memo(function TeamRow({
               </Pressable>
             )}
             {!teamIsIn && canCheckInAll && eventStatus === 'Active' && (
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel={`Check In Team ${team.name}`}
                 style={[styles.checkInBtn, { backgroundColor: theme.colors.action }]}
                 onPress={() => onCheckIn(team.id)}
               >
@@ -126,7 +126,7 @@ export const TeamRow = memo(function TeamRow({
                   statusIsCheckedIn(p.checkInStatus) ? (
                     <Text style={[styles.golferDone, { color: '#27ae60' }]}>✓ In</Text>
                   ) : (
-                    <Pressable
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Check In ${p.firstName} ${p.lastName}`}
                       style={[styles.smallBtn, { borderColor: theme.colors.action }]}
                       onPress={() => {
                         const c = checkInConfirmCopy(
@@ -138,13 +138,13 @@ export const TeamRow = memo(function TeamRow({
                     </Pressable>
                   )
                 )}
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${p.firstName} ${p.lastName}`}
                   style={[styles.smallBtn, { borderColor: theme.colors.accent }]}
                   onPress={() => onEditPlayer(p, team)}
                 >
                   <Text style={[styles.smallBtnText, { color: theme.mutedText }]}>Edit</Text>
                 </Pressable>
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${p.firstName} ${p.lastName}`}
                   style={[styles.smallBtn, { borderColor: '#e74c3c' }]}
                   onPress={() => confirmAction(
                     'Remove Player',
@@ -171,7 +171,7 @@ export const TeamRow = memo(function TeamRow({
           {team.entryFeePaid ? 'Fee Paid' : 'Fee Unpaid'}
         </Text>
         {team.players.length < team.maxPlayers && (
-          <Pressable
+          <Pressable accessibilityRole="button" accessibilityLabel={`Add Player to ${team.name}`}
             style={[styles.addPlayerBtn, { borderColor: theme.colors.action }]}
             onPress={() => onAddPlayer(team)}
           >

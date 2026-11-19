@@ -83,7 +83,7 @@ export function DialogFrame({
       <View style={styles.overlay}>
         {/* Backdrop is a sibling behind the card, not its parent: RN-web
             renders Pressable as <button>, and buttons can't nest. */}
-        <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} disabled={busy} accessibilityLabel="Close dialog" />
+        <Pressable accessibilityRole="button" style={StyleSheet.absoluteFill} onPress={onDismiss} disabled={busy} accessibilityLabel="Close dialog" />
         <View style={[styles.card, { backgroundColor: theme.colors.surface }]} accessibilityViewIsModal>
           <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
             <Text style={[styles.headerTitle, { color: theme.buttonLabel }]} numberOfLines={1}>
@@ -124,7 +124,7 @@ export function DialogFrame({
                 style={styles.checkRow}
                 onPress={() => setDontShow(v => !v)}
                 accessibilityRole="checkbox"
-                accessibilityState={{ checked: dontShow }}
+                aria-checked={dontShow}
               >
                 <View style={[
                   styles.box, { borderColor: theme.colors.primary },
@@ -146,7 +146,7 @@ export function DialogFrame({
                     onPress={() => onButton(b, dontShow)}
                     disabled={busy}
                     accessibilityRole="button"
-                    accessibilityState={{ disabled: !!busy, busy: !!busy && !isCancel }}
+                    aria-disabled={!!busy} aria-busy={!!busy && !isCancel}
                     style={[
                       busy && { opacity: 0.6 },
                       styles.btn,

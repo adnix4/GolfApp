@@ -167,13 +167,13 @@ export default function RegistrationScreen() {
           Registration
         </Text>
         <View style={{ flexDirection: 'row', gap: spacing[2] }}>
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() => setWalkUpOpen(true)}
             style={[styles.walkUpBtn, { backgroundColor: theme.colors.action }]}
           >
             <Text style={[styles.walkUpBtnText, { color: theme.ctaLabel }]}>+ Walk-Up</Text>
           </Pressable>
-          <Pressable onPress={load} style={styles.refreshBtn} accessibilityLabel="Refresh">
+          <Pressable accessibilityRole="button" onPress={load} style={styles.refreshBtn} accessibilityLabel="Refresh">
             <Text style={[styles.refreshText, { color: theme.mutedText }]}>↻ Refresh</Text>
           </Pressable>
         </View>
@@ -196,9 +196,9 @@ export default function RegistrationScreen() {
       )}
 
       {/* Filter tabs */}
-      <View style={[styles.filterRow, { borderBottomColor: '#e0e0e0' }]}>
+      <View accessibilityRole="tablist" style={[styles.filterRow, { borderBottomColor: '#e0e0e0' }]}>
         {(['all', 'pending', 'checked_in'] as Filter[]).map(f => (
-          <Pressable
+          <Pressable accessibilityRole="tab" aria-selected={filter === f}
             key={f}
             onPress={() => setFilter(f)}
             style={[styles.filterBtn, filter === f && { borderBottomColor: theme.colors.primary }]}
@@ -290,7 +290,7 @@ export default function RegistrationScreen() {
                           {team.playersPaid}/{team.players.length} paid
                         </Text>
                       </View>
-                      <Pressable
+                      <Pressable accessibilityRole="button" accessibilityLabel="Mark All Paid"
                         onPress={() => handleMarkPaid(team.id)}
                         disabled={busy[team.id + '_fee']}
                         style={[styles.actionBtn, { borderColor: '#2980b9' }]}
@@ -304,7 +304,7 @@ export default function RegistrationScreen() {
 
                   {/* Whole-team check-in — only when no golfer is cardless */}
                   {checkInOpen && !isCheckedIn && canCheckInAll && (
-                    <Pressable
+                    <Pressable accessibilityRole="button" accessibilityLabel="Check In Team"
                       onPress={() => handleCheckIn(team.id)}
                       disabled={busy[team.id + '_ci']}
                       style={[styles.actionBtn, { borderColor: theme.colors.action, backgroundColor: theme.colors.action }]}
@@ -339,7 +339,7 @@ export default function RegistrationScreen() {
                             <Text style={[styles.cardTag, { color: status.success }]}>✓ card</Text>
                           ) : cardCaptureEnabled ? (
                             // Tap the warning to key the card in at the desk.
-                            <Pressable onPress={() => setCardFor(player)}>
+                            <Pressable accessibilityRole="button" accessibilityLabel={`Add card for ${name}`} onPress={() => setCardFor(player)}>
                               <Text style={[styles.cardTag, styles.cardTagAction, { color: status.warning }]}>
                                 ⚠ add card
                               </Text>
@@ -353,7 +353,7 @@ export default function RegistrationScreen() {
                             player.entryFeePaidCents > 0 ? (
                               <Text style={[styles.cardTag, { color: status.success }]}>✓ paid</Text>
                             ) : (
-                              <Pressable
+                              <Pressable accessibilityRole="button" accessibilityLabel={`Take fee from ${name}`}
                                 onPress={() => confirmAction(
                                   'Record entry fee?',
                                   `Mark ${name} as having paid the entry fee in cash or by check. `
@@ -377,7 +377,7 @@ export default function RegistrationScreen() {
                           ) : !checkInOpen ? (
                             <Text style={[styles.golferDone, { color: theme.mutedText }]}>Pending</Text>
                           ) : (
-                            <Pressable
+                            <Pressable accessibilityRole="button" accessibilityLabel={`Check in ${name}`}
                               onPress={() => {
                                 const c = checkInConfirmCopy(name, player.hasPaymentMethod);
                                 confirmAction(c.title, c.message, () => checkInGolfer(player), c.confirmText, c.dialog);
@@ -461,7 +461,7 @@ function GuestsSection({ guests, checkInOpen, busy, onCheckIn, theme }: GuestsSe
               ) : !checkInOpen ? (
                 <Text style={[styles.golferDone, { color: theme.mutedText }]}>Pending</Text>
               ) : (
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityLabel={`Check in ${name}`}
                   onPress={() => {
                     const c = checkInConfirmCopy(name, guest.hasPaymentMethod);
                     confirmAction(c.title, c.message, () => onCheckIn(guest), c.confirmText, c.dialog);
@@ -576,7 +576,7 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
             <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
               {isGuest ? 'Add Guest' : 'Walk-Up Registration'}
             </Text>
-            <Pressable onPress={handleClose} style={styles.modalClose}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={handleClose} style={styles.modalClose}>
               <Text style={{ fontSize: fontSize.xxl, color: theme.mutedText }}>✕</Text>
             </Pressable>
           </View>
@@ -586,7 +586,7 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
               onPress={() => setIsGuest(v => !v)}
               style={styles.guestToggleRow}
               accessibilityRole="checkbox"
-              accessibilityState={{ checked: isGuest }}
+              aria-checked={isGuest}
             >
               <View style={[
                 styles.guestCheckbox,
@@ -646,10 +646,10 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
           {err && <Text style={styles.modalErr}>{err}</Text>}
 
           <View style={c.formActions}>
-            <Pressable onPress={handleClose} style={styles.modalCancel}>
+            <Pressable accessibilityRole="button" onPress={handleClose} style={styles.modalCancel}>
               <Text style={[styles.modalCancelText, { color: theme.mutedText }]}>Cancel</Text>
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel="Register"
               onPress={handleSubmit}
               disabled={saving || blocked}
               style={[styles.modalSubmit, { backgroundColor: theme.colors.action }, blocked && { opacity: 0.5 }]}

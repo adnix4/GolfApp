@@ -88,10 +88,10 @@ export function EditTeamModal({ visible, eventId, team, onClose, onSaved }: Edit
           )}
 
           <View style={c.formActions}>
-            <Pressable style={c.cancelBtn} onPress={onClose}>
+            <Pressable accessibilityRole="button" style={c.cancelBtn} onPress={onClose}>
               <Text style={c.cancelText}>Cancel</Text>
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel="Save"
               style={[c.submitBtn, loading && { opacity: 0.6 }]}
               onPress={handleSave}
               disabled={loading}

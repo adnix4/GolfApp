@@ -89,7 +89,7 @@ export default function EditProfileScreen() {
     <SafeAreaView style={c.screen}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: '#e0e0e0' }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button">
+        <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Back">
           <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: theme.colors.primary }]}>Edit Profile</Text>

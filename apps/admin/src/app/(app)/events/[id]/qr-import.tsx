@@ -85,7 +85,7 @@ export default function QrImportScreen() {
           accessibilityLabel="QR payload input"
         />
         {payload.length > 0 && (
-          <Pressable onPress={handleReset} style={styles.clearBtn} accessibilityLabel="Clear">
+          <Pressable accessibilityRole="button" onPress={handleReset} style={styles.clearBtn} accessibilityLabel="Clear">
             <Text style={styles.clearText}>✕ Clear</Text>
           </Pressable>
         )}

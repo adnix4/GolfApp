@@ -89,7 +89,7 @@ export default function LeaguesScreen() {
           contentContainerStyle={styles.list}
           key={!isMobile ? 'wide' : 'narrow'}
           renderItem={({ item }) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               style={[styles.card, {
                 backgroundColor: theme.colors.surface,
                 borderColor: theme.colors.accent,
@@ -132,9 +132,9 @@ export default function LeaguesScreen() {
             />
 
             <Text style={c.fieldLabel}>Format</Text>
-            <View style={styles.segRow}>
+            <View accessibilityRole="radiogroup" style={styles.segRow}>
               {FORMATS.map(f => (
-                <Pressable
+                <Pressable accessibilityRole="radio" aria-checked={format === f}
                   key={f}
                   style={[styles.seg, { borderColor: theme.colors.accent }, format === f && { backgroundColor: theme.colors.primary }]}
                   onPress={() => setFormat(f)}
@@ -147,9 +147,9 @@ export default function LeaguesScreen() {
             </View>
 
             <Text style={c.fieldLabel}>Handicap System</Text>
-            <View style={styles.segRow}>
+            <View accessibilityRole="radiogroup" style={styles.segRow}>
               {HC_SYSTEMS.map(h => (
-                <Pressable
+                <Pressable accessibilityRole="radio" aria-checked={hcSystem === h}
                   key={h}
                   style={[styles.seg, { borderColor: theme.colors.accent }, hcSystem === h && { backgroundColor: theme.colors.primary }]}
                   onPress={() => setHcSystem(h)}

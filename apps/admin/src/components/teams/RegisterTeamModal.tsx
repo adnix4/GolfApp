@@ -114,7 +114,7 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
                     Player {idx + 1}{idx === 0 ? ' (Captain)' : ''}
                   </Text>
                   {players.length > 1 && (
-                    <Pressable onPress={() => removePlayer(idx)}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Remove player ${idx + 1}`} onPress={() => removePlayer(idx)}>
                       <Text style={{ color: '#e74c3c', fontSize: fontSize.sm }}>Remove</Text>
                     </Pressable>
                   )}
@@ -154,15 +154,15 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
               </View>
             ))}
 
-            <Pressable style={[styles.addPlayerFormBtn, { borderColor: theme.colors.action }]} onPress={addPlayer}>
+            <Pressable accessibilityRole="button" style={[styles.addPlayerFormBtn, { borderColor: theme.colors.action }]} onPress={addPlayer}>
               <Text style={[styles.addPlayerFormText, { color: theme.colors.action }]}>+ Add Player</Text>
             </Pressable>
 
             <View style={c.formActions}>
-              <Pressable style={c.cancelBtn} onPress={() => { reset(); onClose(); }}>
+              <Pressable accessibilityRole="button" style={c.cancelBtn} onPress={() => { reset(); onClose(); }}>
                 <Text style={c.cancelText}>Cancel</Text>
               </Pressable>
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel="Register"
                 style={[c.submitBtn, loading && { opacity: 0.6 }]}
                 onPress={handleSubmit}
                 disabled={loading}

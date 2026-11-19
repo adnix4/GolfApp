@@ -71,13 +71,13 @@ export default function FreeAgentsScreen() {
           Free Agents ({agents.length})
         </Text>
         <View style={styles.headerActions}>
-          <Pressable
+          <Pressable accessibilityRole="button"
             style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
             onPress={() => setModal('add')}
           >
             <Text style={[styles.addBtnText, { color: theme.colors.surface }]}>+ Add Free Agent</Text>
           </Pressable>
-          <Pressable onPress={load} style={styles.refreshBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Refresh" onPress={load} style={styles.refreshBtn}>
             <Text style={[styles.refreshText, { color: theme.mutedText }]}>↻ Refresh</Text>
           </Pressable>
         </View>
@@ -95,13 +95,13 @@ export default function FreeAgentsScreen() {
           <Text style={[styles.actionBarText, { color: theme.colors.primary }]}>
             {selected.size} player{selected.size !== 1 ? 's' : ''} selected
           </Text>
-          <Pressable
+          <Pressable accessibilityRole="button"
             style={[styles.assignBtn, { backgroundColor: theme.colors.action }]}
             onPress={() => setModal('assign')}
           >
             <Text style={[styles.assignBtnText, { color: theme.ctaLabel }]}>Assign to Team</Text>
           </Pressable>
-          <Pressable onPress={() => setSelected(new Set())} style={styles.clearBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Clear selection" onPress={() => setSelected(new Set())} style={styles.clearBtn}>
             <Text style={[styles.clearText, { color: theme.mutedText }]}>Clear</Text>
           </Pressable>
         </View>
@@ -133,7 +133,7 @@ export default function FreeAgentsScreen() {
                   isSelected && { backgroundColor: theme.colors.highlight },
                 ]}
                 accessibilityRole="checkbox"
-                accessibilityState={{ checked: isSelected }}
+                aria-checked={isSelected}
               >
                 <View style={[
                   styles.checkbox,
@@ -198,7 +198,7 @@ export default function FreeAgentsScreen() {
             </Text>
             <ScrollView style={styles.teamList}>
               {teams.map(team => (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   key={team.id}
                   style={[styles.teamOption, { borderColor: '#e8e8e8' }]}
                   onPress={() => handleAssign(team.id)}
@@ -217,7 +217,7 @@ export default function FreeAgentsScreen() {
                 </Text>
               )}
             </ScrollView>
-            <Pressable
+            <Pressable accessibilityRole="button"
               style={[styles.cancelModalBtn, { borderColor: theme.colors.accent }]}
               onPress={() => setModal(null)}
             >
@@ -319,13 +319,13 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
             keyboardType="decimal-pad" editable={!loading}
           />
           <View style={{ flexDirection: 'row', gap: spacing[3], marginTop: spacing[5] }}>
-            <Pressable
+            <Pressable accessibilityRole="button"
               style={[styles.cancelModalBtn, { flex: 1, borderColor: '#aaa' }]}
               onPress={() => { reset(); onClose(); }}
             >
               <Text style={[styles.cancelModalText, { color: '#888' }]}>Cancel</Text>
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel="Add"
               style={[{ flex: 2, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center' as const }, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}
               onPress={handleSubmit}
               disabled={loading}

@@ -130,7 +130,7 @@ export default function RegisterScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Pressable
+        <Pressable accessibilityRole="link"
           onPress={() => router.push('/(public)/' as any)} style={styles.backBtn}>
           <Text style={[styles.backText, { color: theme.colors.primary }]}>← Back</Text>
         </Pressable>
@@ -219,6 +219,7 @@ export default function RegisterScreen() {
             </Text>
           </View>
           <Switch
+            accessibilityLabel="501(c)(3) Non-Profit"
             value={is501c3}
             onValueChange={setIs501c3}
             trackColor={{ true: theme.colors.primary }}
@@ -226,7 +227,7 @@ export default function RegisterScreen() {
           />
         </View>
 
-        <Pressable
+        <Pressable accessibilityRole="button" accessibilityLabel="Create Account & Start"
           style={[
             styles.submitBtn,
             { backgroundColor: theme.colors.primary },
@@ -242,7 +243,7 @@ export default function RegisterScreen() {
 
         <View style={styles.signinRow}>
           <Text style={[styles.signinText, { color: theme.mutedText }]}>Already have an account? </Text>
-          <Pressable onPress={() => router.push('/(auth)/login')}>
+          <Pressable accessibilityRole="link" onPress={() => router.push('/(auth)/login')}>
             <Text style={[styles.signinLink, { color: theme.colors.primary }]}>Sign in</Text>
           </Pressable>
         </View>

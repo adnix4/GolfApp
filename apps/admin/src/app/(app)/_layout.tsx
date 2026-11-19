@@ -93,6 +93,7 @@ export default function AppLayout() {
                   onPress={() => router.push(item.href as any)}
                   accessibilityRole="link"
                   accessibilityLabel={item.label}
+                  aria-current={isActive ? 'page' : undefined}
                 >
                   <Text style={[styles.topNavLabel, { color: theme.colors.surface }]}>
                     {item.label}
@@ -147,6 +148,7 @@ export default function AppLayout() {
                   onPress={() => router.push(item.href as any)}
                 accessibilityRole="link"
                 accessibilityLabel={item.label}
+                aria-current={isActive ? 'page' : undefined}
               >
                 <Text style={[styles.navLabel, { color: theme.colors.surface }]}>
                   {item.label}

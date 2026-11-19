@@ -94,7 +94,7 @@ export default function QrTransferScreen() {
         ) : error ? (
           <View style={styles.qrPlaceholder}>
             <Text style={styles.errorText}>{error}</Text>
-            <Pressable onPress={build} style={styles.retryBtn}>
+            <Pressable accessibilityRole="button" onPress={build} style={styles.retryBtn}>
               <Text style={styles.retryText}>Retry</Text>
             </Pressable>
           </View>
@@ -113,8 +113,8 @@ export default function QrTransferScreen() {
 
       {/* ── SPLIT SELECTOR ── */}
       {isSplit && !building && !error && (
-        <View style={styles.partRow}>
-          <Pressable
+        <View accessibilityRole="tablist" style={styles.partRow}>
+          <Pressable accessibilityRole="tab" aria-selected={activePart === 0}
             onPress={() => setActivePart(0)}
             style={[styles.partBtn, activePart === 0 && styles.partBtnActive]}
           >
@@ -122,7 +122,7 @@ export default function QrTransferScreen() {
               Part 1 of 2
             </Text>
           </Pressable>
-          <Pressable
+          <Pressable accessibilityRole="tab" aria-selected={activePart === 1}
             onPress={() => setActivePart(1)}
             style={[styles.partBtn, activePart === 1 && styles.partBtnActive]}
           >

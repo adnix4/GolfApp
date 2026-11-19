@@ -133,21 +133,21 @@ export default function EmailBuilderScreen() {
                 {SECTION_LABELS[sId]}
               </Text>
               <View style={styles.sectionActions}>
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityLabel={`Move ${SECTION_LABELS[sId]} up`}
                   onPress={() => moveSection(i, 'up')}
                   disabled={i === 0}
                   style={[styles.arrowBtn, i === 0 && styles.arrowDisabled]}
                 >
                   <Text style={styles.arrowText}>↑</Text>
                 </Pressable>
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityLabel={`Move ${SECTION_LABELS[sId]} down`}
                   onPress={() => moveSection(i, 'down')}
                   disabled={i === sections.length - 1}
                   style={[styles.arrowBtn, i === sections.length - 1 && styles.arrowDisabled]}
                 >
                   <Text style={styles.arrowText}>↓</Text>
                 </Pressable>
-                <Pressable onPress={() => removeSection(sId)} style={styles.removeBtn}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${SECTION_LABELS[sId]}`} onPress={() => removeSection(sId)} style={styles.removeBtn}>
                   <Text style={styles.removeText}>✕</Text>
                 </Pressable>
               </View>
@@ -158,7 +158,7 @@ export default function EmailBuilderScreen() {
             <View style={styles.addRow}>
               <Text style={[styles.addLabel, { color: theme.mutedText }]}>Add section:</Text>
               {availableToAdd.map(sId => (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   key={sId}
                   onPress={() => addSection(sId)}
                   style={[styles.addBtn, { borderColor: theme.colors.primary }]}
@@ -201,7 +201,7 @@ export default function EmailBuilderScreen() {
           )}
 
           <View style={styles.buttonRow}>
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel="Send via SendGrid"
               style={[styles.btn, { backgroundColor: theme.colors.primary }, sending && styles.btnDisabled]}
               onPress={handleSend}
               disabled={sending}
@@ -212,7 +212,7 @@ export default function EmailBuilderScreen() {
             </Pressable>
 
             {Platform.OS === 'web' && (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 style={[styles.btn, styles.btnOutline, { borderColor: status.success }]}
                 onPress={handlePreviewPdf}
               >
@@ -220,7 +220,7 @@ export default function EmailBuilderScreen() {
               </Pressable>
             )}
 
-            <Pressable
+            <Pressable accessibilityRole="button"
               style={[styles.btn, styles.btnOutline, { borderColor: theme.colors.primary }]}
               onPress={handleExport}
             >

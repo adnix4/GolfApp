@@ -36,7 +36,7 @@ export default function LandingPage() {
           <GfpLogo variant="onDark" size={30} />
           <Text style={[styles.navLogo, { color: theme.colors.surface }]}>Golf Fundraiser Pro</Text>
         </View>
-        <Pressable
+        <Pressable accessibilityRole="link"
           style={[styles.navBtn, { borderColor: theme.buttonLabel }]}
           onPress={() => router.push('/(auth)/login')}
         >
@@ -57,7 +57,7 @@ export default function LandingPage() {
           everything your event needs in one dashboard.
         </Text>
         <View style={[styles.heroCtas, isMobile && styles.heroCtasMobile]}>
-          <Pressable
+          <Pressable accessibilityRole="link"
             style={[styles.ctaPrimary, { backgroundColor: theme.colors.surface }]}
           onPress={() => router.push('/(public)/register' as any)}
           >
@@ -65,7 +65,7 @@ export default function LandingPage() {
               Register Your Event →
             </Text>
           </Pressable>
-          <Pressable
+          <Pressable accessibilityRole="link"
             style={[styles.ctaSecondary, { borderColor: theme.buttonLabel }]}
             onPress={() => router.push('/(auth)/login')}
           >
@@ -125,7 +125,7 @@ export default function LandingPage() {
         <Text style={[styles.bottomCtaSub, { color: '#c8dfb0' }]}>
           Create your free account in under 2 minutes. No credit card required.
         </Text>
-        <Pressable
+        <Pressable accessibilityRole="link"
           style={[styles.ctaPrimary, { backgroundColor: theme.colors.surface, alignSelf: 'center' }]}
           onPress={() => router.push('/(public)/register' as any)}
         >
@@ -140,7 +140,7 @@ export default function LandingPage() {
         <Text style={[styles.footerText, { color: theme.mutedText }]}>
           © {new Date().getFullYear()} Golf Fundraiser Pro · Built for nonprofit golf events
         </Text>
-        <Pressable onPress={() => router.push('/(auth)/login')}>
+        <Pressable accessibilityRole="link" onPress={() => router.push('/(auth)/login')}>
           <Text style={[styles.footerLink, { color: theme.colors.primary }]}>Organizer Sign In</Text>
         </Pressable>
       </View>

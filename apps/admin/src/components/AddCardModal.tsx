@@ -94,7 +94,7 @@ export function AddCardModal({ visible, eventId, playerId, playerName, onClose, 
             </Elements>
           )}
 
-          <Pressable onPress={onClose} style={styles.cancelBtn}>
+          <Pressable accessibilityRole="button" onPress={onClose} style={styles.cancelBtn}>
             <Text style={[styles.cancelText, { color: theme.mutedText }]}>Cancel</Text>
           </Pressable>
         </View>
@@ -149,7 +149,7 @@ function CardForm({ eventId, playerId, onSaved }: {
     <View style={{ marginTop: spacing[2] }}>
       <PaymentElement />
       {err && <Text style={styles.error}>⚠️ {err}</Text>}
-      <Pressable
+      <Pressable accessibilityRole="button" accessibilityLabel="Save card"
         style={[styles.saveBtn, { backgroundColor: theme.colors.primary }, (!stripe || saving) && { opacity: 0.6 }]}
         onPress={handleSubmit}
         disabled={!stripe || saving}

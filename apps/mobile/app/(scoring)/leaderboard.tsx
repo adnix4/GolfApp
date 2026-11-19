@@ -391,7 +391,7 @@ function BoardToggle({
           key={v}
           onPress={() => onChange(v)}
           accessibilityRole="tab"
-          accessibilityState={{ selected: value === v }}
+          aria-selected={value === v}
           style={[
             styles.toggleTab,
             { borderColor: theme.colors.primary },

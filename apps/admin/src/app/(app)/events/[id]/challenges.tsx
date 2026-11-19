@@ -136,10 +136,10 @@ export default function ChallengesScreen() {
                 )}
               </View>
               <View style={styles.cardActions}>
-                <Pressable onPress={() => openEdit(ch)} style={styles.editBtn}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Edit hole ${ch.holeNumber} challenge`} onPress={() => openEdit(ch)} style={styles.editBtn}>
                   <Text style={[styles.editText, { color: theme.colors.action }]}>Edit</Text>
                 </Pressable>
-                <Pressable onPress={() => handleDelete(ch.holeNumber)} style={styles.deleteBtn}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Delete hole ${ch.holeNumber} challenge`} onPress={() => handleDelete(ch.holeNumber)} style={styles.deleteBtn}>
                   <Text style={styles.deleteText}>Delete</Text>
                 </Pressable>
               </View>
@@ -255,9 +255,9 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
   
             {/* Quick-pick challenge types */}
             <Text style={c.fieldLabel}>Challenge Type *</Text>
-            <View style={styles.quickPicks}>
+            <View accessibilityRole="radiogroup" style={styles.quickPicks}>
               {COMMON_CHALLENGES.map(c => (
-                <Pressable
+                <Pressable accessibilityRole="radio" aria-checked={description === c}
                   key={c}
                   onPress={() => setDescription(c)}
                   style={[
@@ -322,10 +322,10 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
             />
   
             <View style={c.formActions}>
-              <Pressable style={c.cancelBtn} onPress={onClose}>
+              <Pressable accessibilityRole="button" style={c.cancelBtn} onPress={onClose}>
                 <Text style={c.cancelText}>Cancel</Text>
               </Pressable>
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel="Save"
                 style={[c.submitBtn, loading && { opacity: 0.6 }]}
                 onPress={handleSave}
                 disabled={loading}

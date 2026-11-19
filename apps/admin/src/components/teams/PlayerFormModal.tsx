@@ -180,7 +180,7 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
                 </Text>
 
                 {/* Selector button */}
-                <Pressable
+                <Pressable accessibilityRole="button" aria-expanded={pickerOpen}
                   style={[styles.pickerBtn, { borderColor: theme.colors.accent }, pickerOpen && { borderColor: theme.colors.primary }]}
                   onPress={() => setPickerOpen(o => !o)}
                   disabled={loading}
@@ -193,13 +193,13 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
 
                 {/* Options list */}
                 {pickerOpen && (
-                  <ScrollView
+                  <ScrollView accessibilityRole="radiogroup"
                     style={[styles.pickerList, { borderColor: theme.colors.accent }]}
                     nestedScrollEnabled
                     keyboardShouldPersistTaps="handled"
                   >
                     {/* Free agent option */}
-                    <Pressable
+                    <Pressable accessibilityRole="radio" aria-checked={selectedTeamId === null}
                       style={[styles.pickerOption, selectedTeamId === null && { backgroundColor: theme.colors.primary + '18' }]}
                       onPress={() => { setSelectedTeamId(null); setPickerOpen(false); }}
                     >
@@ -218,7 +218,7 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
                       const isCurrent  = t.id === player.teamId;
                       const open = t.maxPlayers - t.players.length;
                       return (
-                        <Pressable
+                        <Pressable accessibilityRole="radio" aria-checked={isSelected}
                           key={t.id}
                           style={[styles.pickerOption, isSelected && { backgroundColor: theme.colors.primary + '18' }]}
                           onPress={() => { setSelectedTeamId(t.id); setPickerOpen(false); }}
@@ -249,10 +249,10 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
             )}
 
             <View style={c.formActions}>
-              <Pressable style={c.cancelBtn} onPress={onClose}>
+              <Pressable accessibilityRole="button" style={c.cancelBtn} onPress={onClose}>
                 <Text style={c.cancelText}>Cancel</Text>
               </Pressable>
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel={player ? 'Save' : 'Add'}
                 style={[c.submitBtn, loading && { opacity: 0.6 }]}
                 onPress={handleSave}
                 disabled={loading}

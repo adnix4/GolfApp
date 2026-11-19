@@ -312,7 +312,7 @@ export default function AuctionScreen() {
                 : <Text style={styles.btnText}>End Auction</Text>}
             </Pressable>
           )}
-          <Pressable style={[styles.btn, { backgroundColor: theme.colors.primary }]} onPress={openCreate}>
+          <Pressable accessibilityRole="button" style={[styles.btn, { backgroundColor: theme.colors.primary }]} onPress={openCreate}>
             <Text style={styles.btnText}>+ Add Item</Text>
           </Pressable>
         </View>
@@ -327,7 +327,7 @@ export default function AuctionScreen() {
       {error && (
         <View style={c.errorBox}>
           <Text style={c.errorText}>{error}</Text>
-          <Pressable onPress={load} style={{ marginTop: spacing[2] }}>
+          <Pressable accessibilityRole="button" onPress={load} style={{ marginTop: spacing[2] }}>
             <Text style={{ color: theme.colors.action, fontSize: fontSize.sm }}>Retry</Text>
           </Pressable>
         </View>
@@ -341,7 +341,7 @@ export default function AuctionScreen() {
           <View style={[styles.card, { backgroundColor: '#fff' }]}>
             <View style={styles.cardRow}>
               {item.photoUrls.length > 0 ? (
-                <Image
+                <Image aria-hidden
                   source={{ uri: resolveUrl(item.photoUrls[0]) }}
                   style={styles.listThumb}
                   resizeMode="cover"
@@ -374,10 +374,10 @@ export default function AuctionScreen() {
                 )}
               </View>
               <View style={styles.cardActions}>
-                <Pressable onPress={() => openEdit(item)} style={[styles.smallBtn, { borderColor: theme.colors.primary }]}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${item.title}`} onPress={() => openEdit(item)} style={[styles.smallBtn, { borderColor: theme.colors.primary }]}>
                   <Text style={{ color: theme.colors.primary, fontSize: fontSize.sm, fontWeight: '600' }}>Edit</Text>
                 </Pressable>
-                <Pressable onPress={() => handleDelete(item)} style={[styles.smallBtn, { borderColor: status.danger, marginTop: spacing[2] }]}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Cancel ${item.title}`} onPress={() => handleDelete(item)} style={[styles.smallBtn, { borderColor: status.danger, marginTop: spacing[2] }]}>
                   <Text style={{ color: status.danger, fontSize: fontSize.sm, fontWeight: '600' }}>Cancel</Text>
                 </Pressable>
               </View>
@@ -428,9 +428,9 @@ export default function AuctionScreen() {
 
           {/* Auction Type */}
           <Text style={styles.label}>Auction Type *</Text>
-          <View style={styles.typeRow}>
+          <View accessibilityRole="radiogroup" style={styles.typeRow}>
             {AUCTION_TYPES.map(t => (
-              <Pressable
+              <Pressable accessibilityRole="radio" aria-checked={form.auctionType === t}
                 key={t}
                 onPress={() => field('auctionType', t)}
                 style={[styles.typeChip, form.auctionType === t && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]}
@@ -575,8 +575,8 @@ export default function AuctionScreen() {
           <View style={styles.photoGrid}>
             {(editItem?.photoUrls ?? []).map(url => (
               <View key={url} style={styles.photoThumbWrap}>
-                <Image source={{ uri: resolveUrl(url) }} style={styles.photoThumb} resizeMode="cover" />
-                <Pressable
+                <Image accessibilityLabel="Item photo" source={{ uri: resolveUrl(url) }} style={styles.photoThumb} resizeMode="cover" />
+                <Pressable accessibilityRole="button" accessibilityLabel="Remove photo"
                   style={styles.photoRemoveBtn}
                   onPress={() => handlePhotoRemove(url)}
                 >
@@ -587,7 +587,7 @@ export default function AuctionScreen() {
             {pendingPhotos.map((f, i) => (
               <View key={i} style={[styles.photoThumbWrap, styles.photoPending]}>
                 <Text style={styles.photoPendingText} numberOfLines={2}>{f.name}</Text>
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityLabel="Remove photo"
                   style={styles.photoRemoveBtn}
                   onPress={() => setPendingPhotos(prev => prev.filter((_, j) => j !== i))}
                 >
@@ -595,7 +595,7 @@ export default function AuctionScreen() {
                 </Pressable>
               </View>
             ))}
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel="Add Photo"
               style={[styles.photoAddBtn, { borderColor: theme.colors.accent }]}
               onPress={() => (photoInputRef.current as any)?.click()}
               disabled={uploadingPhoto || saving}
@@ -607,13 +607,13 @@ export default function AuctionScreen() {
           </View>
 
           <View style={styles.modalBtnRow}>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => setShowModal(false)}
               style={[styles.btn, { backgroundColor: '#888', flex: 1, marginRight: spacing[2] }]}
             >
               <Text style={styles.btnText}>Cancel</Text>
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel="Save"
               onPress={handleSave}
               disabled={saving}
               style={[styles.btn, { backgroundColor: theme.colors.primary, flex: 1 }, saving && { opacity: 0.6 }]}

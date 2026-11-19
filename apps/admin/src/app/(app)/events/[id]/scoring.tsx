@@ -267,6 +267,7 @@ export default function ScoringScreen() {
             ? <ActivityIndicator size="small" color={status.warning} />
             : (
               <Switch
+                accessibilityLabel="Testing Mode"
                 value={event.isTestMode}
                 onValueChange={handleTestModeToggle}
                 trackColor={{ false: '#ccc', true: '#f39c12' }}
@@ -325,11 +326,11 @@ export default function ScoringScreen() {
 
       {/* Team selector */}
       <View style={styles.teamBar}>
-        <View style={styles.teamWrap}>
+        <View accessibilityRole="tablist" style={styles.teamWrap}>
           {teams.map(team => {
             const isSelected = team.id === selectedTeam;
             return (
-              <Pressable
+              <Pressable accessibilityRole="tab" aria-selected={isSelected}
                 key={team.id}
                 style={[
                   styles.teamChip,
@@ -403,13 +404,13 @@ export default function ScoringScreen() {
                         Golfer proposes {proposedScore} (recorded {score})
                       </Text>
                       <View style={styles.resolveBtnRow}>
-                        <Pressable
+                        <Pressable accessibilityRole="button"
                           style={[styles.resolveBtn, styles.resolveBtnHalf, { backgroundColor: status.success }]}
                           onPress={() => handleResolveConflict(holeNum, proposedScore)}
                         >
                           <Text style={styles.resolveBtnText}>Approve {proposedScore}</Text>
                         </Pressable>
-                        <Pressable
+                        <Pressable accessibilityRole="button"
                           style={[styles.resolveBtn, styles.resolveBtnHalf, { backgroundColor: '#7f8c8d' }]}
                           onPress={() => handleResolveConflict(holeNum, score)}
                         >
@@ -418,7 +419,7 @@ export default function ScoringScreen() {
                       </View>
                     </View>
                   ) : (
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       style={[styles.resolveBtn, { backgroundColor: '#e67e22' }]}
                       onPress={() => handleResolveConflict(holeNum, score)}
                     >
@@ -451,7 +452,7 @@ export default function ScoringScreen() {
                           >
                             {note}
                           </Text>
-                          <Pressable
+                          <Pressable accessibilityRole="button" accessibilityLabel={`Remove a shot for ${player.firstName}, hole ${holeNum}`}
                             onPress={() => handlePlayerShotChange(holeNum, player.id, -1)}
                             disabled={shots <= 0 || isSaving || isComplete}
                             style={[styles.shotBtn, { backgroundColor: theme.colors.primary, opacity: shots <= 0 || isComplete ? 0.3 : 1 }]}
@@ -461,7 +462,7 @@ export default function ScoringScreen() {
                           <Text style={[styles.shotCount, { color: theme.colors.primary }]}>
                             {shots > 0 ? shots : '—'}
                           </Text>
-                          <Pressable
+                          <Pressable accessibilityRole="button" accessibilityLabel={`Add a shot for ${player.firstName}, hole ${holeNum}`}
                             onPress={() => handlePlayerShotChange(holeNum, player.id, 1)}
                             disabled={isSaving || isComplete}
                             style={[styles.shotBtn, { backgroundColor: theme.colors.primary, opacity: isComplete ? 0.3 : 1 }]}
@@ -473,7 +474,7 @@ export default function ScoringScreen() {
                     })}
 
                     {/* Done signal for the hole — sits under the names (U1). */}
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       onPress={() => handleToggleComplete(holeNum, !isComplete)}
                       disabled={isSaving || score == null}
                       style={[

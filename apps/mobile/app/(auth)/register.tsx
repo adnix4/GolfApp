@@ -342,7 +342,7 @@ export default function RegisterScreen() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {logo}
 
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backBtn}>
           <Text style={[styles.backBtnText, { color: theme.mutedText }]}>← Back</Text>
         </Pressable>
 
@@ -426,7 +426,7 @@ export default function RegisterScreen() {
                   ]}
                   onPress={() => { setMode(opt.value); setError(null); }}
                   disabled={submitting}
-                  accessibilityRole="radio" accessibilityState={{ checked: on }}
+                  accessibilityRole="radio" aria-checked={on}
                 >
                   <Text style={[styles.chipText, { color: on ? theme.buttonLabel : theme.mutedText }]}>{opt.label}</Text>
                 </Pressable>
@@ -508,9 +508,9 @@ export default function RegisterScreen() {
             </Text>
 
             <Text style={c.fieldLabel}>Skill Level</Text>
-            <View style={styles.chipRow}>
+            <View accessibilityRole="radiogroup" style={styles.chipRow}>
               {SKILL_OPTIONS.map(opt => (
-                <Pressable
+                <Pressable accessibilityRole="radio" aria-checked={skillLevel === opt.value}
                   key={opt.value}
                   style={[
                     styles.chip,
@@ -527,9 +527,9 @@ export default function RegisterScreen() {
             </View>
 
             <Text style={c.fieldLabel}>Age Group</Text>
-            <View style={styles.chipRow}>
+            <View accessibilityRole="radiogroup" style={styles.chipRow}>
               {AGE_OPTIONS.map(opt => (
-                <Pressable
+                <Pressable accessibilityRole="radio" aria-checked={ageGroup === opt.value}
                   key={opt.value}
                   style={[
                     styles.chip,
@@ -569,7 +569,7 @@ export default function RegisterScreen() {
               <View key={idx} style={[styles.card, styles.teammateCard, { backgroundColor: theme.colors.surface }]}>
                 <View style={styles.teammateCardHeader}>
                   <Text style={[styles.teammateCardTitle, { color: theme.colors.primary }]}>Teammate {idx + 1}</Text>
-                  <Pressable onPress={() => removeTeammate(idx)} style={styles.removeBtn} hitSlop={8}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Remove teammate ${idx + 1}`} onPress={() => removeTeammate(idx)} style={styles.removeBtn} hitSlop={8}>
                     <Text style={[styles.removeBtnText, { color: theme.mutedText }]}>✕ Remove</Text>
                   </Pressable>
                 </View>

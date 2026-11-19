@@ -60,8 +60,10 @@ function HolePicker({
                 : { backgroundColor: '#f5f5f5', borderColor: '#ddd' },
               disabled && { opacity: 0.5 },
             ]}
-            accessibilityLabel={`Hole ${h}${active ? ', selected' : ''}`}
+            accessibilityLabel={`Hole ${h}`}
             accessibilityRole="checkbox"
+            aria-checked={active}
+            aria-disabled={disabled}
           >
             <Text style={[holePickerStyles.cellText, active && { color: '#fff' }]}>{h}</Text>
           </Pressable>
@@ -130,7 +132,7 @@ export default function SponsorsScreen() {
         <Text style={c.title}>
           Sponsors ({sponsors.length})
         </Text>
-        <Pressable
+        <Pressable accessibilityRole="button"
           style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
           onPress={() => setShowAdd(true)}
         >
@@ -201,13 +203,13 @@ export default function SponsorsScreen() {
                   <View style={[styles.tierBadge, { backgroundColor: TIER_COLOR[s.tier] ?? '#999' }]}>
                     <Text style={styles.tierText}>{s.tier}</Text>
                   </View>
-                  <Pressable
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${s.name}`}
                     style={[styles.editBtn, { borderColor: theme.colors.accent }]}
                     onPress={() => setEditing(s)}
                   >
                     <Text style={[styles.editBtnText, { color: theme.mutedText }]}>Edit</Text>
                   </Pressable>
-                  <Pressable
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${s.name}`}
                     style={styles.deleteBtn}
                     onPress={() => handleDelete(s)}
                   >
@@ -399,7 +401,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
                 ref={fileInputRef as any}
                 onChange={handleFileChange as any}
               />
-              <Pressable
+              <Pressable accessibilityRole="button"
                 style={[styles.uploadBtn, { borderColor: theme.colors.primary }]}
                 onPress={() => (fileInputRef.current as any)?.click()}
                 disabled={loading}
@@ -461,9 +463,9 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
             />
 
             <Text style={c.fieldLabel}>Tier</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
+            <ScrollView accessibilityRole="radiogroup" horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
               {TIER_OPTIONS.map(t => (
-                <Pressable
+                <Pressable accessibilityRole="radio" aria-checked={tier === t}
                   key={t}
                   style={[styles.pill, tier === t && { backgroundColor: TIER_COLOR[t] ?? '#999', borderColor: TIER_COLOR[t] ?? '#999' }]}
                   onPress={() => setTier(t)}
@@ -497,10 +499,10 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
 
           {/* Action buttons — outside scroll so they stay visible */}
           <View style={c.formActions}>
-            <Pressable style={c.cancelBtn} onPress={onClose}>
+            <Pressable accessibilityRole="button" style={c.cancelBtn} onPress={onClose}>
               <Text style={c.cancelText}>Cancel</Text>
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel={isEdit ? 'Save' : 'Add Sponsor'}
               style={[c.submitBtn, loading && { opacity: 0.6 }]}
               onPress={handleSubmit}
               disabled={loading}

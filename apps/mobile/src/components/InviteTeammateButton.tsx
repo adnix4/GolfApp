@@ -80,7 +80,7 @@ export function InviteTeammateButton() {
         disabled={busy}
         accessibilityRole="button"
         accessibilityLabel={`Invite a teammate, ${spots}`}
-        accessibilityState={{ disabled: busy, busy }}
+        aria-disabled={busy} aria-busy={busy}
       >
         {busy
           ? <ActivityIndicator color={theme.buttonLabel} />

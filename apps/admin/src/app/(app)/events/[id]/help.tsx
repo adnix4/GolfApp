@@ -248,7 +248,7 @@ function Section({ title, subtitle, children, defaultOpen = true }: {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <View style={styles.card}>
-      <Pressable style={styles.cardHeader} onPress={() => setOpen(o => !o)}>
+      <Pressable accessibilityRole="button" aria-expanded={open} style={styles.cardHeader} onPress={() => setOpen(o => !o)}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>{title}</Text>
           {subtitle && <Text style={[styles.cardSubtitle, { color: theme.mutedText }]}>{subtitle}</Text>}
