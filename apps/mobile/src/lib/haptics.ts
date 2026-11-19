@@ -16,3 +16,12 @@ export function holeCompleteHaptic(): void {
   if (Platform.OS === 'web') return;
   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 }
+
+/**
+ * Someone else's hole-in-one arrived on the live leaderboard. Not used for the
+ * golfer's own ace: Complete Hole has already buzzed for that one.
+ */
+export function holeInOneAlertHaptic(): void {
+  if (Platform.OS === 'web') return;
+  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+}

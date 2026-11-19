@@ -14,6 +14,7 @@ import {
 } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
 import { notify } from '@/lib/notify';
+import { useReducedMotion } from '@/lib/a11y';
 import {
   fetchAuctionItems, placeBid, pledge,
   fetchPlayerBidHistory, fetchActiveAuctionSession,
@@ -91,6 +92,7 @@ export default function AuctionScreen() {
   const theme  = useTheme();
   const c      = useClasses();
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { session, networkTier } = useSession();
   const player = session?.player;
@@ -684,7 +686,8 @@ export default function AuctionScreen() {
       {/* Bid modal */}
       <Modal
         visible={selectedItem !== null}
-        animationType="slide"
+        // Reduce Motion: fade in place instead of sliding up (MCAG 4.1.3).
+        animationType={reduceMotion ? 'fade' : 'slide'}
         transparent
         onRequestClose={() => { setSelectedItem(null); setBidError(null); }}
       >

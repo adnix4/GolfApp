@@ -41,6 +41,11 @@ export const gridCss = `
     0%, 100% { opacity: 1; transform: scale(1); }
     50%       { opacity: 0.4; transform: scale(0.85); }
   }
+  /* Decorative motion stops for motion-sensitive viewers (MCAG 4.1.3).
+     !important beats the inline animation. */
+  @media (prefers-reduced-motion: reduce) {
+    .gfp-motion { animation: none !important; }
+  }
 `;
 
 export const s = {
@@ -100,7 +105,9 @@ export const s = {
     width: 7, height: 7, borderRadius: '50%',
     backgroundColor: '#fff',
     display: 'inline-block',
-    animation: 'gfp-live-pulse 1.4s ease-in-out infinite',
+    // Three beats (4.2 s), then it rests at full size: motion past 5 s would
+    // need a pause control (MCAG 2.3.2). The LIVE text carries the meaning.
+    animation: 'gfp-live-pulse 1.4s ease-in-out 3',
   },
   liveBannerText:    { fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-primary)' },
   liveBannerActions: { display: 'flex', gap: '0.625rem', flexWrap: 'wrap' as const },

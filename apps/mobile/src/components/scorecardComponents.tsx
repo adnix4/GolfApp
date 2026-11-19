@@ -21,6 +21,7 @@ import type { ThemeContextValue } from '@gfp/ui';
 import type { ChallengeCacheDto, HoleCacheDto, SponsorCacheDto } from '@/lib/api';
 import { formatToPar, toParColor } from '@/lib/toPar';
 import { tickHaptic } from '@/lib/haptics';
+import { announce, useReducedMotion } from '@/lib/a11y';
 import { fontSize, radius, spacing } from '@gfp/theme';
 
 // ── HOLE INFO CHIP ────────────────────────────────────────────────────────────
@@ -99,32 +100,53 @@ export function HoleInOneModal({ visible, holeName, onDismiss }: {
   holeName:  string;
   onDismiss: () => void;
 }) {
+  const reduceMotion = useReducedMotion();
   const scale   = useRef(new Animated.Value(0.3)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
-      Animated.parallel([
-        Animated.spring(scale, { toValue: 1, useNativeDriver: true, bounciness: 18 }),
-        Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
-      ]).start();
+      announce(`Hole in one on ${holeName}!`);
+      // Reduce Motion gets the fade alone — no zoom, no bounce (MCAG 4.1.3).
+      if (reduceMotion) {
+        scale.setValue(1);
+        Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+      } else {
+        Animated.parallel([
+          Animated.spring(scale, { toValue: 1, useNativeDriver: true, bounciness: 18 }),
+          Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+        ]).start();
+      }
     } else {
       scale.setValue(0.3);
       opacity.setValue(0);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- opacity and scale are useRef(new Animated.Value()).current — stable for the component's life
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- opacity and scale are useRef(new Animated.Value()).current — stable for the component's life; holeName and reduceMotion are read at open time only
   }, [visible]);
 
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={onDismiss}>
-      <Pressable style={hioStyles.backdrop} onPress={onDismiss} accessibilityLabel="Dismiss" accessibilityRole="button">
-        <Animated.View style={[hioStyles.card, { opacity, transform: [{ scale }] }]}>
-          <Text style={hioStyles.emoji}>⛳</Text>
+      <View style={hioStyles.backdrop}>
+        {/* The dismiss layer is a sibling of the card, not its parent: inside a
+            button the card's text was read as just "Dismiss". The card passes
+            taps through, so tapping anywhere still closes it. */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onDismiss}
+          accessibilityLabel="Dismiss hole-in-one celebration"
+          accessibilityRole="button"
+        />
+        <Animated.View
+          style={[hioStyles.card, { opacity, transform: [{ scale }] }]}
+          pointerEvents="none"
+          accessibilityRole="alert"
+        >
+          <Text style={hioStyles.emoji} aria-hidden>⛳</Text>
           <Text style={hioStyles.headline}>HOLE IN ONE!</Text>
           <Text style={hioStyles.sub}>{holeName}</Text>
           <Text style={hioStyles.hint}>Tap anywhere to dismiss</Text>
         </Animated.View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }
@@ -143,7 +165,8 @@ const hioStyles = StyleSheet.create({
   emoji:    { fontSize: 64, marginBottom: spacing[3] },
   headline: { fontSize: 34, fontWeight: '900', color: '#f1c40f', letterSpacing: 2, textAlign: 'center' },
   sub:      { fontSize: fontSize.xl, fontWeight: '600', color: '#fff', marginTop: spacing[2], textAlign: 'center' },
-  hint:     { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.4)', marginTop: spacing[5] },
+  // 0.7, not 0.4: 0.4 white on #1a1a2e was ~3.7:1, under the 4.5:1 floor (AX4).
+  hint:     { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.7)', marginTop: spacing[5] },
 });
 
 // ── CHALLENGE DETAIL MODAL ────────────────────────────────────────────────────

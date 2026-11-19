@@ -82,6 +82,16 @@ P4 — FEATURES / POLISH
      E4   iOS App Clip for the join link — after D5 (needs Apple + a shipped app)
      [x] E5 shared style classes (useClasses) — pilot + rollout 2026-10-27,
           margins unified + league popups folded in 2026-10-27
+     Accessibility audit (2026-11-18, MCAG) — work in this order:
+     [x] AX1 motion + announcements 2026-11-18 (on-device VoiceOver/TalkBack
+          speech + haptic still to hear/feel — folded into AX6)
+     AX2  roles, names, states: 183 tappables without a role, unnamed
+          buttons/images, 17 toggles without accessibilityState; lint rule
+     AX3  headings: shared heading component, every screen/section title
+     AX4  contrast: ~43 text colours under 4.5:1 -> theme tokens
+     AX5  message timing: short-lived messages >= 6 s and announced
+     AX6  device pass: VoiceOver, TalkBack, max text size on the scorer flow
+          (needs a build — see D5)
 
 P5 — BLOCKED OR DEFERRED (no action available yet)
      D19  dev-loop fixes landed; three follow-ups, one gated on D6
@@ -919,6 +929,129 @@ SHIPPED 2026-10-24 (one line each; detail is in the PR):
         every changed view, plus a navy/gold branded run of the league
         popups; mobile Join/Register error box checked at 390px.
         Still separate: mobile scorecardComponents' 7 per-modal sheets (E3).
+
+## Accessibility audit (2026-11-18)
+Code-level audit of apps/mobile, apps/admin, packages/ui and apps/web against
+Evinced's Mobile Content Accessibility Guidelines (MCAG — WCAG 2.2 restated for
+iOS/Android): https://getevinced.github.io/mcag/
+Full report: https://claude.ai/artifact/FGstWXBmkmkTYnt9Swu4bZ
+Result: 7 criteria failing, 7 partly met, 6 met, 5 groups need a device test.
+Counts come from an automated scan of every .tsx file plus a reading of the
+flagged screens; they may be off by a few where a role is set indirectly.
+Re-check each site before fixing it. Mark [x] when done.
+
+AX1. MOTION AND ANNOUNCEMENTS (MCAG 4.1.3, 2.3.2, 1.3.1, 1.3.2, 2.3.1)
+        - Mobile never reads Reduce Motion (AccessibilityInfo.isReduceMotionEnabled
+          unused). The hole-in-one celebration (src/components/
+          scorecardComponents.tsx ~108) scales in on a bouncy spring.
+        - Web: the prefers-reduced-motion rule covers only the ticker. The
+          hole-in-one banner slide / flag wobble / glow (scores/
+          scoresPollerStyles.ts ~127-176) and the "live" dots
+          (eventPageStyles.ts ~103, scoresPollerStyles.ts ~209, 274) keep
+          running; the flag and glow loop for the banner's full 30 s and the
+          dots pulse forever. Motion over 5 s needs a way to stop it.
+        - Neither hole-in-one alert is announced: the web banner
+          (ScoresPoller.tsx ~231) has no role="status"; the mobile popup never
+          calls announceForAccessibility. expo-haptics is wired up
+          (src/lib/haptics.ts) but not used for hole-in-ones.
+        - The mobile hole-in-one alert closes itself after 5 s with no way to
+          extend it (MCAG minimum is 5 s + 1 s per 120 words).
+        Fix: shared useReducedMotion() hook; spring -> fade when on; extend
+        the web reduced-motion rule to every keyframe animation and stop the
+        decorative loops after a few cycles; announce both hole-in-one alerts;
+        haptic on the mobile one; no auto-close while a screen reader is on.
+        [x] DONE 2026-11-18:
+        - apps/mobile/src/lib/a11y.ts: watchA11ySetting + useReducedMotion /
+          useScreenReaderEnabled, announce(), autoDismissMs() (6 s floor, null
+          under a screen reader). RN Web always reports a screen reader as ON
+          and announceForAccessibility is a no-op there, so on web the
+          screen-reader flag is forced OFF and announcing goes through
+          accessibilityRole="alert" instead.
+        - Scorecard celebration (own ace): Reduce Motion = fade only, no
+          zoom/bounce; card moved out of the "Dismiss" button (role alert,
+          pointerEvents none so tapping it still dismisses); announced on
+          open; hint text 0.4 -> 0.7 white (was ~3.7:1). No extra haptic: Complete
+          Hole has already buzzed.
+        - Leaderboard live alert (someone's ace): announced + haptic
+          (holeInOneAlertHaptic), alert role, "Amazing!" is a button, closes
+          after 8 s (was 5) and never by itself under VoiceOver/TalkBack.
+        - Auction bid sheet fades instead of sliding under Reduce Motion.
+        - Web: .gfp-motion class + reduced-motion rule on both pages (inline
+          animations, so !important); the live dots, the hole-in-one glow and
+          flag stop by themselves inside 5 s; the banner sits in an
+          always-present role="status" region (a live region inserted with
+          its text is often skipped); the close button is named; emoji and
+          dots are aria-hidden.
+        - Admin has no animations (none found), nothing to change there.
+        VERIFIED: mobile 22 / web 4 test files green (new a11y.test.ts,
+        motion.test.ts, haptics case). Browser (Edge, mobile web export + web
+        dev server, real API, organizer-entered ace): web 16/16 — loops
+        finite (pulse x3, glow x2, flag x4), all "none" under emulated
+        prefers-reduced-motion, banner inside the status region, close button
+        named; mobile alert role + button, still up at 6.5 s, closed itself at
+        7.8 s. Scorecard 13/13 by tapping one Drive + Complete Hole: first
+        frame scale 0.39 normally vs 1.0 under reduced motion; tapping the
+        card dismisses it. NOT verified: what VoiceOver/TalkBack actually say
+        and the haptic — needs a phone (AX6).
+
+AX2. ROLES, NAMES AND STATES (MCAG 1.1.2, 1.1.3, 1.1.4, 1.2.1, 2.1.7)
+        - 183 of 298 Pressable/Touchable* have no accessibilityRole, so screen
+          readers don't say "button" and RN Web renders plain divs. Mostly
+          admin: leagues/[id]/seasons/[sid]/index.tsx (20), events/[id]/
+          index.tsx (13), registration.tsx (12), auction.tsx (10). Mobile:
+          (scoring)/auction.tsx (6), (auth)/register.tsx (4), (round-end)/
+          qr-transfer.tsx (3), the "Amazing!" hole-in-one button.
+        - Unnamed: icon-only back button (edit-profile.tsx ~92), the web
+          hole-in-one close button. The mobile hole-in-one text sits inside a
+          "Dismiss" button, so a screen reader may say only "Dismiss".
+        - Label differs from visible text: "Dismiss hole-in-one alert" on a
+          button that shows "Amazing!" (Voice Control users say what they see).
+        - 8 images without a text alternative: auction photos (mobile
+          auction.tsx ~68, 492, 716; admin auction.tsx ~344, 578), logo
+          previews in both settings screens, GfpLogo.tsx.
+        - 17 selected/toggled elements without accessibilityState: HoleNavBar
+          (~60), PlayerFormModal chips (~202, 221), scoring and sponsor
+          filters, admin top nav ((app)/_layout.tsx ~90, current page not
+          exposed). The event sub-tabs already do it right — copy them.
+        Fix: role at each site (button/link/tab/checkbox), labels, states, and
+        a lint rule so new code keeps them.
+
+AX3. HEADINGS (MCAG 3.1.6)
+        No accessibilityRole="header" in mobile or admin (one in packages/ui).
+        Scorecard, leaderboard, event overview and the long admin forms have
+        visual section titles that the heading rotor can't find.
+        Fix: a shared heading text component in @gfp/ui; use it for every
+        screen and section title.
+
+AX4. CONTRAST (MCAG 1.4.1)
+        ~43 hard-coded text colours under 4.5:1 on white: #888 (3.54:1, 21
+        uses, mostly mobile auction.tsx + admin events/index.tsx), #aaa
+        (2.32:1, 6), #999 (2.85:1, 5), #e67e22 (2.85:1, 5, e.g.
+        round-summary.tsx ~37), #e74c3c (3.82:1, 3), #27ae60 (2.87:1, 2),
+        and the default theme's action colour as link text (3.57:1 on cream,
+        22 uses).
+        Fix: greys -> theme mutedText (7.56:1); errors -> dangerText (#c0392b,
+        5.44:1); branded text through the existing ensureContrast helper.
+        Follows the theming contract (light-surface rule; accent decorative-only).
+        Also: web registration inputs drop the focus outline with no
+        replacement (EventActions.tsx ~818, MCAG 1.4.3).
+
+AX5. MESSAGE TIMING (MCAG 1.3.2)
+        Under the 5 s minimum: "Saved" 3 s (admin settings.tsx ~199,
+        events/[id]/settings.tsx ~185), "Copied" 2 s (web EventActions.tsx
+        ~263), column tips 2 s (mobile ScorecardSummary.tsx ~40,
+        round-summary.tsx ~65), "Hand raised" 3 s (mobile auction.tsx ~208).
+        Fix: >= 6 s, announced as they appear, follow the popup standard.
+
+AX6. DEVICE PASS (MCAG 4.1.1, 3.3.2, 2.1.1, 3.1.2-3.1.5, 3.5, 1.1.6, 1.4.4, 2.1.2-2.1.6, 2.5)
+        Needs a build on real phones (D5). VoiceOver + TalkBack + maximum text
+        size on join, scorecard, leaderboard, auction: reading/focus order,
+        grouping, ghost focus, error announcements, clipping from fixed
+        lineHeight/heights at large text, touch-target size of hole dots and
+        chips, colour-only meaning (bid status tones), gestures, traps.
+        Also decide 4.1.2 (display modes): the apps don't follow system dark
+        mode by design (per-event branding) — a brand-derived dark variant is
+        an option, not a defect.
 
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done.

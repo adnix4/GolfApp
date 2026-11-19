@@ -15,7 +15,7 @@ export default function LiveScoresBanner({
     <section style={s.liveBanner}>
       <div style={s.liveBannerInfo}>
         <span style={s.livePill}>
-          <span style={s.livePulse} />
+          <span style={s.livePulse} className="gfp-motion" aria-hidden="true" />
           Live
         </span>
         <p style={s.liveBannerText}>Round in progress — scores update in real time</p>
