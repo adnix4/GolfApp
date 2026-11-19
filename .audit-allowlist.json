@@ -1,11 +1,4 @@
 {
   "_comment": "Accepted high/critical advisories in PRODUCTION dependencies. Read by scripts/audit-prod.js, which runs in CI. Every entry needs a reason and a reviewBy date; the build fails once reviewBy passes, and again if the entry stops matching anything. Do not add an entry to silence a finding that has a patched version available - upgrade instead.",
-  "allow": [
-    {
-      "advisory": "GHSA-fc5q-39xc-vjpf",
-      "package": "picomatch",
-      "reason": "Build tooling only, never shipped. Every path is expo > @expo/cli / @expo/metro-config / @expo/metro (metro-file-map, jest-util, micromatch) or react-native > tinyglobby, which RN uses only in its codegen build scripts. The ReDoS needs an attacker-controlled glob pattern; these tools only match patterns from our own Metro/codegen config, never user input. Not imported by app code and absent from the C# API and the compiled RN bundles. Advisory range was widened on 2026-11-17 to '<= 4.0.7' (covers both installed copies, 2.3.2 and 4.0.7) with no patched release.",
-      "reviewBy": "2026-12-18"
-    }
-  ]
+  "allow": []
 }
