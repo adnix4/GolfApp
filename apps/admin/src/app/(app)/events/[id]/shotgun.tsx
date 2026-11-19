@@ -112,13 +112,13 @@ export default function ShotgunScreen() {
         </View>
         {!loading && (
           <View style={styles.headerActions}>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={handleAutoAssign}
               style={[styles.autoBtn, { borderColor: theme.colors.action }]}
             >
               <Text style={[styles.autoBtnText, { color: theme.colors.action }]}>⚡ Auto-Assign</Text>
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel="Save All"
               onPress={handleSave}
               disabled={saving || validationErrors.length > 0 || assignedCount === 0}
               style={[

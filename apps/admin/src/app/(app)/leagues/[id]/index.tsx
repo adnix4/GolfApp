@@ -87,11 +87,11 @@ export default function LeagueDetailScreen() {
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.surface }]}>
       <View style={[styles.header, { borderBottomColor: theme.colors.accent }]}>
-        <Pressable onPress={() => router.back()}>
+        <Pressable accessibilityRole="button" onPress={() => router.back()}>
           <Text style={{ color: theme.colors.action, fontSize: fontSize.lg }}>← Back</Text>
         </Pressable>
         <Text style={[styles.title, { color: theme.colors.primary }]}>Seasons</Text>
-        <Pressable
+        <Pressable accessibilityRole="button"
           style={[styles.btn, { backgroundColor: theme.colors.primary }]}
           onPress={() => setShowCreate(true)}
         >
@@ -117,7 +117,7 @@ export default function LeagueDetailScreen() {
           keyExtractor={s => s.id}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.accent }]}
               onPress={() => router.push(`/(app)/leagues/${id}/seasons/${item.id}` as never)}
             >
@@ -208,9 +208,9 @@ export default function LeagueDetailScreen() {
         </View>
 
         <Text style={c.fieldLabel}>Standing Method</Text>
-        <View style={styles.segRow}>
+        <View accessibilityRole="radiogroup" style={styles.segRow}>
           {['TotalNet', 'AverageNet'].map(m => (
-            <Pressable
+            <Pressable accessibilityRole="radio" aria-checked={method === m}
               key={m}
               style={[styles.seg, { borderColor: theme.colors.accent }, method === m && { backgroundColor: theme.colors.primary }]}
               onPress={() => setMethod(m)}

@@ -111,7 +111,7 @@ export function FormModal({
                   disabled={loading || submitDisabled}
                   accessibilityRole="button"
                   accessibilityLabel={submitLabel}
-                  accessibilityState={{ disabled: loading || submitDisabled, busy: loading }}
+                  aria-disabled={loading || submitDisabled} aria-busy={loading}
                 >
                   {loading
                     ? <ActivityIndicator color={submitFg} />

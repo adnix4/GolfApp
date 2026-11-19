@@ -60,7 +60,7 @@ function ColorRow({
   const valid = isValidHex(value);
   return (
     <View style={cr.row}>
-      <Pressable
+      <Pressable accessibilityRole="button"
         style={[cr.swatch, { backgroundColor: valid ? value : '#cccccc' }]}
         onPress={() => !disabled && openColorPicker(value, onChange)}
         accessibilityLabel={`Pick color for ${meta.label}`}
@@ -307,7 +307,7 @@ export default function EventSettingsScreen() {
 
           {!!logoUrl && (
             <View style={styles.logoPreview}>
-              <Image
+              <Image accessibilityLabel="Event logo preview"
                 source={{ uri: logoUrl.startsWith('/') ? `${process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000'}${logoUrl}` : logoUrl }}
                 style={styles.logoImg}
                 resizeMode="contain"
@@ -325,7 +325,7 @@ export default function EventSettingsScreen() {
                 label="Uploading logo"
               />
             ) : (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 style={[styles.uploadBtn, { borderColor: theme.colors.primary }]}
                 onPress={openFilePicker}
                 disabled={saving}
@@ -382,6 +382,7 @@ export default function EventSettingsScreen() {
             </Text>
           </View>
           <Switch
+            accessibilityLabel="501(c)(3) Non-Profit"
             value={is501c3}
             onValueChange={setIs501c3}
             trackColor={{ true: theme.colors.primary }}
@@ -396,14 +397,14 @@ export default function EventSettingsScreen() {
           <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Brand Colors</Text>
           <View style={{ flexDirection: 'row', gap: spacing[2] }}>
             {hasTheme && (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => { setHasTheme(false); setColors({ ...ECO_GREEN_DEFAULT }); }}
                 style={[styles.resetBtn, { borderColor: status.danger }]}
               >
                 <Text style={[styles.resetBtnText, { color: status.danger }]}>Clear (use org)</Text>
               </Pressable>
             )}
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => { setHasTheme(true); setColors({ ...ECO_GREEN_DEFAULT }); }}
               style={[styles.resetBtn, { borderColor: theme.colors.accent }]}
             >
@@ -469,7 +470,7 @@ export default function EventSettingsScreen() {
       </View>
 
       {/* ── SAVE ── */}
-      <Pressable
+      <Pressable accessibilityRole="button" accessibilityLabel="Save Event Branding"
         style={[styles.saveBtn, { backgroundColor: theme.colors.primary }, saving && { opacity: 0.6 }]}
         onPress={handleSave}
         disabled={saving}
@@ -494,6 +495,7 @@ export default function EventSettingsScreen() {
             </Text>
           </View>
           <Switch
+            accessibilityLabel="Offline Event Mode"
             value={offlineMode}
             onValueChange={setOfflineMode}
             trackColor={{ true: '#e67e22' }}
@@ -512,6 +514,7 @@ export default function EventSettingsScreen() {
             </Text>
           </View>
           <Switch
+            accessibilityLabel="Allow Free Agent Registration"
             value={freeAgentEnabled}
             onValueChange={setFreeAgentEnabled}
             trackColor={{ true: theme.colors.primary }}
@@ -530,6 +533,7 @@ export default function EventSettingsScreen() {
             </Text>
           </View>
           <Switch
+            accessibilityLabel="Allow Walk-Up Registration"
             value={allowWalkUps}
             onValueChange={setAllowWalkUps}
             trackColor={{ true: theme.colors.primary }}
@@ -538,7 +542,7 @@ export default function EventSettingsScreen() {
         </View>
       </View>
 
-      <Pressable
+      <Pressable accessibilityRole="button" accessibilityLabel="Save Event Options"
         style={[styles.saveBtn, { backgroundColor: '#e67e22', marginTop: spacing[4] }, savingConfig && { opacity: 0.6 }]}
         onPress={async () => {
           setSavingConfig(true);

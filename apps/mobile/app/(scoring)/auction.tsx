@@ -66,7 +66,7 @@ function PhotoViewer({ url, screenWidth, screenHeight, onClose }: {
         <ScrollView contentContainerStyle={styles.photoViewerScroll}>
           {url && (
             <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close photo">
-              <Image
+              <Image aria-hidden
                 source={{ uri: resolveUrl(url) }}
                 style={{ width: screenWidth - 24, height: screenHeight * 0.75 }}
                 resizeMode="contain"
@@ -449,9 +449,9 @@ export default function AuctionScreen() {
       )}
 
       {/* Tab selector */}
-      <View style={styles.tabRow}>
+      <View accessibilityRole="tablist" style={styles.tabRow}>
         {([['items', 'Auction'], ['live', 'Live'], ['history', 'My Bids']] as [Tab, string][]).map(([t, label]) => (
-          <Pressable
+          <Pressable accessibilityRole="tab" aria-selected={tab === t}
             key={t}
             onPress={() => setTab(t)}
             style={[styles.tabBtn, tab === t && { borderBottomColor: theme.colors.primary }]}
@@ -478,7 +478,7 @@ export default function AuctionScreen() {
             const mine = myBidsByItem.get(item.id);
             const tone = bidTone(mine);
             return (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 style={[styles.card, { backgroundColor: theme.colors.surface }]}
                 onPress={() => { setSelectedItem(item); setBidAmt(''); setBidError(null); }}
               >
@@ -491,7 +491,7 @@ export default function AuctionScreen() {
                       accessibilityRole="imagebutton"
                       accessibilityLabel={`View photo of ${item.title}`}
                     >
-                      <Image
+                      <Image aria-hidden
                         source={{ uri: resolveUrl(item.photoUrls[0]) }}
                         style={styles.cardThumb}
                         resizeMode="cover"
@@ -614,7 +614,7 @@ export default function AuctionScreen() {
                 {/* Same gate as the silent-auction modal — this button used to be
                     ungated entirely, so a cardless golfer's live bid was accepted
                     locally and then rejected by the server. */}
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityLabel="Bid"
                   style={[styles.bidBtn, { backgroundColor: cardRequired ? '#aaa' : theme.colors.primary }]}
                   onPress={() => handleBid(currentLiveItem)}
                   disabled={bidding || cardRequired}
@@ -716,7 +716,7 @@ export default function AuctionScreen() {
                         accessibilityRole="button"
                         accessibilityLabel="View photo full screen"
                       >
-                        <Image
+                        <Image aria-hidden
                           source={{ uri: resolveUrl(url) }}
                           style={styles.modalPhoto}
                           resizeMode="cover"
@@ -730,11 +730,11 @@ export default function AuctionScreen() {
                 {isDonationItem(liveSelectedItem.auctionType) ? (
                   <>
                     {liveSelectedItem.donationDenominations ? (
-                      <View style={styles.denomRow}>
+                      <View accessibilityRole="radiogroup" style={styles.denomRow}>
                         {liveSelectedItem.donationDenominations.map(d => {
                           const denomValue = centsToMoneyValue(d);
                           return (
-                            <Pressable
+                            <Pressable accessibilityRole="radio" aria-checked={bidAmt === denomValue}
                               key={d}
                               onPress={() => setBidAmt(denomValue)}
                               style={[
@@ -781,7 +781,7 @@ export default function AuctionScreen() {
                     placeholder="$0.00"
                     placeholderTextColor="#aaa"
                   />
-                  <Pressable
+                  <Pressable accessibilityRole="button" accessibilityLabel={isDonationItem(liveSelectedItem.auctionType) ? 'Pledge' : 'Bid'}
                     style={[
                       styles.bidBtn,
                       { backgroundColor: cardRequired ? '#aaa' : theme.colors.primary },
@@ -801,7 +801,7 @@ export default function AuctionScreen() {
                   <Text style={styles.bidError} accessibilityRole="alert">{bidError}</Text>
                 )}
 
-                <Pressable
+                <Pressable accessibilityRole="button"
                   style={[styles.cancelBtn]}
                   onPress={() => { setSelectedItem(null); setBidError(null); }}
                 >

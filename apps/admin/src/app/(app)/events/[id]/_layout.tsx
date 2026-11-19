@@ -148,7 +148,7 @@ function EventChrome({ event, error, retry, eventCtx }: {
         styles.primaryBar,
         { backgroundColor: '#fff', borderBottomColor: showSubRow ? '#f0f0f0' : '#e0e0e0' },
       ]}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll} accessibilityRole="tablist">
           {groups.map(group => {
             const isActive = group === activeGroup;
             return (
@@ -157,7 +157,7 @@ function EventChrome({ event, error, retry, eventCtx }: {
                 style={[styles.primaryTab, isActive && { borderBottomColor: theme.colors.primary }]}
                 onPress={() => router.push(tabHref(group.tabs[0].path) as any)}
                 accessibilityRole="tab"
-                accessibilityState={{ selected: isActive }}
+                aria-selected={isActive}
               >
                 <Text style={[
                   styles.primaryLabel,
@@ -175,7 +175,7 @@ function EventChrome({ event, error, retry, eventCtx }: {
       {/* ── Sub-tab row (hidden for Overview) ───────────────────────────── */}
       {showSubRow && (
         <View style={[styles.subBar, { backgroundColor: '#fafafa', borderBottomColor: '#e0e0e0' }]}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll} accessibilityRole="tablist">
             {activeGroup.tabs.map(tab => {
               const isActive = tab.path === pathSuffix;
               return (
@@ -184,7 +184,7 @@ function EventChrome({ event, error, retry, eventCtx }: {
                   style={[styles.subTab, isActive && { borderBottomColor: theme.colors.action }]}
                   onPress={() => router.push(tabHref(tab.path) as any)}
                   accessibilityRole="tab"
-                  accessibilityState={{ selected: isActive }}
+                  aria-selected={isActive}
                 >
                   <Text style={[
                     styles.subLabel,

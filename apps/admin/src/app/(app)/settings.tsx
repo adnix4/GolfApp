@@ -62,7 +62,7 @@ function ColorRow({
   const valid = isValidHex(value);
   return (
     <View style={cr.row}>
-      <Pressable
+      <Pressable accessibilityRole="button"
         style={[cr.swatch, { backgroundColor: valid ? value : '#cccccc' }]}
         onPress={() => !disabled && openColorPicker(value, onChange)}
         accessibilityLabel={`Pick color for ${meta.label}`}
@@ -287,7 +287,7 @@ function OrgSettings() {
           {/* Preview */}
           {!!logoUrl && (
             <View style={styles.logoPreview}>
-              <Image
+              <Image accessibilityLabel="Organization logo preview"
                 source={{ uri: logoUrl.startsWith('/') ? `${process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000'}${logoUrl}` : logoUrl }}
                 style={styles.logoImg}
                 resizeMode="contain"
@@ -299,7 +299,7 @@ function OrgSettings() {
 
           {/* Upload button (web only) */}
           {Platform.OS === 'web' && (
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel={logoUrl ? 'Replace Logo' : 'Upload Logo'}
               style={[styles.uploadBtn, { borderColor: theme.colors.primary }, uploading && { opacity: 0.6 }]}
               onPress={openFilePicker}
               disabled={uploading || saving}
@@ -360,6 +360,7 @@ function OrgSettings() {
             </Text>
           </View>
           <Switch
+            accessibilityLabel="501(c)(3) Non-Profit"
             value={is501c3}
             onValueChange={setIs501c3}
             trackColor={{ true: theme.colors.primary }}
@@ -372,7 +373,7 @@ function OrgSettings() {
       <View style={[styles.card, { marginTop: spacing[5] }]}>
         <View style={styles.themeTitleRow}>
           <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Brand Colors</Text>
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() => setColors({ ...ECO_GREEN_DEFAULT })}
             style={[styles.resetBtn, { borderColor: theme.colors.accent }]}
           >
@@ -430,7 +431,7 @@ function OrgSettings() {
       </View>
 
       {/* ── SAVE ── */}
-      <Pressable
+      <Pressable accessibilityRole="button" accessibilityLabel="Save All Changes"
         style={[styles.saveBtn, { backgroundColor: theme.colors.primary }, saving && { opacity: 0.6 }]}
         onPress={handleSave}
         disabled={saving}

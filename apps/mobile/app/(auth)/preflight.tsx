@@ -211,12 +211,12 @@ export default function PreflightScreen() {
         {/* Retry buttons */}
         <View style={styles.retryRow}>
           {connectivityCheck.status !== 'checking' && (
-            <Pressable onPress={runConnectivityCheck} style={styles.retryBtn}>
+            <Pressable accessibilityRole="button" onPress={runConnectivityCheck} style={styles.retryBtn}>
               <Text style={[styles.retryText, { color: theme.colors.primary }]}>Retry Network</Text>
             </Pressable>
           )}
           {batteryCheck.status !== 'checking' && (
-            <Pressable onPress={runBatteryCheck} style={styles.retryBtn}>
+            <Pressable accessibilityRole="button" onPress={runBatteryCheck} style={styles.retryBtn}>
               <Text style={[styles.retryText, { color: theme.colors.primary }]}>Retry Battery</Text>
             </Pressable>
           )}

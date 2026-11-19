@@ -89,8 +89,8 @@ export default function SuperAdminDashboard() {
       </View>
 
       {/* Tab switcher */}
-      <View style={[styles.tabs, { borderColor: theme.colors.accent + '33' }]}>
-        <Pressable
+      <View accessibilityRole="tablist" style={[styles.tabs, { borderColor: theme.colors.accent + '33' }]}>
+        <Pressable accessibilityRole="tab" aria-selected={tab === 'orgs'}
           style={[styles.tab, tab === 'orgs' && { backgroundColor: theme.colors.primary }]}
           onPress={() => setTab('orgs')}
         >
@@ -98,7 +98,7 @@ export default function SuperAdminDashboard() {
             Organizations ({orgs.length})
           </Text>
         </Pressable>
-        <Pressable
+        <Pressable accessibilityRole="tab" aria-selected={tab === 'events'}
           style={[styles.tab, tab === 'events' && { backgroundColor: theme.colors.primary }]}
           onPress={() => setTab('events')}
         >

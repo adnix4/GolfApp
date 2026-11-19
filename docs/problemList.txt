@@ -85,8 +85,8 @@ P4 — FEATURES / POLISH
      Accessibility audit (2026-11-18, MCAG) — work in this order:
      [x] AX1 motion + announcements 2026-11-18 (on-device VoiceOver/TalkBack
           speech + haptic still to hear/feel — folded into AX6)
-     AX2  roles, names, states: 183 tappables without a role, unnamed
-          buttons/images, 17 toggles without accessibilityState; lint rule
+     [x] AX2 roles, names, states 2026-11-19 (state now via aria-* props —
+          accessibilityState never reached the browser); 5 lint rules
      AX3  headings: shared heading component, every screen/section title
      AX4  contrast: ~43 text colours under 4.5:1 -> theme tokens
      AX5  message timing: short-lived messages >= 6 s and announced
@@ -1015,6 +1015,54 @@ AX2. ROLES, NAMES AND STATES (MCAG 1.1.2, 1.1.3, 1.1.4, 1.2.1, 2.1.7)
           exposed). The event sub-tabs already do it right — copy them.
         Fix: role at each site (button/link/tab/checkbox), labels, states, and
         a lint rule so new code keeps them.
+        [x] DONE 2026-11-19:
+        - Found a bigger gap than the audit: react-native-web ignores
+          accessibilityState completely, so no selected/checked/expanded state
+          reached the browser anywhere — including the event sub-tabs the
+          audit called correct. All 47 uses converted to aria-selected /
+          aria-checked / aria-expanded / aria-busy / aria-disabled, which RN
+          >= 0.71 maps to the native state and RN Web writes to the DOM.
+          Radios that used `selected` now use aria-checked.
+        - 181 Pressables given a role (38 files): button by default, tab +
+          aria-selected inside a tablist (filters, view toggles, admin/super-
+          admin tabs, QR parts, auction tabs), radio + aria-checked inside a
+          radiogroup (pick-one chips: format, start, holes, tier, method,
+          skill/age, bid amounts, auction type, team picker), switch for the
+          season handicap sync, expanded on accordions and the team picker,
+          link on the public landing/register pages. 19 containers given
+          tablist/radiogroup, plus both event tab rows in events/[id]/_layout.
+        - Names: icon-only ✕ / ↑ / ↓ / back buttons; spinner buttons keep their
+          name while busy; repeated row actions name their row ("Check in Ava
+          Stone", "Edit Role Call", "Override Ava Stone"), each starting with
+          the visible word so Voice Control still matches. 7 Switches named
+          after their visible title. Sponsor hole picker had state baked into
+          the label (", selected") — now aria-checked.
+        - Images: photos inside an already-named button and the list thumbnail
+          next to the item title are aria-hidden; edit-modal photos and both
+          logo previews labelled. GfpLogo already had a label (both apps).
+        - Admin nav (top bar + sidebar) marks the current page with
+          aria-current="page". Completed hole on HoleNavBar reads "Hole N
+          done"; Complete Hole exposes aria-busy.
+        - Already fixed in AX1: "Amazing!" (name now = visible text), the web
+          hole-in-one close button, the celebration text outside "Dismiss".
+        - Lint: eslint-rules/gfp-a11y.mjs (local, no new dependency —
+          eslint-plugin-react-native-a11y is unmaintained, no ESLint 10),
+          enabled as errors for apps/mobile, apps/admin, packages/ui:
+          pressable-has-role, image-has-alt, switch-has-label,
+          no-accessibility-state, state-matches-role (radio/checkbox/switch
+          need aria-checked, tab needs aria-selected). Opt-outs:
+          accessible={false} for backdrops, aria-hidden for decorative images.
+        VERIFIED: lint 0 errors in all three workspaces; a probe file with a
+        bare Pressable + Image fails both rules and the opt-outs pass. tsc
+        clean; mobile 288 / admin 238 / ui 10 tests green. Browser (Edge,
+        admin + mobile web exports, real API, throwaway org/event) 40/40:
+        on 9 admin screens and 4 mobile screens every focusable element has a
+        role and a name; tabs carry aria-selected inside a tablist (event tab
+        rows, registration filters, scoring teams, mobile auction/leaderboard);
+        the edit-event modal has 3 radiogroups with one aria-checked each;
+        settings switches read "501(c)(3) Non-Profit" etc. with their state;
+        sidebar aria-current = Events; edit-profile back button = "Back".
+        NOT verified: what VoiceOver/TalkBack say on a device (AX6).
 
 AX3. HEADINGS (MCAG 3.1.6)
         No accessibilityRole="header" in mobile or admin (one in packages/ui).

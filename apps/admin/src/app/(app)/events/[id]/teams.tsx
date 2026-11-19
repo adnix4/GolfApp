@@ -163,7 +163,7 @@ export default function TeamsScreen() {
       {error && (
         <View style={c.errorBox}>
           <Text style={c.errorText}>{error}</Text>
-          <Pressable onPress={() => setError(null)} style={{ marginTop: spacing[2] }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Dismiss error" onPress={() => setError(null)} style={{ marginTop: spacing[2] }}>
             <Text style={{ color: status.dangerText, fontSize: fontSize.xs }}>Dismiss</Text>
           </Pressable>
         </View>

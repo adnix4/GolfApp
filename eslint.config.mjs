@@ -3,6 +3,7 @@ import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
+import gfpA11y from './eslint-rules/gfp-a11y.mjs';
 
 export default [
   {
@@ -69,6 +70,29 @@ export default [
       // Warnings surface in CI without failing it — promote to 'error' only
       // after the existing reports have been triaged.
       'react-hooks/exhaustive-deps': 'warn',
+    },
+  },
+  {
+    // The React Native apps: every tappable says what it is, every image is
+    // either described or marked decorative, and selectable controls expose
+    // their state through aria-* props. Screen readers announce the
+    // role ("button", "tab", "checkbox"), and on web react-native-web turns it
+    // into real semantics; without it a Pressable is an anonymous div.
+    // Local rules (eslint-rules/gfp-a11y.mjs) — see problemList.txt AX2.
+    // apps/web is Next.js and writes real HTML elements, so it is not covered.
+    files: [
+      'apps/mobile/**/*.tsx',
+      'apps/admin/**/*.tsx',
+      'packages/ui/**/*.tsx',
+    ],
+    plugins: { 'gfp-a11y': gfpA11y },
+    rules: {
+      'gfp-a11y/pressable-has-role': 'error',
+      'gfp-a11y/image-has-alt':      'error',
+      'gfp-a11y/switch-has-label':   'error',
+      // accessibilityState never reaches the DOM on web; aria-* works everywhere.
+      'gfp-a11y/no-accessibility-state': 'error',
+      'gfp-a11y/state-matches-role':     'error',
     },
   },
   {

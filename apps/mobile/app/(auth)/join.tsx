@@ -387,7 +387,7 @@ export default function JoinScreen() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {logo}
 
-          <Pressable onPress={() => { setStep('pick'); setError(null); }} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" onPress={() => { setStep('pick'); setError(null); }} style={styles.backBtn}>
             <Text style={[styles.backBtnText, { color: theme.mutedText }]}>
               ← Choose a different tournament
             </Text>

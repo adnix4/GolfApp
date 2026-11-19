@@ -237,7 +237,7 @@ export default function EventOverviewScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Details</Text>
-          <Pressable style={[styles.smallBtn, { backgroundColor: theme.colors.action }]} onPress={() => setShowEdit(true)}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Edit event details" style={[styles.smallBtn, { backgroundColor: theme.colors.action }]} onPress={() => setShowEdit(true)}>
             <Text style={[styles.smallBtnText, { color: theme.ctaLabel }]}>Edit</Text>
           </Pressable>
         </View>
@@ -255,7 +255,7 @@ export default function EventOverviewScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Course</Text>
-          <Pressable style={[styles.smallBtn, { backgroundColor: theme.colors.action }]} onPress={() => setShowCourse(true)}>
+          <Pressable accessibilityRole="button" accessibilityLabel={event.course ? 'Edit course' : 'Attach Course'} style={[styles.smallBtn, { backgroundColor: theme.colors.action }]} onPress={() => setShowCourse(true)}>
             <Text style={[styles.smallBtnText, { color: theme.ctaLabel }]}>
               {event.course ? 'Edit' : 'Attach Course'}
             </Text>
@@ -313,7 +313,7 @@ export default function EventOverviewScreen() {
                       onPress={() => !gated && handleStatusChange(t.status)}
                       disabled={updating || gated || checkingScores}
                       accessibilityRole="button"
-                      accessibilityState={{ disabled: gated }}
+                      aria-disabled={gated}
                     >
                       {updating || checkingScores
                         ? <ActivityIndicator color="#fff" size="small" />
@@ -321,7 +321,7 @@ export default function EventOverviewScreen() {
                     </Pressable>
                   );
                 })}
-                <Pressable
+                <Pressable accessibilityRole="button"
                   style={[styles.cancelBtn, (updating || checkingScores) && { opacity: 0.6 }]}
                   onPress={() => handleStatusChange('Cancelled')}
                   disabled={updating || checkingScores}
@@ -452,7 +452,7 @@ function DraftSetupSection({ event, updating, seeding, onOpenEdit, onOpenCourse,
             ? ` ${event.testDataSummary.totalCount} test records active.`
             : ' No test data yet.'}
         </Text>
-        <Pressable
+        <Pressable accessibilityRole="button" accessibilityLabel="Seed Test Data"
           style={[styles.seedBtn, seeding && { opacity: 0.6 }]}
           onPress={onSeedTestData}
           disabled={seeding || updating}
@@ -480,7 +480,7 @@ function DraftSetupSection({ event, updating, seeding, onOpenEdit, onOpenCourse,
         onPress={() => canOpen && onAdvance('Registration')}
         disabled={!canOpen || updating}
         accessibilityRole="button"
-        accessibilityState={{ disabled: !canOpen }}
+        aria-disabled={!canOpen}
       >
         {updating
           ? <ActivityIndicator color="#fff" />
@@ -496,7 +496,7 @@ function DraftSetupSection({ event, updating, seeding, onOpenEdit, onOpenCourse,
           )}
       </Pressable>
 
-      <Pressable
+      <Pressable accessibilityRole="button"
         style={[styles.dangerLink, updating && { opacity: 0.4 }]}
         onPress={() => onAdvance('Cancelled')}
         disabled={updating}
@@ -539,7 +539,7 @@ function ChecklistItem({ done, required, label, doneDetail, missingDetail, actio
         </Text>
       </View>
       {action && (
-        <Pressable
+        <Pressable accessibilityRole="button"
           style={[styles.checkAction, { borderColor: theme.colors.action }]}
           onPress={action.onPress}
         >
@@ -668,14 +668,14 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
             {fieldErrors.name && <Text style={styles.fieldError}>{fieldErrors.name}</Text>}
 
             <Text style={c.fieldLabel}>Format</Text>
-            <View style={styles.pillRow}>
+            <View accessibilityRole="radiogroup" style={styles.pillRow}>
               {FORMAT_OPTIONS.map(f => (
-                <Pressable
+                <Pressable accessibilityRole="radio"
                   key={f}
                   style={[styles.pill, format === f && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }, formatLocked && format !== f && { opacity: 0.4 }]}
                   onPress={() => setFormat(f)}
                   disabled={formatLocked}
-                  accessibilityState={{ disabled: formatLocked, selected: format === f }}
+                  aria-disabled={formatLocked} aria-checked={format === f}
                 >
                   <Text style={[styles.pillText, format === f && { color: '#fff' }]}>{FORMAT_LABELS[f]}</Text>
                 </Pressable>
@@ -688,18 +688,18 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
             )}
 
             <Text style={c.fieldLabel}>Start Type</Text>
-            <View style={styles.pillRow}>
+            <View accessibilityRole="radiogroup" style={styles.pillRow}>
               {START_OPTIONS.map(s => (
-                <Pressable key={s} style={[styles.pill, startType === s && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]} onPress={() => setStartType(s)}>
+                <Pressable accessibilityRole="radio" aria-checked={startType === s} key={s} style={[styles.pill, startType === s && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]} onPress={() => setStartType(s)}>
                   <Text style={[styles.pillText, startType === s && { color: '#fff' }]}>{START_LABELS[s]}</Text>
                 </Pressable>
               ))}
             </View>
 
             <Text style={c.fieldLabel}>Holes</Text>
-            <View style={styles.pillRow}>
+            <View accessibilityRole="radiogroup" style={styles.pillRow}>
               {HOLES_OPTIONS.map(h => (
-                <Pressable key={h} style={[styles.pill, holes === h && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]} onPress={() => setHoles(h)}>
+                <Pressable accessibilityRole="radio" aria-checked={holes === h} key={h} style={[styles.pill, holes === h && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]} onPress={() => setHoles(h)}>
                   <Text style={[styles.pillText, holes === h && { color: '#fff' }]}>{h} holes</Text>
                 </Pressable>
               ))}
@@ -735,10 +735,10 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
             />
 
             <View style={c.formActions}>
-              <Pressable style={c.cancelBtn} onPress={onClose}>
+              <Pressable accessibilityRole="button" style={c.cancelBtn} onPress={onClose}>
                 <Text style={c.cancelText}>Cancel</Text>
               </Pressable>
-              <Pressable style={[c.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSave} disabled={loading}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Save Changes" style={[c.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSave} disabled={loading}>
                 {loading ? <ActivityIndicator color={theme.buttonLabel} /> : <Text style={c.submitText}>Save Changes</Text>}
               </Pressable>
             </View>
@@ -823,10 +823,10 @@ function AttachCourseModal({ visible, eventId, course, onClose, onAttached }: At
             </View>
           ))}
           <View style={c.formActions}>
-            <Pressable style={c.cancelBtn} onPress={() => { reset(); onClose(); }}>
+            <Pressable accessibilityRole="button" style={c.cancelBtn} onPress={() => { reset(); onClose(); }}>
               <Text style={c.cancelText}>Cancel</Text>
             </Pressable>
-            <Pressable style={[c.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
+            <Pressable accessibilityRole="button" accessibilityLabel={isEdit ? 'Save Changes' : 'Attach'} style={[c.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
               {loading ? <ActivityIndicator color={theme.buttonLabel} /> : <Text style={c.submitText}>{isEdit ? 'Save Changes' : 'Attach'}</Text>}
             </Pressable>
           </View>

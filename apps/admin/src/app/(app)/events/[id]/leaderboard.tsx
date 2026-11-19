@@ -68,7 +68,7 @@ export default function LeaderboardScreen() {
             </Text>
           )}
         </View>
-        <Pressable
+        <Pressable accessibilityRole="button" accessibilityLabel="Refresh"
           style={[styles.refreshBtn, { borderColor: theme.colors.action }]}
           onPress={handleRefresh}
           disabled={refreshing}
@@ -92,7 +92,7 @@ export default function LeaderboardScreen() {
               key={v}
               onPress={() => setView(v)}
               accessibilityRole="tab"
-              accessibilityState={{ selected: view === v }}
+              aria-selected={view === v}
               style={[styles.viewTab, { borderColor: theme.colors.primary }, view === v && { backgroundColor: theme.colors.primary }]}
             >
               <Text style={[styles.viewTabText, { color: view === v ? theme.buttonLabel : theme.colors.primary }]}>

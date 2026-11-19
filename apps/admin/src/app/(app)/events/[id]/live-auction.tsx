@@ -148,7 +148,7 @@ export default function LiveAuctionScreen() {
       {error && (
         <View style={[c.errorBox, styles.errorBox]}>
           <Text style={[c.errorText, styles.errorText]}>{error}</Text>
-          <Pressable onPress={() => setError(null)} style={{ marginTop: spacing[2] }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Dismiss error" onPress={() => setError(null)} style={{ marginTop: spacing[2] }}>
             <Text style={{ color: status.dangerText, fontSize: fontSize.xs }}>Dismiss</Text>
           </Pressable>
         </View>
@@ -156,7 +156,7 @@ export default function LiveAuctionScreen() {
       {success && (
         <View style={styles.successBox}>
           <Text style={styles.successText}>✓ {success}</Text>
-          <Pressable onPress={() => setSuccess(null)} style={{ marginTop: spacing[2] }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Dismiss message" onPress={() => setSuccess(null)} style={{ marginTop: spacing[2] }}>
             <Text style={{ color: '#1a6b3c', fontSize: fontSize.xs }}>Dismiss</Text>
           </Pressable>
         </View>
@@ -177,7 +177,7 @@ export default function LiveAuctionScreen() {
               {items.length} live item{items.length !== 1 ? 's' : ''} ready.
             </Text>
           )}
-          <Pressable
+          <Pressable accessibilityRole="button" accessibilityLabel="Start Live Auction"
             style={[styles.bigBtn, { backgroundColor: items.length === 0 ? '#aaa' : theme.colors.primary }]}
             onPress={startSession}
             disabled={working || items.length === 0}
@@ -233,7 +233,7 @@ export default function LiveAuctionScreen() {
                   placeholder="$0.00"
                   placeholderTextColor="#aaa"
                 />
-                <Pressable
+                <Pressable accessibilityRole="button"
                   style={[styles.btn, { backgroundColor: theme.colors.primary }]}
                   onPress={updateCalledAmount}
                   disabled={working}
@@ -258,7 +258,7 @@ export default function LiveAuctionScreen() {
           )}
 
           {/* Controls */}
-          <Pressable
+          <Pressable accessibilityRole="button" accessibilityLabel="Next Item"
             style={[styles.bigBtn, { backgroundColor: theme.colors.accent }]}
             onPress={advanceItem}
             disabled={working}
@@ -270,7 +270,7 @@ export default function LiveAuctionScreen() {
 
           {/* Ends the auction independently of the event's own status — the
               round finishing and the auction finishing are different moments. */}
-          <Pressable
+          <Pressable accessibilityRole="button" accessibilityLabel="End Auction"
             style={[styles.bigBtn, { backgroundColor: '#7f8c8d', marginTop: spacing[3] }]}
             onPress={() => confirmAction(
               'End the live auction?',
@@ -352,7 +352,7 @@ function AwardWinnerInput({
           autoCapitalize="none"
           autoCorrect={false}
         />
-        <Pressable
+        <Pressable accessibilityRole="button"
           style={[styles.btn, { backgroundColor: status.success }, (disabled || !winnerId.trim()) && { opacity: 0.5 }]}
           disabled={disabled || !winnerId.trim()}
           onPress={handleAward}

@@ -104,7 +104,7 @@ export default function FundraisingScreen() {
         <Text style={c.title}>Fundraising</Text>
         <View style={styles.headerActions}>
           {(event?.isTestMode || (event?.testDataSummary?.totalCount ?? 0) > 0) && (
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel="Clear Test Data"
               style={[styles.clearTestBtn, clearing && { opacity: 0.6 }]}
               onPress={() => setShowClearWarning(true)}
               disabled={clearing || refreshing}
@@ -114,7 +114,7 @@ export default function FundraisingScreen() {
                 : <Text style={styles.clearTestText}>Clear Test Data</Text>}
             </Pressable>
           )}
-          <Pressable
+          <Pressable accessibilityRole="button" accessibilityLabel="Refresh"
             style={[styles.refreshBtn, { borderColor: theme.colors.action }]}
             onPress={() => load()}
             disabled={refreshing || clearing}
@@ -139,7 +139,7 @@ export default function FundraisingScreen() {
       {error && (
         <View style={[c.errorBox, styles.errorBox]}>
           <Text style={c.errorText}>{error}</Text>
-          <Pressable onPress={() => load()} style={{ marginTop: spacing[2] }}>
+          <Pressable accessibilityRole="button" onPress={() => load()} style={{ marginTop: spacing[2] }}>
             <Text style={{ color: status.dangerText, fontSize: fontSize.sm, fontWeight: '600' }}>Retry</Text>
           </Pressable>
         </View>
@@ -267,7 +267,7 @@ export default function FundraisingScreen() {
                     </Text>
                   </View>
                   <View style={{ gap: spacing[2] }}>
-                    <Pressable
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Re-charge ${fc.playerName}`}
                       style={[styles.chargeBtn, { backgroundColor: theme.colors.primary }]}
                       onPress={() => recharge(fc.winnerId)}
                       disabled={chargeWorking === fc.winnerId}
@@ -276,7 +276,7 @@ export default function FundraisingScreen() {
                         ? <ActivityIndicator size="small" color="#fff" />
                         : <Text style={styles.chargeBtnText}>Re-charge</Text>}
                     </Pressable>
-                    <Pressable
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Waive ${fc.playerName}`}
                       style={[styles.chargeBtn, { backgroundColor: '#95a5a6' }]}
                       onPress={() => waive(fc.winnerId)}
                       disabled={chargeWorking === fc.winnerId}

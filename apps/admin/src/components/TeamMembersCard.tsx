@@ -168,7 +168,7 @@ export function TeamMembersCard() {
           const on = role === r;
           return (
             <Pressable key={r} onPress={() => setRole(r)} accessibilityRole="radio"
-              accessibilityState={{ selected: on }} accessibilityLabel={ROLE_LABEL[r]}
+              aria-checked={on} accessibilityLabel={ROLE_LABEL[r]}
               style={[styles.roleChip, { borderColor: theme.colors.primary },
                       on && { backgroundColor: theme.colors.primary }]}>
               <Text style={[styles.roleText, { color: on ? theme.buttonLabel : theme.colors.primary }]}>

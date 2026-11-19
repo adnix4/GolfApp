@@ -278,7 +278,7 @@ export function AbsencesModal({
                   : <Text style={[c.muted, { fontSize: fontSize.xs }]}>No sub assigned</Text>}
               </View>
               {!a.subMemberId && (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   style={[mStyles.iconBtn, { borderColor: theme.colors.accent }]}
                   onPress={() => onAddSub(a.memberId)}
                 >
@@ -293,7 +293,7 @@ export function AbsencesModal({
       <Text style={c.fieldHint}>Select Member</Text>
       <ScrollView style={[mStyles.picker, { borderColor: theme.colors.accent }]}>
         {roster.filter(m => m.status === 'Active').map(m => (
-          <Pressable
+          <Pressable accessibilityRole="button"
             key={m.id}
             style={{ padding: spacing[2], backgroundColor: selMemberId === m.id ? theme.colors.primary + '22' : 'transparent' }}
             onPress={() => onSelectMember(m.id)}
@@ -392,7 +392,7 @@ export function EnterScoresModal({
         {members.map(m => {
           const card = scorecards.find(s => s.memberId === m.id);
           return (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={m.id}
               style={[mStyles.scoreMember, { backgroundColor: selMemberId === m.id ? theme.colors.primary + '22' : 'transparent' }]}
               onPress={() => onSelectMember(m.id)}
@@ -512,7 +512,7 @@ export function AssignFlightModal({
     >
       <ScrollView style={[mStyles.picker, { borderColor: theme.colors.accent }]}>
         {options.map(f => (
-          <Pressable
+          <Pressable accessibilityRole="button"
             key={f.id}
             style={{ padding: spacing[2], backgroundColor: selFlightId === f.id ? theme.colors.primary + '22' : 'transparent' }}
             onPress={() => onSelect(f.id)}

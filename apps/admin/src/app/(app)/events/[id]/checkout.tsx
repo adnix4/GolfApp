@@ -193,7 +193,7 @@ export default function AuctionCheckoutScreen() {
             <Text style={[styles.cartName, { color: theme.colors.primary }]}>{cart.playerName}</Text>
             <Text style={[styles.rowMeta, { color: theme.mutedText }]}>{cart.playerEmail}</Text>
           </View>
-          <Pressable onPress={closeCart} accessibilityLabel="Close">
+          <Pressable accessibilityRole="button" onPress={closeCart} accessibilityLabel="Close">
             <Text style={{ color: theme.mutedText, fontSize: fontSize.xxl }}>✕</Text>
           </Pressable>
         </View>
@@ -216,7 +216,7 @@ export default function AuctionCheckoutScreen() {
             </View>
             <Text style={styles.lineAmount}>{formatCents(line.amountCents)}</Text>
             {!line.isPledge && !line.pickedUpAt && (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 style={styles.pickupBtn}
                 onPress={() => handlePickup(line.winnerId)}
                 disabled={cartBusy}
@@ -252,7 +252,7 @@ export default function AuctionCheckoutScreen() {
                 style={styles.checkRow}
                 onPress={() => setPickUpToo(v => !v)}
                 accessibilityRole="checkbox"
-                accessibilityState={{ checked: pickUpToo }}
+                aria-checked={pickUpToo}
               >
                 <View style={[styles.checkbox, pickUpToo && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]}>
                   {pickUpToo && <Text style={styles.checkMark}>✓</Text>}
@@ -263,7 +263,7 @@ export default function AuctionCheckoutScreen() {
 
             <View style={styles.methodRow}>
               {METHODS.map(m => (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   key={m}
                   style={[styles.methodBtn, { backgroundColor: theme.colors.primary }, cartBusy && { opacity: 0.6 }]}
                   onPress={() => handleSettle(m)}
@@ -283,7 +283,7 @@ export default function AuctionCheckoutScreen() {
                   Take cash or check, or add their card here.
                 </Text>
                 {cardCaptureEnabled && (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     style={styles.addCardBtn}
                     onPress={() => setShowAddCard(true)}
                     disabled={cartBusy}

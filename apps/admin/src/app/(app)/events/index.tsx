@@ -371,7 +371,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
                     ]}
                     onPress={() => setFormat(f)}
                     accessibilityRole="radio"
-                    accessibilityState={{ selected: active }}
+                    aria-checked={active}
                     accessibilityLabel={FORMAT_LABELS[f]}
                   >
                     <Text style={[styles.optionCardTitle, active && { color: '#fff' }]}>
@@ -402,7 +402,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
                     ]}
                     onPress={() => setStartType(s)}
                     accessibilityRole="radio"
-                    accessibilityState={{ selected: active }}
+                    aria-checked={active}
                     accessibilityLabel={START_LABELS[s]}
                   >
                     <Text style={[styles.optionCardTitle, active && { color: '#fff' }]}>
@@ -427,7 +427,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
                   style={[styles.pill, holes === h && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]}
                   onPress={() => setHoles(h)}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: holes === h }}
+                  aria-checked={holes === h}
                 >
                   <Text style={[styles.pillText, holes === h && { color: '#fff' }]}>
                     {h} holes

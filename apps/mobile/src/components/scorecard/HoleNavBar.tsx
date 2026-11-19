@@ -52,7 +52,7 @@ export function HoleNavBar({
               <Text style={styles.completedBtnText}>✎ Edit Score</Text>
             </Pressable>
           ) : (
-            <View style={styles.completedBtn}>
+            <View style={styles.completedBtn} accessible accessibilityLabel={`Hole ${currentHoleNumber} done`}>
               <Text style={styles.completedBtnText}>✓ Done</Text>
             </View>
           )
@@ -67,6 +67,7 @@ export function HoleNavBar({
             ]}
             accessibilityLabel="Complete hole"
             accessibilityRole="button"
+            aria-busy={completing}
           >
             {completing
               ? <ActivityIndicator size="small" color="#fff" />
