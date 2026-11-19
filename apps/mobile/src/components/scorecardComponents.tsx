@@ -15,7 +15,7 @@ import {
   Animated, Linking, Modal, Pressable,
   StyleSheet, Text, View,
 } from 'react-native';
-import { AdaptiveLogoFrame, DialogFrame, useTheme } from '@gfp/ui';
+import { AdaptiveLogoFrame, DialogFrame, useTheme, Heading } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import type { ThemeContextValue } from '@gfp/ui';
 import type { ChallengeCacheDto, HoleCacheDto, SponsorCacheDto } from '@/lib/api';
@@ -142,7 +142,7 @@ export function HoleInOneModal({ visible, holeName, onDismiss }: {
           accessibilityRole="alert"
         >
           <Text style={hioStyles.emoji} aria-hidden>⛳</Text>
-          <Text style={hioStyles.headline}>HOLE IN ONE!</Text>
+          <Heading level={2} style={hioStyles.headline}>HOLE IN ONE!</Heading>
           <Text style={hioStyles.sub}>{holeName}</Text>
           <Text style={hioStyles.hint}>Tap anywhere to dismiss</Text>
         </Animated.View>

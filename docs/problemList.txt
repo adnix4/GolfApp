@@ -87,7 +87,8 @@ P4 — FEATURES / POLISH
           speech + haptic still to hear/feel — folded into AX6)
      [x] AX2 roles, names, states 2026-11-19 (state now via aria-* props —
           accessibilityState never reached the browser); 5 lint rules
-     AX3  headings: shared heading component, every screen/section title
+     [x] AX3 headings 2026-11-19: <Heading> in @gfp/ui, 145 titles converted,
+          title-is-heading lint rule
      AX4  contrast: ~43 text colours under 4.5:1 -> theme tokens
      AX5  message timing: short-lived messages >= 6 s and announced
      AX6  device pass: VoiceOver, TalkBack, max text size on the scorer flow
@@ -1070,6 +1071,43 @@ AX3. HEADINGS (MCAG 3.1.6)
         visual section titles that the heading rotor can't find.
         Fix: a shared heading text component in @gfp/ui; use it for every
         screen and section title.
+        [x] DONE 2026-11-19
+        - <Heading level={1|2|3}> (packages/ui Heading.tsx): Text with
+          accessibilityRole="header" + aria-level. iOS/Android announce
+          "heading"; react-native-web renders a real <h1>-<h4>. Styling stays
+          with the caller, so nothing moved visually.
+        - Levels: 1 = the screen's own title (one per screen), 2 = section,
+          card or modal title, 3 = sub-section / repeated card inside one.
+        - 145 titles converted across 56 files: 143 by codemod (parser-
+          located, so multi-line tags and nested Text are safe), plus the
+          FormModal and DialogFrame titles by hand. Includes the titles the
+          audit named: scorecard (team name h1, "Hole N Par M" h2, Player
+          Shots h3), mobile leaderboard (empty-state and hole-in-one
+          headlines; the screen itself has no visible title — the tab says
+          "Standings"), event overview (event name h1; Details / Course /
+          Event Status / Event Setup h2), and the long admin forms (event and
+          org settings, season manager). FormModal and DialogFrame titles are
+          h2, so every form modal and popup gets one for free.
+        - Not headings, marked accessibilityRole="text": the "GFP Scorer"
+          logo wordmark, checkout line items, the title inside the create-
+          event radio cards, and the event-name band on DialogFrame.
+        - Lint: gfp-a11y/title-is-heading — a <Text> whose style names a
+          *title / *heading class (styles.sectionTitle, c.modalTitle, ...)
+          must be a <Heading> or say accessibilityRole="text". Subtitles are
+          exempt. A heading styled under another name (eventName, teamName,
+          profileName) isn't caught; those 16 were found by type size and
+          converted by hand.
+        VERIFIED: lint 0 errors; probe file — styles.title, c.modalTitle and
+        a conditional sectionTitle reported, subtitle / role="text" / Heading
+        pass. tsc clean; mobile 288 / admin 238 / ui 10 tests green. Browser
+        (Edge, admin + mobile web exports, real API, throwaway org/event)
+        30/30: login, events, event overview, edit-event modal, teams,
+        fundraising, event settings, org settings, leagues, and mobile
+        scorecard / team / help / league / edit profile each show the
+        expected h1-h2 outline with exactly one h1 and no role=heading
+        lacking a level. Screenshots unchanged.
+        NOT verified: VoiceOver rotor / TalkBack heading navigation on a
+        device (AX6).
 
 AX4. CONTRAST (MCAG 1.4.1)
         ~43 hard-coded text colours under 4.5:1 on white: #888 (3.54:1, 21

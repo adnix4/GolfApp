@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { useTheme, Heading } from '@gfp/ui';
 import type { PlayerCacheDto, PlayerShotEntry } from '@/lib/api';
 import { isAdminTotal, shotTotal, toBreakdown } from '@/lib/holeUtils';
 import type { ScorecardLayout } from '@/lib/scorecardLayout';
@@ -43,9 +43,9 @@ export function PlayerShotsCard({
       },
     ]}>
       {layout.showCardTitle && (
-        <Text style={[styles.playerCardTitle, { color: theme.colors.primary }]}>
+        <Heading level={3} style={[styles.playerCardTitle, { color: theme.colors.primary }]}>
           Player Shots
-        </Text>
+        </Heading>
       )}
 
       {/* One shared header instead of repeating Drive/Approach/Putt under

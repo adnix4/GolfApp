@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { useTheme, Heading } from '@gfp/ui';
 import { screenStyles } from './scorecardStyles';
 import { fontSize, radius, spacing } from '@gfp/theme';
 
@@ -16,9 +16,9 @@ export function ScoringHeader({
   const theme = useTheme();
   return (
     <View style={[screenStyles.header, { backgroundColor: theme.colors.primary }]}>
-      <Text style={[styles.headerTeam, { color: theme.colors.highlight }]} numberOfLines={1}>
+      <Heading level={1} style={[styles.headerTeam, { color: theme.colors.highlight }]} numberOfLines={1}>
         {teamName}
-      </Text>
+      </Heading>
       {/* Hole counter and sync state ride the event line rather than owning a
           row in the nav bar — same information, ~30px more scroll area. */}
       <View style={styles.headerMetaRow}>
@@ -30,10 +30,10 @@ export function ScoringHeader({
             on 12 plays 12..18,1..11 — "Hole 1/18" there was flatly wrong, and
             contradicted the Hole N button and detail modal, which have always
             shown the real number. Progress is the Through chip's job. */}
-        <Text style={[styles.headerHole, { color: theme.colors.highlight }]}>
+        <Heading level={2} style={[styles.headerHole, { color: theme.colors.highlight }]}>
           Hole {currentHoleNumber}
           <Text style={styles.headerPar}>  Par {par}</Text>
-        </Text>
+        </Heading>
         {isCurrentHoleDone && (
           <View style={[styles.completedBadge, roundFullySynced ? styles.badgeSynced : styles.badgePending]}>
             <Text style={[styles.completedBadgeText, !roundFullySynced && styles.badgePendingText]}>

@@ -5,7 +5,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useEventDetail } from '@/lib/eventContext';
 import { eventKeys } from '@/lib/queries';
-import { useTheme, StatusPill, MoneyInput, useClasses } from '@gfp/ui';
+import { useTheme, StatusPill, MoneyInput, useClasses, Heading } from '@gfp/ui';
 import {
   FORMAT_OPTIONS, FORMAT_LABELS,
   START_OPTIONS, START_LABELS,
@@ -199,7 +199,7 @@ export default function EventOverviewScreen() {
       {/* Header */}
       <View style={styles.pageHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.eventName, { color: theme.colors.primary }]}>{event.name}</Text>
+          <Heading level={1} style={[styles.eventName, { color: theme.colors.primary }]}>{event.name}</Heading>
           <Text style={[styles.eventCode, { color: theme.mutedText }]}>Code: {event.eventCode}</Text>
         </View>
         <StatusPill color={eventStatusColor(event.status)} label={eventStatusLabel(event.status)} />
@@ -236,7 +236,7 @@ export default function EventOverviewScreen() {
       {/* Details */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Details</Text>
+          <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Details</Heading>
           <Pressable accessibilityRole="button" accessibilityLabel="Edit event details" style={[styles.smallBtn, { backgroundColor: theme.colors.action }]} onPress={() => setShowEdit(true)}>
             <Text style={[styles.smallBtnText, { color: theme.ctaLabel }]}>Edit</Text>
           </Pressable>
@@ -254,7 +254,7 @@ export default function EventOverviewScreen() {
       {/* Course */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Course</Text>
+          <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Course</Heading>
           <Pressable accessibilityRole="button" accessibilityLabel={event.course ? 'Edit course' : 'Attach Course'} style={[styles.smallBtn, { backgroundColor: theme.colors.action }]} onPress={() => setShowCourse(true)}>
             <Text style={[styles.smallBtnText, { color: theme.ctaLabel }]}>
               {event.course ? 'Edit' : 'Attach Course'}
@@ -287,7 +287,7 @@ export default function EventOverviewScreen() {
 
         return (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Event Status</Text>
+            <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Event Status</Heading>
             <StatusDescription status={event.status} event={event} />
 
             {blocked && (
@@ -406,7 +406,7 @@ function DraftSetupSection({ event, updating, seeding, onOpenEdit, onOpenCourse,
 
   return (
     <View style={[styles.section, styles.setupSection]}>
-      <Text style={[styles.setupTitle, { color: theme.colors.primary }]}>Event Setup</Text>
+      <Heading level={2} style={[styles.setupTitle, { color: theme.colors.primary }]}>Event Setup</Heading>
       <Text style={[styles.setupSubtitle, { color: theme.mutedText }]}>
         Complete the required steps below, then open registration so golfers can find and join your tournament.
       </Text>
@@ -445,7 +445,7 @@ function DraftSetupSection({ event, updating, seeding, onOpenEdit, onOpenCourse,
 
       {/* Test data seeding — only visible in Draft */}
       <View style={[styles.testDataSection, { backgroundColor: '#fff8e1', borderColor: status.warning }]}>
-        <Text style={[styles.testDataTitle, { color: '#856404' }]}>Testing Mode</Text>
+        <Heading level={2} style={[styles.testDataTitle, { color: '#856404' }]}>Testing Mode</Heading>
         <Text style={[styles.testDataDesc, { color: '#856404' }]}>
           Populate realistic test teams, scores, and donations to preview the event flow.
           {event.testDataSummary?.totalCount > 0
@@ -651,7 +651,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
       <View style={c.overlay}>
         <ScrollView contentContainerStyle={styles.modalScroll}>
           <View style={styles.modal}>
-            <Text style={c.modalTitle}>Edit Event Details</Text>
+            <Heading level={2} style={c.modalTitle}>Edit Event Details</Heading>
 
             {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
 
@@ -802,9 +802,9 @@ function AttachCourseModal({ visible, eventId, course, onClose, onAttached }: At
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => { reset(); onClose(); }}>
       <View style={c.overlay}>
         <View style={styles.modal}>
-          <Text style={c.modalTitle}>
+          <Heading level={2} style={c.modalTitle}>
             {isEdit ? 'Edit Course' : 'Attach Course'}
-          </Text>
+          </Heading>
           {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
           {([
             { label: 'Course Name *', value: name,    setter: setName,    placeholder: 'Pebble Beach Golf Links' },

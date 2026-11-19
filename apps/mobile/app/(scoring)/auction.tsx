@@ -5,7 +5,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, MoneyInput, useClasses } from '@gfp/ui';
+import { useTheme, MoneyInput, useClasses, Heading } from '@gfp/ui';
 import {
   formatCentsShort, dollarsToCents, centsToMoneyValue, useLiveAuction,
   needsPaymentMethod, minimumBidCents, isDonationItem, usesProxyBidding,
@@ -499,7 +499,7 @@ export default function AuctionScreen() {
                     </Pressable>
                   )}
                   <View style={styles.cardBody}>
-                    <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Text>
+                    <Heading level={3} style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Heading>
                     <Text style={{ color: theme.mutedText, fontSize: fontSize.xs }}>
                       {item.auctionType}
                       {item.closesAt ? `  · Closes: ${formatDateTime(item.closesAt)}` : ''}
@@ -567,9 +567,9 @@ export default function AuctionScreen() {
         <ScrollView contentContainerStyle={{ padding: spacing[4] }}>
           {liveSession?.isActive && currentLiveItem ? (
             <View>
-              <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
+              <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>
                 Now: {currentLiveItem.title}
-              </Text>
+              </Heading>
               <Text style={{ color: '#555', marginBottom: spacing[3] }}>{currentLiveItem.description}</Text>
               <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
                 <Text style={{ fontSize: fontSize.sm, color: theme.mutedText }}>Called Amount</Text>
@@ -597,9 +597,9 @@ export default function AuctionScreen() {
                     </Text>}
               </Pressable>
 
-              <Text style={[styles.sectionTitle, { color: theme.colors.primary, marginTop: spacing[4] }]}>
+              <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary, marginTop: spacing[4] }]}>
                 Pledge / Bid on this item
-              </Text>
+              </Heading>
               <Text style={styles.bidLabel}>
                 Min bid: {fmt(minimumBidCents(currentLiveItem))}
               </Text>
@@ -653,7 +653,7 @@ export default function AuctionScreen() {
           contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[10] }}
           renderItem={({ item }) => (
             <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-              <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.itemTitle}</Text>
+              <Heading level={3} style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.itemTitle}</Heading>
               <Text style={{ color: '#555', fontSize: fontSize.sm }}>
                 {/* "max" matters here: on a proxy item this row is the ceiling
                     the golfer set, not what the item is going for. */}
@@ -704,9 +704,9 @@ export default function AuctionScreen() {
             </View>
             {liveSelectedItem && (
               <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={[styles.sheetItemTitle, { backgroundColor: theme.colors.action, color: theme.ctaLabel }]}>
+                <Heading level={2} style={[styles.sheetItemTitle, { backgroundColor: theme.colors.action, color: theme.ctaLabel }]}>
                   {liveSelectedItem.title}
-                </Text>
+                </Heading>
                 {liveSelectedItem.photoUrls.length > 0 && (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoStrip}>
                     {liveSelectedItem.photoUrls.map(url => (

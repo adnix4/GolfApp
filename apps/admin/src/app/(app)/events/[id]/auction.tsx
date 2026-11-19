@@ -4,7 +4,7 @@ import {
   Modal, ScrollView, ActivityIndicator, Image,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme, MoneyInput, useClasses } from '@gfp/ui';
+import { useTheme, MoneyInput, useClasses, Heading } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue, formatDateTime } from '@gfp/shared-types';
 import { auctionApi, resolveUrl, type AuctionItem, type CreateAuctionItemPayload } from '@/lib/api';
 import { bidIncrementWarning } from '@/lib/auctionSetup';
@@ -296,9 +296,9 @@ export default function AuctionScreen() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.primary }]}>
+        <Heading level={1} style={[styles.title, { color: theme.colors.primary }]}>
           Auction Items ({items.length})
-        </Text>
+        </Heading>
         <View style={styles.headerActions}>
           {items.some(i => !isAuctionStatusFinal(i.status)) && (
             <Pressable
@@ -353,7 +353,7 @@ export default function AuctionScreen() {
               )}
               <View style={{ flex: 1 }}>
                 <View style={styles.titleRow}>
-                  <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Text>
+                  <Heading level={3} style={[styles.itemTitle, { color: theme.colors.primary }]}>{item.title}</Heading>
                   {/* A sold lot and a no-bid lot used to render identically. */}
                   <View style={[styles.statusPill, { backgroundColor: auctionStatusColor(item.status) }]}>
                     <Text style={styles.statusPillText}>{auctionStatusLabel(item.status)}</Text>
@@ -394,9 +394,9 @@ export default function AuctionScreen() {
       {/* ── Create / Edit Modal ── */}
       <Modal visible={showModal} animationType="slide" onRequestClose={() => setShowModal(false)}>
         <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
-          <Text style={c.modalTitle}>
+          <Heading level={2} style={c.modalTitle}>
             {editItem ? 'Edit Auction Item' : 'New Auction Item'}
-          </Text>
+          </Heading>
 
           {modalError && (
             <View style={c.errorBox}>

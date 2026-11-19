@@ -5,7 +5,7 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { useTeamList } from '@/lib/queries';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { teamsApi, playersApi, type Team, type Player } from '@/lib/api';
 import { isCheckedIn as statusIsCheckedIn } from '@/lib/checkIn';
 import { TeamRow } from '@/components/teams/TeamRow';
@@ -148,9 +148,9 @@ export default function TeamsScreen() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <Text style={c.title}>
+        <Heading level={1} style={c.title}>
           Teams ({teams.length})
-        </Text>
+        </Heading>
         <Pressable
           style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
           onPress={() => setShowAdd(true)}

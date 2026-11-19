@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, Pressable,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView,
 } from 'react-native';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useAuth } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
@@ -52,7 +52,7 @@ export default function LoginScreen() {
           <Text style={[styles.logoSub, { color: theme.mutedText }]}>Admin Dashboard</Text>
         </View>
 
-        <Text style={[styles.heading, { color: theme.colors.primary }]}>Sign in</Text>
+        <Heading level={1} style={[styles.heading, { color: theme.colors.primary }]}>Sign in</Heading>
 
         {error && (
           <View style={c.errorBox}>

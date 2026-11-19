@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, spacing, fontSize, radius } from '@gfp/theme';
 import {
   eventsApi, teamsApi, sponsorsApi,
@@ -76,7 +76,7 @@ export default function PrintKitScreen() {
 
   return (
     <View style={styles.page}>
-      <Text style={[c.title, styles.title]}>Print Kit</Text>
+      <Heading level={1} style={[c.title, styles.title]}>Print Kit</Heading>
       <Text style={[styles.subtitle, { color: theme.mutedText }]}>
         Opens a print-ready page in a new tab.
         {!isWeb && ' (Only available on the web version of the admin.)'}
@@ -142,7 +142,7 @@ function PrintCard({
     <View style={[styles.card, { borderLeftColor: color }]}>
       <Text style={styles.cardIcon}>{icon}</Text>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.cardTitle, { color }]}>{title}</Text>
+        <Heading level={2} style={[styles.cardTitle, { color }]}>{title}</Heading>
         <Text style={styles.cardDesc}>{description}</Text>
       </View>
       <Pressable

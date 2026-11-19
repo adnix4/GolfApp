@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { LeaveEventButton } from '@/components/LeaveEventButton';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
@@ -121,7 +121,7 @@ function Section({ title, subtitle, children, defaultOpen = true }: {
     <View style={styles.card}>
       <Pressable accessibilityRole="button" aria-expanded={open} style={styles.cardHeader} onPress={() => setOpen(o => !o)}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>{title}</Text>
+          <Heading level={2} style={[styles.cardTitle, { color: theme.colors.primary }]}>{title}</Heading>
           {subtitle && <Text style={[styles.cardSubtitle, { color: theme.mutedText }]}>{subtitle}</Text>}
         </View>
         <Text style={[styles.chevron, { color: theme.mutedText }]}>{open ? '▲' : '▼'}</Text>
@@ -187,7 +187,7 @@ export default function HelpScreen() {
     >
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-        <Text style={styles.headerTitle}>Help</Text>
+        <Heading level={1} style={styles.headerTitle}>Help</Heading>
         {session?.event && (
           <Text style={[styles.headerEvent, { color: 'rgba(255,255,255,0.75)' }]} numberOfLines={1}>
             {session.event.name}

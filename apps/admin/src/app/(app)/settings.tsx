@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, Pressable, ScrollView,
   Switch, StyleSheet, ActivityIndicator, Platform, Image,
 } from 'react-native';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme, spacing, radius, fontSize, status } from '@gfp/theme';
 import { useResponsive } from '@/lib/responsive';
 import { orgApi, type OrgProfile } from '@/lib/api';
@@ -107,7 +107,7 @@ export default function OrgSettingsScreen() {
   if (user?.role === 'EventStaff') {
     return (
       <View style={[c.screen, { padding: spacing[6] }]}>
-        <Text style={[styles.title, { color: theme.colors.primary }]}>Organization Settings</Text>
+        <Heading level={1} style={[styles.title, { color: theme.colors.primary }]}>Organization Settings</Heading>
         <Text style={[styles.sub, { color: theme.mutedText }]}>
           Only organizers can change organization settings or invite people. Ask your organizer.
         </Text>
@@ -238,7 +238,7 @@ function OrgSettings() {
       contentContainerStyle={{ padding: pagePadding, paddingBottom: 80 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.title, { color: theme.colors.primary }]}>Organization Settings</Text>
+      <Heading level={1} style={[styles.title, { color: theme.colors.primary }]}>Organization Settings</Heading>
       <Text style={[styles.sub,   { color: theme.mutedText }]}>
         Update your organization profile. Changes apply to all events.
       </Text>
@@ -252,7 +252,7 @@ function OrgSettings() {
 
       {/* ── PROFILE CARD ── */}
       <View style={styles.card}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Profile</Text>
+        <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Profile</Heading>
 
         {/* Slug (read-only) */}
         <View style={styles.fieldWrap}>
@@ -372,7 +372,7 @@ function OrgSettings() {
       {/* ── THEME CARD ── */}
       <View style={[styles.card, { marginTop: spacing[5] }]}>
         <View style={styles.themeTitleRow}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Brand Colors</Text>
+          <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Brand Colors</Heading>
           <Pressable accessibilityRole="button"
             onPress={() => setColors({ ...ECO_GREEN_DEFAULT })}
             style={[styles.resetBtn, { borderColor: theme.colors.accent }]}

@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Battery from 'expo-battery';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { checkConnectivity } from '@/lib/api';
 import { formatTime } from '@gfp/shared-types';
@@ -167,7 +167,7 @@ export default function PreflightScreen() {
   return (
     <SafeAreaView style={c.screen}>
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-        <Text style={[styles.headerTitle, { color: theme.colors.highlight }]}>Pre-Flight Check</Text>
+        <Heading level={1} style={[styles.headerTitle, { color: theme.colors.highlight }]}>Pre-Flight Check</Heading>
         <Text style={[styles.headerSub,   { color: theme.colors.highlight }]} numberOfLines={1}>
           {session.event.name}
         </Text>

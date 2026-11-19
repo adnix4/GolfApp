@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, KeyboardAvoidingView,
   type TextInputProps,
 } from 'react-native';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
 import { fontSize, radius, spacing } from '@gfp/theme';
 
@@ -24,7 +24,7 @@ export function AuthCard({ heading, children }: { heading: string; children: Rea
           </View>
           <Text style={[authStyles.logoSub, { color: theme.mutedText }]}>Admin Dashboard</Text>
         </View>
-        <Text style={[authStyles.heading, { color: theme.colors.primary }]}>{heading}</Text>
+        <Heading level={1} style={[authStyles.heading, { color: theme.colors.primary }]}>{heading}</Heading>
         {children}
       </KeyboardAvoidingView>
     </View>

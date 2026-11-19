@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
 import { confirmLeaveEvent, unsyncedHoleCount } from '@/lib/confirmLeave';
 // Same challenge popup as the scorecard (the shared DialogFrame, sponsor highlighted).
@@ -23,7 +23,7 @@ function ConflictCard({ conflict }: { conflict: SyncConflictDto }) {
   const theme = useTheme();
   return (
     <View style={[conflictStyles.card, { backgroundColor: '#fff8f0', borderColor: '#e67e22' }]}>
-      <Text style={conflictStyles.title}>⚠ Score conflict — Hole {conflict.holeNumber}</Text>
+      <Heading level={3} style={conflictStyles.title}>⚠ Score conflict — Hole {conflict.holeNumber}</Heading>
       <Text style={[conflictStyles.detail, { color: theme.colors.primary }]}>
         Your score: {conflict.submittedScore}{'  '}|{'  '}Other device: {conflict.existingScore}
       </Text>
@@ -145,9 +145,9 @@ export default function SyncScreen() {
 
       {/* ── HEADER ── */}
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-        <Text style={[styles.headerEventName, { color: theme.colors.highlight }]} numberOfLines={2}>
+        <Heading level={1} style={[styles.headerEventName, { color: theme.colors.highlight }]} numberOfLines={2}>
           {session.event.name}
-        </Text>
+        </Heading>
         {session.course ? (
           <Text style={[styles.headerHostedBy, { color: theme.colors.highlight }]} numberOfLines={1}>
             Hosted by {session.course.name}
@@ -184,7 +184,7 @@ export default function SyncScreen() {
         {/* ── CONFLICTS ── */}
         {conflicts.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Score Conflicts</Text>
+            <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Score Conflicts</Heading>
             {conflicts.map(c => <ConflictCard key={c.holeNumber} conflict={c} />)}
           </View>
         )}
@@ -232,9 +232,9 @@ export default function SyncScreen() {
 
         {/* ── SCORECARD TABLE ── */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
+          <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>
             {session.team.name}'s Scorecard
-          </Text>
+          </Heading>
 
           {/* Table header — tap any abbreviation for the full label */}
           <View style={[styles.tableHeader, { backgroundColor: theme.colors.primary }]}>

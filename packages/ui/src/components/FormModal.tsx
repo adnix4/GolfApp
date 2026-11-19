@@ -23,6 +23,7 @@ import {
   StyleSheet, Text, View,
 } from 'react-native';
 import { useTheme } from './ThemeProvider';
+import { Heading } from './Heading';
 import { useClasses } from '../styles/useClasses';
 import { neutral, radius, spacing, status } from '@gfp/theme';
 
@@ -83,7 +84,7 @@ export function FormModal({
           keyboardShouldPersistTaps="handled"
         >
           <View style={[styles.modal, { maxWidth }]}>
-            <Text style={c.modalTitle}>{title}</Text>
+            <Heading style={c.modalTitle}>{title}</Heading>
 
             {children}
 

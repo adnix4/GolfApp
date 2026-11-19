@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Tabs, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ErrorFallback, useTheme } from '@gfp/ui';
+import { ErrorFallback, useTheme, Heading } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { confirmLeaveEvent, unsyncedHoleCount } from '@/lib/confirmLeave';
 import { shouldShowTabs } from '@/lib/scoringTabs';
@@ -139,9 +139,9 @@ export default function ScoringLayout() {
     return (
       <SafeAreaView style={[styles.waitPage, { backgroundColor: theme.pageBackground }]}>
         <View style={[styles.waitHeader, { backgroundColor: theme.colors.primary }]}>
-          <Text style={styles.waitHeaderTitle} numberOfLines={1}>
+          <Heading level={1} style={styles.waitHeaderTitle} numberOfLines={1}>
             {session?.event.name ?? 'Tournament'}
-          </Text>
+          </Heading>
         </View>
 
         <View style={styles.waitBody}>
@@ -156,9 +156,9 @@ export default function ScoringLayout() {
               />
             )}
 
-            <Text style={[styles.waitTitle, { color: theme.colors.primary }]}>
+            <Heading level={2} style={[styles.waitTitle, { color: theme.colors.primary }]}>
               {isCancelled ? statusLabel : isEnded ? 'Round Complete' : 'Scoring Not Open Yet'}
-            </Text>
+            </Heading>
 
             <Text style={[styles.waitSub, { color: theme.mutedText }]}>
               {isCancelled

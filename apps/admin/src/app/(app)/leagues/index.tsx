@@ -3,7 +3,7 @@ import {
   View, Text, FlatList, Pressable, TextInput, StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, useClasses, AsyncSection, FormModal, PrimaryButton, MoneyInput } from '@gfp/ui';
+import { useTheme, useClasses, AsyncSection, FormModal, PrimaryButton, MoneyInput, Heading } from '@gfp/ui';
 import { dollarsToCents } from '@gfp/shared-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { leagueApi } from '@/lib/api';
@@ -68,7 +68,7 @@ export default function LeaguesScreen() {
     <View style={[styles.root, { backgroundColor: theme.colors.surface }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.colors.accent }]}>
-        <Text style={[styles.title, { color: theme.colors.primary }]}>Leagues</Text>
+        <Heading level={1} style={[styles.title, { color: theme.colors.primary }]}>Leagues</Heading>
         <PrimaryButton
           label="+ New League"
           size="sm"
@@ -98,7 +98,7 @@ export default function LeaguesScreen() {
               }]}
               onPress={() => router.push(`/(app)/leagues/${item.id}` as never)}
             >
-              <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>{item.name}</Text>
+              <Heading level={2} style={[styles.cardTitle, { color: theme.colors.primary }]}>{item.name}</Heading>
               <View style={styles.cardRow}>
                 <Text style={[styles.chip, { backgroundColor: theme.colors.accent + '33', color: theme.colors.primary }]}>
                   {item.format}

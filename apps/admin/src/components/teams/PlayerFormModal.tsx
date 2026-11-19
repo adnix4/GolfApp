@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   View, Text, Pressable, Modal, TextInput, StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { digitsOnly, fmtPhoneInput, isValidPhone, PHONE_INVALID } from '@gfp/shared-types';
 import { playersApi, type Team, type Player, type AddPlayerPayload } from '@/lib/api';
 import { formStyles } from './formStyles';
@@ -118,7 +118,7 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
       <View style={c.overlay}>
         <ScrollView contentContainerStyle={formStyles.modalScroll} keyboardShouldPersistTaps="handled">
           <View style={formStyles.modal}>
-            <Text style={c.modalTitle}>{title}</Text>
+            <Heading level={2} style={c.modalTitle}>{title}</Heading>
             {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
 
             {/* Name */}

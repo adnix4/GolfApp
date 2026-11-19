@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { formatCents } from '@gfp/shared-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { testDataApi, auctionApi } from '@/lib/api';
@@ -101,7 +101,7 @@ export default function FundraisingScreen() {
   return (
     <ScrollView style={c.page} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Text style={c.title}>Fundraising</Text>
+        <Heading level={1} style={c.title}>Fundraising</Heading>
         <View style={styles.headerActions}>
           {(event?.isTestMode || (event?.testDataSummary?.totalCount ?? 0) > 0) && (
             <Pressable accessibilityRole="button" accessibilityLabel="Clear Test Data"
@@ -176,7 +176,7 @@ export default function FundraisingScreen() {
 
           {/* Entry fee progress */}
           <View style={[styles.section, { borderColor: '#e8e8e8' }]}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Entry Fee Collection</Text>
+            <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Entry Fee Collection</Heading>
             <View style={styles.progressRow}>
               <Text style={[styles.progressLabel, { color: theme.mutedText }]}>
                 {totals.playersPaid} of {totals.playersTotal} golfers paid
@@ -203,7 +203,7 @@ export default function FundraisingScreen() {
 
           {/* Donation count */}
           <View style={[styles.section, { borderColor: '#e8e8e8' }]}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Donations</Text>
+            <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Donations</Heading>
             <View style={styles.donationStat}>
               <Text style={[styles.donationCount, { color: theme.colors.primary }]}>
                 {totals.donationCount}
@@ -224,7 +224,7 @@ export default function FundraisingScreen() {
               rather than leaving the organizer to assume it is all banked. */}
           {(totals.auctionCents > 0 || totals.auctionItemsSold > 0) && (
             <View style={[styles.section, { borderColor: '#e8e8e8' }]}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Auction</Text>
+              <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Auction</Heading>
               <View style={styles.donationStat}>
                 <Text style={[styles.donationCount, { color: theme.colors.primary }]}>
                   {totals.auctionItemsSold}
@@ -249,9 +249,9 @@ export default function FundraisingScreen() {
           {/* Failed auction charges */}
           {failedCharges.length > 0 && (
             <View style={[styles.section, { borderColor: status.danger, borderWidth: 2 }]}>
-              <Text style={[styles.sectionTitle, { color: status.danger }]}>
+              <Heading level={2} style={[styles.sectionTitle, { color: status.danger }]}>
                 Failed Charges ({failedCharges.length})
-              </Text>
+              </Heading>
               <Text style={{ fontSize: fontSize.sm, color: '#666', marginBottom: spacing[2] }}>
                 These auction winners were not charged successfully. Re-charge or waive each below.
               </Text>

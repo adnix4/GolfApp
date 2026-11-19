@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, Pressable, RefreshControl,
   ActivityIndicator, StyleSheet,
 } from 'react-native';
-import { useTheme, StatusPill, useClasses } from '@gfp/ui';
+import { useTheme, StatusPill, useClasses, Heading } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
 import { useAllOrganizations, useAllEvents } from '@/lib/queries';
 import { formatDate } from '@gfp/shared-types';
@@ -62,7 +62,7 @@ export default function SuperAdminDashboard() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
     >
       {/* Header */}
-      <Text style={[styles.pageTitle, { color: theme.colors.primary }]}>Platform Overview</Text>
+      <Heading level={1} style={[styles.pageTitle, { color: theme.colors.primary }]}>Platform Overview</Heading>
       <Text style={[styles.pageSub,   { color: theme.mutedText }]}>
         All organizations and events across Golf Fundraiser Pro
       </Text>

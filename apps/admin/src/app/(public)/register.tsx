@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator, Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useAuth } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
@@ -141,7 +141,7 @@ export default function RegisterScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={[styles.heading, { color: theme.colors.primary }]}>Create your account</Text>
+        <Heading level={1} style={[styles.heading, { color: theme.colors.primary }]}>Create your account</Heading>
         <Text style={[styles.subheading, { color: theme.mutedText }]}>
           Set up your organization and run your first event in minutes.
         </Text>

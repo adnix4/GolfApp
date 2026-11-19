@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Pressable, Modal, TextInput, ActivityIndicator } from 'react-native';
-import { useClasses } from '@gfp/ui';
+import { useClasses, Heading } from '@gfp/ui';
 import { teamsApi, type Team } from '@/lib/api';
 import { formStyles } from './formStyles';
 import { fontSize, spacing } from '@gfp/theme';
@@ -57,7 +57,7 @@ export function EditTeamModal({ visible, eventId, team, onClose, onSaved }: Edit
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={c.overlay}>
         <View style={formStyles.modal}>
-          <Text style={c.modalTitle}>Edit Team</Text>
+          <Heading level={2} style={c.modalTitle}>Edit Team</Heading>
           {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
 
           <Text style={c.fieldLabel}>Team Name *</Text>
