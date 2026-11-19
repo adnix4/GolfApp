@@ -6,7 +6,7 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { useTeamList, usePlayerList } from '@/lib/queries';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { eventsApi, teamsApi, playersApi, type Team, type Player } from '@/lib/api';
 import { useResponsive } from '@/lib/responsive';
 import { confirmAction } from '@/lib/confirmAction';
@@ -163,9 +163,9 @@ export default function RegistrationScreen() {
 
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: pagePadding }]}>
-        <Text style={c.title}>
+        <Heading level={1} style={c.title}>
           Registration
-        </Text>
+        </Heading>
         <View style={{ flexDirection: 'row', gap: spacing[2] }}>
           <Pressable accessibilityRole="button"
             onPress={() => setWalkUpOpen(true)}
@@ -573,9 +573,9 @@ function WalkUpModal({ visible, eventId, onClose, onRegistered, onGuestRegistere
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
         <View style={[styles.modalCard, { backgroundColor: '#fff' }]}>
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
+            <Heading level={2} style={[styles.modalTitle, { color: theme.colors.primary }]}>
               {isGuest ? 'Add Guest' : 'Walk-Up Registration'}
-            </Text>
+            </Heading>
             <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={handleClose} style={styles.modalClose}>
               <Text style={{ fontSize: fontSize.xxl, color: theme.mutedText }}>✕</Text>
             </Pressable>

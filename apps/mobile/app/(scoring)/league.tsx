@@ -4,7 +4,7 @@ import {
   StyleSheet, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@gfp/ui';
+import { useTheme, Heading } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
@@ -60,7 +60,7 @@ function FeatureCard({ item, theme }: { item: FeatureItem; theme: ReturnType<typ
         <Ionicons name={item.icon} size={24} color={theme.colors.primary} />
       </View>
       <View style={promoStyles.featureText}>
-        <Text style={[promoStyles.featureTitle, { color: theme.colors.primary }]}>{item.title}</Text>
+        <Heading level={3} style={[promoStyles.featureTitle, { color: theme.colors.primary }]}>{item.title}</Heading>
         <Text style={[promoStyles.featureBody,  { color: theme.mutedText  }]}>{item.body}</Text>
       </View>
     </View>
@@ -74,7 +74,7 @@ function StepCard({ item, theme }: { item: StepItem; theme: ReturnType<typeof us
         <Text style={promoStyles.stepNumText}>{item.num}</Text>
       </View>
       <View style={promoStyles.stepText}>
-        <Text style={[promoStyles.stepTitle, { color: theme.colors.primary }]}>{item.title}</Text>
+        <Heading level={3} style={[promoStyles.stepTitle, { color: theme.colors.primary }]}>{item.title}</Heading>
         <Text style={[promoStyles.stepBody,  { color: theme.mutedText  }]}>{item.body}</Text>
       </View>
     </View>
@@ -94,7 +94,7 @@ function LeaguePromo() {
         <View style={[promoStyles.heroIconWrap, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
           <Ionicons name="ribbon" size={40} color="#fff" />
         </View>
-        <Text style={promoStyles.heroTitle}>League Play</Text>
+        <Heading level={1} style={promoStyles.heroTitle}>League Play</Heading>
         <Text style={promoStyles.heroSub}>
           Turn one-off tournaments into a season-long competition with live handicaps,
           standings, and flight-based matchups.
@@ -106,22 +106,22 @@ function LeaguePromo() {
 
       {/* Features */}
       <View style={promoStyles.section}>
-        <Text style={[promoStyles.sectionLabel, { color: theme.colors.primary }]}>What you get</Text>
+        <Heading level={2} style={[promoStyles.sectionLabel, { color: theme.colors.primary }]}>What you get</Heading>
         {FEATURES.map(f => <FeatureCard key={f.title} item={f} theme={theme} />)}
       </View>
 
       {/* How it works */}
       <View style={[promoStyles.section, promoStyles.stepsSection, { backgroundColor: theme.colors.surface }]}>
-        <Text style={[promoStyles.sectionLabel, { color: theme.colors.primary }]}>How it works</Text>
+        <Heading level={2} style={[promoStyles.sectionLabel, { color: theme.colors.primary }]}>How it works</Heading>
         {STEPS.map(s => <StepCard key={s.num} item={s} theme={theme} />)}
       </View>
 
       {/* CTA */}
       <View style={[promoStyles.cta, { backgroundColor: theme.colors.surface, borderColor: theme.colors.primary + '33' }]}>
         <Ionicons name="chatbubble-ellipses-outline" size={28} color={theme.colors.primary} style={promoStyles.ctaIcon} />
-        <Text style={[promoStyles.ctaTitle, { color: theme.colors.primary }]}>
+        <Heading level={2} style={[promoStyles.ctaTitle, { color: theme.colors.primary }]}>
           Interested in League Play?
-        </Text>
+        </Heading>
         {/* problemList U9: kept as a preview by decision (2026-11-06). A golfer's
             session is never linked to a league season today, so do not promise
             stats appearing here until that link exists. */}
@@ -205,7 +205,7 @@ export default function LeagueScreen() {
     >
       {/* Profile card */}
       <View style={[styles.profileCard, { backgroundColor: theme.colors.primary }]}>
-        <Text style={styles.profileName}>{summary.name}</Text>
+        <Heading level={1} style={styles.profileName}>{summary.name}</Heading>
         <Text style={styles.profileFlight}>{summary.flightName}</Text>
         <View style={styles.profileStats}>
           <View style={styles.profileStat}>
@@ -232,7 +232,7 @@ export default function LeagueScreen() {
 
       {/* Handicap trend */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Handicap Trend</Text>
+        <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Handicap Trend</Heading>
         {summary.handicapTrend.length === 0 ? (
           <Text style={[styles.emptyText, { color: theme.mutedText }]}>No rounds played yet.</Text>
         ) : (
@@ -261,7 +261,7 @@ export default function LeagueScreen() {
 
       {/* Round history */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Round History</Text>
+        <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Round History</Heading>
         {summary.roundHistory.length === 0 ? (
           <Text style={[styles.emptyText, { color: theme.mutedText }]}>No completed rounds.</Text>
         ) : (

@@ -93,6 +93,8 @@ export default [
       // accessibilityState never reaches the DOM on web; aria-* works everywhere.
       'gfp-a11y/no-accessibility-state': 'error',
       'gfp-a11y/state-matches-role':     'error',
+      // Titles are headings (<Heading> from @gfp/ui) so the rotor can find them. AX3.
+      'gfp-a11y/title-is-heading':       'error',
     },
   },
   {

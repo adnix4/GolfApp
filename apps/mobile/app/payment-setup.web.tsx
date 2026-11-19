@@ -2,7 +2,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { fontSize, radius, spacing } from '@gfp/theme';
 
 export default function PaymentSetupScreen() {
@@ -21,14 +21,14 @@ export default function PaymentSetupScreen() {
         <Pressable onPress={goBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.colors.primary }]}>Payment Method</Text>
+        <Heading level={1} style={[styles.headerTitle, { color: theme.colors.primary }]}>Payment Method</Heading>
         <View style={styles.backBtn} />
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.errorCard}>
           <Ionicons name="phone-portrait-outline" size={32} color="#e67e22" />
-          <Text style={styles.errorTitle}>Not Available on Web</Text>
+          <Heading level={2} style={styles.errorTitle}>Not Available on Web</Heading>
           <Text style={styles.errorMsg}>
             Card payment setup is only available in the mobile app. Open this event on your
             phone to save a card for auction bids.

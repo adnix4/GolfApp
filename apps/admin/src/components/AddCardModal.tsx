@@ -22,7 +22,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Modal, ActivityIndicator } from 'react-native';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { paymentMethodApi } from '@/lib/api';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
 
@@ -72,7 +72,7 @@ export function AddCardModal({ visible, eventId, playerId, playerName, onClose, 
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
-          <Text style={[styles.title, { color: theme.colors.primary }]}>Add a card for {playerName}</Text>
+          <Heading level={2} style={[styles.title, { color: theme.colors.primary }]}>Add a card for {playerName}</Heading>
           <Text style={[styles.sub, { color: theme.mutedText }]}>
             Enter the card with the golfer present. It is stored by Stripe and can
             then be charged at checkout.

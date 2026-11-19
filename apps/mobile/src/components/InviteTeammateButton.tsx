@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, Heading } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { fetchTeammateInvite, issueTeammateInvite, type TeammateInvite } from '@/lib/api';
 import { shareTeamInvite } from '@/lib/teamInvite';
@@ -69,7 +69,7 @@ export function InviteTeammateButton() {
 
   return (
     <View style={[styles.card, { borderColor: theme.colors.primary + '55', backgroundColor: theme.colors.primary + '0d' }]}>
-      <Text style={[styles.title, { color: theme.colors.primary }]}>Invite a teammate</Text>
+      <Heading level={2} style={[styles.title, { color: theme.colors.primary }]}>Invite a teammate</Heading>
       <Text style={[styles.text, { color: theme.mutedText }]}>
         Your team has {spots}. Send a link and they can sign themselves up.
       </Text>

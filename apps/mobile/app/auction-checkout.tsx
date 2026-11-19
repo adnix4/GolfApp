@@ -16,7 +16,7 @@ import {
   View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { fetchMyCheckout, confirmMyCheckout, type CheckoutCartDto } from '@/lib/api';
 import { checkoutCounts, checkoutHeadline } from '@/lib/checkoutSummary';
@@ -100,9 +100,9 @@ export default function AuctionCheckoutScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
     >
-      <Text style={[c.title, styles.title]}>
+      <Heading level={1} style={[c.title, styles.title]}>
         {won.length === 0 ? 'Auction checkout' : `${checkoutHeadline(won)}!`}
-      </Text>
+      </Heading>
 
       {won.length === 0 ? (
         <Text style={styles.empty}>
@@ -113,7 +113,7 @@ export default function AuctionCheckoutScreen() {
           {won.map(line => (
             <View key={line.winnerId} style={styles.line}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.lineTitle}>
+                <Text accessibilityRole="text" style={styles.lineTitle}>
                   {line.itemTitle}
                   {line.isPledge && <Text style={styles.pledgeTag}>  PLEDGE</Text>}
                 </Text>

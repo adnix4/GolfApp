@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { scoresApi, type QrCollectResult } from '@/lib/api';
 import { eventKeys } from '@/lib/queries';
 import { decodeQrPayload, type DecodedQrPayload as DecodedPreview } from '@/lib/qrUtils';
@@ -63,7 +63,7 @@ export default function QrImportScreen() {
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={[c.title, styles.title]}>QR Score Import</Text>
+      <Heading level={1} style={[c.title, styles.title]}>QR Score Import</Heading>
       <Text style={[styles.subtitle, { color: theme.mutedText }]}>
         Use a USB barcode scanner or paste the QR payload from a player's mobile scorecard.
         The scanner acts as a keyboard — focus the field and scan.
@@ -94,7 +94,7 @@ export default function QrImportScreen() {
       {/* Decode preview */}
       {preview && !decodeErr && (
         <View style={[styles.previewCard, { backgroundColor: '#f0faf4', borderColor: '#b7e4c7' }]}>
-          <Text style={[styles.previewTitle, { color: '#1a6b3c' }]}>✓ Payload decoded</Text>
+          <Heading level={2} style={[styles.previewTitle, { color: '#1a6b3c' }]}>✓ Payload decoded</Heading>
           <PreviewRow label="Team"       value={preview.teamName} />
           <PreviewRow label="Event Code" value={preview.eventCode} />
           <PreviewRow label="Holes"      value={`${preview.holeCount} score${preview.holeCount !== 1 ? 's' : ''}`} />
@@ -139,9 +139,9 @@ export default function QrImportScreen() {
 
       {result && (
         <View style={[styles.resultCard, { borderColor: result.conflicts > 0 ? '#f39c12' : '#27ae60' }]}>
-          <Text style={[styles.resultTitle, { color: result.conflicts > 0 ? '#d68910' : '#1a6b3c' }]}>
+          <Heading level={2} style={[styles.resultTitle, { color: result.conflicts > 0 ? '#d68910' : '#1a6b3c' }]}>
             {result.conflicts > 0 ? '⚠ Import completed with conflicts' : '✓ Import successful'}
-          </Text>
+          </Heading>
           <PreviewRow label="Team"            value={result.teamName} />
           <PreviewRow label="Scores Imported" value={String(result.scoresImported)} />
           {result.conflicts > 0 && (

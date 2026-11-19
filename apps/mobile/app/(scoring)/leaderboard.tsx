@@ -4,7 +4,7 @@ import {
   ActivityIndicator, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useLiveLeaderboard, type HoleInOneAlert as HoleInOneData } from '@gfp/shared-types';
 import { formatRelativeAge, resolveLeaderboardState, type LeaderboardState } from '@/lib/leaderboardState';
 import { useSession } from '@/lib/session';
@@ -174,7 +174,7 @@ function HoleInOneOverlay({
           accessibilityRole="alert"
         >
           <Text style={hioStyles.flag} aria-hidden>⛳</Text>
-          <Text style={[hioStyles.headline, { color: theme.colors.primary }]}>HOLE-IN-ONE!</Text>
+          <Heading level={2} style={[hioStyles.headline, { color: theme.colors.primary }]}>HOLE-IN-ONE!</Heading>
           <Text style={[hioStyles.name, { color: theme.colors.primary }]}>{data.playerName}</Text>
           <Text style={[hioStyles.sub,  { color: theme.mutedText  }]}>Hole {data.holeNumber}</Text>
           <Pressable
@@ -344,9 +344,9 @@ export default function LeaderboardScreen() {
       ) : view !== 'ready' ? (
         <View style={styles.center}>
           <Text style={styles.emptyIcon}>{EMPTY_COPY[view].icon}</Text>
-          <Text style={[styles.emptyTitle, { color: theme.colors.primary }]}>
+          <Heading level={2} style={[styles.emptyTitle, { color: theme.colors.primary }]}>
             {EMPTY_COPY[view].title}
-          </Text>
+          </Heading>
           <Text style={[styles.emptySub,   { color: theme.mutedText  }]}>
             {EMPTY_COPY[view].sub}
           </Text>

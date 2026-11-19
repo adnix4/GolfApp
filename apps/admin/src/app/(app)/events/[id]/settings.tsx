@@ -6,7 +6,7 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { clearDismissedWarnings, notify } from '@/lib/dialog';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme, spacing, radius, fontSize, status } from '@gfp/theme';
 import { useResponsive } from '@/lib/responsive';
 import { eventsApi, eventBrandingApi } from '@/lib/api';
@@ -250,7 +250,7 @@ export default function EventSettingsScreen() {
       contentContainerStyle={{ padding: pagePadding, paddingBottom: 80 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.title, { color: theme.colors.primary }]}>Event Branding</Text>
+      <Heading level={1} style={[styles.title, { color: theme.colors.primary }]}>Event Branding</Heading>
       <Text style={[styles.sub, { color: theme.mutedText }]}>
         Customize the look of this event. Leave fields blank to inherit your organization defaults.
       </Text>
@@ -260,7 +260,7 @@ export default function EventSettingsScreen() {
 
       {/* ── BRAND FROM WEBSITE ── */}
       <View style={styles.card}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Brand from Website</Text>
+        <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Brand from Website</Heading>
         <Text style={[styles.hint, { color: theme.mutedText, marginBottom: spacing[3] }]}>
           Optional — enter your organization's website and we'll suggest a color palette and logo.
           Review and edit everything below before saving.
@@ -299,7 +299,7 @@ export default function EventSettingsScreen() {
 
       {/* ── PROFILE CARD ── */}
       <View style={[styles.card, { marginTop: spacing[5] }]}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Event Identity</Text>
+        <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Event Identity</Heading>
 
         {/* Logo */}
         <View style={styles.fieldWrap}>
@@ -394,7 +394,7 @@ export default function EventSettingsScreen() {
       {/* ── THEME CARD ── */}
       <View style={[styles.card, { marginTop: spacing[5] }]}>
         <View style={styles.themeTitleRow}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Brand Colors</Text>
+          <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Brand Colors</Heading>
           <View style={{ flexDirection: 'row', gap: spacing[2] }}>
             {hasTheme && (
               <Pressable accessibilityRole="button"
@@ -482,7 +482,7 @@ export default function EventSettingsScreen() {
 
       {/* ── EVENT OPTIONS ── */}
       <View style={[styles.card, { marginTop: spacing[5] }]}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Event Options</Text>
+        <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Event Options</Heading>
 
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>

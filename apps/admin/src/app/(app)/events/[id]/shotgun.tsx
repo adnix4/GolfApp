@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { eventsApi } from '@/lib/api';
 import { useTeamList } from '@/lib/queries';
 import { useResponsive } from '@/lib/responsive';
@@ -86,9 +86,9 @@ export default function ShotgunScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.notApplicableIcon}>🕐</Text>
-        <Text style={[styles.notApplicableTitle, { color: theme.colors.primary }]}>
+        <Heading level={2} style={[styles.notApplicableTitle, { color: theme.colors.primary }]}>
           Tee-Time Event
-        </Text>
+        </Heading>
         <Text style={[styles.notApplicableText, { color: theme.mutedText }]}>
           This event uses tee times, not a shotgun start.{'\n'}
           Tee times are set per team during registration.
@@ -102,7 +102,7 @@ export default function ShotgunScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: pagePadding, paddingTop: pagePadding }]}>
         <View>
-          <Text style={c.title}>Shotgun Assignment</Text>
+          <Heading level={1} style={c.title}>Shotgun Assignment</Heading>
           {!loading && event && (
             <Text style={[styles.subtitle, { color: theme.mutedText }]}>
               {teams.length} team{teams.length !== 1 ? 's' : ''} · {event.holes} holes ·{' '}

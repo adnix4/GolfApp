@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { LeaveEventButton } from '@/components/LeaveEventButton';
 import { InviteTeammateButton } from '@/components/InviteTeammateButton';
@@ -100,9 +100,9 @@ export default function TeamScreen() {
 
         {/* ── TEAM HEADER ── */}
         <View style={[styles.teamCard, { backgroundColor: theme.colors.primary }]}>
-          <Text style={[styles.teamName,  { color: theme.colors.highlight }]} numberOfLines={2}>
+          <Heading level={1} style={[styles.teamName,  { color: theme.colors.highlight }]} numberOfLines={2}>
             {team.name}
-          </Text>
+          </Heading>
           <Text style={[styles.eventName, { color: theme.colors.highlight }]} numberOfLines={1}>
             {event.name}
           </Text>
@@ -119,9 +119,9 @@ export default function TeamScreen() {
         </View>
 
         {/* ── ROSTER ── */}
-        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
+        <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>
           Roster ({team.players.length})
-        </Text>
+        </Heading>
         <View style={[styles.rosterCard, { backgroundColor: '#fff' }]}>
           {team.players.map(p => (
             <PlayerRow

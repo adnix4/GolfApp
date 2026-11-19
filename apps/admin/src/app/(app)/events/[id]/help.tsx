@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
 
@@ -250,7 +250,7 @@ function Section({ title, subtitle, children, defaultOpen = true }: {
     <View style={styles.card}>
       <Pressable accessibilityRole="button" aria-expanded={open} style={styles.cardHeader} onPress={() => setOpen(o => !o)}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>{title}</Text>
+          <Heading level={2} style={[styles.cardTitle, { color: theme.colors.primary }]}>{title}</Heading>
           {subtitle && <Text style={[styles.cardSubtitle, { color: theme.mutedText }]}>{subtitle}</Text>}
         </View>
         <Text style={[styles.chevron, { color: theme.mutedText }]}>{open ? '▲' : '▼'}</Text>
@@ -325,7 +325,7 @@ export default function EventHelpScreen() {
   return (
     <ScrollView style={c.page} contentContainerStyle={[styles.content, { padding: pagePadding }]}>
       <View style={styles.pageHeader}>
-        <Text style={c.title}>Event Help</Text>
+        <Heading level={1} style={c.title}>Event Help</Heading>
         <Text style={[styles.pageSubtitle, { color: theme.mutedText }]}>
           A reference guide for every tab and each stage of your event.
         </Text>

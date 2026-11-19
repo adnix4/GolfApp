@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, useClasses, StatusPill, AsyncSection, PrimaryButton, FormModal, MoneyInput } from '@gfp/ui';
+import { useTheme, useClasses, StatusPill, AsyncSection, PrimaryButton, FormModal, MoneyInput, Heading } from '@gfp/ui';
 import {
   FORMAT_OPTIONS, FORMAT_LABELS, FORMAT_HINTS,
   START_OPTIONS, START_LABELS, START_HINTS,
@@ -159,7 +159,7 @@ export default function EventsScreen() {
     <View style={styles.page}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.primary }]}>Events</Text>
+        <Heading level={1} style={[styles.title, { color: theme.colors.primary }]}>Events</Heading>
         <PrimaryButton
           label="+ New Event"
           size="sm"
@@ -374,7 +374,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
                     aria-checked={active}
                     accessibilityLabel={FORMAT_LABELS[f]}
                   >
-                    <Text style={[styles.optionCardTitle, active && { color: '#fff' }]}>
+                    <Text accessibilityRole="text" style={[styles.optionCardTitle, active && { color: '#fff' }]}>
                       {FORMAT_LABELS[f]}
                     </Text>
                     <Text style={[styles.optionCardHint, active && { color: 'rgba(255,255,255,0.85)' }]}>
@@ -405,7 +405,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
                     aria-checked={active}
                     accessibilityLabel={START_LABELS[s]}
                   >
-                    <Text style={[styles.optionCardTitle, active && { color: '#fff' }]}>
+                    <Text accessibilityRole="text" style={[styles.optionCardTitle, active && { color: '#fff' }]}>
                       {START_LABELS[s]}
                     </Text>
                     <Text style={[styles.optionCardHint, active && { color: 'rgba(255,255,255,0.85)' }]}>

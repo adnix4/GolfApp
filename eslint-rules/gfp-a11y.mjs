@@ -170,9 +170,71 @@ const stateMatchesRole = {
   },
 };
 
+// A Text styled as a title (styles.title, c.modalTitle, styles.sectionTitle,
+// styles.heading ...) looks like a heading but is announced as plain text, so
+// the heading rotor skips it. Use <Heading> from @gfp/ui, which carries the
+// role and a level. A title-styled Text that genuinely isn't a heading (a logo
+// wordmark, a line item, the label inside a radio card) says so with an
+// explicit accessibilityRole="text".
+const TITLE_STYLE = /(title|heading)$/i;
+const NOT_TITLE_STYLE = /sub(title|heading)$/i;
+const TEXTS = new Set(['Text']);
+
+/** Every style name a `style={...}` expression references: styles.title -> 'title'. */
+function styleNames(expr, out = []) {
+  if (!expr) return out;
+  switch (expr.type) {
+    case 'MemberExpression':
+      if (!expr.computed && expr.property.type === 'Identifier') out.push(expr.property.name);
+      break;
+    case 'Identifier':
+      out.push(expr.name);
+      break;
+    case 'ArrayExpression':
+      expr.elements.forEach(e => styleNames(e, out));
+      break;
+    case 'LogicalExpression':
+      styleNames(expr.right, out);
+      break;
+    case 'ConditionalExpression':
+      styleNames(expr.consequent, out);
+      styleNames(expr.alternate, out);
+      break;
+    default:
+      break; // object literals are local tweaks (colour, margin), not a title class
+  }
+  return out;
+}
+
+const titleIsHeading = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Text styled as a title must be a <Heading> (or say accessibilityRole="text")' },
+    schema: [],
+    messages: {
+      missing:
+        'This Text is styled as a title ({{style}}) but screen readers will not find it as a heading. '
+        + 'Use <Heading level={1|2|3}> from @gfp/ui, or add accessibilityRole="text" if it is not a heading.',
+    },
+  },
+  create(context) {
+    return {
+      JSXOpeningElement(node) {
+        if (!TEXTS.has(elementName(node))) return;
+        if (attr(node, 'accessibilityRole') || attr(node, 'role') || hasSpread(node)) return;
+        const style = attr(node, 'style');
+        if (style?.value?.type !== 'JSXExpressionContainer') return;
+        const hit = styleNames(style.value.expression).find(n => TITLE_STYLE.test(n) && !NOT_TITLE_STYLE.test(n));
+        if (hit) context.report({ node, messageId: 'missing', data: { style: hit } });
+      },
+    };
+  },
+};
+
 export default {
   meta: { name: 'gfp-a11y' },
   rules: {
+    'title-is-heading': titleIsHeading,
     'pressable-has-role': pressableHasRole,
     'image-has-alt': imageHasAlt,
     'switch-has-label': switchHasLabel,

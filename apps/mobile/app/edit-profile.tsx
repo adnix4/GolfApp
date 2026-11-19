@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { notify, notifyFailure } from '@/lib/notify';
 import { updateMyProfile } from '@/lib/api';
@@ -92,7 +92,7 @@ export default function EditProfileScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Back">
           <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.colors.primary }]}>Edit Profile</Text>
+        <Heading level={1} style={[styles.headerTitle, { color: theme.colors.primary }]}>Edit Profile</Heading>
         <View style={styles.backBtn} />
       </View>
 

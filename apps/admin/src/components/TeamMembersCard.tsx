@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Platform } from 'react-native';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { orgApi, type CreateInviteResult, type OrgInvite, type OrgMember, type StaffRole } from '@/lib/api';
 import { confirmAction } from '@/lib/confirmAction';
 import { alertFailure } from '@/lib/dialog';
@@ -103,7 +103,7 @@ export function TeamMembersCard() {
 
   return (
     <View style={styles.card}>
-      <Text style={[styles.title, { color: theme.colors.primary }]}>Team members</Text>
+      <Heading level={2} style={[styles.title, { color: theme.colors.primary }]}>Team members</Heading>
       <Text style={styles.hint}>
         Invite desk volunteers as event staff so they don't need your login. Each person signs in with
         their own email and password.
@@ -131,7 +131,7 @@ export function TeamMembersCard() {
           ))}
 
           {invites.length > 0 && (
-            <Text style={[styles.subTitle, { color: theme.colors.primary }]}>Waiting to accept</Text>
+            <Heading level={3} style={[styles.subTitle, { color: theme.colors.primary }]}>Waiting to accept</Heading>
           )}
           {invites.map(i => (
             <View key={i.id} style={styles.row}>
@@ -150,7 +150,7 @@ export function TeamMembersCard() {
         </>
       )}
 
-      <Text style={[styles.subTitle, { color: theme.colors.primary }]}>Invite someone</Text>
+      <Heading level={3} style={[styles.subTitle, { color: theme.colors.primary }]}>Invite someone</Heading>
       {formErr && <Text style={styles.error}>{formErr}</Text>}
       <TextInput
         style={[c.input, styles.input, { color: theme.colors.primary }]}

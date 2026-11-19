@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useObserve } from 'expo-observe';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { FORMAT_LABELS, formatDate } from '@gfp/shared-types';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useSession } from '@/lib/session';
@@ -213,7 +213,7 @@ export default function JoinScreen() {
   const logo = (
     <View style={styles.logoRow}>
       <GfpLogo variant="onLight" size={56} />
-      <Text style={[styles.logoTitle, { color: theme.colors.primary }]}>GFP Scorer</Text>
+      <Text accessibilityRole="text" style={[styles.logoTitle, { color: theme.colors.primary }]}>GFP Scorer</Text>
       <Text style={[styles.logoSub,   { color: theme.mutedText }]}>Golf Fundraiser Pro</Text>
     </View>
   );
@@ -231,9 +231,9 @@ export default function JoinScreen() {
 
           <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
             <Text style={styles.waitingIcon}>⏳</Text>
-            <Text style={[styles.heading, { color: theme.colors.primary }]}>
+            <Heading level={1} style={[styles.heading, { color: theme.colors.primary }]}>
               Awaiting Team Assignment
-            </Text>
+            </Heading>
             <Text style={[styles.sub, { color: theme.mutedText }]}>
               <Text style={{ fontWeight: '700' }}>{waitingName}</Text>, you're in the free agent pool for{' '}
               <Text style={{ fontWeight: '700' }}>{waitingEventName}</Text>.{'\n\n'}
@@ -307,7 +307,7 @@ export default function JoinScreen() {
 
           <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
             <Text style={styles.verifyIcon}>📬</Text>
-            <Text style={[styles.heading, { color: theme.colors.primary }]}>Check Your Email</Text>
+            <Heading level={1} style={[styles.heading, { color: theme.colors.primary }]}>Check Your Email</Heading>
             <Text style={[styles.sub, { color: theme.mutedText }]}>
               We sent a 6-digit code to{' '}
               <Text style={{ fontWeight: '700' }}>{email.trim().toLowerCase()}</Text>.{'\n'}
@@ -424,7 +424,7 @@ export default function JoinScreen() {
           )}
 
           <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.heading, { color: theme.colors.primary }]}>Enter Your Email</Text>
+            <Heading level={1} style={[styles.heading, { color: theme.colors.primary }]}>Enter Your Email</Heading>
             <Text style={[styles.sub, { color: theme.mutedText }]}>
               Use the email address you registered with.
             </Text>
@@ -538,9 +538,9 @@ export default function JoinScreen() {
           </View>
         )}
 
-        <Text style={[styles.sectionHeading, { color: theme.colors.primary }]}>
+        <Heading level={2} style={[styles.sectionHeading, { color: theme.colors.primary }]}>
           Select Your Tournament
-        </Text>
+        </Heading>
 
         {eventsLoading ? (
           <View style={styles.loadingRow}>

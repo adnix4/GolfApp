@@ -4,7 +4,7 @@ import {
   ActivityIndicator, ScrollView, StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { formatCentsShort, formatDateOnly, validateLeagueMember, toPlayerInput } from '@gfp/shared-types';
 import {
   leagueApi, LeagueMember, LeagueRound, LeagueScorecard,
@@ -389,9 +389,9 @@ export default function SeasonDashboardScreen() {
         <Pressable accessibilityRole="button" onPress={() => router.back()}>
           <Text style={{ color: theme.colors.action }}>← Back</Text>
         </Pressable>
-        <Text style={[styles.title, { color: theme.colors.primary }]} numberOfLines={1}>
+        <Heading level={1} style={[styles.title, { color: theme.colors.primary }]} numberOfLines={1}>
           {dashboard?.season.name ?? 'Season'}
-        </Text>
+        </Heading>
         <Text style={[styles.statusBadge, { color: theme.mutedText }]}>
           {dashboard?.season.status}
         </Text>
@@ -424,7 +424,7 @@ export default function SeasonDashboardScreen() {
         {/* OVERVIEW */}
         {tab === 'overview' && dashboard && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Season Overview</Text>
+            <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Season Overview</Heading>
             <View style={styles.statsGrid}>
               {[
                 { label: 'Members', value: String(dashboard.season.memberCount) },
@@ -458,7 +458,7 @@ export default function SeasonDashboardScreen() {
                 </Text>
               </Pressable>
             </View>
-            <Text style={[styles.subTitle, { color: theme.colors.primary }]}>Recent Rounds</Text>
+            <Heading level={3} style={[styles.subTitle, { color: theme.colors.primary }]}>Recent Rounds</Heading>
             {dashboard.rounds.slice(0, 5).map(r => (
               <View key={r.id} style={[styles.roundRow, { borderColor: theme.colors.accent }]}>
                 <View style={{ flex: 1 }}>
@@ -477,9 +477,9 @@ export default function SeasonDashboardScreen() {
         {tab === 'roster' && dashboard && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
+              <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>
                 Roster ({dashboard.roster.length})
-              </Text>
+              </Heading>
               <View style={styles.memberActions}>
                 <Pressable accessibilityRole="button" style={[styles.iconBtn, styles.headerBtn, { borderColor: theme.colors.accent }]}
                   onPress={() => setShowAddFlight(true)}>
@@ -538,7 +538,7 @@ export default function SeasonDashboardScreen() {
         {tab === 'rounds' && dashboard && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Round Manager</Text>
+              <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Round Manager</Heading>
               <Pressable accessibilityRole="button" style={[styles.smallBtn, { backgroundColor: theme.colors.primary }]}
                 onPress={() => setShowAddRound(true)}>
                 <Text style={{ color: theme.colors.surface, fontSize: fontSize.sm }}>+ Round</Text>
@@ -612,7 +612,7 @@ export default function SeasonDashboardScreen() {
         {/* HANDICAPS */}
         {tab === 'handicaps' && dashboard && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Handicap Manager</Text>
+            <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Handicap Manager</Heading>
             {dashboard.roster.sort((a, b) => a.lastName.localeCompare(b.lastName)).map(m => (
               <View key={m.id} style={[styles.memberRow, { borderColor: theme.colors.accent }]}>
                 <View style={{ flex: 1 }}>
@@ -643,7 +643,7 @@ export default function SeasonDashboardScreen() {
         {tab === 'standings' && dashboard && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Standings Board</Text>
+              <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Standings Board</Heading>
               {dashboard.standings.length > 0 && (
                 <Pressable accessibilityRole="button" style={[styles.smallBtn, { backgroundColor: '#0ea5e9' }]}
                   onPress={handleDownloadStandingsPdf}>
@@ -681,9 +681,9 @@ export default function SeasonDashboardScreen() {
         {/* SKINS */}
         {tab === 'skins' && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
+            <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>
               Skins — {selRound ? formatDateOnly(selRound.roundDate) : 'Select a round'}
-            </Text>
+            </Heading>
             {skins.length === 0 ? (
               <Text style={[styles.emptyText, { color: theme.mutedText }]}>
                 No skins data. Close a round to calculate skins.

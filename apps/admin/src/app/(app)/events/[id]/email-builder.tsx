@@ -4,7 +4,7 @@ import {
   TextInput, ActivityIndicator, Platform,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { emailBuilderApi } from '@/lib/api';
 import { useEmailBuilderData } from '@/lib/queries';
 import {
@@ -122,7 +122,7 @@ export default function EmailBuilderScreen() {
 
         {/* ── SECTION ORDER ── */}
         <View style={[styles.card, { backgroundColor: '#fff' }]}>
-          <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>Email Sections</Text>
+          <Heading level={2} style={[styles.cardTitle, { color: theme.colors.primary }]}>Email Sections</Heading>
           <Text style={[styles.cardSub,   { color: theme.mutedText  }]}>
             Use arrows to reorder sections. Remove sections you don't need.
           </Text>
@@ -174,7 +174,7 @@ export default function EmailBuilderScreen() {
 
         {/* ── SEND ── */}
         <View style={[styles.card, { backgroundColor: '#fff' }]}>
-          <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>Send Email</Text>
+          <Heading level={2} style={[styles.cardTitle, { color: theme.colors.primary }]}>Send Email</Heading>
 
           <Text style={[styles.label, { color: theme.mutedText }]}>Subject line *</Text>
           <TextInput
@@ -238,7 +238,7 @@ export default function EmailBuilderScreen() {
 
         {/* ── PREVIEW INFO ── */}
         <View style={[styles.card, { backgroundColor: '#f9fafb' }]}>
-          <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>Event Info</Text>
+          <Heading level={2} style={[styles.cardTitle, { color: theme.colors.primary }]}>Event Info</Heading>
           <Text style={[styles.cardSub,   { color: theme.mutedText  }]}>
             {builderData.eventName} · {builderData.eventDate}
             {builderData.eventTime ? ` · ${builderData.eventTime}` : ''}

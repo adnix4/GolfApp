@@ -4,7 +4,7 @@ import {
   ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTheme, useClasses, FormModal } from '@gfp/ui';
+import { useTheme, useClasses, FormModal, Heading } from '@gfp/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { leagueApi } from '@/lib/api';
 import { leagueKeys, useSeasonList } from '@/lib/queries';
@@ -90,7 +90,7 @@ export default function LeagueDetailScreen() {
         <Pressable accessibilityRole="button" onPress={() => router.back()}>
           <Text style={{ color: theme.colors.action, fontSize: fontSize.lg }}>← Back</Text>
         </Pressable>
-        <Text style={[styles.title, { color: theme.colors.primary }]}>Seasons</Text>
+        <Heading level={1} style={[styles.title, { color: theme.colors.primary }]}>Seasons</Heading>
         <Pressable accessibilityRole="button"
           style={[styles.btn, { backgroundColor: theme.colors.primary }]}
           onPress={() => setShowCreate(true)}
@@ -122,7 +122,7 @@ export default function LeagueDetailScreen() {
               onPress={() => router.push(`/(app)/leagues/${id}/seasons/${item.id}` as never)}
             >
               <View style={styles.cardTop}>
-                <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>{item.name}</Text>
+                <Heading level={2} style={[styles.cardTitle, { color: theme.colors.primary }]}>{item.name}</Heading>
                 <Text style={[styles.statusDot, { color: statusColor(item.status) }]}>
                   ● {item.status}
                 </Text>

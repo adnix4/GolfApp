@@ -7,7 +7,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   StripeProvider, CardField, useStripe, type CardFieldInput,
 } from '@stripe/stripe-react-native';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import {
   formatCentsShort, digitsOnly, fmtPhoneInput,
   validateGolfer, validateRoster, toPlayerInput, parseInviteToken, ApiError,
@@ -215,7 +215,7 @@ export default function RegisterScreen() {
   const logo = (
     <View style={styles.logoRow}>
       <GfpLogo variant="onLight" size={56} />
-      <Text style={[styles.logoTitle, { color: theme.colors.primary }]}>GFP Scorer</Text>
+      <Text accessibilityRole="text" style={[styles.logoTitle, { color: theme.colors.primary }]}>GFP Scorer</Text>
       <Text style={[styles.logoSub,   { color: theme.mutedText }]}>Golf Fundraiser Pro</Text>
     </View>
   );
@@ -229,7 +229,7 @@ export default function RegisterScreen() {
           {logo}
           <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
             <Text style={styles.successIcon}>✓</Text>
-            <Text style={[styles.heading, { color: theme.colors.primary }]}>You're Registered!</Text>
+            <Heading level={1} style={[styles.heading, { color: theme.colors.primary }]}>You're Registered!</Heading>
 
             {isFreeAgentSuccess ? (
               <Text style={[styles.sub, { color: theme.mutedText }]}>
@@ -280,7 +280,7 @@ export default function RegisterScreen() {
             {entryFeeCents != null && entryFeeCents > 0 && (
               entryFeePaid ? (
                 <View style={[styles.feeNotice, { backgroundColor: '#f0faf3', borderColor: status.success }]}>
-                  <Text style={[styles.feeNoticeTitle, { color: '#1e8449' }]}>✓ Entry Fee Paid</Text>
+                  <Heading level={2} style={[styles.feeNoticeTitle, { color: '#1e8449' }]}>✓ Entry Fee Paid</Heading>
                   <Text style={styles.feeNoticeText}>
                     Your {formatCentsShort(entryFeeCents)} entry fee has been paid. See you on the course!
                   </Text>
@@ -296,7 +296,7 @@ export default function RegisterScreen() {
                 </StripeProvider>
               ) : (
                 <View style={[styles.feeNotice, { backgroundColor: '#fffbf0', borderColor: status.warning }]}>
-                  <Text style={styles.feeNoticeTitle}>Entry Fee Due</Text>
+                  <Heading level={2} style={styles.feeNoticeTitle}>Entry Fee Due</Heading>
                   <Text style={styles.feeNoticeText}>
                     This event has a {formatCentsShort(entryFeeCents)} entry fee.
                     You can pay at event check-in.
@@ -348,7 +348,7 @@ export default function RegisterScreen() {
 
         <View style={[styles.eventBanner, { backgroundColor: theme.colors.surface, borderColor: theme.colors.primary + '44' }]}>
           <Text style={[styles.eventBannerLabel, { color: theme.mutedText }]}>Registering for</Text>
-          <Text style={[styles.eventBannerName,  { color: theme.colors.primary }]} numberOfLines={2}>{eventName}</Text>
+          <Heading level={1} style={[styles.eventBannerName,  { color: theme.colors.primary }]} numberOfLines={2}>{eventName}</Heading>
         </View>
 
         {error && (
@@ -359,7 +359,7 @@ export default function RegisterScreen() {
 
         {/* ── Your Information ── */}
         <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Your Information</Text>
+          <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Your Information</Heading>
 
           <View style={styles.row}>
             <View style={styles.halfField}>
@@ -411,7 +411,7 @@ export default function RegisterScreen() {
 
         {/* ── Team section ── */}
         <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Team</Text>
+          <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Team</Heading>
 
           <View style={[styles.chipRow, styles.modeRow]} accessibilityRole="radiogroup">
             {MODE_OPTIONS.filter(opt => opt.value !== 'freeAgent' || freeAgentEnabled !== '0').map(opt => {
@@ -500,9 +500,9 @@ export default function RegisterScreen() {
         {/* ── Free agent pairing prefs (shown when no team name) ── */}
         {isFreeAgent && (
           <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
+            <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>
               Pairing Preferences <Text style={styles.optional}>(optional)</Text>
-            </Text>
+            </Heading>
             <Text style={[styles.fieldHint, { color: theme.mutedText, marginTop: 0, marginBottom: spacing[2] }]}>
               Help the organizer match you with the right team.
             </Text>
@@ -559,7 +559,7 @@ export default function RegisterScreen() {
         {mode === 'team' && (
           <>
             <View style={styles.teammatesHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>Teammates</Text>
+              <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>Teammates</Heading>
               <Text style={[styles.teammateBadge, { color: theme.mutedText }]}>
                 {teammates.length} / {MAX_TEAMMATES}
               </Text>
@@ -568,7 +568,7 @@ export default function RegisterScreen() {
             {teammates.map((tm, idx) => (
               <View key={idx} style={[styles.card, styles.teammateCard, { backgroundColor: theme.colors.surface }]}>
                 <View style={styles.teammateCardHeader}>
-                  <Text style={[styles.teammateCardTitle, { color: theme.colors.primary }]}>Teammate {idx + 1}</Text>
+                  <Heading level={3} style={[styles.teammateCardTitle, { color: theme.colors.primary }]}>Teammate {idx + 1}</Heading>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Remove teammate ${idx + 1}`} onPress={() => removeTeammate(idx)} style={styles.removeBtn} hitSlop={8}>
                     <Text style={[styles.removeBtnText, { color: theme.mutedText }]}>✕ Remove</Text>
                   </Pressable>
@@ -700,7 +700,7 @@ function InviteTeammatesCard({ url, expiresAt, spotsLeft, teamName, eventName }:
 
   return (
     <View style={[styles.inviteCard, { borderColor: theme.colors.primary + '55', backgroundColor: theme.colors.primary + '0d' }]}>
-      <Text style={[styles.inviteTitle, { color: theme.colors.primary }]}>Invite your teammates</Text>
+      <Heading level={2} style={[styles.inviteTitle, { color: theme.colors.primary }]}>Invite your teammates</Heading>
       <Text style={[styles.inviteText, { color: theme.mutedText }]}>
         {spotsLeft > 0 ? `Your team has ${spotsLeft} open spot${spotsLeft === 1 ? '' : 's'}. ` : ''}
         Send this link to the rest of your team so they can sign themselves up.
@@ -765,7 +765,7 @@ function EntryFeePayCard({ clientSecret, amountCents, golferCount, onPaid }: Ent
 
   return (
     <View style={[styles.feeNotice, { backgroundColor: '#fffbf0', borderColor: status.warning }]}>
-      <Text style={styles.feeNoticeTitle}>Entry Fee Due</Text>
+      <Heading level={2} style={styles.feeNoticeTitle}>Entry Fee Due</Heading>
       <Text style={styles.feeNoticeText}>
         {formatCentsShort(amountCents)}
         {golferCount > 1 ? ` (${golferCount} golfers)` : ''} — pay now by card,

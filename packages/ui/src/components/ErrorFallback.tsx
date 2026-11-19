@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { fontSize, radius, spacing } from '@gfp/theme';
+import { Heading } from './Heading';
 
 export interface ErrorFallbackProps {
   /** The error caught by the route's ErrorBoundary. */
@@ -33,7 +34,7 @@ export function ErrorFallback({ error, retry, title, message }: ErrorFallbackPro
     <View style={styles.container}>
       <View style={styles.card}>
         <Text style={styles.emoji}>⛳</Text>
-        <Text style={styles.title}>{title ?? 'Something went wrong'}</Text>
+        <Heading level={2} style={styles.title}>{title ?? 'Something went wrong'}</Heading>
         <Text style={styles.message}>
           {message ?? 'This screen hit an unexpected error. Your data is safe — try again.'}
         </Text>

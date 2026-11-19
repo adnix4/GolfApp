@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '@gfp/ui';
+import { useTheme, Heading } from '@gfp/ui';
 import { teamHolePar } from '@gfp/shared-types';
 import type {
   ChallengeCacheDto, HoleCacheDto, JoinEventResponse, PendingScore, SponsorCacheDto, TeamCacheDto,
@@ -49,9 +49,9 @@ export function ScorecardSummary({
     <SafeAreaView edges={['left', 'right']} style={[screenStyles.page, { backgroundColor: theme.pageBackground }]}>
       {/* Header: event name + hosted by course */}
       <View style={[screenStyles.header, { backgroundColor: theme.colors.primary }]}>
-        <Text style={[styles.headerEventName, { color: theme.colors.highlight }]} numberOfLines={2}>
+        <Heading level={1} style={[styles.headerEventName, { color: theme.colors.highlight }]} numberOfLines={2}>
           {session.event.name}
-        </Text>
+        </Heading>
         {session.course ? (
           <Text style={[styles.headerHostedBy, { color: theme.colors.highlight }]} numberOfLines={1}>
             Hosted by {session.course.name}
@@ -62,9 +62,9 @@ export function ScorecardSummary({
       <ScrollView contentContainerStyle={[screenStyles.scroll, { paddingBottom: spacing[10] }]}>
 
         {/* [Team]'s Scorecard */}
-        <Text style={[styles.summaryTitle, { color: theme.colors.primary }]}>
+        <Heading level={2} style={[styles.summaryTitle, { color: theme.colors.primary }]}>
           {team.name}'s Scorecard
-        </Text>
+        </Heading>
 
         {/* Table header — tap any abbreviation for the full label */}
         <View style={[styles.summaryTableHeader, { backgroundColor: theme.colors.primary }]}>

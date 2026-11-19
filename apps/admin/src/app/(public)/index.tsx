@@ -1,6 +1,6 @@
 import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme } from '@gfp/ui';
+import { useTheme, Heading } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useResponsive } from '@/lib/responsive';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
@@ -49,9 +49,9 @@ export default function LandingPage() {
         <Text style={[styles.heroTag, { color: '#c8dfb0' }]}>
           The all-in-one platform for charity golf events
         </Text>
-        <Text style={[styles.heroTitle, { color: theme.colors.surface }]}>
+        <Heading level={1} style={[styles.heroTitle, { color: theme.colors.surface }]}>
           Run beautiful,{'\n'}profitable golf{'\n'}fundraisers.
-        </Text>
+        </Heading>
         <Text style={[styles.heroSub, { color: '#c8dfb0' }]}>
           From registration to real-time leaderboards, silent auctions to sponsor management —
           everything your event needs in one dashboard.
@@ -93,9 +93,9 @@ export default function LandingPage() {
 
       {/* ── FEATURES ── */}
       <View style={[styles.featuresSection, { paddingHorizontal: pagePadding }]}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
+        <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>
           Everything you need to run a great event
-        </Text>
+        </Heading>
         <Text style={[styles.sectionSub, { color: theme.mutedText }]}>
           Built for golf event organizers, charities, booster clubs, and fundraising pros.
         </Text>
@@ -110,7 +110,7 @@ export default function LandingPage() {
               ]}
             >
               <Text style={styles.featureIcon}>{f.icon}</Text>
-              <Text style={[styles.featureTitle, { color: theme.colors.primary }]}>{f.title}</Text>
+              <Heading level={3} style={[styles.featureTitle, { color: theme.colors.primary }]}>{f.title}</Heading>
               <Text style={[styles.featureDesc, { color: theme.mutedText }]}>{f.desc}</Text>
             </View>
           ))}
@@ -119,9 +119,9 @@ export default function LandingPage() {
 
       {/* ── BOTTOM CTA ── */}
       <View style={[styles.bottomCta, { backgroundColor: theme.colors.primary, paddingHorizontal: pagePadding }]}>
-        <Text style={[styles.bottomCtaTitle, { color: theme.colors.surface }]}>
+        <Heading level={2} style={[styles.bottomCtaTitle, { color: theme.colors.surface }]}>
           Ready to run your tournament?
-        </Text>
+        </Heading>
         <Text style={[styles.bottomCtaSub, { color: '#c8dfb0' }]}>
           Create your free account in under 2 minutes. No credit card required.
         </Text>

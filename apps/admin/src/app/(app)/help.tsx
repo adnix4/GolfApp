@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
 
@@ -153,7 +153,7 @@ function Section({ title, subtitle, children, defaultOpen = true }: {
     <View style={styles.card}>
       <Pressable accessibilityRole="button" aria-expanded={open} style={styles.cardHeader} onPress={() => setOpen(o => !o)}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.cardTitle, { color: theme.colors.primary }]}>{title}</Text>
+          <Heading level={2} style={[styles.cardTitle, { color: theme.colors.primary }]}>{title}</Heading>
           {subtitle && <Text style={[styles.cardSubtitle, { color: theme.mutedText }]}>{subtitle}</Text>}
         </View>
         <Text style={[styles.chevron, { color: theme.mutedText }]}>{open ? '▲' : '▼'}</Text>
@@ -171,7 +171,7 @@ function LifecycleStep({ step, color, title, items }: typeof LIFECYCLE[0]) {
         <Text style={styles.stepNum}>{step}</Text>
       </View>
       <View style={styles.stepBody}>
-        <Text style={[styles.stepTitle, { color: theme.colors.primary }]}>{title}</Text>
+        <Heading level={3} style={[styles.stepTitle, { color: theme.colors.primary }]}>{title}</Heading>
         {items.map((item, i) => (
           <View key={i} style={styles.bullet}>
             <Text style={[styles.bulletDot, { color: color }]}>•</Text>
@@ -228,7 +228,7 @@ export default function HelpScreen() {
   return (
     <ScrollView style={c.page} contentContainerStyle={[styles.content, { padding: pagePadding }]}>
       <View style={styles.pageHeader}>
-        <Text style={c.title}>Help & Guide</Text>
+        <Heading level={1} style={c.title}>Help & Guide</Heading>
         <Text style={[styles.pageSubtitle, { color: theme.mutedText }]}>
           Everything you need to plan, run, and wrap up a fundraising tournament.
         </Text>

@@ -12,7 +12,7 @@ import {
   useStripe,
   type CardFieldInput,
 } from '@stripe/stripe-react-native';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { notify, notifyFailure } from '@/lib/notify';
 import { createSetupIntent, confirmSetup } from '@/lib/api';
@@ -107,7 +107,7 @@ function PaymentSetupContent() {
         <Pressable onPress={goBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.colors.primary }]}>Payment Method</Text>
+        <Heading level={1} style={[styles.headerTitle, { color: theme.colors.primary }]}>Payment Method</Heading>
         <View style={styles.backBtn} />
       </View>
 
@@ -115,7 +115,7 @@ function PaymentSetupContent() {
         {!isConfigured ? (
           <View style={styles.errorCard}>
             <Ionicons name="warning-outline" size={32} color="#e67e22" />
-            <Text style={styles.errorTitle}>Payment Not Configured</Text>
+            <Heading level={2} style={styles.errorTitle}>Payment Not Configured</Heading>
             <Text style={styles.errorMsg}>
               The Stripe publishable key is not set. Please contact the event organizer.
             </Text>
@@ -135,7 +135,7 @@ function PaymentSetupContent() {
         ) : initError ? (
           <View style={styles.errorCard}>
             <Ionicons name="alert-circle-outline" size={32} color={status.danger} />
-            <Text style={styles.errorTitle}>Setup Failed</Text>
+            <Heading level={2} style={styles.errorTitle}>Setup Failed</Heading>
             <Text style={styles.errorMsg}>{initError}</Text>
             <Pressable
               style={({ pressed }) => [
@@ -160,7 +160,7 @@ function PaymentSetupContent() {
               </Text>
             </View>
 
-            <Text style={[styles.sectionLabel, { color: theme.mutedText }]}>Card Details</Text>
+            <Heading level={2} style={[styles.sectionLabel, { color: theme.mutedText }]}>Card Details</Heading>
             <CardField
               postalCodeEnabled={false}
               placeholders={{ number: '4242 4242 4242 4242' }}

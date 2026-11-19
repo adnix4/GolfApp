@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Brightness from 'expo-brightness';
 import QRCode from 'react-native-qrcode-svg';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { buildQrPayloads, type QrScore } from '@/lib/qrPayload';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
@@ -80,7 +80,7 @@ export default function QrTransferScreen() {
     <SafeAreaView style={[c.page, { backgroundColor: '#111' }]}>
       {/* ── HEADER ── */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Scorecard QR</Text>
+        <Heading level={1} style={styles.headerTitle}>Scorecard QR</Heading>
         <Text style={styles.headerSub} numberOfLines={1}>{session.team.name}</Text>
       </View>
 

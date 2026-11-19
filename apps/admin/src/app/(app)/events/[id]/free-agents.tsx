@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { digitsOnly, fmtAgeGroup, fmtPhone, fmtPhoneInput, validateGolfer, toPlayerInput } from '@gfp/shared-types';
 import { playersApi, type Player, type AddPlayerPayload } from '@/lib/api';
 import { useFreeAgentList, useTeamList } from '@/lib/queries';
@@ -67,9 +67,9 @@ export default function FreeAgentsScreen() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <Text style={c.title}>
+        <Heading level={1} style={c.title}>
           Free Agents ({agents.length})
-        </Text>
+        </Heading>
         <View style={styles.headerActions}>
           <Pressable accessibilityRole="button"
             style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
@@ -190,9 +190,9 @@ export default function FreeAgentsScreen() {
       >
         <View style={styles.overlay}>
           <View style={styles.modalBox}>
-            <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>
+            <Heading level={2} style={[styles.modalTitle, { color: theme.colors.primary }]}>
               Assign to Team
-            </Text>
+            </Heading>
             <Text style={[styles.modalSub, { color: theme.mutedText }]}>
               Assigning {selectedList.map(p => p.firstName).join(', ')} to:
             </Text>
@@ -281,7 +281,7 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => { reset(); onClose(); }}>
       <View style={styles.overlay}>
         <View style={styles.modalBox}>
-          <Text style={[styles.modalTitle, { color: theme.colors.primary }]}>Add Free Agent</Text>
+          <Heading level={2} style={[styles.modalTitle, { color: theme.colors.primary }]}>Add Free Agent</Heading>
           {error && (
             <View style={{ backgroundColor: status.dangerBg, borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: status.danger }}>
               <Text style={{ color: status.dangerText, fontSize: fontSize.sm }}>{error}</Text>

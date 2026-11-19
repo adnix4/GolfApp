@@ -15,7 +15,7 @@ import {
   View, Text, Pressable, StyleSheet, FlatList, TextInput, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import {
   checkoutApi,
   type CheckoutDeskRow, type CheckoutCart, type SettlementMethod,
@@ -201,7 +201,7 @@ export default function AuctionCheckoutScreen() {
         {cart.lines.map(line => (
           <View key={line.winnerId} style={styles.line}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.lineTitle}>
+              <Text accessibilityRole="text" style={styles.lineTitle}>
                 {line.itemTitle}
                 {line.isPledge && <Text style={styles.pledgeTag}>  PLEDGE</Text>}
               </Text>
@@ -309,7 +309,7 @@ export default function AuctionCheckoutScreen() {
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={{ padding: pagePadding }}>
-      <Text style={[styles.title, { color: theme.colors.primary }]}>Auction Checkout</Text>
+      <Heading level={1} style={[styles.title, { color: theme.colors.primary }]}>Auction Checkout</Heading>
       <Text style={[styles.sub, { color: theme.mutedText }]}>
         Winners settle up and collect their items here, and Fund-a-Need pledgers
         pay their pledges. Nothing is charged when the auction closes — use Charge

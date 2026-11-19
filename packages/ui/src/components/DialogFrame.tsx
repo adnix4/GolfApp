@@ -23,6 +23,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Modal, View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { splitHighlights, type Highlight } from '@gfp/shared-types';
 import { useTheme } from './ThemeProvider';
+import { Heading } from './Heading';
 import { fontSize, radius, spacing } from '@gfp/theme';
 
 export type DialogKind = 'confirm' | 'warning' | 'error' | 'info';
@@ -86,7 +87,7 @@ export function DialogFrame({
         <Pressable accessibilityRole="button" style={StyleSheet.absoluteFill} onPress={onDismiss} disabled={busy} accessibilityLabel="Close dialog" />
         <View style={[styles.card, { backgroundColor: theme.colors.surface }]} accessibilityViewIsModal>
           <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-            <Text style={[styles.headerTitle, { color: theme.buttonLabel }]} numberOfLines={1}>
+            <Text accessibilityRole="text" style={[styles.headerTitle, { color: theme.buttonLabel }]} numberOfLines={1}>
               {headerTitle}
             </Text>
           </View>
@@ -94,9 +95,9 @@ export function DialogFrame({
           <View style={styles.body}>
             <View style={styles.titleRow}>
               {icon && <Text style={[styles.icon, { color: icon.color }]}>{icon.glyph}</Text>}
-              <Text style={[styles.title, { color: theme.colors.primary }]} accessibilityRole="header">
+              <Heading level={2} style={[styles.title, { color: theme.colors.primary }]}>
                 {title}
-              </Text>
+              </Heading>
             </View>
 
             {standalone.length > 0 && (

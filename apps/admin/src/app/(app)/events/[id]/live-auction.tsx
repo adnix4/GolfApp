@@ -4,7 +4,7 @@ import {
   ScrollView, ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme, MoneyInput, useClasses } from '@gfp/ui';
+import { useTheme, MoneyInput, useClasses, Heading } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { auctionApi, type AuctionItem, type AuctionSession } from '@/lib/api';
@@ -142,7 +142,7 @@ export default function LiveAuctionScreen() {
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
-      <Text style={[styles.heading, { color: theme.colors.primary }]}>Live Auction Host Control</Text>
+      <Heading level={1} style={[styles.heading, { color: theme.colors.primary }]}>Live Auction Host Control</Heading>
 
       {/* Feedback banners */}
       {error && (
@@ -210,9 +210,9 @@ export default function LiveAuctionScreen() {
           {/* Current item */}
           {currentItem ? (
             <View style={styles.card}>
-              <Text style={[styles.itemTitle, { color: theme.colors.primary }]}>
+              <Heading level={3} style={[styles.itemTitle, { color: theme.colors.primary }]}>
                 {currentItem.title}
-              </Text>
+              </Heading>
               {currentItem.description ? (
                 <Text style={styles.itemDesc}>{currentItem.description}</Text>
               ) : null}
@@ -287,9 +287,9 @@ export default function LiveAuctionScreen() {
           </Pressable>
 
           {/* Queue */}
-          <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
+          <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary }]}>
             Remaining Items ({items.filter(i => i.status === 'Open' || i.status === 'Extended').length})
-          </Text>
+          </Heading>
           {items.filter(i => i.status === 'Open' || i.status === 'Extended').map(item => (
             <View
               key={item.id}

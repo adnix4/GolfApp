@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
-import { useTheme, MoneyInput, useClasses } from '@gfp/ui';
+import { useTheme, MoneyInput, useClasses, Heading } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { challengesApi, type HoleChallenge } from '@/lib/api';
 import { useChallengeList } from '@/lib/queries';
@@ -66,9 +66,9 @@ export default function ChallengesScreen() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <Text style={c.title}>
+        <Heading level={1} style={c.title}>
           Hole Challenges ({challenges.length})
-        </Text>
+        </Heading>
         <Pressable
           style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
           onPress={openAdd}
@@ -231,9 +231,9 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
       <View style={c.overlay}>
         <ScrollView style={styles.overlayScroll} contentContainerStyle={styles.overlayContent} keyboardShouldPersistTaps="handled">
           <View style={styles.modal}>
-            <Text style={c.modalTitle}>
+            <Heading level={2} style={c.modalTitle}>
               {initial ? `Edit — Hole ${initial.holeNumber}` : 'Add Challenge'}
-            </Text>
+            </Heading>
   
             {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
   

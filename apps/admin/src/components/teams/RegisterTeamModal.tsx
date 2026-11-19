@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   View, Text, Pressable, Modal, TextInput, StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import {
   digitsOnly, fmtPhoneInput, validateRoster, toPlayerInput, type GolferFields,
 } from '@gfp/shared-types';
@@ -92,7 +92,7 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
       <View style={c.overlay}>
         <ScrollView contentContainerStyle={formStyles.modalScroll} keyboardShouldPersistTaps="handled">
           <View style={formStyles.modal}>
-            <Text style={c.modalTitle}>Register Team</Text>
+            <Heading level={2} style={c.modalTitle}>Register Team</Heading>
             {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
 
             <Text style={c.fieldLabel}>Team Name *</Text>
@@ -110,9 +110,9 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
             {players.map((p, idx) => (
               <View key={idx} style={styles.playerForm}>
                 <View style={styles.playerFormHeader}>
-                  <Text style={[styles.playerFormTitle, { color: theme.colors.primary }]}>
+                  <Heading level={3} style={[styles.playerFormTitle, { color: theme.colors.primary }]}>
                     Player {idx + 1}{idx === 0 ? ' (Captain)' : ''}
-                  </Text>
+                  </Heading>
                   {players.length > 1 && (
                     <Pressable accessibilityRole="button" accessibilityLabel={`Remove player ${idx + 1}`} onPress={() => removePlayer(idx)}>
                       <Text style={{ color: '#e74c3c', fontSize: fontSize.sm }}>Remove</Text>

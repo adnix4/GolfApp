@@ -5,7 +5,7 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { useLeaderboard, useIndividualLeaderboard } from '@/lib/queries';
-import { useTheme, useClasses } from '@gfp/ui';
+import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { FORMAT_LABELS } from '@gfp/shared-types';
 import { useResponsive } from '@/lib/responsive';
 import { fontSize, radius, spacing } from '@gfp/theme';
@@ -61,7 +61,7 @@ export default function LeaderboardScreen() {
     <View style={[c.page, { padding: pagePadding }]}>
       <View style={styles.header}>
         <View>
-          <Text style={c.title}>Leaderboard</Text>
+          <Heading level={1} style={c.title}>Leaderboard</Heading>
           {event && (
             <Text style={[styles.formatBadge, { color: theme.mutedText }]}>
               {FORMAT_LABELS[event.format] ?? event.format} · {event.holes} holes

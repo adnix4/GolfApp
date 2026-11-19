@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useTheme, AdaptiveLogoFrame, MoneyInput, useClasses } from '@gfp/ui';
+import { useTheme, AdaptiveLogoFrame, MoneyInput, useClasses, Heading } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { sponsorsApi, type Sponsor, type CreateSponsorPayload } from '@/lib/api';
 import { mergeSponsorPlacements } from '@/lib/sponsorPlacements';
@@ -129,9 +129,9 @@ export default function SponsorsScreen() {
   return (
     <View style={styles.page}>
       <View style={styles.header}>
-        <Text style={c.title}>
+        <Heading level={1} style={c.title}>
           Sponsors ({sponsors.length})
-        </Text>
+        </Heading>
         <Pressable accessibilityRole="button"
           style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
           onPress={() => setShowAdd(true)}
@@ -362,9 +362,9 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={c.overlay}>
         <View style={styles.modal}>
-          <Text style={c.modalTitle}>
+          <Heading level={2} style={c.modalTitle}>
             {isEdit ? 'Edit Sponsor' : 'Add Sponsor'}
-          </Text>
+          </Heading>
           {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
 
           {/* Scrollable form body */}
