@@ -146,12 +146,21 @@ export const cssKeyframes = `
     to   { transform: translateX(-50%); }
   }
   /* Motion-sensitive viewers get the same content as a strip they can swipe or
-     drag instead of one that moves on its own. */
+     drag instead of one that moves on its own. Everything else that moves is
+     decoration and simply stops: the banner appears in place, the dots and
+     flag hold still (MCAG 4.1.3). !important beats the inline animation. */
   @media (prefers-reduced-motion: reduce) {
     .gfp-ticker-track { animation: none !important; }
     .gfp-ticker-viewport { overflow-x: auto !important; }
+    .gfp-motion { animation: none !important; }
   }
 `;
+
+// Decorative loops stop by themselves inside 5 s (MCAG 2.3.2: motion that
+// lasts longer needs a pause control). Each runs a few cycles and rests on its
+// 0%/100% frame, which is the element's normal look.
+//   pulse 1.4 s x 3 = 4.2 s · glow 0.5 s + 1.8 s x 2 = 4.1 s · flag 0.5 s + 0.9 s x 4 = 4.1 s
+const PULSE = 'gfp-pulse 1.4s ease-in-out 3';
 
 // ── HOLE-IN-ONE BANNER ────────────────────────────────────────────────────────
 
@@ -168,12 +177,15 @@ export const hio = {
     background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #f59e0b 100%)',
     backgroundSize: '200% 100%',
     color: '#1c1917',
-    animation: 'gfp-hio-slide 0.45s cubic-bezier(0.34,1.56,0.64,1), gfp-hio-glow 1.8s ease-in-out 0.5s infinite',
+    // The glow's resting frame, so the banner keeps it once the loop ends (and
+    // under reduced motion, where the loop never starts).
+    boxShadow: '0 4px 32px rgba(245,158,11,0.45)',
+    animation: 'gfp-hio-slide 0.45s cubic-bezier(0.34,1.56,0.64,1), gfp-hio-glow 1.8s ease-in-out 0.5s 2',
   },
   flag: {
     fontSize: '1.75rem',
     display: 'inline-block',
-    animation: 'gfp-hio-flag 0.9s ease-in-out 0.5s infinite',
+    animation: 'gfp-hio-flag 0.9s ease-in-out 0.5s 4',
   },
   textBlock: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center' },
   label: { fontSize: '0.65rem', fontWeight: 800, letterSpacing: 3, textTransform: 'uppercase' as const, opacity: 0.7 },
@@ -206,7 +218,7 @@ export const nm = {
   eventName:   { fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-on-primary, #fff)' },
   badges:      { display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 },
   liveBadge:   { display: 'flex', alignItems: 'center', gap: 6, backgroundColor: '#e74c3c', color: '#fff', padding: '4px 12px', borderRadius: 14, fontSize: '0.8rem', fontWeight: 700, letterSpacing: 0.5 },
-  liveDot:     { width: 8, height: 8, borderRadius: '50%', backgroundColor: '#fff', animation: 'gfp-pulse 1.4s ease-in-out infinite', display: 'inline-block' },
+  liveDot:     { width: 8, height: 8, borderRadius: '50%', backgroundColor: '#fff', animation: PULSE, display: 'inline-block' },
   finalBadge:  { backgroundColor: '#27ae60', color: '#fff', padding: '4px 12px', borderRadius: 14, fontSize: '0.8rem', fontWeight: 700 },
 
   main:      { flex: 1, maxWidth: 960, margin: '0 auto', width: '100%', padding: '1.5rem 1rem' },
@@ -271,7 +283,7 @@ export const tv = {
   eventName:   { fontSize: '2.2rem', fontWeight: 900, color: 'var(--tv-header-fg, #e6edf3)' },
   badges:      { display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 },
   liveBadge:   { display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#da3633', color: '#fff', padding: '6px 16px', borderRadius: 16, fontSize: '0.95rem', fontWeight: 800, letterSpacing: 1 },
-  liveDot:     { width: 10, height: 10, borderRadius: '50%', backgroundColor: '#fff', animation: 'gfp-pulse 1.4s ease-in-out infinite', display: 'inline-block' },
+  liveDot:     { width: 10, height: 10, borderRadius: '50%', backgroundColor: '#fff', animation: PULSE, display: 'inline-block' },
   finalBadge:  { backgroundColor: '#238636', color: '#fff', padding: '6px 16px', borderRadius: 16, fontSize: '0.95rem', fontWeight: 800 },
 
   main:      { flex: 1, padding: '1.5rem 2.5rem', overflow: 'hidden', display: 'flex', flexDirection: 'column' as const },

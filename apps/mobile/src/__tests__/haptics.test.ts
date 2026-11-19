@@ -11,7 +11,7 @@ vi.mock('expo-haptics', () => ({
   NotificationFeedbackType: { Success: 'success' },
 }));
 
-import { tickHaptic, holeCompleteHaptic } from '../lib/haptics';
+import { tickHaptic, holeCompleteHaptic, holeInOneAlertHaptic } from '../lib/haptics';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -31,10 +31,17 @@ describe('score-entry haptics', () => {
     expect(notificationAsync).toHaveBeenCalledWith('success');
   });
 
+  it('plays one success notification for a live hole-in-one alert', () => {
+    holeInOneAlertHaptic();
+    expect(notificationAsync).toHaveBeenCalledTimes(1);
+    expect(notificationAsync).toHaveBeenCalledWith('success');
+  });
+
   it('does nothing on web', () => {
     (Platform as { OS: string }).OS = 'web';
     tickHaptic();
     holeCompleteHaptic();
+    holeInOneAlertHaptic();
     expect(selectionAsync).not.toHaveBeenCalled();
     expect(notificationAsync).not.toHaveBeenCalled();
   });

@@ -8,6 +8,8 @@ import { useTheme, useClasses } from '@gfp/ui';
 import { useLiveLeaderboard, type HoleInOneAlert as HoleInOneData } from '@gfp/shared-types';
 import { formatRelativeAge, resolveLeaderboardState, type LeaderboardState } from '@/lib/leaderboardState';
 import { useSession } from '@/lib/session';
+import { announce, autoDismissMs, useScreenReaderEnabled } from '@/lib/a11y';
+import { holeInOneAlertHaptic } from '@/lib/haptics';
 import { fetchLeaderboard } from '@/lib/api';
 import type { PublicLeaderboardEntry, PublicIndividualEntry } from '@/lib/api';
 import { fontSize, radius, spacing } from '@gfp/theme';
@@ -137,12 +139,23 @@ function HoleInOneOverlay({
   onDismiss: () => void;
 }) {
   const theme = useTheme();
+  const screenReaderOn = useScreenReaderEnabled();
 
-  // Auto-dismiss after 5 s on mobile (shorter than the 30 s web banner)
+  // Arrives unprompted mid-round, so it is spoken and felt as well as shown
+  // (MCAG 1.3.1/1.3.2). Web announces through the card's alert role instead.
   useEffect(() => {
-    const id = setTimeout(onDismiss, 5_000);
+    announce(`Hole in one! ${data.playerName}, hole ${data.holeNumber}.`);
+    holeInOneAlertHaptic();
+  }, [data]);
+
+  // Closes itself after 8 s (shorter than the 30 s web banner) — but never
+  // under VoiceOver/TalkBack, where the golfer may still be reaching it.
+  const dismissAfter = autoDismissMs(screenReaderOn, 8_000);
+  useEffect(() => {
+    if (dismissAfter === null) return;
+    const id = setTimeout(onDismiss, dismissAfter);
     return () => clearTimeout(id);
-  }, [onDismiss]);
+  }, [onDismiss, dismissAfter]);
 
   return (
     <Modal transparent animationType="fade" onRequestClose={onDismiss}>
@@ -156,12 +169,20 @@ function HoleInOneOverlay({
           accessibilityLabel="Dismiss hole-in-one alert"
           accessibilityRole="button"
         />
-        <View style={[hioStyles.card, { backgroundColor: theme.colors.highlight }]}>
-          <Text style={hioStyles.flag}>⛳</Text>
+        <View
+          style={[hioStyles.card, { backgroundColor: theme.colors.highlight }]}
+          accessibilityRole="alert"
+        >
+          <Text style={hioStyles.flag} aria-hidden>⛳</Text>
           <Text style={[hioStyles.headline, { color: theme.colors.primary }]}>HOLE-IN-ONE!</Text>
           <Text style={[hioStyles.name, { color: theme.colors.primary }]}>{data.playerName}</Text>
           <Text style={[hioStyles.sub,  { color: theme.mutedText  }]}>Hole {data.holeNumber}</Text>
-          <Pressable style={[hioStyles.btn, { backgroundColor: theme.colors.primary }]} onPress={onDismiss}>
+          <Pressable
+            style={[hioStyles.btn, { backgroundColor: theme.colors.primary }]}
+            onPress={onDismiss}
+            accessibilityRole="button"
+            accessibilityHint="Closes the hole-in-one alert"
+          >
             <Text style={hioStyles.btnText}>Amazing!</Text>
           </Pressable>
         </View>

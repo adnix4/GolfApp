@@ -227,19 +227,24 @@ export default function ScoresPoller({
     <>
       <style>{cssKeyframes + (themeCss ? `\n:root{${themeCss}}` : '')}</style>
 
-      {/* ── HOLE-IN-ONE BANNER ── */}
-      {hioAlert && (
-        <div style={hio.banner}>
-          <span style={hio.flag}>⛳</span>
-          <div style={hio.textBlock}>
-            <span style={hio.label}>Hole in One!</span>
-            <span style={hio.text}>
-              {hioAlert.playerName} — Hole {hioAlert.holeNumber} · {hioAlert.teamName}
-            </span>
+      {/* ── HOLE-IN-ONE BANNER ──
+          The status region is always in the page and the banner is put inside
+          it, so screen readers announce the alert. A live region inserted
+          together with its text is often skipped (MCAG 1.3.2). */}
+      <div role="status" aria-live="polite" aria-atomic="true">
+        {hioAlert && (
+          <div style={hio.banner} className="gfp-motion">
+            <span style={hio.flag} className="gfp-motion" aria-hidden="true">⛳</span>
+            <div style={hio.textBlock}>
+              <span style={hio.label}>Hole in One!</span>
+              <span style={hio.text}>
+                {hioAlert.playerName} — Hole {hioAlert.holeNumber} · {hioAlert.teamName}
+              </span>
+            </div>
+            <button style={hio.close} onClick={dismissHioAlert} aria-label="Close hole-in-one alert">✕</button>
           </div>
-          <button style={hio.close} onClick={dismissHioAlert}>✕</button>
-        </div>
-      )}
+        )}
+      </div>
 
       <div style={st.page}>
 
@@ -268,7 +273,7 @@ export default function ScoresPoller({
               {isCompleted && <span style={st.finalBadge}>Final</span>}
               {isLive && (
                 <span style={st.liveBadge}>
-                  <span style={st.liveDot} />
+                  <span style={st.liveDot} className="gfp-motion" aria-hidden="true" />
                   {connected ? 'Live' : 'Live ↻'}
                 </span>
               )}
