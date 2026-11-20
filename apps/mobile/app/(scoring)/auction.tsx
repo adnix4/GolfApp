@@ -5,12 +5,12 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, MoneyInput, useClasses, Heading } from '@gfp/ui';
+import { useTheme, MoneyInput, useClasses, Heading, LiveRegion } from '@gfp/ui';
 import {
   formatCentsShort, dollarsToCents, centsToMoneyValue, useLiveAuction,
   needsPaymentMethod, minimumBidCents, isDonationItem, usesProxyBidding,
   foldPlayerBidsByItem, bidTone, buildBidConfirmation, type BidTone,
-  formatDateTime,
+  formatDateTime, useTimedMessage,
 } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
 import { notify } from '@/lib/notify';
@@ -127,7 +127,8 @@ export default function AuctionScreen() {
   // Guards the synchronous window.confirm on web only — see handleBid.
   const bidInFlightRef = useRef(false);
   const [raisingHand, setRaisingHand] = useState(false);
-  const [handRaised,  setHandRaised]  = useState(false);
+  // "Hand raised" confirmation: 6 s and read out (MCAG 1.3.2).
+  const handRaised = useTimedMessage<string>();
   // Winnings. A closed lot drops straight out of the list, so without this the
   // golfer's only sign they won anything was a status string on a My Bids row.
   const [cart, setCart] = useState<CheckoutCartDto | null>(null);
@@ -206,8 +207,7 @@ export default function AuctionScreen() {
     setRaisingHand(true);
     try {
       await raiseHand(eventId);
-      setHandRaised(true);
-      setTimeout(() => setHandRaised(false), 3000);
+      handRaised.show("Hand raised. The auctioneer can see you're bidding.");
     } catch { /* non-critical — ignore */ }
     finally { setRaisingHand(false); }
   }
@@ -582,7 +582,8 @@ export default function AuctionScreen() {
               <Pressable
                 style={[
                   styles.raiseHandBtn,
-                  handRaised && { backgroundColor: status.success },
+                  // successText, not success: the white label needs 4.5:1 (5.0 here; 2.9 on success).
+                  handRaised.message && { backgroundColor: status.successText },
                   raisingHand && { opacity: 0.6 },
                 ]}
                 onPress={handleRaiseHand}
@@ -593,9 +594,14 @@ export default function AuctionScreen() {
                 {raisingHand
                   ? <ActivityIndicator color="#fff" size="small" />
                   : <Text style={styles.raiseHandText}>
-                      {handRaised ? '✓ Hand Raised!' : '🙋 I\'m Bidding'}
+                      {handRaised.message ? '✓ Hand Raised!' : '🙋 I\'m Bidding'}
                     </Text>}
               </Pressable>
+              <LiveRegion message={handRaised.message}>
+                {handRaised.message && (
+                  <Text style={[styles.raiseHandNote, { color: status.successText }]}>{handRaised.message}</Text>
+                )}
+              </LiveRegion>
 
               <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary, marginTop: spacing[4] }]}>
                 Pledge / Bid on this item
@@ -875,6 +881,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[4], alignItems: 'center', marginTop: spacing[3],
   },
   raiseHandText: { color: '#fff', fontWeight: '800', fontSize: fontSize.xl },
+  raiseHandNote: { fontSize: fontSize.sm, fontWeight: '600', textAlign: 'center', marginTop: spacing[2] },
   errorBanner: { backgroundColor: status.dangerBg, borderLeftWidth: 3, borderLeftColor: status.danger, padding: spacing[3] },
   errorBannerText: { color: status.dangerText, fontSize: fontSize.sm },
   paymentWarning:    { backgroundColor: '#fff8e1', borderLeftWidth: 3, borderLeftColor: status.warning, padding: spacing[3] },

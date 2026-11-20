@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator,
   ScrollView, Platform,
@@ -10,6 +10,7 @@ import { useSession, getHoleOrder } from '@/lib/session';
 import { confirmLeaveEvent, unsyncedHoleCount } from '@/lib/confirmLeave';
 // Same challenge popup as the scorecard (the shared DialogFrame, sponsor highlighted).
 import { ChallengeDetailModal } from '@/components/scorecardComponents';
+import { ColumnHeader, ColumnTip, useColumnTip } from '@/components/scorecard/ColumnTip';
 import {
   fetchPublicChallenges,
   type SyncConflictDto,
@@ -51,22 +52,13 @@ export default function SyncScreen() {
   const [conflicts,         setConflicts]         = useState<SyncConflictDto[]>([]);
   const [challenges,        setChallenges]        = useState<ChallengeCacheDto[]>([]);
   const [selectedChallenge, setSelectedChallenge] = useState<ChallengeCacheDto | null>(null);
-  const [headerTip,         setHeaderTip]         = useState<string | null>(null);
-  const tipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const columnTip = useColumnTip();
 
   useEffect(() => {
     if (!loading && !session) router.replace('/join');
   // eslint-disable-next-line react-hooks/exhaustive-deps -- expo-router's router is a module singleton, so its identity never changes
   }, [loading, session]);
 
-  const showHeaderTip = useCallback((desc: string) => {
-    if (tipTimerRef.current) clearTimeout(tipTimerRef.current);
-    setHeaderTip(desc);
-    tipTimerRef.current = setTimeout(() => setHeaderTip(null), 2000);
-  }, []);
-
-  // clean up timer on unmount
-  useEffect(() => () => { if (tipTimerRef.current) clearTimeout(tipTimerRef.current); }, []);
 
   useEffect(() => {
     if (!session) return;
@@ -238,19 +230,15 @@ export default function SyncScreen() {
 
           {/* Table header — tap any abbreviation for the full label */}
           <View style={[styles.tableHeader, { backgroundColor: theme.colors.primary }]}>
-            <Text style={[col.hole,  styles.thText]} numberOfLines={1} onPress={() => showHeaderTip('Hole Number')}>#</Text>
-            <Text style={[col.yds,   styles.thText]} numberOfLines={1} onPress={() => showHeaderTip('Yardage')}>Yds</Text>
-            <Text style={[col.par,   styles.thText]} numberOfLines={1} onPress={() => showHeaderTip('Par')}>Par</Text>
-            <Text style={[col.score, styles.thText]} numberOfLines={1} onPress={() => showHeaderTip('Strokes')}>Scr</Text>
-            <Text style={[col.rel,   styles.thText]} numberOfLines={1} onPress={() => showHeaderTip('Score vs. Par')}>+/−</Text>
-            <Text style={[col.spon,  styles.thText]} numberOfLines={1} onPress={() => showHeaderTip('Hole Sponsor')}>Spon</Text>
-            <Text style={[col.chal,  styles.thText]} numberOfLines={1} onPress={() => showHeaderTip('Hole Challenge')}>Chal</Text>
+            <ColumnHeader abbr="#" name="Hole Number" style={[col.hole, styles.thText]} onTip={columnTip.show} />
+            <ColumnHeader abbr="Yds" name="Yardage" style={[col.yds, styles.thText]} onTip={columnTip.show} />
+            <ColumnHeader abbr="Par" name="Par" style={[col.par, styles.thText]} onTip={columnTip.show} />
+            <ColumnHeader abbr="Scr" name="Strokes" style={[col.score, styles.thText]} onTip={columnTip.show} />
+            <ColumnHeader abbr="+/−" name="Score vs. Par" style={[col.rel, styles.thText]} onTip={columnTip.show} />
+            <ColumnHeader abbr="Spon" name="Hole Sponsor" style={[col.spon, styles.thText]} onTip={columnTip.show} />
+            <ColumnHeader abbr="Chal" name="Hole Challenge" style={[col.chal, styles.thText]} onTip={columnTip.show} />
           </View>
-          {headerTip !== null && (
-            <View style={[styles.headerTip, { backgroundColor: theme.colors.primary + 'cc' }]}>
-              <Text style={styles.headerTipText}>{headerTip}</Text>
-            </View>
-          )}
+          <ColumnTip tip={columnTip.message} />
 
           {holeOrder.map((holeNum, idx) => {
             const scoreEntry = pendingScores.find(s => s.holeNumber === holeNum);
@@ -450,8 +438,6 @@ const styles = StyleSheet.create({
   holeBlock: { marginBottom: 1 },
 
   // Column-label tooltip (tap a header abbreviation to reveal full name)
-  headerTip:     { alignItems: 'center', paddingVertical: spacing[1], marginBottom: spacing[0.5] },
-  headerTipText: { color: '#fff', fontSize: fontSize.xs, fontWeight: '600', letterSpacing: 0.3 },
 
   // Sync button
   syncBtn:     { paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center', marginBottom: spacing[1] },

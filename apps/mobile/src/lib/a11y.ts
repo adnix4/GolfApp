@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Platform } from 'react-native';
+import { MIN_MESSAGE_MS } from '@gfp/shared-types';
+
+export { MIN_MESSAGE_MS };
 
 // OS accessibility settings the scorer has to honour (MCAG 4.1.3 Reduced
 // Motion, 1.3.2 Perceivable Toasts, 2.3.1 Time Limits — problemList AX1).
@@ -85,5 +88,3 @@ export function autoDismissMs(screenReaderOn: boolean, ms: number): number | nul
   return Math.max(ms, MIN_MESSAGE_MS);
 }
 
-/** MCAG 1.3.2: 5 s plus 1 s per 120 words, rounded up for a short message. */
-export const MIN_MESSAGE_MS = 6_000;

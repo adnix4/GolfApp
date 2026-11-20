@@ -29,6 +29,8 @@ export { AdaptiveLogoFrame } from './components/AdaptiveLogoFrame';
 export type { AdaptiveLogoFrameProps } from './components/AdaptiveLogoFrame';
 export { Heading }          from './components/Heading';
 export type { HeadingProps } from './components/Heading';
+export { LiveRegion }       from './components/LiveRegion';
+export type { LiveRegionProps } from './components/LiveRegion';
 export { StatusPill }       from './components/StatusPill';
 export type { StatusPillProps } from './components/StatusPill';
 export { AsyncSection }     from './components/AsyncSection';

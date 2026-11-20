@@ -358,10 +358,63 @@ const noLowContrastText = {
   },
 };
 
+// ── no-short-message-timer (AX5) ─────────────────────────────────────────────
+// `setTimeout(() => setSaved(false), 3000)` takes a message down before people
+// can read it. MCAG 1.3.2: a short message stays at least 6 s and is announced.
+// Flags a timer of 1–6 s whose callback only clears a piece of state
+// (set*(false | null | '' | undefined)). Under 1 s is animation cleanup, not
+// a message, so it is left alone.
+
+const CLEARED = new Set([false, null, '']);
+
+function clearsState(fn) {
+  if (fn?.type !== 'ArrowFunctionExpression' && fn?.type !== 'FunctionExpression') return null;
+  let body = fn.body;
+  if (body.type === 'BlockStatement') {
+    if (body.body.length !== 1 || body.body[0].type !== 'ExpressionStatement') return null;
+    body = body.body[0].expression;
+  }
+  if (body.type !== 'CallExpression' || body.callee.type !== 'Identifier') return null;
+  if (!/^set[A-Z]/.test(body.callee.name) || body.arguments.length !== 1) return null;
+  const arg = body.arguments[0];
+  const cleared = (arg.type === 'Literal' && CLEARED.has(arg.value))
+    || (arg.type === 'Identifier' && arg.name === 'undefined');
+  return cleared ? body.callee.name : null;
+}
+
+const noShortMessageTimer = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Self-clearing messages stay at least 6 s (MCAG 1.3.2)' },
+    schema: [],
+    messages: {
+      short:
+        '{{setter}} clears this message after {{ms}} ms — too soon to read. Short messages stay at least 6 s '
+        + 'and are announced: use useTimedMessage (@gfp/shared-types) with a LiveRegion (@gfp/ui) or aria-live.',
+    },
+  },
+  create(context) {
+    return {
+      CallExpression(node) {
+        const { callee } = node;
+        const isTimer = (callee.type === 'Identifier' && callee.name === 'setTimeout')
+          || (callee.type === 'MemberExpression' && !callee.computed && callee.property.name === 'setTimeout');
+        if (!isTimer || node.arguments.length < 2) return;
+        const delay = node.arguments[1];
+        if (delay.type !== 'Literal' || typeof delay.value !== 'number') return;
+        if (delay.value < 1000 || delay.value >= 6000) return;
+        const setter = clearsState(node.arguments[0]);
+        if (setter) context.report({ node, messageId: 'short', data: { setter, ms: String(delay.value) } });
+      },
+    };
+  },
+};
+
 export default {
   meta: { name: 'gfp-a11y' },
   rules: {
     'no-low-contrast-text': noLowContrastText,
+    'no-short-message-timer': noShortMessageTimer,
     'title-is-heading': titleIsHeading,
     'pressable-has-role': pressableHasRole,
     'image-has-alt': imageHasAlt,

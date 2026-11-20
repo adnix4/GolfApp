@@ -13,6 +13,8 @@ import { eventsApi, eventBrandingApi } from '@/lib/api';
 import { UPLOAD_ABORTED } from '@/lib/upload';
 import { UploadProgress } from '@/components/UploadProgress';
 import { BrandColorEditor, BLOCKED_SAVE_MESSAGE, allColorsValid, parseTheme } from '@/components/BrandColorEditor';
+import { SaveStatus } from '@/components/SaveStatus';
+import { useTimedMessage } from '@gfp/shared-types';
 
 export default function EventSettingsScreen() {
   const { id }  = useLocalSearchParams<{ id: string }>();
@@ -25,8 +27,10 @@ export default function EventSettingsScreen() {
   const [uploading,  setUploading]  = useState(false);
   const [uploadPct,  setUploadPct]  = useState(0);
   const uploadAbortRef              = useRef<AbortController | null>(null);
-  const [saved,      setSaved]      = useState(false);
-  const [error,      setError]      = useState<string | null>(null);
+  const saved = useTimedMessage<string>();
+  const [saveError,  setSaveError]  = useState<string | null>(null);
+  const optionsSaved = useTimedMessage<string>();
+  const [optionsError, setOptionsError] = useState<string | null>(null);
   const [uploadErr,  setUploadErr]  = useState<string | null>(null);
 
   // Branding fields — null means "inherit from org"
@@ -69,13 +73,13 @@ export default function EventSettingsScreen() {
 
   async function handleSave() {
     if (!id) return;
-    if (hasTheme && !allColorsValid(colors)) { setError('Fix invalid hex color values before saving.'); return; }
+    if (hasTheme && !allColorsValid(colors)) { setSaveError('Fix invalid hex color values before saving.'); return; }
     // Hard contrast failures need a fix or the organizer's explicit choice of
     // brand over accessibility — the check under Brand Colors offers both.
-    if (hasTheme && isThemeSaveBlocked(colors)) { setError(BLOCKED_SAVE_MESSAGE); return; }
+    if (hasTheme && isThemeSaveBlocked(colors)) { setSaveError(BLOCKED_SAVE_MESSAGE); return; }
     setSaving(true);
-    setSaved(false);
-    setError(null);
+    saved.clear();
+    setSaveError(null);
     try {
       // Publishing the saved event re-themes the layout and every screen now.
       setEvent(await eventBrandingApi.update(id, {
@@ -86,10 +90,9 @@ export default function EventSettingsScreen() {
         is501c3,
         themeJson:        hasTheme ? JSON.stringify(colors) : '',
       }));
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      saved.show('Branding saved.');
     } catch (e: any) {
-      setError(e.message ?? 'Failed to save settings.');
+      setSaveError(e.message ?? 'Failed to save settings.');
     } finally {
       setSaving(false);
     }
@@ -160,8 +163,6 @@ export default function EventSettingsScreen() {
         Customize the look of this event. Leave fields blank to inherit your organization defaults.
       </Text>
 
-      {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
-      {saved  && <View style={styles.successBox}><Text style={styles.successText}>Branding saved.</Text></View>}
 
       {/* ── BRAND FROM WEBSITE ── */}
       <View style={styles.card}>
@@ -346,6 +347,7 @@ export default function EventSettingsScreen() {
           ? <ActivityIndicator color="#fff" />
           : <Text style={styles.saveBtnText}>Save Event Branding</Text>}
       </Pressable>
+      <SaveStatus saved={saved.message} error={saveError} />
 
       {/* ── EVENT OPTIONS ── */}
       <View style={[styles.card, { marginTop: spacing[5] }]}>
@@ -414,10 +416,13 @@ export default function EventSettingsScreen() {
         style={[styles.saveBtn, { backgroundColor: '#b34700', marginTop: spacing[4] }, savingConfig && { opacity: 0.6 }]}
         onPress={async () => {
           setSavingConfig(true);
+          optionsSaved.clear();
+          setOptionsError(null);
           try {
             setEvent(await eventsApi.update(id, { config: { offlineMode, freeAgentEnabled, allowWalkUps } }));
+            optionsSaved.show('Event options saved.');
           } catch (e: any) {
-            setError(e.message ?? 'Failed to save event options.');
+            setOptionsError(e.message ?? 'Failed to save event options.');
           } finally {
             setSavingConfig(false);
           }
@@ -428,6 +433,7 @@ export default function EventSettingsScreen() {
           ? <ActivityIndicator color="#fff" />
           : <Text style={styles.saveBtnText}>Save Event Options</Text>}
       </Pressable>
+      <SaveStatus saved={optionsSaved.message} error={optionsError} />
 
       {/* Undo every "Don't show me this warning again" ticked for this event. */}
       <Pressable
@@ -456,8 +462,6 @@ const styles = StyleSheet.create({
   title: { fontSize: fontSize.title, fontWeight: '900', marginBottom: spacing[1] },
   sub:   { fontSize: fontSize.md, marginBottom: spacing[5] },
 
-  successBox:  { backgroundColor: '#f0fdf4', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: status.success },
-  successText: { color: '#1e8449', fontSize: fontSize.md, fontWeight: '600' },
 
   card: {
     backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[6],

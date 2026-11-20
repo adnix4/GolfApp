@@ -10,6 +10,8 @@ import { orgApi, type OrgProfile } from '@/lib/api';
 import { TeamMembersCard } from '@/components/TeamMembersCard';
 import { BrandColorEditor, BLOCKED_SAVE_MESSAGE, allColorsValid, parseTheme } from '@/components/BrandColorEditor';
 import { useAuth } from '@/lib/auth';
+import { SaveStatus } from '@/components/SaveStatus';
+import { useTimedMessage } from '@gfp/shared-types';
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
@@ -40,7 +42,8 @@ function OrgSettings() {
   const [loading,    setLoading]    = useState(true);
   const [saving,     setSaving]     = useState(false);
   const [uploading,  setUploading]  = useState(false);
-  const [saved,      setSaved]      = useState(false);
+  const saved = useTimedMessage<string>();
+  const [saveError,  setSaveError]  = useState<string | null>(null);
   const [error,      setError]      = useState<string | null>(null);
   const [uploadErr,  setUploadErr]  = useState<string | null>(null);
 
@@ -75,14 +78,14 @@ function OrgSettings() {
   useEffect(() => { load(); }, [load]);
 
   async function handleSave() {
-    if (!name.trim()) { setError('Organization name is required.'); return; }
-    if (!allColorsValid(colors)) { setError('Fix invalid hex color values before saving.'); return; }
+    if (!name.trim()) { setSaveError('Organization name is required.'); return; }
+    if (!allColorsValid(colors)) { setSaveError('Fix invalid hex color values before saving.'); return; }
     // Hard contrast failures need a fix or the organizer's explicit choice of
     // brand over accessibility — the check under Brand Colors offers both.
-    if (isThemeSaveBlocked(colors)) { setError(BLOCKED_SAVE_MESSAGE); return; }
+    if (isThemeSaveBlocked(colors)) { setSaveError(BLOCKED_SAVE_MESSAGE); return; }
     setSaving(true);
-    setSaved(false);
-    setError(null);
+    saved.clear();
+    setSaveError(null);
     try {
       await orgApi.updateMe({
         name:             name.trim(),
@@ -93,10 +96,9 @@ function OrgSettings() {
         is501c3,
         themeJson:        JSON.stringify(colors),
       });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      saved.show('Settings saved.');
     } catch (e: any) {
-      setError(e.message ?? 'Failed to save settings.');
+      setSaveError(e.message ?? 'Failed to save settings.');
     } finally {
       setSaving(false);
     }
@@ -142,7 +144,6 @@ function OrgSettings() {
       </Text>
 
       {error && <View style={c.errorBox}><Text style={c.errorText}>{error}</Text></View>}
-      {saved  && <View style={styles.successBox}><Text style={styles.successText}>Settings saved.</Text></View>}
 
       {/* ── TEAM MEMBERS (problemList D20) ── */}
       <TeamMembersCard />
@@ -169,7 +170,7 @@ function OrgSettings() {
           <TextInput
             style={c.input}
             value={name}
-            onChangeText={v => { setName(v); setError(null); }}
+            onChangeText={v => { setName(v); setSaveError(null); }}
             placeholder="Clear Lake High School Boosters"
             placeholderTextColor={neutral.placeholder}
             autoCapitalize="words"
@@ -297,6 +298,7 @@ function OrgSettings() {
           ? <ActivityIndicator color="#fff" />
           : <Text style={styles.saveBtnText}>Save All Changes</Text>}
       </Pressable>
+      <SaveStatus saved={saved.message} error={saveError} />
     </ScrollView>
   );
 }
@@ -306,8 +308,6 @@ const styles = StyleSheet.create({
   title: { fontSize: fontSize.title, fontWeight: '900', marginBottom: spacing[1] },
   sub:   { fontSize: fontSize.md, marginBottom: spacing[5] },
 
-  successBox:  { backgroundColor: '#f0fdf4', borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[3], borderLeftWidth: 3, borderLeftColor: status.success },
-  successText: { color: '#1e8449', fontSize: fontSize.md, fontWeight: '600' },
 
   card: {
     backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[6],

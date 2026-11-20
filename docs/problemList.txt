@@ -91,7 +91,8 @@ P4 — FEATURES / POLISH
           title-is-heading lint rule
      [x] AX4 contrast + brand colors 2026-11-19: 260 text colours fixed,
           companion shades keep brands readable, brandPriority override
-     AX5  message timing: short-lived messages >= 6 s and announced
+     [x] AX5 message timing 2026-11-19: useTimedMessage (6 s floor) +
+          LiveRegion; save results moved under their buttons; lint rule
      AX6  device pass: VoiceOver, TalkBack, max text size on the scorer flow
           (needs a build — see D5)
 
@@ -1188,6 +1189,53 @@ AX5. MESSAGE TIMING (MCAG 1.3.2)
         ~263), column tips 2 s (mobile ScorecardSummary.tsx ~40,
         round-summary.tsx ~65), "Hand raised" 3 s (mobile auction.tsx ~208).
         Fix: >= 6 s, announced as they appear, follow the popup standard.
+        [x] DONE 2026-11-19
+        - @gfp/shared-types useTimedMessage(holdMs = 6 s): show / clear, a
+          floor of MIN_MESSAGE_MS (6 s; mobile a11y.ts re-exports it), a new
+          message restarts the clock, unmount cancels it. The old sites set
+          un-cancelled timeouts, so a second "Saved" was cut short by the
+          first one's timer. Clock logic is createMessageTimer (tested alone).
+        - @gfp/ui <LiveRegion message>: a View with aria-live, mounted empty so
+          the text that appears inside is announced (Android, web); iOS has no
+          live regions, so `message` goes to VoiceOver via
+          announceForAccessibility.
+        - Admin org + event settings: the result now shows UNDER the Save
+          button (it sat at the top of a long page, out of view when the
+          organizer pressed Save — the AX4 "colors are hard to read" refusal
+          too). New admin <SaveStatus>: "✓ Settings saved." 6 s; errors stay
+          until the next save or edit. "Save Event Options" had no success
+          message at all and put its error at the top; it now has its own.
+        - Mobile scorecard summary + round summary column tips: shared
+          ColumnHeader / ColumnTip (scorecard/ColumnTip.tsx). Header cells are
+          buttons named with the full column name ("Yds" -> "Yardage"); the
+          tip is 6 s, and stays until the next tap under VoiceOver/TalkBack
+          (autoDismissMs, as AX1). Tip fill is solid primary with buttonLabel
+          (was primary + 'cc' alpha with hard-coded white).
+        - Mobile live auction "Hand raised": 6 s, plus a line under the button
+          ("Hand raised. The auctioneer can see you're bidding.") in a live
+          region; the raised fill moved from status.success (white 2.9:1) to
+          status.successText (5.0:1).
+        - Web invite "✓ Copied": 6 s, announced through a visually hidden
+          role="status" span ("Invite link copied.").
+        - Popup standard: these stay inline status messages, not popups — a
+          popup for "Saved" would need a tap every time. Wording is plain.
+        - Lint gfp-a11y/no-short-message-timer: a setTimeout of 1-6 s whose
+          callback only clears state (set*(false|null|''|undefined)). Under
+          1 s is treated as animation cleanup (Walkthrough's 260 ms).
+        VERIFIED: lint 0 errors (probe: 3000 and 2_000 ms clears flagged;
+        260 ms, 6000 ms and a non-clearing set pass). tsc clean; all suites
+        green (shared-types +5 timer tests). Browser 33/33 (Edge; admin +
+        mobile exports and Next on :3000, against the API on :5000): each
+        message measured still up at 5.5 s and gone by 6.7 s, inside an
+        aria-live region that was mounted empty beforehand — org "Settings
+        saved.", event "Branding saved." and "Event options saved." (each
+        under its own button), a refused save's error under Save and still
+        there after 7 s, scorecard tips (header cell is a button named
+        "Yardage"; a second tap replaces the tip and gets its own 6 s),
+        "Hand raised" during a real live-auction session (fill
+        rgb(26,127,67)), web invite Copy (hidden status text announced, label
+        back to "Copy" after 6 s). No page errors.
+        NOT verified: what VoiceOver/TalkBack actually say (AX6).
 
 AX6. DEVICE PASS (MCAG 4.1.1, 3.3.2, 2.1.1, 3.1.2-3.1.5, 3.5, 1.1.6, 1.4.4, 2.1.2-2.1.6, 2.5)
         Needs a build on real phones (D5). VoiceOver + TalkBack + maximum text

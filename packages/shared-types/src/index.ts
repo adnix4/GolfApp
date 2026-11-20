@@ -53,6 +53,7 @@ export * from './apiClient';
 export * from './auctionRules';
 export * from './useLiveLeaderboard';
 export * from './useLiveAuction';
+export * from './messageTiming';
 export * from './tournamentHubEvents';
 
 // ── ENUMS ─────────────────────────────────────────────────────────────────────
