@@ -87,8 +87,11 @@ const TIERS: Record<ScorecardDensity, Omit<ScorecardLayout, 'density' | 'overflo
 
 const ORDER: ScorecardDensity[] = ['roomy', 'compact', 'tight'];
 
-/** A collapsed golfer is a single tappable line: name plus shot total. */
-const COLLAPSED_ROW_HEIGHT = 36;
+/**
+ * A collapsed golfer is a single tappable line: name plus shot total. 48, not
+ * the 36 its text needs: the whole row is the tap target (minTouchTarget).
+ */
+const COLLAPSED_ROW_HEIGHT = 48;
 
 /** Text renders taller than its font size; RN's default is ~1.2×. */
 const LINE_HEIGHT_RATIO = 1.2;

@@ -5,7 +5,7 @@ import type { PlayerCacheDto, PlayerShotEntry } from '@/lib/api';
 import { isAdminTotal, shotTotal, toBreakdown } from '@/lib/holeUtils';
 import type { ScorecardLayout } from '@/lib/scorecardLayout';
 import { ShotColumn, type ShotColumnSize } from '@/components/scorecardComponents';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, minTouchTarget, radius, spacing } from '@gfp/theme';
 
 export type ShotType = 'drive' | 'approach' | 'putt';
 
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   // Collapsed golfer on short screens: name + shot total, tap to expand.
   collapsedRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: spacing[2], paddingHorizontal: spacing[0.5],
+    paddingVertical: spacing[2], paddingHorizontal: spacing[0.5], minHeight: minTouchTarget,
   },
   collapsedName:  { flex: 1, fontSize: fontSize.md, fontWeight: '600' },
   collapsedTotal: { fontSize: fontSize.lg, fontWeight: '800', minWidth: 28, textAlign: 'right' },

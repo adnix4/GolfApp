@@ -1,7 +1,7 @@
 import { Text, View, StyleSheet, type StyleProp, type TextStyle } from 'react-native';
 import { useTheme, LiveRegion } from '@gfp/ui';
 import { MIN_MESSAGE_MS, useTimedMessage, type TimedMessage } from '@gfp/shared-types';
-import { fontSize, spacing } from '@gfp/theme';
+import { fontSize, minTouchTarget, spacing } from '@gfp/theme';
 import { autoDismissMs, useScreenReaderEnabled } from '@/lib/a11y';
 
 /**
@@ -24,7 +24,7 @@ export function ColumnHeader({ abbr, name, style, onTip }: {
 }) {
   return (
     <Text
-      style={style}
+      style={[s.cell, style]}
       numberOfLines={1}
       onPress={() => onTip(name)}
       accessibilityRole="button"
@@ -51,6 +51,10 @@ export function ColumnTip({ tip }: { tip: string | null }) {
 }
 
 const s = StyleSheet.create({
-  tip:     { alignItems: 'center', paddingVertical: spacing[1], marginBottom: spacing[0.5] },
+  // The cell itself is the tap target, full header height: Text takes no
+  // hitSlop, and with the row's padding outside the cells they measured 15dp.
+  // The header row therefore carries no vertical padding of its own.
+  cell:    { minHeight: minTouchTarget, paddingVertical: spacing[4] },
+  tip:    { alignItems: 'center', paddingVertical: spacing[1], marginBottom: spacing[0.5] },
   tipText: { fontSize: fontSize.xs, fontWeight: '600', letterSpacing: 0.3 },
 });

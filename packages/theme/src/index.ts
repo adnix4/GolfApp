@@ -239,7 +239,7 @@ export function buildEmailVars(theme: GFPTheme): Record<string, string> {
 
 // ── LAYOUT SCALES ─────────────────────────────────────────────────────────────
 
-export { spacing, radius, fontSize } from './scales';
+export { spacing, radius, fontSize, minTouchTarget } from './scales';
 export type { SpacingStep, RadiusStep, FontSizeStep } from './scales';
 
 // ── STATUS + NEUTRAL COLOURS ──────────────────────────────────────────────────

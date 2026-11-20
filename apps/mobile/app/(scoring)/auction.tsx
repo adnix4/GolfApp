@@ -28,7 +28,7 @@ import { describeBidError } from '@/lib/bidMessages';
 import {
   canQueueOffline, enqueueBid, isTransientFailure, newRequestId, useBidQueue, QUEUE_MAX_AGE_MS,
 } from '@/lib/bidQueue';
-import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
+import { fontSize, minTouchTarget, radius, spacing, status, neutral } from '@gfp/theme';
 
 type Tab = 'items' | 'history' | 'live';
 
@@ -847,7 +847,7 @@ const styles = StyleSheet.create({
   liveBanner:  { backgroundColor: status.dangerText, paddingVertical: spacing[2], alignItems: 'center' },
   liveBannerText: { color: '#fff', fontWeight: '800', fontSize: fontSize.md },
   tabRow:      { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
-  tabBtn:      { flex: 1, alignItems: 'center', paddingVertical: spacing[3], borderBottomWidth: 3, borderBottomColor: 'transparent' },
+  tabBtn:      { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, paddingVertical: spacing[3], borderBottomWidth: 3, borderBottomColor: 'transparent' },
   tabLabel:    { fontSize: fontSize.sm, fontWeight: '700' },
   card:        { borderRadius: radius.lg, padding: spacing[4], marginBottom: spacing[3], boxShadow: '0px 1px 6px rgba(0, 0, 0, 0.06)', elevation: 2 },
   cardRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
