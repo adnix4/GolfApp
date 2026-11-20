@@ -21,7 +21,7 @@ import {
   digitsOnly, fmtPhoneInput,
   validateGolfer, validateRoster, toPlayerInput, parseInviteToken,
   SKILL_LEVEL_OPTIONS, AGE_GROUP_OPTIONS, PAIRING_NOTE_MAX,
-  type GolferFields, type SkillLevel, type AgeGroup,
+  type GolferFields, type SkillLevel, type AgeGroup, useTimedMessage,
 } from '@gfp/shared-types';
 import { stripeEnabled, formatUsd } from './stripeConfig';
 import { neutral } from '@gfp/theme';
@@ -234,7 +234,8 @@ function fmtInviteDate(iso: string): string {
 }
 
 function InviteShare({ url, expiresAt }: { url: string; expiresAt: string | null }) {
-  const [copied, setCopied] = useState(false);
+  // "✓ Copied" stays 6 s (MCAG 1.3.2).
+  const copied = useTimedMessage<string>();
   // The OS share sheet (phones, most tablets) is how a captain actually sends
   // this — into a group text. Desktop browsers without it keep Copy.
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
@@ -259,14 +260,13 @@ function InviteShare({ url, expiresAt }: { url: string; expiresAt: string | null
           type="button"
           style={s.copyBtn}
           onClick={() => {
-            navigator.clipboard?.writeText(url).then(() => {
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            });
+            navigator.clipboard?.writeText(url).then(() => copied.show('Invite link copied.'));
           }}
         >
-          {copied ? '✓ Copied' : 'Copy'}
+          {copied.message ? '✓ Copied' : 'Copy'}
         </button>
+        {/* The button's own text change isn't announced; this is (MCAG 1.3.2). */}
+        <span role="status" aria-live="polite" style={s.srOnly}>{copied.message}</span>
       </div>
       {expiresAt && (
         <p style={s.inviteNote}>The link works until the tournament starts ({fmtInviteDate(expiresAt)}) or your team fills up.</p>
@@ -789,6 +789,8 @@ const s: Record<string, React.CSSProperties> = {
   chipRow:     { display: 'flex', flexWrap: 'wrap', gap: '0.4rem' },
   chip:        { padding: '0.35rem 0.8rem', borderRadius: 999, border: '1.5px solid #ddd', background: 'none', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', color: '#4b5563' },
   chipOn:      { backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary)', color: 'var(--color-on-primary, #fff)' },
+  // Heard by screen readers, not seen.
+  srOnly:      { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 },
   copyBtn:     { padding: '0.5rem 0.9rem', borderRadius: 7, border: '1.5px solid var(--color-primary)', backgroundColor: 'transparent', color: 'var(--color-primary)', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
   appPromo:     { textAlign: 'left', backgroundColor: '#f6f7f6', border: '1px solid #e8e8e8', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1.25rem' },
   appPromoText: { fontSize: '0.85rem', color: '#4b5563', lineHeight: 1.5, margin: 0 },

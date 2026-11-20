@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, Heading } from '@gfp/ui';
@@ -9,6 +9,7 @@ import type {
 import { strokesByPlayer } from '@/lib/holeUtils';
 import { ChallengeDetailModal, SponsorModal } from '@/components/scorecardComponents';
 import { screenStyles } from './scorecardStyles';
+import { ColumnHeader, ColumnTip, useColumnTip } from './ColumnTip';
 import { fontSize, spacing, status } from '@gfp/theme';
 
 /**
@@ -31,17 +32,8 @@ export function ScorecardSummary({
 }) {
   const theme = useTheme();
   const [selectedChallenge, setSelectedChallenge] = useState<ChallengeCacheDto | null>(null);
-  const [headerTip,         setHeaderTip]         = useState<string | null>(null);
-  const tipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const columnTip = useColumnTip();
 
-  const showHeaderTip = useCallback((desc: string) => {
-    if (tipTimerRef.current) clearTimeout(tipTimerRef.current);
-    setHeaderTip(desc);
-    tipTimerRef.current = setTimeout(() => setHeaderTip(null), 2000);
-  }, []);
-
-  // clean up timer on unmount
-  useEffect(() => () => { if (tipTimerRef.current) clearTimeout(tipTimerRef.current); }, []);
 
   const allHoles = Array.from({ length: session.event.holes }, (_, i) => i + 1);
 
@@ -68,19 +60,15 @@ export function ScorecardSummary({
 
         {/* Table header — tap any abbreviation for the full label */}
         <View style={[styles.summaryTableHeader, { backgroundColor: theme.colors.primary }]}>
-          <Text style={[summaryCol.hole, styles.summaryTh]} numberOfLines={1} onPress={() => showHeaderTip('Hole Number')}>#</Text>
-          <Text style={[summaryCol.yds,  styles.summaryTh]} numberOfLines={1} onPress={() => showHeaderTip('Yardage')}>Yds</Text>
-          <Text style={[summaryCol.par,  styles.summaryTh]} numberOfLines={1} onPress={() => showHeaderTip('Par')}>Par</Text>
-          <Text style={[summaryCol.scr,  styles.summaryTh]} numberOfLines={1} onPress={() => showHeaderTip('Strokes')}>Scr</Text>
-          <Text style={[summaryCol.rel,  styles.summaryTh]} numberOfLines={1} onPress={() => showHeaderTip('Score vs. Par')}>+/−</Text>
-          <Text style={[summaryCol.spon, styles.summaryTh]} numberOfLines={1} onPress={() => showHeaderTip('Hole Sponsor')}>Spon</Text>
-          <Text style={[summaryCol.chal, styles.summaryTh]} numberOfLines={1} onPress={() => showHeaderTip('Hole Challenge')}>Chal</Text>
+          <ColumnHeader abbr="#" name="Hole Number" style={[summaryCol.hole, styles.summaryTh]} onTip={columnTip.show} />
+          <ColumnHeader abbr="Yds" name="Yardage" style={[summaryCol.yds, styles.summaryTh]} onTip={columnTip.show} />
+          <ColumnHeader abbr="Par" name="Par" style={[summaryCol.par, styles.summaryTh]} onTip={columnTip.show} />
+          <ColumnHeader abbr="Scr" name="Strokes" style={[summaryCol.scr, styles.summaryTh]} onTip={columnTip.show} />
+          <ColumnHeader abbr="+/−" name="Score vs. Par" style={[summaryCol.rel, styles.summaryTh]} onTip={columnTip.show} />
+          <ColumnHeader abbr="Spon" name="Hole Sponsor" style={[summaryCol.spon, styles.summaryTh]} onTip={columnTip.show} />
+          <ColumnHeader abbr="Chal" name="Hole Challenge" style={[summaryCol.chal, styles.summaryTh]} onTip={columnTip.show} />
         </View>
-        {headerTip !== null && (
-          <View style={[styles.headerTip, { backgroundColor: theme.colors.primary + 'cc' }]}>
-            <Text style={styles.headerTipText}>{headerTip}</Text>
-          </View>
-        )}
+        <ColumnTip tip={columnTip.message} />
 
         {allHoles.map((holeNum, idx) => {
           const holeData  = holeByNumber.get(holeNum);
@@ -207,6 +195,4 @@ const styles = StyleSheet.create({
   summarySubRow:        { paddingHorizontal: spacing[3], paddingBottom: spacing[2] },
   summarySubText:       { fontSize: fontSize.xxs, fontWeight: '500' },
   // Column-label tooltip (tap a header abbreviation to reveal full name)
-  headerTip:     { alignItems: 'center', paddingVertical: spacing[1], marginBottom: spacing[0.5] },
-  headerTipText: { color: '#fff', fontSize: fontSize.xs, fontWeight: '600', letterSpacing: 0.3 },
 });

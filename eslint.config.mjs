@@ -110,6 +110,8 @@ export default [
     plugins: { 'gfp-a11y': gfpA11y },
     rules: {
       'gfp-a11y/no-low-contrast-text': 'error',
+      // Short-lived messages stay 6 s and are announced. AX5.
+      'gfp-a11y/no-short-message-timer': 'error',
     },
   },
   {
