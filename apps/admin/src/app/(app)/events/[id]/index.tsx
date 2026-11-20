@@ -657,6 +657,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
 
             <Text style={c.fieldLabel}>Event Name *</Text>
             <TextInput
+              accessibilityLabel="Event Name"
               style={[c.input, !!fieldErrors.name && c.inputError]}
               value={name}
               onChangeText={v => { setName(v); if (fieldErrors.name) setFieldErrors(p => ({ ...p, name: undefined })); }}
@@ -706,7 +707,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
             </View>
 
             <Text style={c.fieldLabel}>Entry Fee per Golfer ($)</Text>
-            <MoneyInput
+            <MoneyInput accessibilityLabel="Entry fee per golfer, dollars"
               style={[c.input, !!fieldErrors.entryFee && c.inputError]}
               value={entryFee}
               onChangeText={v => { setEntryFee(v); if (fieldErrors.entryFee) setFieldErrors(p => ({ ...p, entryFee: undefined })); }}
@@ -816,6 +817,7 @@ function AttachCourseModal({ visible, eventId, course, onClose, onAttached }: At
             <View key={f.label}>
               <Text style={c.fieldLabel}>{f.label}</Text>
               <TextInput
+                accessibilityLabel={f.label.replace(' *', '')}
                 style={c.input}
                 value={f.value} onChangeText={f.setter as any}
                 placeholder={f.placeholder} placeholderTextColor={neutral.placeholder} editable={!loading}

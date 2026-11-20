@@ -407,6 +407,7 @@ export default function AuctionScreen() {
           {/* Title */}
           <Text style={styles.label}>Title *</Text>
           <TextInput
+            accessibilityLabel="Title"
             style={[c.input, styles.input, fieldErrors.title && styles.inputError]}
             value={form.title}
             onChangeText={v => field('title', v)}
@@ -418,6 +419,7 @@ export default function AuctionScreen() {
           {/* Description */}
           <Text style={styles.label}>Description</Text>
           <TextInput
+            accessibilityLabel="Description"
             style={[c.input, styles.input, { minHeight: 80 }]}
             value={form.description}
             onChangeText={v => field('description', v)}
@@ -445,7 +447,7 @@ export default function AuctionScreen() {
           {/* Starting Bid */}
           <Text style={styles.label}>Starting Bid ($) *</Text>
           <View style={styles.dollarRow}>
-            <MoneyInput
+            <MoneyInput accessibilityLabel="Starting bid, dollars"
               style={[c.input, styles.input, styles.dollarInput, fieldErrors.startingBid && styles.inputError]}
               value={form.startingBid}
               onChangeText={v => field('startingBid', v)}
@@ -460,7 +462,7 @@ export default function AuctionScreen() {
             <>
               <Text style={styles.label}>Bid Increment ($)</Text>
               <View style={styles.dollarRow}>
-                <MoneyInput
+                <MoneyInput accessibilityLabel="Bid increment, dollars"
                   style={[c.input, styles.input, styles.dollarInput]}
                   value={form.bidIncrement}
                   onChangeText={v => field('bidIncrement', v)}
@@ -487,7 +489,7 @@ export default function AuctionScreen() {
           {/* Buy-Now Price */}
           <Text style={styles.label}>Buy-Now Price ($) — optional</Text>
           <View style={styles.dollarRow}>
-            <MoneyInput
+            <MoneyInput accessibilityLabel="Buy-now price, dollars"
               style={[c.input, styles.input, styles.dollarInput]}
               value={form.buyNowPrice}
               onChangeText={v => field('buyNowPrice', v)}
@@ -525,7 +527,7 @@ export default function AuctionScreen() {
             <>
               <Text style={styles.label}>Donation Goal ($) — optional</Text>
               <View style={styles.dollarRow}>
-                <MoneyInput
+                <MoneyInput accessibilityLabel="Donation goal, dollars"
                   style={[c.input, styles.input, styles.dollarInput]}
                   value={form.goal}
                   onChangeText={v => field('goal', v)}
@@ -539,7 +541,7 @@ export default function AuctionScreen() {
           {/* Fair Market Value */}
           <Text style={styles.label}>Fair Market Value ($)</Text>
           <View style={styles.dollarRow}>
-            <MoneyInput
+            <MoneyInput accessibilityLabel="Fair market value, dollars"
               style={[c.input, styles.input, styles.dollarInput]}
               value={form.fairMarketValue}
               onChangeText={v => field('fairMarketValue', v)}
@@ -551,6 +553,7 @@ export default function AuctionScreen() {
           {/* Display Order */}
           <Text style={styles.label}>Display Order</Text>
           <TextInput
+            accessibilityLabel="Display Order"
             style={[c.input, styles.input]}
             value={form.displayOrder}
             onChangeText={v => field('displayOrder', v.replace(/[^0-9]/g, ''))}

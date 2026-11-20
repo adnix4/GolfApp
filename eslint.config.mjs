@@ -116,9 +116,8 @@ export default [
   },
   {
     // Text fields name themselves: a <Text> label above a field is not read
-    // with it. Scorer app only for now; the admin has ~70 unlabelled fields
-    // (problemList AX6 follow-up).
-    files: ['apps/mobile/**/*.tsx', 'packages/ui/**/*.tsx'],
+    // with it (react-native-web exposes the placeholder instead). AX6.
+    files: ['apps/mobile/**/*.tsx', 'apps/admin/**/*.tsx', 'packages/ui/**/*.tsx'],
     ignores: ['**/__tests__/**'],
     plugins: { 'gfp-a11y': gfpA11y },
     rules: { 'gfp-a11y/input-has-label': 'error' },

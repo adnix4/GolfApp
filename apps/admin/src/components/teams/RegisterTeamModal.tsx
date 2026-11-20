@@ -97,6 +97,7 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
 
             <Text style={c.fieldLabel}>Team Name *</Text>
             <TextInput
+              accessibilityLabel="Team Name"
               style={c.input}
               value={teamName}
               onChangeText={v => { setTeamName(v); if (error) setError(null); }}
@@ -121,17 +122,20 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
                 </View>
                 <View style={formStyles.nameRow}>
                   <TextInput
+                    accessibilityLabel={`Player ${idx + 1} first name`}
                     style={[c.input, formStyles.halfInput]}
                     value={p.firstName} onChangeText={v => updatePlayer(idx, 'firstName', v)}
                     placeholder="First *" placeholderTextColor={neutral.placeholder} editable={!loading}
                   />
                   <TextInput
+                    accessibilityLabel={`Player ${idx + 1} last name`}
                     style={[c.input, formStyles.halfInput]}
                     value={p.lastName} onChangeText={v => updatePlayer(idx, 'lastName', v)}
                     placeholder="Last *" placeholderTextColor={neutral.placeholder} editable={!loading}
                   />
                 </View>
                 <TextInput
+                  accessibilityLabel={`Player ${idx + 1} email`}
                   style={[c.input, { marginTop: spacing[2] }]}
                   value={p.email} onChangeText={v => updatePlayer(idx, 'email', v)}
                   placeholder="Email *" placeholderTextColor={neutral.placeholder}
@@ -139,12 +143,14 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
                 />
                 <View style={[formStyles.nameRow, { marginTop: spacing[2] }]}>
                   <TextInput
+                    accessibilityLabel={`Player ${idx + 1} phone`}
                     style={[c.input, formStyles.halfInput]}
                     value={p.phone ?? ''} onChangeText={v => updatePlayer(idx, 'phone', fmtPhoneInput(digitsOnly(v)))}
                     placeholder="Phone (optional)" placeholderTextColor={neutral.placeholder}
                     keyboardType="phone-pad" editable={!loading}
                   />
                   <TextInput
+                    accessibilityLabel={`Player ${idx + 1} handicap`}
                     style={[c.input, formStyles.halfInput]}
                     value={p.handicap ?? ''} onChangeText={v => updatePlayer(idx, 'handicap', v)}
                     placeholder="Handicap (optional)" placeholderTextColor={neutral.placeholder}

@@ -153,6 +153,7 @@ export default function LeagueDetailScreen() {
       >
         <Text style={c.fieldLabel}>Season Name</Text>
         <TextInput
+          accessibilityLabel="Season Name"
           style={c.input}
           value={sName} onChangeText={setSName} placeholder="2026 Spring Season"
           placeholderTextColor={neutral.placeholder}
@@ -192,6 +193,7 @@ export default function LeagueDetailScreen() {
           <View style={styles.half}>
             <Text style={c.fieldLabel}>Total Rounds</Text>
             <TextInput
+              accessibilityLabel="Total Rounds"
               style={c.input}
               value={rounds} onChangeText={setRounds} keyboardType="numeric"
               placeholderTextColor={neutral.placeholder}
@@ -200,6 +202,7 @@ export default function LeagueDetailScreen() {
           <View style={styles.half}>
             <Text style={c.fieldLabel}>Rounds Counted (0=all)</Text>
             <TextInput
+              accessibilityLabel="Rounds Counted (0 = all)"
               style={c.input}
               value={counted} onChangeText={setCounted} keyboardType="numeric"
               placeholderTextColor={neutral.placeholder}

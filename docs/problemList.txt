@@ -1273,9 +1273,15 @@ AX6. DEVICE PASS (MCAG 4.1.1, 3.3.2, 2.1.1, 3.1.2-3.1.5, 3.5, 1.1.6, 1.4.4, 2.1.
         mounted before the error; 12 shot buttons with 12 distinct names;
         "Ava's drive: none" -> "Ava's drive: 1" after a tap; bid field named
         "Bid amount"; no page errors. What the phones SAY is the device pass.
-        FOLLOW-UP: the admin has ~70 text fields without their own name (same
-        label-above pattern; react-native-web exposes the placeholder). The
-        lint rule is scoped to the scorer until those are labelled.
+        FOLLOW-UP DONE 2026-11-19: the admin's 70 text fields without their own
+        name (same label-above pattern; react-native-web exposed the
+        placeholder) are labelled — 60 TextInputs and 10 MoneyInputs across 18
+        files, repeated rows numbered ("Player 2 email"), money fields say
+        "dollars". input-has-label now covers apps/admin too.
+        VERIFIED (admin export, Edge): login, sign-up, org and event settings,
+        email builder, checkout, and the auction item / sponsor / challenge /
+        register team / free agent / new league forms — every visible field
+        (55) has its own name; no page errors. 13/13.
 
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done.

@@ -126,11 +126,13 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
             <Text style={c.fieldHint}>Player's first and last name as it should appear on the scorecard.</Text>
             <View style={formStyles.nameRow}>
               <TextInput
+                accessibilityLabel="First name"
                 style={[c.input, formStyles.halfInput]}
                 value={firstName} onChangeText={v => { setFirstName(v); if (error) setError(null); }}
                 placeholder="First name" placeholderTextColor={neutral.placeholder} editable={!loading}
               />
               <TextInput
+                accessibilityLabel="Last name"
                 style={[c.input, formStyles.halfInput]}
                 value={lastName} onChangeText={v => { setLastName(v); if (error) setError(null); }}
                 placeholder="Last name" placeholderTextColor={neutral.placeholder} editable={!loading}
@@ -141,6 +143,7 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
             <Text style={c.fieldLabel}>Email</Text>
             <Text style={c.fieldHint}>Used by the player to join the event on the mobile app. Must be unique within this event.</Text>
             <TextInput
+              accessibilityLabel="Email"
               style={c.input}
               value={email} onChangeText={v => { setEmail(v); if (error) setError(null); }}
               placeholder="player@example.com"
@@ -151,6 +154,7 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
             {/* Phone */}
             <Text style={c.fieldLabel}>Phone <Text style={formStyles.fieldOptional}>(optional)</Text></Text>
             <TextInput
+              accessibilityLabel="Phone"
               style={c.input}
               value={phone}
               onChangeText={v => { setPhone(fmtPhoneInput(digitsOnly(v))); if (error) setError(null); }}
@@ -163,6 +167,7 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
             <Text style={c.fieldLabel}>Handicap Index</Text>
             <Text style={c.fieldHint}>USGA handicap index (0 – 54). Used for net scoring, pairing, and flights. Leave blank if unknown.</Text>
             <TextInput
+              accessibilityLabel="Handicap Index"
               style={c.input}
               value={handicap} onChangeText={v => { setHandicap(v.replace(/[^0-9.]/g, '')); if (error) setError(null); }}
               placeholder="e.g. 14.2"
