@@ -4,7 +4,7 @@ import {
   ActivityIndicator, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme, useClasses, Heading } from '@gfp/ui';
+import { useTheme, useClasses, Heading, GlyphText } from '@gfp/ui';
 import { useLiveLeaderboard, type HoleInOneAlert as HoleInOneData } from '@gfp/shared-types';
 import { formatRelativeAge, resolveLeaderboardState, type LeaderboardState } from '@/lib/leaderboardState';
 import { useSession } from '@/lib/session';
@@ -260,7 +260,7 @@ function StatusBar({
 
   return (
     <View style={[styles.statusBar, { backgroundColor: bg }]}>
-      <Text style={[styles.statusText, { color: fg }]}>{label}</Text>
+      <GlyphText style={[styles.statusText, { color: fg }]}>{label}</GlyphText>
       {/* Shown in offline mode too — that is exactly when a manual fetch
           matters, since nothing is polling. refresh() is deliberately not
           gated on `disabled` for the same reason. */}
@@ -359,13 +359,13 @@ export default function LeaderboardScreen() {
         </View>
       ) : view !== 'ready' ? (
         <View style={styles.center}>
-          <Text style={styles.emptyIcon}>{EMPTY_COPY[view].icon}</Text>
+          <Text style={styles.emptyIcon} aria-hidden>{EMPTY_COPY[view].icon}</Text>
           <Heading level={2} style={[styles.emptyTitle, { color: theme.colors.primary }]}>
             {EMPTY_COPY[view].title}
           </Heading>
-          <Text style={[styles.emptySub,   { color: theme.mutedText  }]}>
+          <GlyphText style={[styles.emptySub,   { color: theme.mutedText  }]}>
             {EMPTY_COPY[view].sub}
-          </Text>
+          </GlyphText>
         </View>
       ) : isStroke && boardView === 'golfers' && individuals ? (
         <>

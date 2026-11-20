@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useTheme, useClasses, Heading } from '@gfp/ui';
+import { useTheme, useClasses, Heading, GlyphText } from '@gfp/ui';
 import { useSession, getHoleOrder } from '@/lib/session';
 import { confirmLeaveEvent, unsyncedHoleCount } from '@/lib/confirmLeave';
 // Same challenge popup as the scorecard (the shared DialogFrame, sponsor highlighted).
@@ -24,7 +24,7 @@ function ConflictCard({ conflict }: { conflict: SyncConflictDto }) {
   const theme = useTheme();
   return (
     <View style={[conflictStyles.card, { backgroundColor: '#fff8f0', borderColor: '#e67e22' }]}>
-      <Heading level={3} style={conflictStyles.title}>⚠ Score conflict — Hole {conflict.holeNumber}</Heading>
+      <Heading level={3} style={conflictStyles.title} accessibilityLabel={`Score conflict — Hole ${conflict.holeNumber}`}>⚠ Score conflict — Hole {conflict.holeNumber}</Heading>
       <Text style={[conflictStyles.detail, { color: theme.colors.primary }]}>
         Your score: {conflict.submittedScore}{'  '}|{'  '}Other device: {conflict.existingScore}
       </Text>
@@ -140,9 +140,10 @@ export default function SyncScreen() {
         <Heading level={1} style={[styles.headerEventName, { color: theme.highlightText }]} numberOfLines={2}>
           {session.event.name}
         </Heading>
-        {session.course ? (
-          <Text style={[styles.headerHostedBy, { color: theme.highlightText }]} numberOfLines={1}>
-            Hosted by {session.course.name}
+        {/* The organizer hosts; the course is where. It used to name the course as host. */}
+        {session.org?.name ? (
+          <Text style={[styles.headerHostedBy, { color: theme.highlightText }]} numberOfLines={2}>
+            Hosted by {session.org.name}{session.course ? ` at ${session.course.name}` : ''}
           </Text>
         ) : null}
       </View>
@@ -206,13 +207,13 @@ export default function SyncScreen() {
           {syncing ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.syncBtnText}>
+            <GlyphText style={styles.syncBtnText}>
               {!scoringLive
                 ? '⏸  Sync Scores  (Scoring Not Live)'
                 : syncStatus === 'synced' ? '✓  Scores Synced'
                 : syncStatus === 'error'  ? 'Retry Sync'
                 :                          'Sync Scores'}
-            </Text>
+            </GlyphText>
           )}
         </Pressable>
 
@@ -298,7 +299,8 @@ export default function SyncScreen() {
                   >
                     {hasScore ? gross : '—'}
                   </Text>
-                  <Text style={[col.rel, styles.cellRel, { color: relColor }]}>
+                  <Text style={[col.rel, styles.cellRel, { color: relColor }]}
+                    accessibilityLabel={isConflict ? `${relLabel}, score conflict` : undefined}>
                     {relLabel}{isConflict ? ' ⚠' : ''}
                   </Text>
                   {sponsor ? (
@@ -316,7 +318,7 @@ export default function SyncScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={`View challenge for hole ${holeNum}`}
                     >
-                      <Text style={styles.challengeIcon}>🏆</Text>
+                      <Text style={styles.challengeIcon} aria-hidden>🏆</Text>
                     </Pressable>
                   ) : (
                     <Text style={[col.chal, styles.cellDash, { color: theme.mutedText }]}>—</Text>

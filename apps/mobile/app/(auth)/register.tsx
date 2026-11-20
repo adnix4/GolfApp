@@ -7,7 +7,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   StripeProvider, CardField, useStripe, type CardFieldInput,
 } from '@stripe/stripe-react-native';
-import { useTheme, useClasses, Heading, LiveRegion } from '@gfp/ui';
+import { useTheme, useClasses, Heading, LiveRegion, GlyphText } from '@gfp/ui';
 import {
   formatCentsShort, digitsOnly, fmtPhoneInput,
   validateGolfer, validateRoster, toPlayerInput, parseInviteToken, ApiError,
@@ -214,7 +214,7 @@ export default function RegisterScreen() {
 
   const logo = (
     <View style={styles.logoRow}>
-      <GfpLogo variant="onLight" size={56} />
+      <GfpLogo variant="onLight" size={56} decorative />
       <Text accessibilityRole="text" style={[styles.logoTitle, { color: theme.colors.primary }]}>GFP Scorer</Text>
       <Text style={[styles.logoSub,   { color: theme.mutedText }]}>Golf Fundraiser Pro</Text>
     </View>
@@ -228,7 +228,7 @@ export default function RegisterScreen() {
         <ScrollView contentContainerStyle={styles.scroll}>
           {logo}
           <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-            <Text style={styles.successIcon}>✓</Text>
+            <Text style={styles.successIcon} aria-hidden>✓</Text>
             <Heading level={1} style={[styles.heading, { color: theme.colors.primary }]}>You're Registered!</Heading>
 
             {isFreeAgentSuccess ? (
@@ -280,7 +280,7 @@ export default function RegisterScreen() {
             {entryFeeCents != null && entryFeeCents > 0 && (
               entryFeePaid ? (
                 <View style={[styles.feeNotice, { backgroundColor: '#f0faf3', borderColor: status.success }]}>
-                  <Heading level={2} style={[styles.feeNoticeTitle, { color: '#1e8449' }]}>✓ Entry Fee Paid</Heading>
+                  <Heading level={2} style={[styles.feeNoticeTitle, { color: '#1e8449' }]} accessibilityLabel="Entry Fee Paid">✓ Entry Fee Paid</Heading>
                   <Text style={styles.feeNoticeText}>
                     Your {formatCentsShort(entryFeeCents)} entry fee has been paid. See you on the course!
                   </Text>
@@ -343,7 +343,7 @@ export default function RegisterScreen() {
         {logo}
 
         <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={[styles.backBtnText, { color: theme.mutedText }]}>← Back</Text>
+          <GlyphText style={[styles.backBtnText, { color: theme.mutedText }]}>← Back</GlyphText>
         </Pressable>
 
         <View style={[styles.eventBanner, { backgroundColor: theme.colors.surface, borderColor: theme.colors.primary + '44' }]}>

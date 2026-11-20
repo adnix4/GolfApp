@@ -16,7 +16,7 @@ import {
   View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, useClasses, Heading } from '@gfp/ui';
+import { useTheme, useClasses, Heading, GlyphText } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { fetchMyCheckout, confirmMyCheckout, type CheckoutCartDto } from '@/lib/api';
 import { checkoutCounts, checkoutHeadline } from '@/lib/checkoutSummary';
@@ -139,7 +139,7 @@ export default function AuctionCheckoutScreen() {
             </Text>
           </View>
 
-          {error && <Text style={styles.error}>⚠️ {error}</Text>}
+          {error && <GlyphText style={styles.error}>{`⚠️ ${error}`}</GlyphText>}
 
           {cart!.outstandingCents > 0 ? (
             <>
@@ -164,12 +164,12 @@ export default function AuctionCheckoutScreen() {
               </Text>
             </>
           ) : (
-            <Text style={styles.paidNote}>
-              {paidJust ? '✓ Paid — thank you!' : '✓ Paid in full.'}
-              {checkoutCounts(won).awaitingPickup
-                ? ' Collect your items at the auction checkout desk.'
-                : checkoutCounts(won).items > 0 ? ' Everything has been collected.' : ''}
-            </Text>
+            <GlyphText style={styles.paidNote}>
+              {(paidJust ? '✓ Paid — thank you!' : '✓ Paid in full.') +
+                (checkoutCounts(won).awaitingPickup
+                  ? ' Collect your items at the auction checkout desk.'
+                  : checkoutCounts(won).items > 0 ? ' Everything has been collected.' : '')}
+            </GlyphText>
           )}
         </>
       )}

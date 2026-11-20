@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { useTheme, useClasses, Heading } from '@gfp/ui';
+import { useTheme, useClasses, Heading, GlyphText } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { LeaveEventButton } from '@/components/LeaveEventButton';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
@@ -119,12 +119,14 @@ function Section({ title, subtitle, children, defaultOpen = true }: {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <View style={styles.card}>
-      <Pressable accessibilityRole="button" aria-expanded={open} style={styles.cardHeader} onPress={() => setOpen(o => !o)}>
+      <Pressable accessibilityRole="button" aria-expanded={open} style={styles.cardHeader} onPress={() => setOpen(o => !o)}
+        // Named outright: built from its children it ended ", black up-pointing triangle".
+        accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title}>
         <View style={{ flex: 1 }}>
           <Heading level={2} style={[styles.cardTitle, { color: theme.colors.primary }]}>{title}</Heading>
           {subtitle && <Text style={[styles.cardSubtitle, { color: theme.mutedText }]}>{subtitle}</Text>}
         </View>
-        <Text style={[styles.chevron, { color: theme.mutedText }]}>{open ? '▲' : '▼'}</Text>
+        <Text style={[styles.chevron, { color: theme.mutedText }]} aria-hidden>{open ? '▲' : '▼'}</Text>
       </Pressable>
       {open && <View style={styles.cardBody}>{children}</View>}
     </View>
@@ -136,15 +138,15 @@ function TabCard({ tab }: { tab: typeof TABS[0] }) {
   return (
     <View style={[styles.tabCard, { borderLeftColor: tab.color }]}>
       <View style={styles.tabCardTop}>
-        <Text style={styles.tabIcon}>{tab.icon}</Text>
+        <Text style={styles.tabIcon} aria-hidden>{tab.icon}</Text>
         <Text style={[styles.tabName, { color: theme.colors.primary }]}>{tab.name}</Text>
       </View>
       <Text style={[styles.tabDesc, { color: theme.mutedText }]}>{tab.desc}</Text>
       <View style={styles.tips}>
         {tab.tips.map((tip, i) => (
           <View key={i} style={styles.tipRow}>
-            <Text style={[styles.tipDot, { color: tab.color }]}>•</Text>
-            <Text style={[styles.tipText, { color: theme.mutedText }]}>{tip}</Text>
+            <Text style={[styles.tipDot, { color: tab.color }]} aria-hidden>•</Text>
+            <GlyphText style={[styles.tipText, { color: theme.mutedText }]}>{tip}</GlyphText>
           </View>
         ))}
       </View>
@@ -157,15 +159,15 @@ function EndStep({ step }: { step: typeof END_OF_ROUND[0] }) {
   return (
     <View style={[styles.endCard, { borderLeftColor: step.color }]}>
       <View style={styles.endCardTop}>
-        <Text style={styles.tabIcon}>{step.icon}</Text>
+        <Text style={styles.tabIcon} aria-hidden>{step.icon}</Text>
         <Text style={[styles.tabName, { color: theme.colors.primary }]}>{step.step}</Text>
       </View>
       <Text style={[styles.tabDesc, { color: theme.mutedText }]}>{step.desc}</Text>
       <View style={styles.tips}>
         {step.tips.map((tip, i) => (
           <View key={i} style={styles.tipRow}>
-            <Text style={[styles.tipDot, { color: step.color }]}>→</Text>
-            <Text style={[styles.tipText, { color: theme.mutedText }]}>{tip}</Text>
+            <Text style={[styles.tipDot, { color: step.color }]} aria-hidden>→</Text>
+            <GlyphText style={[styles.tipText, { color: theme.mutedText }]}>{tip}</GlyphText>
           </View>
         ))}
       </View>
@@ -212,8 +214,8 @@ export default function HelpScreen() {
           <View style={{ gap: spacing[3] }}>
             {OFFLINE_TIPS.map((tip, i) => (
               <View key={i} style={styles.tipRow}>
-                <Text style={[styles.tipDot, { color: theme.colors.primary }]}>•</Text>
-                <Text style={[styles.tipText, { color: theme.mutedText }]}>{tip}</Text>
+                <Text style={[styles.tipDot, { color: theme.colors.primary }]} aria-hidden>•</Text>
+                <GlyphText style={[styles.tipText, { color: theme.mutedText }]}>{tip}</GlyphText>
               </View>
             ))}
           </View>
@@ -223,8 +225,8 @@ export default function HelpScreen() {
           <View style={{ gap: spacing[3] }}>
             {JOIN_STEPS.map((tip, i) => (
               <View key={i} style={styles.tipRow}>
-                <Text style={[styles.tipDot, { color: theme.colors.primary }]}>•</Text>
-                <Text style={[styles.tipText, { color: theme.mutedText }]}>{tip}</Text>
+                <Text style={[styles.tipDot, { color: theme.colors.primary }]} aria-hidden>•</Text>
+                <GlyphText style={[styles.tipText, { color: theme.mutedText }]}>{tip}</GlyphText>
               </View>
             ))}
           </View>

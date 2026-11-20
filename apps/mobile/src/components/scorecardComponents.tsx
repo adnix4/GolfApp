@@ -15,7 +15,7 @@ import {
   Animated, Linking, Modal, Pressable,
   StyleSheet, Text, View,
 } from 'react-native';
-import { AdaptiveLogoFrame, DialogFrame, useTheme, Heading } from '@gfp/ui';
+import { AdaptiveLogoFrame, DialogFrame, useTheme, Heading, GlyphText } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import type { ThemeContextValue } from '@gfp/ui';
 import type { ChallengeCacheDto, HoleCacheDto, SponsorCacheDto } from '@/lib/api';
@@ -215,7 +215,7 @@ export function ChallengeDetailModal({
     >
       {challenge.prizeDescription ? (
         <View style={[chalModalStyles.prizeBox, { backgroundColor: theme.colors.highlight }]}>
-          <Text style={[chalModalStyles.prizeLabel, { color: theme.highlightLabel }]}>🏆 Prize</Text>
+          <GlyphText style={[chalModalStyles.prizeLabel, { color: theme.highlightLabel }]}>🏆 Prize</GlyphText>
           <Text style={[chalModalStyles.prizeText, { color: theme.highlightLabel }]}>{challenge.prizeDescription}</Text>
         </View>
       ) : null}

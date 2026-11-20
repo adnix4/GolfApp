@@ -5,7 +5,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, MoneyInput, useClasses, Heading, LiveRegion } from '@gfp/ui';
+import { useTheme, MoneyInput, useClasses, Heading, LiveRegion, GlyphText, plainSpeech } from '@gfp/ui';
 import {
   formatCentsShort, dollarsToCents, centsToMoneyValue, useLiveAuction,
   needsPaymentMethod, minimumBidCents, isDonationItem, usesProxyBidding,
@@ -363,6 +363,13 @@ export default function AuctionScreen() {
   // exactly that moment. Matches the server (AuctionService.GetPublicItemsAsync).
   const openItems = items.filter(i => i.status === 'Open' || i.status === 'Extended');
 
+  // "You won 2 items — $40 to pay": the won-items banner, shown and spoken.
+  const wonLine = cart && cart.lines.length > 0
+    ? checkoutHeadline(cart.lines) + (cart.outstandingCents > 0
+      ? ` — ${formatCentsShort(cart.outstandingCents)} to pay`
+      : checkoutCounts(cart.lines).awaitingPickup ? ' — paid, ready to collect' : ' — paid')
+    : '';
+
   if (!eventId) return (
     <View style={styles.center}>
       <Text style={{ color: neutral.mutedText }}>No active event session.</Text>
@@ -401,13 +408,13 @@ export default function AuctionScreen() {
           style={styles.wonBanner}
           onPress={() => router.push('/auction-checkout')}
           accessibilityRole="button"
+          // One name, led by the visible action (voice control) and without the
+          // 🎉 and → that TalkBack read as "party popper" and "right arrow".
+          accessibilityLabel={`${cart.outstandingCents > 0 ? 'Check Out' : 'View'}, ${plainSpeech(wonLine)}`}
         >
           <View style={styles.paymentWarningRow}>
             <Text style={styles.wonBannerText}>
-              🎉 {checkoutHeadline(cart.lines)}
-              {cart.outstandingCents > 0
-                ? ` — ${formatCentsShort(cart.outstandingCents)} to pay`
-                : checkoutCounts(cart.lines).awaitingPickup ? ' — paid, ready to collect' : ' — paid'}
+              🎉 {wonLine}
             </Text>
             <Text style={styles.wonBannerLink}>
               {cart.outstandingCents > 0 ? 'Check Out →' : 'View →'}
@@ -422,6 +429,10 @@ export default function AuctionScreen() {
           style={styles.paymentWarning}
           onPress={() => router.push('/payment-setup')}
           accessibilityRole="button"
+          // Starts with the visible "Set Up" so voice control finds it; read whole,
+          // it was the sentence plus "Set Up right arrow".
+          accessibilityLabel="Set up a card to bid"
+          accessibilityHint="Or check in at the registration desk"
         >
           <View style={styles.paymentWarningRow}>
             <Text style={styles.paymentWarningText}>
@@ -444,7 +455,7 @@ export default function AuctionScreen() {
       {/* Live auction banner */}
       {liveSession?.isActive && (
         <View style={[styles.liveBanner]}>
-          <Text style={styles.liveBannerText}>🔴 LIVE AUCTION IN PROGRESS</Text>
+          <GlyphText style={styles.liveBannerText}>🔴 LIVE AUCTION IN PROGRESS</GlyphText>
         </View>
       )}
 
