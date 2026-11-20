@@ -414,6 +414,13 @@ const noShortMessageTimer = {
 // A <TextInput> whose label is a separate <Text> above it is announced by its
 // placeholder ("you@example.com, text field") or by nothing at all. Give the
 // field its own name: accessibilityLabel (or aria-label / aria-labelledby).
+//
+// { android: true } (the scorer app): ALSO require accessibilityLabelledBy.
+// TalkBack ignores a text field's own accessibilityLabel (content description)
+// and reads its placeholder — "$0.00, Edit box" — heard in TalkBack's speech
+// log on an Android 16 emulator, 2026-11-20. accessibilityLabelledBy points at
+// the visible label's nativeID (Android labelFor): "Edit box for Bid amount".
+// Keep accessibilityLabel too: VoiceOver and the web use it.
 const INPUTS = new Set(['TextInput', 'MoneyInput']);
 const LABEL_ATTRS = ['accessibilityLabel', 'aria-label', 'aria-labelledby', 'accessibilityLabelledBy'];
 
@@ -421,21 +428,32 @@ const inputHasLabel = {
   meta: {
     type: 'problem',
     docs: { description: 'Text fields need their own accessible name' },
-    schema: [],
+    schema: [{
+      type: 'object',
+      properties: { android: { type: 'boolean' } },
+      additionalProperties: false,
+    }],
     messages: {
       missing:
         '{{name}} has no accessibilityLabel. Screen readers read its placeholder (or nothing), not the label text above it. '
         + 'Add accessibilityLabel matching the visible label.',
+      noLabelledBy:
+        '{{name}} has no accessibilityLabelledBy. TalkBack ignores a text field\'s accessibilityLabel and reads its placeholder. '
+        + 'Give the visible label a nativeID and point accessibilityLabelledBy at it.',
     },
   },
   create(context) {
+    const android = context.options[0]?.android === true;
     return {
       JSXOpeningElement(node) {
         const name = elementName(node);
         if (!INPUTS.has(name)) return;
-        if (LABEL_ATTRS.some(a => attr(node, a))) return;
         if (hasSpread(node)) return; // a wrapper forwarding its props carries the label
-        context.report({ node, messageId: 'missing', data: { name } });
+        if (!LABEL_ATTRS.some(a => attr(node, a))) {
+          context.report({ node, messageId: 'missing', data: { name } });
+        } else if (android && !attr(node, 'accessibilityLabelledBy')) {
+          context.report({ node, messageId: 'noLabelledBy', data: { name } });
+        }
       },
     };
   },
