@@ -2,6 +2,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useTheme, Heading } from '@gfp/ui';
 import { screenStyles } from './scorecardStyles';
 import { fontSize, radius, spacing } from '@gfp/theme';
+import { useLineClamp } from '@/lib/a11y';
 
 export function ScoringHeader({
   teamName, eventName, currentHoleNumber, par, isCurrentHoleDone, roundFullySynced,
@@ -13,16 +14,17 @@ export function ScoringHeader({
   isCurrentHoleDone: boolean;
   roundFullySynced:  boolean;
 }) {
+  const clamp = useLineClamp();
   const theme = useTheme();
   return (
     <View style={[screenStyles.header, { backgroundColor: theme.colors.primary }]}>
-      <Heading level={1} style={[styles.headerTeam, { color: theme.highlightText }]} numberOfLines={1}>
+      <Heading level={1} style={[styles.headerTeam, { color: theme.highlightText }]} numberOfLines={clamp(1)}>
         {teamName}
       </Heading>
       {/* Hole counter and sync state ride the event line rather than owning a
           row in the nav bar — same information, ~30px more scroll area. */}
       <View style={styles.headerMetaRow}>
-        <Text style={[styles.headerEvent, { color: theme.highlightText }]} numberOfLines={1}>
+        <Text style={[styles.headerEvent, { color: theme.highlightText }]} numberOfLines={clamp(1)}>
           {eventName}
         </Text>
         {/* The hole the golfer is standing on, NOT their position in the

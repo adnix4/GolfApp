@@ -14,7 +14,7 @@ import {
 } from '@gfp/shared-types';
 import { useSession } from '@/lib/session';
 import { notify } from '@/lib/notify';
-import { useReducedMotion } from '@/lib/a11y';
+import { useLineClamp, useReducedMotion } from '@/lib/a11y';
 import {
   fetchAuctionItems, placeBid, pledge,
   fetchPlayerBidHistory, fetchActiveAuctionSession,
@@ -89,6 +89,7 @@ function PhotoViewer({ url, screenWidth, screenHeight, onClose }: {
 }
 
 export default function AuctionScreen() {
+  const clamp = useLineClamp();
   const theme  = useTheme();
   const c      = useClasses();
   const router = useRouter();
@@ -721,7 +722,7 @@ export default function AuctionScreen() {
             {/* Same frame as the themed dialogs: event name on a primary band,
                 the item bold on an action chip (on-colors keep it readable). */}
             <View style={[styles.sheetHeader, { backgroundColor: theme.colors.primary }]}>
-              <Text style={[styles.sheetEventName, { color: theme.buttonLabel }]} numberOfLines={1}>
+              <Text style={[styles.sheetEventName, { color: theme.buttonLabel }]} numberOfLines={clamp(1)}>
                 {session?.event.name}
               </Text>
             </View>

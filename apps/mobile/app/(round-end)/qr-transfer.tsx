@@ -11,10 +11,12 @@ import { useTheme, useClasses, Heading, GlyphText } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { buildQrPayloads, type QrScore } from '@/lib/qrPayload';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { useLineClamp } from '@/lib/a11y';
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
 
 export default function QrTransferScreen() {
+  const clamp = useLineClamp();
   const theme               = useTheme();
   const c = useClasses();
   const router              = useRouter();
@@ -81,7 +83,7 @@ export default function QrTransferScreen() {
       {/* ── HEADER ── */}
       <View style={styles.header}>
         <Heading level={1} style={styles.headerTitle}>Scorecard QR</Heading>
-        <Text style={styles.headerSub} numberOfLines={1}>{session.team.name}</Text>
+        <Text style={styles.headerSub} numberOfLines={clamp(1)}>{session.team.name}</Text>
       </View>
 
       {/* ── QR AREA ── */}

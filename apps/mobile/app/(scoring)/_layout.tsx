@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, Platform } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, Platform, type ColorValue } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Tabs, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { shouldShowTabs } from '@/lib/scoringTabs';
 import { fetchEventStatus } from '@/lib/api';
 import { isForeground, onForeground } from '@/lib/foregroundPoll';
 import { fontSize, minTouchTarget, radius, spacing } from '@gfp/theme';
+import { useLineClamp } from '@/lib/a11y';
 
 
 // Waiting-screen check for "has scoring opened yet". 15 s matches the
@@ -39,7 +40,23 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
  */
 const tabName = (label: string) => (Platform.OS === 'ios' ? undefined : label);
 
+/**
+ * A tab's visible label. Six tabs share ~68dp each; at Android's largest text
+ * size (2.0) "Scorecard" needs ~110dp and was cut to "Scor…". The label grows
+ * with the text-size setting up to 1.5×, then shrinks to fit rather than clip.
+ * The icon and the spoken name (tabName) carry the rest.
+ */
+const tabLabel = (text: string) => function TabLabel({ color }: { color: ColorValue }) {
+  return (
+    <Text style={[styles.tabLabel, { color }]} numberOfLines={1}
+      adjustsFontSizeToFit minimumFontScale={0.6} maxFontSizeMultiplier={1.5}>
+      {text}
+    </Text>
+  );
+};
+
 export default function ScoringLayout() {
+  const clamp = useLineClamp();
   const theme  = useTheme();
   const router = useRouter();
   const { session, networkTier, updateEventStatus, clearSession, completedHoles, syncedHoles } = useSession();
@@ -147,7 +164,7 @@ export default function ScoringLayout() {
     return (
       <SafeAreaView style={[styles.waitPage, { backgroundColor: theme.pageBackground }]}>
         <View style={[styles.waitHeader, { backgroundColor: theme.colors.primary }]}>
-          <Heading level={1} style={styles.waitHeaderTitle} numberOfLines={1}>
+          <Heading level={1} style={styles.waitHeaderTitle} numberOfLines={clamp(1)}>
             {session?.event.name ?? 'Tournament'}
           </Heading>
         </View>
@@ -278,7 +295,6 @@ export default function ScoringLayout() {
             borderTopColor:  '#e0e0e0',
             borderTopWidth:  1,
           },
-          tabBarLabelStyle:    { fontSize: fontSize.xxs, fontWeight: '600' },
           tabBarIconStyle:     { marginBottom: -2 },
           tabBarIcon: ({ color }) => {
             // Overridden per-screen below; this fallback should never render.
@@ -293,7 +309,7 @@ export default function ScoringLayout() {
           name="scorecard"
           options={{
             title: 'Scorecard',
-            tabBarLabel: 'Scorecard',
+            tabBarLabel: tabLabel('Scorecard'),
             tabBarAccessibilityLabel: tabName('Scorecard'),
             href: isGuest ? null : undefined,
             tabBarIcon: ({ color, focused }) => (
@@ -305,7 +321,7 @@ export default function ScoringLayout() {
           name="leaderboard"
           options={{
             title: 'Standings',
-            tabBarLabel: 'Standings',
+            tabBarLabel: tabLabel('Standings'),
             tabBarAccessibilityLabel: tabName('Standings'),
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={22} color={color as string} />
@@ -316,7 +332,7 @@ export default function ScoringLayout() {
           name="team"
           options={{
             title: 'Team',
-            tabBarLabel: 'Team',
+            tabBarLabel: tabLabel('Team'),
             tabBarAccessibilityLabel: tabName('Team'),
             href: isGuest ? null : undefined,
             tabBarIcon: ({ color, focused }) => (
@@ -328,7 +344,7 @@ export default function ScoringLayout() {
           name="auction"
           options={{
             title: 'Auction',
-            tabBarLabel: 'Auction',
+            tabBarLabel: tabLabel('Auction'),
             tabBarAccessibilityLabel: tabName('Auction'),
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'pricetag' : 'pricetag-outline'} size={22} color={color as string} />
@@ -339,7 +355,7 @@ export default function ScoringLayout() {
           name="league"
           options={{
             title: 'League Preview',
-            tabBarLabel: 'League',
+            tabBarLabel: tabLabel('League'),
             tabBarAccessibilityLabel: tabName('League'),
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'ribbon' : 'ribbon-outline'} size={22} color={color as string} />
@@ -353,7 +369,7 @@ export default function ScoringLayout() {
           name="help"
           options={{
             title: 'Help',
-            tabBarLabel: 'Help',
+            tabBarLabel: tabLabel('Help'),
             tabBarAccessibilityLabel: tabName('Help'),
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'help-circle' : 'help-circle-outline'} size={22} color={color as string} />
@@ -425,6 +441,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: spacing[3],
   },
   checkBtnText: { fontSize: fontSize.lg, fontWeight: '600' },
+
+  tabLabel:     { fontSize: fontSize.xxs, fontWeight: '600', textAlign: 'center' },
 
   leaveBtn:     { minHeight: minTouchTarget, paddingHorizontal: spacing[4], justifyContent: 'center' },
   leaveBtnText: { fontSize: fontSize.md, fontWeight: '500' },

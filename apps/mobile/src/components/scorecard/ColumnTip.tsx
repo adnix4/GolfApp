@@ -25,7 +25,7 @@ export function ColumnHeader({ abbr, name, style, onTip }: {
   return (
     <Text
       style={[s.cell, style]}
-      numberOfLines={1}
+      numberOfLines={1} adjustsFontSizeToFit
       onPress={() => onTip(name)}
       accessibilityRole="button"
       accessibilityLabel={name}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AccessibilityInfo, Platform } from 'react-native';
+import { AccessibilityInfo, Platform, useWindowDimensions } from 'react-native';
 import { MIN_MESSAGE_MS } from '@gfp/shared-types';
 
 export { MIN_MESSAGE_MS };
@@ -61,6 +61,29 @@ function useA11ySetting(setting: A11ySetting): boolean {
 /** The OS "Reduce Motion" / "Remove animations" setting. Swap movement for a fade when true. */
 export function useReducedMotion(): boolean {
   return useA11ySetting('reduceMotion');
+}
+
+/**
+ * The OS text size at or above which layouts reflow instead of clipping.
+ * Android's largest setting is 2.0 and iOS accessibility sizes go past 3; at
+ * 2.0 the scorer cut tab labels to "Scor…", team names to "Reach .." and
+ * split "BACK" across two lines (WCAG 1.4.4, measured on an Android 16 emulator).
+ */
+export const LARGE_TEXT_SCALE = 1.3;
+
+/** True when the golfer has turned text size up past LARGE_TEXT_SCALE. */
+export function useLargeText(): boolean {
+  return useWindowDimensions().fontScale >= LARGE_TEXT_SCALE;
+}
+
+/**
+ * numberOfLines for text that is content, not chrome (a name, an email): kept
+ * to `n` lines at normal sizes, free to wrap once text is enlarged, so nothing
+ * is cut off at 200%.
+ */
+export function useLineClamp(): (n: number) => number | undefined {
+  const large = useLargeText();
+  return n => (large ? undefined : n);
 }
 
 /** VoiceOver or TalkBack is running (always false on web — see watchA11ySetting). */
