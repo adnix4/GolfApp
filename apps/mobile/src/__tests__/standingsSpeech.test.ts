@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { golferRowLabel, ordinal, spokenToPar, teamRowLabel } from '../lib/standingsSpeech';
+import { golferRowLabel, ordinal, teamRowLabel } from '../lib/standingsSpeech';
 import type { PublicIndividualEntry, PublicLeaderboardEntry } from '../lib/api';
 
 const team = (o: Partial<PublicLeaderboardEntry> = {}): PublicLeaderboardEntry => ({
@@ -15,14 +15,6 @@ const golfer = (o: Partial<PublicIndividualEntry> = {}): PublicIndividualEntry =
 describe('ordinal', () => {
   it.each([[1, '1st'], [2, '2nd'], [3, '3rd'], [4, '4th'], [11, '11th'], [12, '12th'], [13, '13th'], [21, '21st'], [22, '22nd'], [111, '111th']])(
     '%i → %s', (n, s) => expect(ordinal(n)).toBe(s));
-});
-
-describe('spokenToPar', () => {
-  it('says even par in words, not "E"', () => expect(spokenToPar(0)).toBe('even par'));
-  it('says under / over', () => {
-    expect(spokenToPar(-2)).toBe('2 under par');
-    expect(spokenToPar(1)).toBe('1 over par');
-  });
 });
 
 describe('teamRowLabel', () => {

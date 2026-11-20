@@ -19,7 +19,7 @@ import { AdaptiveLogoFrame, DialogFrame, useTheme, Heading } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import type { ThemeContextValue } from '@gfp/ui';
 import type { ChallengeCacheDto, HoleCacheDto, SponsorCacheDto } from '@/lib/api';
-import { formatToPar, toParColor } from '@/lib/toPar';
+import { chipSpeech, formatToPar, toParColor } from '@/lib/toPar';
 import { tickHaptic } from '@/lib/haptics';
 import { announce, useReducedMotion } from '@/lib/a11y';
 import { fontSize, radius, spacing } from '@gfp/theme';
@@ -40,7 +40,9 @@ export function HoleInfoChip({ label, value, toPar }: {
   const showToPar = toPar !== undefined;
 
   return (
-    <View style={[infoChipStyles.chip, { backgroundColor: theme.colors.surface }]}>
+    // One stop for a screen reader ("Hole handicap 2"), not "HCP", "2".
+    <View style={[infoChipStyles.chip, { backgroundColor: theme.colors.surface }]}
+      accessible accessibilityLabel={chipSpeech(label, value, showToPar ? toPar : undefined)}>
       <Text style={[infoChipStyles.label, { color: theme.mutedText }]}>{label}</Text>
       <View style={infoChipStyles.valueRow}>
         <Text style={[infoChipStyles.value, { color: theme.colors.primary }]}>{value}</Text>
@@ -71,7 +73,8 @@ export function ScoreChip({ grossScore, par }: { grossScore: number | null; par:
   const relColor = toParColor(rel, theme.mutedText);
 
   return (
-    <View style={[scoreChipStyles.chip, { backgroundColor: theme.colors.primary + '12', borderColor: theme.colors.primary + '40' }]}>
+    <View style={[scoreChipStyles.chip, { backgroundColor: theme.colors.primary + '12', borderColor: theme.colors.primary + '40' }]}
+      accessible accessibilityLabel={chipSpeech('Score', grossScore !== null ? String(grossScore) : '—', rel)}>
       <Text style={[scoreChipStyles.label, { color: theme.mutedText }]}>Score</Text>
       {/* To-par rides beside the number on its baseline, the way a scoreboard
           reads it — and one line shorter than stacking it underneath. */}
@@ -397,7 +400,11 @@ export function ShotColumn({
   const btnTextStyle = { fontSize: Math.round(size.button * 0.55), lineHeight: Math.round(size.button * 0.64) };
 
   return (
-    <View style={[shotColStyles.col, { gap: size.gap }]}>
+    // collapsable={false}: kept as a real view so Android reads this column's
+    // +, value and − together. Flattened, its buttons became siblings of every
+    // other column's and of the golfer's name, and TalkBack (which orders
+    // siblings top-to-bottom) read all the + buttons before the name.
+    <View style={[shotColStyles.col, { gap: size.gap }]} collapsable={false}>
       {showLabel && (
         <Text style={[shotColStyles.label, { color: theme.mutedText, fontSize: size.labelFont }]}>{label}</Text>
       )}
