@@ -610,7 +610,7 @@ export default function AuctionScreen() {
                 Min bid: {fmt(minimumBidCents(currentLiveItem))}
               </Text>
               <View style={styles.bidRow}>
-                <MoneyInput
+                <MoneyInput accessibilityLabel="Bid amount"
                   style={[styles.bidInput, { borderColor: theme.colors.accent }]}
                   value={bidAmt}
                   onChangeText={t => { setBidAmt(t); setBidError(null); }}
@@ -628,9 +628,9 @@ export default function AuctionScreen() {
                   {bidding ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.bidBtnText}>Bid</Text>}
                 </Pressable>
               </View>
-              {bidError && (
-                <Text style={styles.bidError} accessibilityRole="alert">{bidError}</Text>
-              )}
+              <LiveRegion message={bidError}>
+                {bidError && <Text style={styles.bidError}>{bidError}</Text>}
+              </LiveRegion>
             </View>
           ) : (
             <View style={styles.center}>
@@ -780,7 +780,7 @@ export default function AuctionScreen() {
                 )}
 
                 <View style={styles.bidRow}>
-                  <MoneyInput
+                  <MoneyInput accessibilityLabel={isDonationItem(liveSelectedItem.auctionType) ? 'Pledge amount' : 'Bid amount'}
                     style={[styles.bidInput, { borderColor: theme.colors.accent, flex: 1 }]}
                     value={bidAmt}
                     onChangeText={t => { setBidAmt(t); setBidError(null); }}
@@ -803,9 +803,9 @@ export default function AuctionScreen() {
                   </Pressable>
                 </View>
 
-                {bidError && (
-                  <Text style={styles.bidError} accessibilityRole="alert">{bidError}</Text>
-                )}
+                <LiveRegion message={bidError}>
+                  {bidError && <Text style={styles.bidError}>{bidError}</Text>}
+                </LiveRegion>
 
                 <Pressable accessibilityRole="button"
                   style={[styles.cancelBtn]}

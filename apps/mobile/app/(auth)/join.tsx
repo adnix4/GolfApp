@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useObserve } from 'expo-observe';
-import { useTheme, useClasses, Heading } from '@gfp/ui';
+import { useTheme, useClasses, Heading, LiveRegion } from '@gfp/ui';
 import { FORMAT_LABELS, formatDate } from '@gfp/shared-types';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useSession } from '@/lib/session';
@@ -242,11 +242,13 @@ export default function JoinScreen() {
               <Text style={{ fontWeight: '700' }}>Check Again</Text> on the day of the event.
             </Text>
 
-            {error && (
-              <View style={c.errorBox}>
-                <Text style={c.errorText}>{error}</Text>
-              </View>
-            )}
+            <LiveRegion message={error}>
+              {error && (
+                <View style={c.errorBox}>
+                  <Text style={c.errorText}>{error}</Text>
+                </View>
+              )}
+            </LiveRegion>
 
             <View style={[styles.waitingInfoBox, { backgroundColor: theme.colors.primary + '0d', borderColor: theme.colors.primary + '33' }]}>
               <Text style={[styles.waitingInfoLabel, { color: theme.colors.primary }]}>Your registration</Text>
@@ -315,11 +317,13 @@ export default function JoinScreen() {
               Enter it below to verify it's really you.
             </Text>
 
-            {error && (
-              <View style={c.errorBox}>
-                <Text style={c.errorText}>{error}</Text>
-              </View>
-            )}
+            <LiveRegion message={error}>
+              {error && (
+                <View style={c.errorBox}>
+                  <Text style={c.errorText}>{error}</Text>
+                </View>
+              )}
+            </LiveRegion>
 
             {resent && !error && (
               <View style={styles.resentBox}>
@@ -328,7 +332,7 @@ export default function JoinScreen() {
             )}
 
             <Text style={c.fieldLabel}>Verification Code</Text>
-            <TextInput
+            <TextInput accessibilityLabel="Verification Code"
               style={[c.inputLg, styles.codeInput]}
               value={verifyCode}
               onChangeText={v => { setVerifyCode(v.replace(/[^0-9]/g, '')); setResent(false); }}
@@ -430,16 +434,18 @@ export default function JoinScreen() {
               Use the email address you registered with.
             </Text>
 
-            {error && (
-              <View style={c.errorBox}>
-                <Text style={c.errorText}>{error}</Text>
-              </View>
-            )}
+            <LiveRegion message={error}>
+              {error && (
+                <View style={c.errorBox}>
+                  <Text style={c.errorText}>{error}</Text>
+                </View>
+              )}
+            </LiveRegion>
 
             {!selected && (
               <>
                 <Text style={c.fieldLabel}>Event Code</Text>
-                <TextInput
+                <TextInput accessibilityLabel="Event Code"
                   style={c.inputLg}
                   value={eventCode}
                   onChangeText={v => setEventCode(v.toUpperCase())}
@@ -453,7 +459,7 @@ export default function JoinScreen() {
             )}
 
             <Text style={c.fieldLabel}>Your Email</Text>
-            <TextInput
+            <TextInput accessibilityLabel="Your Email"
               style={c.inputLg}
               value={email}
               onChangeText={setEmail}
@@ -622,13 +628,15 @@ export default function JoinScreen() {
 
         {showManual && (
           <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-            {error && (
-              <View style={c.errorBox}>
-                <Text style={c.errorText}>{error}</Text>
-              </View>
-            )}
+            <LiveRegion message={error}>
+              {error && (
+                <View style={c.errorBox}>
+                  <Text style={c.errorText}>{error}</Text>
+                </View>
+              )}
+            </LiveRegion>
             <Text style={c.fieldLabel}>Event Code</Text>
-            <TextInput
+            <TextInput accessibilityLabel="Event Code"
               style={c.inputLg}
               value={eventCode}
               onChangeText={v => { setEventCode(v.toUpperCase()); setError(null); }}

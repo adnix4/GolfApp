@@ -206,6 +206,7 @@ export function PlayerShotsCard({
                 theme={theme}
                 size={shotSize}
                 showLabel={false}
+                who={player.firstName}
               />
               <View style={[styles.colDivider, { backgroundColor: theme.colors.accent + '22', height: layout.shotButton * 1.8 }]} />
               <ShotColumn
@@ -217,6 +218,7 @@ export function PlayerShotsCard({
                 theme={theme}
                 size={shotSize}
                 showLabel={false}
+                who={player.firstName}
               />
               <View style={[styles.colDivider, { backgroundColor: theme.colors.accent + '22', height: layout.shotButton * 1.8 }]} />
               <ShotColumn
@@ -228,6 +230,7 @@ export function PlayerShotsCard({
                 theme={theme}
                 size={shotSize}
                 showLabel={false}
+                who={player.firstName}
               />
             </View>}
           </View>

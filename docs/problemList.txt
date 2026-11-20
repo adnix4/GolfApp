@@ -1246,6 +1246,36 @@ AX6. DEVICE PASS (MCAG 4.1.1, 3.3.2, 2.1.1, 3.1.2-3.1.5, 3.5, 1.1.6, 1.4.4, 2.1.
         Also decide 4.1.2 (display modes): the apps don't follow system dark
         mode by design (per-event branding) — a brand-derived dark variant is
         an option, not a defect.
+        RUN SHEET 2026-11-19: https://claude.ai/artifact/3ALopw4VePj8chEuHxUfHU
+        — 29 checks (do / what you should hear), Pass/Fail/N/A + notes per
+        phone, saved so Claude can read the results back. Setup section covers
+        the first EAS preview build (D5), seeding, and the screen-reader and
+        text-size settings.
+        FIXED BEFORE THE DEVICE PASS (found while writing the run sheet):
+        - Text fields had no names of their own: the label is a separate <Text>,
+          so VoiceOver/TalkBack read the placeholder ("you@example.com",
+          "bullet bullet…" on the code field). Every scorer field now has an
+          accessibilityLabel (join 4, register 13 incl. "Teammate N …", edit
+          profile, bid/pledge amount). Lint gfp-a11y/input-has-label (mobile +
+          ui).
+        - Join/Register errors were plain text and bid errors used
+          accessibilityRole="alert", which neither phone announces on its own.
+          All now sit in an always-mounted LiveRegion. LiveRegion no longer
+          speaks text that was already there when it mounted (aria-live
+          semantics).
+        - Shot steppers said "Increase Drive" for every golfer and never spoke
+          the new count. Now "Increase Ava's drive", the count reads "Ava's
+          drive: 2", and a tap speaks the new value (announce, only after a tap
+          in that column — moving holes stays quiet; a refused tap says
+          nothing).
+        VERIFIED (mobile web export, real API): join fields named, wrong event
+        code and wrong verification code each land in a live region that was
+        mounted before the error; 12 shot buttons with 12 distinct names;
+        "Ava's drive: none" -> "Ava's drive: 1" after a tap; bid field named
+        "Bid amount"; no page errors. What the phones SAY is the device pass.
+        FOLLOW-UP: the admin has ~70 text fields without their own name (same
+        label-above pattern; react-native-web exposes the placeholder). The
+        lint rule is scoped to the scorer until those are labelled.
 
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done.
