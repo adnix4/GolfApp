@@ -12,6 +12,7 @@ import { useSession } from '@/lib/session';
 import { joinEvent, fetchActiveEvents, type ActiveEventSummary, type JoinEventResponse } from '@/lib/api';
 import { registerForPushNotifications } from '@/lib/pushNotifications';
 import { fontSize, minTouchTarget, radius, spacing, status, neutral } from '@gfp/theme';
+import { useLineClamp } from '@/lib/a11y';
 
 type Step = 'pick' | 'join' | 'verify' | 'waiting';
 
@@ -27,6 +28,7 @@ function formatEventDate(iso: string | null): string {
 }
 
 export default function JoinScreen() {
+  const clamp = useLineClamp();
   const theme  = useTheme();
   const c      = useClasses();
   const router = useRouter();
@@ -588,11 +590,11 @@ export default function JoinScreen() {
                   <Text style={[styles.eventName, { color: theme.colors.primary }]} numberOfLines={2}>
                     {evt.name}
                   </Text>
-                  <Text style={[styles.eventOrg, { color: theme.mutedText }]} numberOfLines={1}>
+                  <Text style={[styles.eventOrg, { color: theme.mutedText }]} numberOfLines={clamp(1)}>
                     {evt.orgName}
                   </Text>
                   {meta.length > 0 && (
-                    <Text style={[styles.eventMeta, { color: theme.mutedText }]} numberOfLines={1}>
+                    <Text style={[styles.eventMeta, { color: theme.mutedText }]} numberOfLines={clamp(1)}>
                       {meta}
                     </Text>
                   )}

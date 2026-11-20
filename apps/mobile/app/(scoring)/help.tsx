@@ -4,6 +4,7 @@ import { useTheme, useClasses, Heading, GlyphText } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { LeaveEventButton } from '@/components/LeaveEventButton';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { useLineClamp } from '@/lib/a11y';
 
 // ── Content ───────────────────────────────────────────────────────────────────
 
@@ -178,6 +179,7 @@ function EndStep({ step }: { step: typeof END_OF_ROUND[0] }) {
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function HelpScreen() {
+  const clamp = useLineClamp();
   const theme = useTheme();
   const c = useClasses();
   const { session } = useSession();
@@ -191,7 +193,7 @@ export default function HelpScreen() {
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <Heading level={1} style={styles.headerTitle}>Help</Heading>
         {session?.event && (
-          <Text style={[styles.headerEvent, { color: 'rgba(255,255,255,0.75)' }]} numberOfLines={1}>
+          <Text style={[styles.headerEvent, { color: 'rgba(255,255,255,0.75)' }]} numberOfLines={clamp(1)}>
             {session.event.name}
           </Text>
         )}

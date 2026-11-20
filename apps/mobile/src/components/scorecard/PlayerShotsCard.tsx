@@ -6,6 +6,7 @@ import { isAdminTotal, shotTotal, toBreakdown } from '@/lib/holeUtils';
 import type { ScorecardLayout } from '@/lib/scorecardLayout';
 import { ShotColumn, type ShotColumnSize } from '@/components/scorecardComponents';
 import { fontSize, minTouchTarget, radius, spacing } from '@gfp/theme';
+import { useLineClamp } from '@/lib/a11y';
 
 export type ShotType = 'drive' | 'approach' | 'putt';
 
@@ -32,6 +33,7 @@ export function PlayerShotsCard({
   /** Edit on an organizer-entered golfer: reopen the hole with that total as steppers. */
   onEditAdminTotal:  (playerId: string) => void;
 }) {
+  const clamp = useLineClamp();
   const theme = useTheme();
   return (
     <View style={[
@@ -62,7 +64,9 @@ export function PlayerShotsCard({
                 {i > 0 && <View style={styles.colHeaderSpacer} />}
                 <Text
                   style={[styles.colHeaderText, { color: theme.mutedText, fontSize: layout.shotLabelFont }]}
-                  numberOfLines={1}
+                  // A column name, not content: at large text it shrinks to fit the
+                  // button column rather than clip to "APPR…".
+                  numberOfLines={1} adjustsFontSizeToFit
                 >
                   {l}
                 </Text>
@@ -105,7 +109,7 @@ export function PlayerShotsCard({
               accessibilityRole="button"
               accessibilityLabel={`Enter shots for ${player.firstName} ${player.lastName}`}
             >
-              <Text style={[styles.collapsedName, { color: theme.colors.primary }]} numberOfLines={1}>
+              <Text style={[styles.collapsedName, { color: theme.colors.primary }]} numberOfLines={clamp(1)}>
                 {player.firstName} {player.lastName}
               </Text>
               {adminTotal && (
@@ -196,7 +200,7 @@ export function PlayerShotsCard({
               </View>
               <Text
                 style={[styles.playerName, { color: theme.colors.primary, fontSize: layout.nameFont }]}
-                numberOfLines={1}
+                numberOfLines={clamp(1)}
               >
                 {player.firstName}
               </Text>

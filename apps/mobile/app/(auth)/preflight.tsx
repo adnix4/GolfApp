@@ -11,6 +11,7 @@ import { useSession } from '@/lib/session';
 import { checkConnectivity } from '@/lib/api';
 import { formatTime } from '@gfp/shared-types';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { useLineClamp } from '@/lib/a11y';
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
 
@@ -75,6 +76,7 @@ const itemStyles = StyleSheet.create({
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
 
 export default function PreflightScreen() {
+  const clamp = useLineClamp();
   const theme  = useTheme();
   const c      = useClasses();
   const router = useRouter();
@@ -168,7 +170,7 @@ export default function PreflightScreen() {
     <SafeAreaView style={c.screen}>
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <Heading level={1} style={[styles.headerTitle, { color: theme.highlightText }]}>Pre-Flight Check</Heading>
-        <Text style={[styles.headerSub,   { color: theme.highlightText }]} numberOfLines={1}>
+        <Text style={[styles.headerSub,   { color: theme.highlightText }]} numberOfLines={clamp(1)}>
           {session.event.name}
         </Text>
       </View>

@@ -8,7 +8,7 @@ import { useTheme, useClasses, Heading, GlyphText } from '@gfp/ui';
 import { useLiveLeaderboard, type HoleInOneAlert as HoleInOneData } from '@gfp/shared-types';
 import { formatRelativeAge, resolveLeaderboardState, type LeaderboardState } from '@/lib/leaderboardState';
 import { useSession } from '@/lib/session';
-import { announce, autoDismissMs, useScreenReaderEnabled } from '@/lib/a11y';
+import { announce, autoDismissMs, useLargeText, useScreenReaderEnabled } from '@/lib/a11y';
 import { holeInOneAlertHaptic } from '@/lib/haptics';
 import { fetchLeaderboard } from '@/lib/api';
 import type { PublicLeaderboardEntry, PublicIndividualEntry } from '@/lib/api';
@@ -42,6 +42,7 @@ const StandingRow = memo(function StandingRow({
   entry, stableford,
 }: { entry: PublicLeaderboardEntry; stableford: boolean }) {
   const theme = useTheme();
+  const large = useLargeText();
   // Stableford ranks on points (per golfer, summed — U8), so that's the
   // headline number; everything else ranks on to-par.
   const scored = entry.holesComplete > 0;
@@ -60,6 +61,12 @@ const StandingRow = memo(function StandingRow({
   const back = entry.holesComplete === 0 || entry.strokesBack === 0 ? '—' : `${entry.strokesBack}`;
   const bestHole  = entry.bestHole == null ? '—' : `${entry.bestHole}`;
   const bestScore = entry.bestHoleScore == null ? '—' : `${entry.bestHoleScore}`;
+
+  if (large) return (
+    <StackedRow a11y={rowA11y(teamRowLabel(entry, stableford))} rank={entry.rank} name={entry.teamName}
+      toPar={toParLabel} toParColor={toParColor}
+      stats={[`Back ${back}`, `Best ${bestHole}`, `Score ${bestScore}`, `Thru ${thru}`]} />
+  );
 
   return (
     <View style={[rowStyles.row, { borderBottomColor: '#f0f0f0' }]} {...rowA11y(teamRowLabel(entry, stableford))}>
@@ -90,6 +97,13 @@ const GolferRow = memo(function GolferRow({ entry }: { entry: PublicIndividualEn
                       theme.colors.primary;
   const back = !scored || entry.strokesBack === 0 ? '—' : `${entry.strokesBack}`;
   const thru = !scored ? '—' : entry.isComplete ? 'F' : `${entry.holesComplete}`;
+  const large = useLargeText();
+
+  if (large) return (
+    <StackedRow a11y={rowA11y(golferRowLabel(entry))} rank={entry.rank} name={entry.playerName} sub={entry.teamName}
+      toPar={toParLabel} toParColor={toParColor}
+      stats={[`Back ${back}`, `Gross ${scored ? entry.grossTotal : '—'}`, `Thru ${thru}`]} />
+  );
 
   return (
     <View style={[rowStyles.row, { borderBottomColor: '#f0f0f0' }]} {...rowA11y(golferRowLabel(entry))}>
@@ -106,6 +120,35 @@ const GolferRow = memo(function GolferRow({ entry }: { entry: PublicIndividualEn
   );
 });
 
+/**
+ * One standings row at large text sizes (useLargeText). The table's fixed-width
+ * number columns take ~280dp, so at 2.0 the header split mid-word ("BA/CK") and
+ * team names were cut to "Reach ..". Here the name wraps on its own line and
+ * each number carries its column name.
+ */
+function StackedRow({ a11y, rank, name, sub, toPar, toParColor, stats }: {
+  a11y: object; rank: number; name: string; sub?: string;
+  toPar: string; toParColor: string; stats: string[];
+}) {
+  const theme = useTheme();
+  return (
+    <View style={[rowStyles.row, rowStyles.stacked, { borderBottomColor: '#f0f0f0' }]} {...a11y}>
+      <View style={rowStyles.stackedTop}>
+        <Text style={[rowStyles.stackedRank, { color: theme.mutedText }]}>{rank || '—'}</Text>
+        <View style={rowStyles.stackedName}>
+          <Text style={[rowStyles.golfer, { color: theme.colors.primary }]}>{name}</Text>
+          {sub ? <Text style={[rowStyles.golferTeam, { color: theme.mutedText }]}>{sub}</Text> : null}
+        </View>
+        <Text style={[rowStyles.stackedToPar, { color: toParColor }]}>{toPar}</Text>
+      </View>
+      {/* One item per stat, so a line breaks between stats, never inside one. */}
+      <View style={rowStyles.stackedStats}>
+        {stats.map(s => <Text key={s} style={[rowStyles.stackedStat, { color: theme.mutedText }]}>{s}</Text>)}
+      </View>
+    </View>
+  );
+}
+
 const rowStyles = StyleSheet.create({
   row:   { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], paddingHorizontal: spacing[4], borderBottomWidth: StyleSheet.hairlineWidth },
   rank:  { width: 32,  fontSize: fontSize.sm, fontWeight: '700', textAlign: 'center' },
@@ -116,12 +159,22 @@ const rowStyles = StyleSheet.create({
   thru:  { width: 36,  fontSize: fontSize.sm, textAlign: 'right', marginLeft: spacing[2] },
   golfer:     { fontSize: fontSize.md, fontWeight: '600' },
   golferTeam: { fontSize: fontSize.xs },
+  stacked:      { flexDirection: 'column', alignItems: 'stretch' },
+  stackedTop:   { flexDirection: 'row', alignItems: 'flex-start' },
+  stackedRank:  { minWidth: 32, fontSize: fontSize.sm, fontWeight: '700' },
+  stackedName:  { flex: 1, marginHorizontal: spacing[2] },
+  stackedToPar: { fontSize: fontSize.lg, fontWeight: '800' },
+  stackedStats: { flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing[4], marginTop: spacing[1], marginLeft: 32 + spacing[2] },
+  stackedStat:  { fontSize: fontSize.sm },
 });
 
 // ── HEADER ROW ────────────────────────────────────────────────────────────────
 
 function TableHeader({ stableford = false, golfers = false }: { stableford?: boolean; golfers?: boolean }) {
   const theme = useTheme();
+  // Stacked rows name each number themselves; there are no columns to head.
+  const large = useLargeText();
+  if (large) return null;
   return (
     <View style={[rowStyles.row, { backgroundColor: theme.colors.highlight }]} {...HIDDEN_ON_PHONES}>
       <Text style={[rowStyles.rank,  headerStyles.th, { color: theme.highlightLabel }]}>#</Text>

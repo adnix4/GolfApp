@@ -9,6 +9,7 @@ import { InviteTeammateButton } from '@/components/InviteTeammateButton';
 import type { PlayerCacheDto } from '@/lib/api';
 import { formatTime } from '@gfp/shared-types';
 import { fontSize, minTouchTarget, radius, spacing } from '@gfp/theme';
+import { useLineClamp } from '@/lib/a11y';
 
 // ── PLAYER ROW ────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,7 @@ function PlayerRow({
   theme:   ReturnType<typeof useTheme>;
   onEdit?: () => void;
 }) {
+  const clamp = useLineClamp();
   return (
     <View style={rowStyles.row}>
       {/* Decorative: the full name follows. Read aloud it was "AS" as a word. */}
@@ -40,7 +42,7 @@ function PlayerRow({
             </View>
           )}
         </View>
-        <Text style={[rowStyles.email, { color: theme.mutedText }]} numberOfLines={1}>
+        <Text style={[rowStyles.email, { color: theme.mutedText }]} numberOfLines={clamp(1)}>
           {player.email}
         </Text>
       </View>
@@ -74,6 +76,7 @@ const rowStyles = StyleSheet.create({
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
 
 export default function TeamScreen() {
+  const clamp = useLineClamp();
   const theme   = useTheme();
   const c = useClasses();
   const router  = useRouter();
@@ -101,10 +104,10 @@ export default function TeamScreen() {
 
         {/* ── TEAM HEADER ── */}
         <View style={[styles.teamCard, { backgroundColor: theme.colors.primary }]}>
-          <Heading level={1} style={[styles.teamName,  { color: theme.highlightText }]} numberOfLines={2}>
+          <Heading level={1} style={[styles.teamName,  { color: theme.highlightText }]} numberOfLines={clamp(2)}>
             {team.name}
           </Heading>
-          <Text style={[styles.eventName, { color: theme.highlightText }]} numberOfLines={1}>
+          <Text style={[styles.eventName, { color: theme.highlightText }]} numberOfLines={clamp(1)}>
             {event.name}
           </Text>
         </View>
