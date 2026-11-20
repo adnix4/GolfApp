@@ -289,23 +289,27 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
           )}
           <View style={styles.nameRow}>
             <TextInput
+              accessibilityLabel="First name"
               style={[c.input, styles.halfInput, { borderColor: '#ccc' }]}
               value={firstName} onChangeText={v => { setFirstName(v); if (error) setError(null); }}
               placeholder="First *" placeholderTextColor={neutral.placeholder} editable={!loading}
             />
             <TextInput
+              accessibilityLabel="Last name"
               style={[c.input, styles.halfInput, { borderColor: '#ccc' }]}
               value={lastName} onChangeText={v => { setLastName(v); if (error) setError(null); }}
               placeholder="Last *" placeholderTextColor={neutral.placeholder} editable={!loading}
             />
           </View>
           <TextInput
+            accessibilityLabel="Email"
             style={[c.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
             value={email} onChangeText={v => { setEmail(v); if (error) setError(null); }}
             placeholder="email@example.com *" placeholderTextColor={neutral.placeholder}
             keyboardType="email-address" autoCapitalize="none" editable={!loading}
           />
           <TextInput
+            accessibilityLabel="Phone"
             style={[c.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
             value={phone}
             onChangeText={v => { setPhone(fmtPhoneInput(digitsOnly(v))); if (error) setError(null); }}
@@ -313,6 +317,7 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
             keyboardType="phone-pad" editable={!loading}
           />
           <TextInput
+            accessibilityLabel="Handicap index"
             style={[c.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
             value={handicap} onChangeText={v => { setHandicap(v.replace(/[^0-9.]/g, '')); if (error) setError(null); }}
             placeholder="Handicap index (optional)" placeholderTextColor={neutral.placeholder}

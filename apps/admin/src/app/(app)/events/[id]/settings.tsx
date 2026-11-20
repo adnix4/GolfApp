@@ -173,6 +173,7 @@ export default function EventSettingsScreen() {
         </Text>
         <View style={styles.extractRow}>
           <TextInput
+            accessibilityLabel="Organization website"
             style={[c.input, { flex: 1 }]}
             value={websiteUrl}
             onChangeText={setWebsiteUrl}
@@ -246,6 +247,7 @@ export default function EventSettingsScreen() {
 
           <Text style={[c.fieldLabel, { marginTop: spacing[3] }]}>Or paste a URL</Text>
           <TextInput
+            accessibilityLabel="Logo URL"
             style={c.input}
             value={logoUrl}
             onChangeText={setLogoUrl}
@@ -262,6 +264,7 @@ export default function EventSettingsScreen() {
         <View style={styles.fieldWrap}>
           <Text style={c.fieldLabel}>Mission Statement</Text>
           <TextInput
+            accessibilityLabel="Mission Statement"
             style={[styles.textArea, { borderColor: theme.colors.accent }]}
             value={mission}
             onChangeText={setMission}

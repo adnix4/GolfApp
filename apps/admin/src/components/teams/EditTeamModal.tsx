@@ -62,6 +62,7 @@ export function EditTeamModal({ visible, eventId, team, onClose, onSaved }: Edit
 
           <Text style={c.fieldLabel}>Team Name *</Text>
           <TextInput
+            accessibilityLabel="Team Name"
             style={c.input}
             value={name}
             onChangeText={v => { setName(v); if (error) setError(null); }}
@@ -73,6 +74,7 @@ export function EditTeamModal({ visible, eventId, team, onClose, onSaved }: Edit
 
           <Text style={c.fieldLabel}>Max Players (1–8)</Text>
           <TextInput
+            accessibilityLabel="Max Players"
             style={c.input}
             value={maxPlayers}
             onChangeText={v => { setMaxPlayers(v.replace(/[^0-9]/g, '')); if (error) setError(null); }}

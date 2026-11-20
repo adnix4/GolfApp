@@ -126,6 +126,7 @@ export default function LeaguesScreen() {
       >
             <Text style={c.fieldLabel}>League Name</Text>
             <TextInput
+              accessibilityLabel="League Name"
               style={c.input}
               value={name} onChangeText={setName} placeholder="Tuesday Night League"
               placeholderTextColor={neutral.placeholder}
@@ -165,6 +166,7 @@ export default function LeaguesScreen() {
               <View style={styles.half}>
                 <Text style={c.fieldLabel}>HC Cap</Text>
                 <TextInput
+                  accessibilityLabel="Handicap cap"
                   style={c.input}
                   value={hcCap} onChangeText={setHcCap} keyboardType="numeric"
                   placeholderTextColor={neutral.placeholder}
@@ -172,7 +174,7 @@ export default function LeaguesScreen() {
               </View>
               <View style={styles.half}>
                 <Text style={c.fieldLabel}>Dues ($)</Text>
-                <MoneyInput
+                <MoneyInput accessibilityLabel="Dues, dollars"
                   style={c.input}
                   value={dues} onChangeText={setDues} placeholder="$0.00"
                   placeholderTextColor={neutral.placeholder}

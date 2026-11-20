@@ -242,6 +242,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
               <>
                 <Text style={c.fieldLabel}>Hole Number *</Text>
                 <TextInput
+                  accessibilityLabel="Hole Number"
                   style={c.input}
                   value={holeNumber}
                   onChangeText={setHoleNumber}
@@ -273,6 +274,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
               ))}
             </View>
             <TextInput
+              accessibilityLabel="Challenge description"
               style={[c.input, { marginTop: spacing[2] }]}
               value={description}
               onChangeText={setDescription}
@@ -283,6 +285,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
   
             <Text style={c.fieldLabel}>Sponsor (optional)</Text>
             <TextInput
+              accessibilityLabel="Sponsor"
               style={c.input}
               value={sponsorName}
               onChangeText={setSponsorName}
@@ -293,6 +296,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
   
             <Text style={c.fieldLabel}>Sponsor Logo URL (optional)</Text>
             <TextInput
+              accessibilityLabel="Sponsor logo URL"
               style={c.input}
               value={sponsorLogoUrl}
               onChangeText={setSponsorLogoUrl}
@@ -312,7 +316,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
             )}
   
             <Text style={c.fieldLabel}>Donation Amount (optional)</Text>
-            <MoneyInput
+            <MoneyInput accessibilityLabel="Donation amount, dollars"
               style={c.input}
               value={donationAmt}
               onChangeText={setDonationAmt}

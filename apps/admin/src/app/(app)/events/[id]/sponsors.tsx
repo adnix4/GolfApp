@@ -372,6 +372,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
 
             <Text style={c.fieldLabel}>Sponsor Name</Text>
             <TextInput
+              accessibilityLabel="Sponsor Name"
               style={c.input}
               value={name} onChangeText={setName}
               placeholder="Acme Corp" placeholderTextColor={neutral.placeholder} editable={!loading}
@@ -424,6 +425,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
             <Text style={styles.formatHint}>PNG recommended — transparent background, at least 512px wide. SVG and ICO are converted automatically.</Text>
             <Text style={styles.orText}>— or paste a URL —</Text>
             <TextInput
+              accessibilityLabel="Logo URL"
               style={c.input}
               value={logoUrl}
               onChangeText={v => { setLogoUrl(v); setPendingFile(null); setLocalPreview(null); }}
@@ -442,6 +444,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
 
             <Text style={c.fieldLabel}>Website URL</Text>
             <TextInput
+              accessibilityLabel="Website URL"
               style={c.input}
               value={websiteUrl} onChangeText={setWebsiteUrl}
               placeholder="https://acme.com (optional)" placeholderTextColor={neutral.placeholder} editable={!loading}
@@ -449,13 +452,14 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
 
             <Text style={c.fieldLabel}>Tagline</Text>
             <TextInput
+              accessibilityLabel="Tagline"
               style={c.input}
               value={tagline} onChangeText={setTagline}
               placeholder="Powering your round (optional)" placeholderTextColor={neutral.placeholder} editable={!loading}
             />
 
             <Text style={c.fieldLabel}>Donation Amount</Text>
-            <MoneyInput
+            <MoneyInput accessibilityLabel="Donation amount, dollars"
               style={c.input}
               value={donationAmt} onChangeText={setDonationAmt}
               placeholder="$0.00 (optional)" placeholderTextColor={neutral.placeholder}

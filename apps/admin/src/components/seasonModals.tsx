@@ -129,12 +129,14 @@ export function OverrideHandicapModal({
     >
       <Text style={c.fieldLabel}>New Handicap Index</Text>
       <TextInput
+        accessibilityLabel="New Handicap Index"
         style={c.input}
         value={overrideIdx} onChangeText={setOverrideIdx} keyboardType="numeric"
         placeholderTextColor={PLACEHOLDER}
       />
       <Text style={c.fieldLabel}>Reason (required)</Text>
       <TextInput
+        accessibilityLabel="Reason"
         style={c.input}
         value={overrideReason} onChangeText={setOverrideReason}
         placeholder="e.g. Course adjustment" placeholderTextColor={PLACEHOLDER}
@@ -182,6 +184,7 @@ function PersonFormModal({
         <View style={mStyles.half}>
           <Text style={c.fieldLabel}>First Name *</Text>
           <TextInput
+            accessibilityLabel="First Name"
             style={c.input}
             value={fields.firstName} onChangeText={v => set('firstName', v)}
             placeholderTextColor={PLACEHOLDER}
@@ -190,6 +193,7 @@ function PersonFormModal({
         <View style={mStyles.half}>
           <Text style={c.fieldLabel}>Last Name *</Text>
           <TextInput
+            accessibilityLabel="Last Name"
             style={c.input}
             value={fields.lastName} onChangeText={v => set('lastName', v)}
             placeholderTextColor={PLACEHOLDER}
@@ -198,12 +202,14 @@ function PersonFormModal({
       </View>
       <Text style={c.fieldLabel}>Email *</Text>
       <TextInput
+        accessibilityLabel="Email"
         style={c.input}
         value={fields.email} onChangeText={v => set('email', v)} keyboardType="email-address"
         placeholderTextColor={PLACEHOLDER}
       />
       <Text style={c.fieldLabel}>{handicapLabel}</Text>
       <TextInput
+        accessibilityLabel={handicapLabel}
         style={c.input}
         value={fields.handicap} onChangeText={v => set('handicap', v)} keyboardType="decimal-pad"
         placeholder="e.g. 14.2 — required for league play" placeholderTextColor={PLACEHOLDER}
@@ -340,6 +346,7 @@ export function CloseRoundModal({
       </Text>
       <Text style={c.fieldLabel}>Skins Pot ($ per player, per hole)</Text>
       <TextInput
+        accessibilityLabel="Skins pot, dollars per player per hole"
         style={c.input}
         value={skinsPot}
         onChangeText={setSkinsPot}
@@ -460,6 +467,7 @@ export function AddFlightModal({
     >
       <Text style={c.fieldLabel}>Name</Text>
       <TextInput
+        accessibilityLabel="Flight name"
         style={c.input}
         value={fields.name}
         onChangeText={name => onChange({ ...fields, name })}
@@ -469,6 +477,7 @@ export function AddFlightModal({
       />
       <Text style={c.fieldLabel}>Lowest Handicap (optional)</Text>
       <TextInput
+        accessibilityLabel="Lowest handicap"
         style={c.input}
         value={fields.minHandicap}
         onChangeText={minHandicap => onChange({ ...fields, minHandicap })}
@@ -476,6 +485,7 @@ export function AddFlightModal({
       />
       <Text style={c.fieldLabel}>Highest Handicap (optional)</Text>
       <TextInput
+        accessibilityLabel="Highest handicap"
         style={c.input}
         value={fields.maxHandicap}
         onChangeText={maxHandicap => onChange({ ...fields, maxHandicap })}
@@ -570,6 +580,7 @@ export function AddRoundModal({
       {!!dateError && <Text style={mStyles.fieldError}>{dateError}</Text>}
       <Text style={c.fieldLabel}>Notes (optional)</Text>
       <TextInput
+        accessibilityLabel="Notes"
         style={c.input}
         value={notes} onChangeText={setNotes} placeholder="Rain makeup round"
         placeholderTextColor={PLACEHOLDER}

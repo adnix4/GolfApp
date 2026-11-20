@@ -62,6 +62,7 @@ export default function LoginScreen() {
 
         <Text style={c.fieldLabel}>Email</Text>
         <TextInput
+          accessibilityLabel="Email"
           style={[c.input, { color: theme.colors.primary }]}
           value={email}
           onChangeText={setEmail}
@@ -76,6 +77,7 @@ export default function LoginScreen() {
 
         <Text style={c.fieldLabel}>Password</Text>
         <TextInput
+          accessibilityLabel="Password"
           style={[c.input, { color: theme.colors.primary }]}
           value={password}
           onChangeText={setPassword}

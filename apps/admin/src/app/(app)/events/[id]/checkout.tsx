@@ -336,6 +336,7 @@ export default function AuctionCheckoutScreen() {
         </View>
       )}
       <TextInput
+        accessibilityLabel="Search players by name or email"
         style={styles.search}
         placeholder="Search by name or email…"
         value={search}

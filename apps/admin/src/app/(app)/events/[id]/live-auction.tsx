@@ -226,7 +226,7 @@ export default function LiveAuctionScreen() {
               {/* Called amount */}
               <Text style={[styles.label, { marginTop: spacing[4] }]}>Called Amount ($)</Text>
               <View style={styles.amountRow}>
-                <MoneyInput
+                <MoneyInput accessibilityLabel="Called amount, dollars"
                   style={[styles.amtInput, { borderColor: theme.colors.primary }]}
                   value={calledAmt}
                   onChangeText={setCalledAmt}
@@ -341,6 +341,7 @@ function AwardWinnerInput({
       </Text>
       <View style={{ flexDirection: 'row', gap: spacing[2] }}>
         <TextInput
+          accessibilityLabel="Player ID"
           style={[
             styles.amtInput,
             { flex: 1, borderColor: idError ? '#e74c3c' : '#ddd', fontSize: fontSize.md },

@@ -102,6 +102,7 @@ export default function RegisterScreen() {
       <View style={styles.fieldWrap}>
         <Text style={c.fieldLabel}>{label}</Text>
         <TextInput
+          accessibilityLabel={label.replace(/\s*\*$/, '')}
           style={[c.input, !!err && c.inputError]}
           value={value}
           onChangeText={v => {

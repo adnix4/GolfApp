@@ -168,6 +168,7 @@ function OrgSettings() {
         <View style={styles.fieldWrap}>
           <Text style={c.fieldLabel}>Organization Name *</Text>
           <TextInput
+            accessibilityLabel="Organization Name"
             style={c.input}
             value={name}
             onChangeText={v => { setName(v); setSaveError(null); }}
@@ -217,6 +218,7 @@ function OrgSettings() {
             Or paste a URL
           </Text>
           <TextInput
+            accessibilityLabel="Logo URL"
             style={c.input}
             value={logoUrl}
             onChangeText={setLogoUrl}
@@ -233,6 +235,7 @@ function OrgSettings() {
         <View style={styles.fieldWrap}>
           <Text style={c.fieldLabel}>Mission Statement</Text>
           <TextInput
+            accessibilityLabel="Mission Statement"
             style={[styles.textArea, { borderColor: theme.colors.accent }]}
             value={mission}
             onChangeText={setMission}

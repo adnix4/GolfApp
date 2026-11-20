@@ -178,6 +178,7 @@ export default function EmailBuilderScreen() {
 
           <Text style={[styles.label, { color: theme.mutedText }]}>Subject line *</Text>
           <TextInput
+            accessibilityLabel="Subject line"
             style={[styles.input, { borderColor: '#ddd', color: theme.colors.primary }]}
             value={subject}
             onChangeText={v => { setSubjectEdit(v); if (sendError) setSendError(null); }}
@@ -186,6 +187,7 @@ export default function EmailBuilderScreen() {
 
           <Text style={[styles.label, { color: theme.mutedText }]}>To address *</Text>
           <TextInput
+            accessibilityLabel="To address"
             style={[styles.input, { borderColor: '#ddd', color: theme.colors.primary }]}
             value={toAddress}
             onChangeText={v => { setToAddress(v); if (sendError) setSendError(null); }}
