@@ -1,3 +1,4 @@
+import { readableTextOn } from '@gfp/theme';
 import { resolveMedia } from '@/lib/api';
 import { s } from './eventPageStyles';
 
@@ -30,12 +31,12 @@ export default function EventHeader({
   );
 }
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  registration: { bg: '#3498db', text: '#fff' },
-  active:       { bg: '#2ecc71', text: '#fff' },
-  scoring:      { bg: '#f39c12', text: '#fff' },
-  completed:    { bg: '#27ae60', text: '#fff' },
-};
+// The label is derived from each fill: white on these bright fills was
+// 2.1–3.2:1, so the badge keeps its color and the label adapts (AX4).
+const STATUS_COLORS: Record<string, { bg: string; text: string }> = Object.fromEntries(
+  Object.entries({ registration: '#3498db', active: '#2ecc71', scoring: '#f39c12', completed: '#27ae60' })
+    .map(([k, bg]) => [k, { bg, text: readableTextOn(bg) }]),
+);
 
 function StatusBadge({ status }: { status: string }) {
   const c = STATUS_COLORS[status];

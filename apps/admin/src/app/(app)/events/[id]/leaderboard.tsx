@@ -8,7 +8,7 @@ import { useLeaderboard, useIndividualLeaderboard } from '@/lib/queries';
 import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { FORMAT_LABELS } from '@gfp/shared-types';
 import { useResponsive } from '@/lib/responsive';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 function formatScore(toPar: number): string {
   if (toPar === 0) return 'E';
@@ -75,7 +75,7 @@ export default function LeaderboardScreen() {
         >
           {refreshing
             ? <ActivityIndicator size="small" color={theme.colors.action} />
-            : <Text style={[styles.refreshText, { color: theme.colors.action }]}>Refresh</Text>}
+            : <Text style={[styles.refreshText, { color: theme.actionText }]}>Refresh</Text>}
         </Pressable>
       </View>
 
@@ -113,12 +113,12 @@ export default function LeaderboardScreen() {
         ) : (
           <View style={[styles.table, { borderColor: '#e8e8e8' }]}>
             <View style={[styles.colHeader, { backgroundColor: theme.colors.highlight, borderBottomColor: '#e8e8e8' }]}>
-              <Text style={[styles.colRank,  { color: theme.colors.primary }]}>#</Text>
-              <Text style={[styles.colName,  { color: theme.colors.primary }]}>Golfer</Text>
-              <Text style={[styles.colScore, { color: theme.colors.primary }]}>To Par</Text>
-              <Text style={[styles.colNum,   { color: theme.colors.primary }]}>Back</Text>
-              <Text style={[styles.colNum,   { color: theme.colors.primary }]}>Gross</Text>
-              <Text style={[styles.colThru,  { color: theme.colors.primary }]}>Thru</Text>
+              <Text style={[styles.colRank,  { color: theme.highlightLabel }]}>#</Text>
+              <Text style={[styles.colName,  { color: theme.highlightLabel }]}>Golfer</Text>
+              <Text style={[styles.colScore, { color: theme.highlightLabel }]}>To Par</Text>
+              <Text style={[styles.colNum,   { color: theme.highlightLabel }]}>Back</Text>
+              <Text style={[styles.colNum,   { color: theme.highlightLabel }]}>Gross</Text>
+              <Text style={[styles.colThru,  { color: theme.highlightLabel }]}>Thru</Text>
             </View>
             <FlatList
               data={golfers}
@@ -136,7 +136,7 @@ export default function LeaderboardScreen() {
                   </View>
                   <Text style={[
                     styles.colScore, styles.scoreText,
-                    { color: item.toPar < 0 ? '#27ae60' : item.toPar > 0 ? '#e74c3c' : theme.colors.primary },
+                    { color: item.toPar < 0 ? status.successText : item.toPar > 0 ? status.dangerText : theme.colors.primary },
                   ]}>
                     {item.holesComplete === 0 ? '—' : formatScore(item.toPar)}
                   </Text>
@@ -163,15 +163,15 @@ export default function LeaderboardScreen() {
       ) : (
         <View style={[styles.table, { borderColor: '#e8e8e8' }]}>
           <View style={[styles.colHeader, { backgroundColor: theme.colors.highlight, borderBottomColor: '#e8e8e8' }]}>
-            <Text style={[styles.colRank,  { color: theme.colors.primary }]}>#</Text>
-            <Text style={[styles.colName,  { color: theme.colors.primary }]}>Team</Text>
+            <Text style={[styles.colRank,  { color: theme.highlightLabel }]}>#</Text>
+            <Text style={[styles.colName,  { color: theme.highlightLabel }]}>Team</Text>
             {isStableford
-              ? <Text style={[styles.colScore, { color: theme.colors.primary }]}>Pts</Text>
-              : <Text style={[styles.colScore, { color: theme.colors.primary }]}>To Par</Text>}
-            <Text style={[styles.colNum,   { color: theme.colors.primary }]}>Back</Text>
-            <Text style={[styles.colNum,   { color: theme.colors.primary }]}>Best</Text>
-            <Text style={[styles.colNum,   { color: theme.colors.primary }]}>Score</Text>
-            <Text style={[styles.colThru,  { color: theme.colors.primary }]}>Thru</Text>
+              ? <Text style={[styles.colScore, { color: theme.highlightLabel }]}>Pts</Text>
+              : <Text style={[styles.colScore, { color: theme.highlightLabel }]}>To Par</Text>}
+            <Text style={[styles.colNum,   { color: theme.highlightLabel }]}>Back</Text>
+            <Text style={[styles.colNum,   { color: theme.highlightLabel }]}>Best</Text>
+            <Text style={[styles.colNum,   { color: theme.highlightLabel }]}>Score</Text>
+            <Text style={[styles.colThru,  { color: theme.highlightLabel }]}>Thru</Text>
           </View>
 
           <FlatList
@@ -187,14 +187,14 @@ export default function LeaderboardScreen() {
                     {item.teamName}
                   </Text>
                   {item.isComplete && (
-                    <Text style={[styles.finishedTag, { color: theme.colors.action }]}>F</Text>
+                    <Text style={[styles.finishedTag, { color: theme.actionText }]}>F</Text>
                   )}
                 </View>
                 <Text style={[
                   styles.colScore,
                   { color: isStableford
                     ? theme.colors.primary
-                    : item.toPar < 0 ? '#27ae60' : item.toPar > 0 ? '#e74c3c' : theme.colors.primary },
+                    : item.toPar < 0 ? status.successText : item.toPar > 0 ? status.dangerText : theme.colors.primary },
                   styles.scoreText,
                 ]}>
                   {item.holesComplete === 0
@@ -253,9 +253,9 @@ const styles = StyleSheet.create({
   colThru:  { width: 44, textAlign: 'right', fontSize: fontSize.xs, fontWeight: '700', marginLeft: spacing[2] },
 
   rankBadge: { fontSize: fontSize.sm, fontWeight: '700', textAlign: 'center', width: 28 },
-  rank1: { color: '#d4af37', fontSize: fontSize.md },
-  rank2: { color: '#9e9e9e' },
-  rank3: { color: '#cd7f32' },
+  rank1: { color: '#7d6315', fontSize: fontSize.md },
+  rank2: { color: neutral.mutedText },
+  rank3: { color: '#94571f' },
 
   teamName:   { fontSize: fontSize.lg, fontWeight: '600', flex: 1 },
   finishedTag:{ fontSize: fontSize.xxs, fontWeight: '700' },

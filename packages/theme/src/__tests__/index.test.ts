@@ -175,16 +175,20 @@ describe('buildThemeContext', () => {
     expect(ctx.ctaLabel).toBe(readableTextOn(ECO_GREEN_DEFAULT.action));
     expect(ctx.pageBackground).toBe(ECO_GREEN_DEFAULT.surface);
     expect(ctx.cardBackground).toBe(ECO_GREEN_DEFAULT.surface);
-    expect(ctx.linkColor).toBe(ECO_GREEN_DEFAULT.action);
+    // Links are action as TEXT: the default action is 3.6:1 on cream, so they
+    // use the darker companion shade (brand.ts); fills keep the brand color.
+    expect(ctx.linkColor).toBe(ctx.actionText);
+    expect(ctx.linkColor).not.toBe(ECO_GREEN_DEFAULT.action);
     expect(ctx.hoverBackground).toBe(ECO_GREEN_DEFAULT.accent);
     expect(ctx.selectedBackground).toBe(ECO_GREEN_DEFAULT.highlight);
   });
 
   it('derives per-fill labels for the ECO_GREEN palette', () => {
-    // Dark Forest primary → white label; mid-tone Leaf Green action sits just
-    // above the luminance breakpoint, so dark text contrasts better than white.
+    // Dark Forest primary → white. Leaf Green action is mid-tone: white 3.90:1,
+    // #1a1a1a 4.47:1 (what the old cutoff gave), pure black 5.39:1.
     expect(ctx.buttonLabel).toBe('#ffffff');
-    expect(ctx.ctaLabel).toBe('#1a1a1a');
+    expect(ctx.ctaLabel).toBe('#000000');
+    expect(getContrastRatio(ctx.ctaLabel, ECO_GREEN_DEFAULT.action)).toBeGreaterThanOrEqual(4.5);
   });
 
   it('derives dark labels when a theme uses light primary/action fills', () => {
@@ -201,7 +205,7 @@ describe('buildThemeContext', () => {
     const expectedKeys = [
       'colors', 'buttonBackground', 'buttonLabel', 'ctaBackground', 'ctaLabel',
       'pageBackground', 'cardBackground', 'linkColor', 'hoverBackground',
-      'selectedBackground', 'mutedText',
+      'selectedBackground', 'actionText', 'highlightText', 'mutedText',
     ];
     expectedKeys.forEach(k => expect(ctx).toHaveProperty(k));
   });
@@ -229,8 +233,20 @@ describe('readableTextOn', () => {
 
   it('always yields at least 4.5:1 contrast for fully saturated fills', () => {
     ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'].forEach(bg => {
-      expect(getContrastRatio(readableTextOn(bg), bg)).toBeGreaterThanOrEqual(3);
+      expect(getContrastRatio(readableTextOn(bg), bg)).toBeGreaterThanOrEqual(4.5);
     });
+  });
+
+  it('reaches 4.5:1 on every grey from black to white, mid-tones included', () => {
+    for (let v = 0; v <= 255; v += 5) {
+      const bg = '#' + v.toString(16).padStart(2, '0').repeat(3);
+      expect(getContrastRatio(readableTextOn(bg), bg)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('falls back to pure black only where neither soft label reaches 4.5:1', () => {
+    expect(readableTextOn('#7a7a7a')).toBe('#000000'); // white 4.29, #1a1a1a 4.2
+    expect(readableTextOn('#ffffff')).toBe('#1a1a1a');
   });
 });
 

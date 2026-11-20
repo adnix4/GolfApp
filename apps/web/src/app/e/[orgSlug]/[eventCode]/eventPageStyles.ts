@@ -10,19 +10,28 @@
  * after parsing the event's themeJson — see buildThemeCss.
  */
 
-import { readableTextOn } from '@gfp/theme';
+import { ECO_GREEN_DEFAULT, brandTextColors, isHexColor, readableTextOn, type GFPTheme } from '@gfp/theme';
 
 export function buildThemeCss(themeJson: string | null | undefined): string {
   if (!themeJson) return '';
   try {
-    const t = JSON.parse(themeJson) as Record<string, string>;
-    const entries = Object.entries(t).filter(([, v]) => /^#[0-9a-fA-F]{6}$/.test(v));
+    const t = JSON.parse(themeJson) as Record<string, unknown>;
+    const entries = Object.entries(t).filter((e): e is [string, string] => isHexColor(e[1]));
     const vars = entries.map(([k, v]) => `--color-${k}:${v}`);
     // Derived label colors for text on primary/action fills — a custom brand
     // may pick a light fill where hardcoded white text would be invisible.
     for (const [k, v] of entries) {
       if (k === 'primary' || k === 'action') vars.push(`--color-on-${k}:${readableTextOn(v)}`);
     }
+    // Brand colors drawn AS text (links in action, header text in highlight):
+    // a readable shade of the same hue, or the brand as entered when the
+    // organizer prioritized it (packages/theme brand.ts).
+    const palette: GFPTheme = { ...ECO_GREEN_DEFAULT, ...Object.fromEntries(entries), brandPriority: t.brandPriority === true };
+    const text = brandTextColors(palette);
+    vars.push(
+      `--color-action-text:${text.actionText}`, `--color-highlight-text:${text.highlightText}`,
+      `--color-on-highlight:${text.highlightLabel}`, `--color-on-highlight-muted:${text.highlightMuted}`,
+    );
     return vars.join(';');
   } catch { return ''; }
 }
@@ -76,8 +85,8 @@ export const s = {
   ctaRow:    { display: 'flex', gap: '0.75rem', flexWrap: 'wrap' as const, marginBottom: '1rem' },
   ctaBtn:    { display: 'inline-block', padding: '0.75rem 1.5rem', borderRadius: 8, fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', transition: 'opacity 0.15s', textDecoration: 'none' },
   ctaNote:   { fontSize: '0.875rem', color: '#4b5563' },
-  completedBadge: { backgroundColor: '#27ae60', color: '#fff', padding: '3px 10px', borderRadius: 10, fontSize: '0.75rem', fontWeight: 700 },
-  liveLink:  { fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-action)', textDecoration: 'none' },
+  completedBadge: { backgroundColor: '#1a7f43', color: '#fff', padding: '3px 10px', borderRadius: 10, fontSize: '0.75rem', fontWeight: 700 },
+  liveLink:  { fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-action-text)', textDecoration: 'none' },
 
   // Live banner rides the brand's action color, not a fixed green — the red
   // LIVE pill alone carries the "live" semantics.
@@ -96,7 +105,7 @@ export const s = {
   liveBannerInfo:    { display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' as const },
   livePill: {
     display: 'inline-flex', alignItems: 'center', gap: 6,
-    backgroundColor: '#e74c3c', color: '#fff',
+    backgroundColor: '#c0392b', color: '#fff', // white reads 5.4:1 here (#e74c3c was 3.8)
     padding: '3px 10px', borderRadius: 12,
     fontSize: '0.75rem', fontWeight: 800, letterSpacing: 0.5,
     flexShrink: 0,
@@ -132,7 +141,8 @@ export const s = {
   },
   placeholder: { color: '#4b5563', fontSize: '0.95rem', fontStyle: 'italic' },
   table:     { width: '100%', borderCollapse: 'collapse' as const, fontSize: '0.95rem' },
-  th:        { padding: '0.625rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase' as const, letterSpacing: 0.4 },
+  // Header cells sit on the Highlight row (LeaderboardCard), so their text is the on-highlight label.
+  th:        { padding: '0.625rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-on-highlight, var(--color-primary))', textTransform: 'uppercase' as const, letterSpacing: 0.4 },
   td:        { padding: '0.625rem 1rem', fontSize: '0.95rem', color: 'var(--color-primary)' },
   code:      { backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace', fontSize: '0.875rem' },
   footer:    { textAlign: 'center' as const, padding: '1.5rem', fontSize: '0.8rem', color: '#4b5563', borderTop: '1px solid #eee' },
@@ -148,7 +158,7 @@ export const w = {
   track:      { height: 14, backgroundColor: '#ededed', borderRadius: 7, overflow: 'hidden', marginBottom: '0.5rem' },
   fill:       { height: '100%', backgroundColor: 'var(--color-action)', borderRadius: 7, transition: 'width 0.6s ease' },
   goalRow:    { display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' },
-  goalPct:    { fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-action)' },
+  goalPct:    { fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-action-text)' },
   goalAmt:    { fontSize: '0.8rem', color: '#4b5563' },
   subStat:    { fontSize: '0.8rem', color: '#4b5563', marginTop: '0.5rem' },
 

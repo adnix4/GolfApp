@@ -4,97 +4,12 @@ import {
   Switch, StyleSheet, ActivityIndicator, Platform, Image,
 } from 'react-native';
 import { useTheme, useClasses, Heading } from '@gfp/ui';
-import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme, spacing, radius, fontSize, status } from '@gfp/theme';
+import { ECO_GREEN_DEFAULT, isThemeSaveBlocked, type GFPTheme, spacing, radius, fontSize, status, neutral } from '@gfp/theme';
 import { useResponsive } from '@/lib/responsive';
 import { orgApi, type OrgProfile } from '@/lib/api';
 import { TeamMembersCard } from '@/components/TeamMembersCard';
+import { BrandColorEditor, BLOCKED_SAVE_MESSAGE, allColorsValid, parseTheme } from '@/components/BrandColorEditor';
 import { useAuth } from '@/lib/auth';
-
-// ── Colour tokens shown in the picker ────────────────────────────────────────
-
-const TOKEN_META: { key: keyof GFPTheme; label: string; desc: string }[] = [
-  { key: 'primary',   label: 'Primary',   desc: 'Nav, headers, footer, primary buttons' },
-  { key: 'action',    label: 'Action',    desc: 'CTAs, links, active tabs, leaderboard highlights' },
-  { key: 'accent',    label: 'Accent',    desc: 'Hover states, secondary badges, sponsor strip' },
-  { key: 'highlight', label: 'Highlight', desc: 'Selected states, callout banners, QR borders' },
-  { key: 'surface',   label: 'Surface',   desc: 'Page backgrounds, cards, email body background' },
-];
-
-function parseTheme(json: string | null): GFPTheme {
-  if (!json) return { ...ECO_GREEN_DEFAULT };
-  try { return { ...ECO_GREEN_DEFAULT, ...JSON.parse(json) }; }
-  catch { return { ...ECO_GREEN_DEFAULT }; }
-}
-
-function isValidHex(s: string): boolean {
-  return /^#[0-9a-fA-F]{6}$/.test(s);
-}
-
-// Opens the browser's native color picker via a programmatically-created input
-function openColorPicker(current: string, onChange: (v: string) => void) {
-  if (Platform.OS !== 'web') return;
-  const input = (globalThis as any).document?.createElement('input');
-  if (!input) return;
-  input.type  = 'color';
-  input.value = isValidHex(current) ? current : '#000000';
-  input.style.position = 'fixed';
-  input.style.opacity  = '0';
-  input.style.pointerEvents = 'none';
-  (globalThis as any).document.body.appendChild(input);
-  input.oninput  = () => onChange(input.value);
-  input.onchange = () => {
-    onChange(input.value);
-    (globalThis as any).document.body.removeChild(input);
-  };
-  input.click();
-}
-
-// ── Color row ─────────────────────────────────────────────────────────────────
-
-function ColorRow({
-  meta, value, onChange, disabled,
-}: {
-  meta: (typeof TOKEN_META)[number];
-  value: string;
-  onChange: (v: string) => void;
-  disabled: boolean;
-}) {
-  const valid = isValidHex(value);
-  return (
-    <View style={cr.row}>
-      <Pressable accessibilityRole="button"
-        style={[cr.swatch, { backgroundColor: valid ? value : '#cccccc' }]}
-        onPress={() => !disabled && openColorPicker(value, onChange)}
-        accessibilityLabel={`Pick color for ${meta.label}`}
-      />
-      <View style={cr.info}>
-        <Text style={cr.tokenLabel}>{meta.label}</Text>
-        <Text style={cr.tokenDesc}>{meta.desc}</Text>
-      </View>
-      <TextInput
-        style={[cr.hexInput, !valid && cr.hexInputError]}
-        value={value}
-        onChangeText={onChange}
-        placeholder="#rrggbb"
-        placeholderTextColor="#aaa"
-        autoCapitalize="none"
-        autoCorrect={false}
-        maxLength={7}
-        editable={!disabled}
-      />
-    </View>
-  );
-}
-
-const cr = StyleSheet.create({
-  row:       { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], gap: spacing[3], borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  swatch:    { width: 36, height: 36, borderRadius: radius.md, borderWidth: 1, borderColor: '#ddd', flexShrink: 0 },
-  info:      { flex: 1 },
-  tokenLabel:{ fontSize: fontSize.md, fontWeight: '700', color: '#333' },
-  tokenDesc: { fontSize: fontSize.xs, color: '#888', marginTop: 1 },
-  hexInput:  { borderWidth: 1, borderColor: '#ccc', borderRadius: radius.sm, paddingHorizontal: spacing[3], paddingVertical: spacing[2], fontSize: fontSize.md, width: 90, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
-  hexInputError: { borderColor: status.danger },
-});
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
@@ -159,29 +74,12 @@ function OrgSettings() {
 
   useEffect(() => { load(); }, [load]);
 
-  function setToken(key: keyof GFPTheme, value: string) {
-    setColors(prev => ({ ...prev, [key]: value }));
-  }
-
-  const contrastRatio   = getContrastRatio(colors.primary, colors.surface);
-  const contrastPasses  = validateContrast(colors.primary, colors.surface);
-  // Cards render as white panels across all apps, so the surface itself must
-  // be light — otherwise a validated light-primary/dark-surface palette would
-  // put light text on white cards.
-  const surfaceIsLight  = !isValidHex(colors.surface) || isLightSurface(colors.surface);
-  const allColorsValid  = TOKEN_META.every(m => isValidHex(colors[m.key]));
-
   async function handleSave() {
     if (!name.trim()) { setError('Organization name is required.'); return; }
-    if (!allColorsValid) { setError('Fix invalid hex color values before saving.'); return; }
-    if (!contrastPasses) {
-      setError(`Primary on Surface contrast is ${contrastRatio.toFixed(1)}:1 — must be ≥ 4.5:1 (WCAG AA). Adjust Primary or Surface.`);
-      return;
-    }
-    if (!surfaceIsLight) {
-      setError('Surface must be a light color — it sits behind white cards on every page. Pick a pale tint (e.g. an off-white version of your brand color).');
-      return;
-    }
+    if (!allColorsValid(colors)) { setError('Fix invalid hex color values before saving.'); return; }
+    // Hard contrast failures need a fix or the organizer's explicit choice of
+    // brand over accessibility — the check under Brand Colors offers both.
+    if (isThemeSaveBlocked(colors)) { setError(BLOCKED_SAVE_MESSAGE); return; }
     setSaving(true);
     setSaved(false);
     setError(null);
@@ -273,7 +171,7 @@ function OrgSettings() {
             value={name}
             onChangeText={v => { setName(v); setError(null); }}
             placeholder="Clear Lake High School Boosters"
-            placeholderTextColor="#aaa"
+            placeholderTextColor={neutral.placeholder}
             autoCapitalize="words"
             autoCorrect={false}
             editable={!saving}
@@ -322,7 +220,7 @@ function OrgSettings() {
             value={logoUrl}
             onChangeText={setLogoUrl}
             placeholder="https://cdn.example.com/logo.png"
-            placeholderTextColor="#aaa"
+            placeholderTextColor={neutral.placeholder}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
@@ -338,7 +236,7 @@ function OrgSettings() {
             value={mission}
             onChangeText={setMission}
             placeholder="Describe your organization's mission and what this event supports…"
-            placeholderTextColor="#aaa"
+            placeholderTextColor={neutral.placeholder}
             multiline
             numberOfLines={4}
             autoCapitalize="sentences"
@@ -382,52 +280,11 @@ function OrgSettings() {
         </View>
 
         <Text style={[styles.hint, { color: theme.mutedText, marginBottom: spacing[3] }]}>
-          Enter 6-digit hex codes. Use the color picker on the right to browse.
-          All changes are previewed live.
+          Enter 6-digit hex codes, or tap a swatch to browse. Your colors are checked
+          for readability as you go.
         </Text>
 
-        {TOKEN_META.map(meta => (
-          <ColorRow
-            key={meta.key}
-            meta={meta}
-            value={colors[meta.key]}
-            onChange={v => setToken(meta.key, v)}
-            disabled={saving}
-          />
-        ))}
-
-        {/* WCAG contrast indicator */}
-        <View style={[
-          styles.contrastBadge,
-          { backgroundColor: contrastPasses ? '#f0fdf4' : '#fdf2f2',
-            borderColor:      contrastPasses ? '#27ae60'  : '#e74c3c' },
-        ]}>
-          <Text style={[styles.contrastText, { color: contrastPasses ? '#1e8449' : '#c0392b' }]}>
-            Primary on Surface: {contrastRatio.toFixed(1)}:1
-            {'  '}
-            {contrastPasses ? '✓ Passes WCAG AA' : '✗ Fails WCAG AA (need ≥ 4.5:1)'}
-          </Text>
-        </View>
-
-        {/* Surface lightness indicator */}
-        {!surfaceIsLight && (
-          <View style={[styles.contrastBadge, { backgroundColor: status.dangerBg, borderColor: status.danger }]}>
-            <Text style={[styles.contrastText, { color: status.dangerText }]}>
-              ✗ Surface is too dark — it sits behind white cards on every page. Pick a pale tint.
-            </Text>
-          </View>
-        )}
-
-        {/* Live preview strip */}
-        <View style={styles.previewRow}>
-          {TOKEN_META.map(m => (
-            <View key={m.key} style={[styles.previewChip, { backgroundColor: isValidHex(colors[m.key]) ? colors[m.key] : '#ccc' }]}>
-              <Text style={[styles.previewLabel, { color: readableTextOn(isValidHex(colors[m.key]) ? colors[m.key] : '#ccc') }]}>
-                {m.label}
-              </Text>
-            </View>
-          ))}
-        </View>
+        <BrandColorEditor colors={colors} onChange={setColors} disabled={saving} />
       </View>
 
       {/* ── SAVE ── */}
@@ -462,7 +319,7 @@ const styles = StyleSheet.create({
   textArea:     { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa', minHeight: 100, textAlignVertical: 'top' },
   readonlyBox:  { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], backgroundColor: '#f5f5f5' },
   readonlyText: { fontSize: fontSize.lg, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
-  hint:         { fontSize: fontSize.xs, marginTop: spacing[1], color: '#888' },
+  hint:         { fontSize: fontSize.xs, marginTop: spacing[1], color: neutral.mutedText },
 
   logoPreview:  { marginTop: spacing[2], marginBottom: spacing[2], height: 80, backgroundColor: '#f5f5f5', borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoImg:      { width: '100%', height: 80 },
@@ -476,13 +333,6 @@ const styles = StyleSheet.create({
   resetBtn:      { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
   resetBtnText:  { fontSize: fontSize.xs, fontWeight: '600' },
 
-  contrastBadge: { marginTop: spacing[4], borderRadius: radius.md, padding: spacing[3], borderWidth: 1 },
-  contrastText:  { fontSize: fontSize.sm, fontWeight: '600' },
-
-  previewRow:   { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3], flexWrap: 'wrap' },
-  previewChip:  { flex: 1, minWidth: 60, paddingVertical: spacing[2], borderRadius: radius.sm, alignItems: 'center' },
-  previewLabel: { fontSize: fontSize.xxs, fontWeight: '700' },
-
-  saveBtn:     { marginTop: spacing[6], paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
+  saveBtn:    { marginTop: spacing[6], paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
   saveBtnText: { fontSize: fontSize.xl, fontWeight: '800', color: '#fff' },
 });

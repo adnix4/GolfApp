@@ -2,37 +2,39 @@ import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, neutral, radius, spacing, status } from '@gfp/theme';
 
 // ── Content ───────────────────────────────────────────────────────────────────
 
+// Each colour fills a badge with white text AND colours the "Then click" line,
+// so they are the text tokens (≥ 4.5:1 both ways), not the status fills.
 const STATUS_FLOW = [
   {
-    status: 'Draft',       color: '#95a5a6',
+    status: 'Draft',       color: neutral.mutedText,
     next: 'Open Registration',
     req:  'Set a Start Date & Time on the Overview tab.',
     what: 'Build your event: set the date, attach a course, add teams, configure sponsors and the auction. Use Seed Test Data to preview the flow — golfers can join a Draft event only with its event code.',
   },
   {
-    status: 'Registration', color: '#3498db',
+    status: 'Registration', color: status.infoText,
     next: 'Go Active',
     req:  'Attach a Course and clear any test data.',
     what: 'Golfers find the event in the mobile app and on the public site, sign up, and join. Monitor sign-ups on the Teams tab.',
   },
   {
-    status: 'Active',       color: '#2ecc71',
+    status: 'Active',       color: status.successText,
     next: 'Open Scoring',
     req:  'Every team checked in — or use "Open Scoring anyway".',
     what: 'Check in golfers (Registration tab), take entry fees, and confirm starting holes (Shotgun tab). The auction can run.',
   },
   {
-    status: 'Scoring',      color: status.warning,
+    status: 'Scoring',      color: status.warningText,
     next: 'Mark Complete',
     req:  'All teams have finished their round.',
     what: 'Golfers enter scores on mobile. Late arrivals can still check in. Monitor the Leaderboard and run the Live Auction.',
   },
   {
-    status: 'Completed',    color: status.success,
+    status: 'Completed',    color: status.successText,
     next: null,
     req:  null,
     what: 'Scoring is closed and final results are published. The auction can keep running into the banquet; settle up on the Checkout tab.',
@@ -341,7 +343,7 @@ export default function EventHelpScreen() {
         <View style={{ gap: spacing[2] }}>
           {TESTING_TIPS.map((tip, i) => (
             <View key={i} style={styles.tipRow}>
-              <Text style={[styles.tipIcon, { color: status.warning }]}>→</Text>
+              <Text style={[styles.tipIcon, { color: status.warningText }]}>→</Text>
               <Text style={[styles.tipText, { color: theme.mutedText }]}>{tip}</Text>
             </View>
           ))}

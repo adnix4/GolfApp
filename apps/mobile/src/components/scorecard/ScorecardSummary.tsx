@@ -9,7 +9,7 @@ import type {
 import { strokesByPlayer } from '@/lib/holeUtils';
 import { ChallengeDetailModal, SponsorModal } from '@/components/scorecardComponents';
 import { screenStyles } from './scorecardStyles';
-import { fontSize, spacing } from '@gfp/theme';
+import { fontSize, spacing, status } from '@gfp/theme';
 
 /**
  * Pre-scoring summary: the whole course as one table, shown in place of the
@@ -49,11 +49,11 @@ export function ScorecardSummary({
     <SafeAreaView edges={['left', 'right']} style={[screenStyles.page, { backgroundColor: theme.pageBackground }]}>
       {/* Header: event name + hosted by course */}
       <View style={[screenStyles.header, { backgroundColor: theme.colors.primary }]}>
-        <Heading level={1} style={[styles.headerEventName, { color: theme.colors.highlight }]} numberOfLines={2}>
+        <Heading level={1} style={[styles.headerEventName, { color: theme.highlightText }]} numberOfLines={2}>
           {session.event.name}
         </Heading>
         {session.course ? (
-          <Text style={[styles.headerHostedBy, { color: theme.colors.highlight }]} numberOfLines={1}>
+          <Text style={[styles.headerHostedBy, { color: theme.highlightText }]} numberOfLines={1}>
             Hosted by {session.course.name}
           </Text>
         ) : null}
@@ -155,7 +155,7 @@ export function ScorecardSummary({
               </View>
               {pending?.conflict && (
                 <View style={styles.summarySubRow}>
-                  <Text style={[styles.summarySubText, { color: '#a67100' }]}>
+                  <Text style={[styles.summarySubText, { color: status.warningText }]}>
                     ⚠ Your score is waiting for admin approval
                   </Text>
                 </View>

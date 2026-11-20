@@ -9,7 +9,7 @@ import { useTheme, MoneyInput, useClasses, Heading } from '@gfp/ui';
 import { dollarsToCents, formatCentsShort, centsToMoneyValue } from '@gfp/shared-types';
 import { challengesApi, type HoleChallenge } from '@/lib/api';
 import { useChallengeList } from '@/lib/queries';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 const COMMON_CHALLENGES = [
   'Closest to Pin',
@@ -125,19 +125,19 @@ export default function ChallengesScreen() {
                   />
                 )}
                 {ch.donationAmountCents != null && ch.donationAmountCents > 0 && (
-                  <Text style={[styles.donationLine, { color: '#16a085' }]}>
+                  <Text style={[styles.donationLine, { color: status.successText }]}>
                     {formatCentsShort(ch.donationAmountCents)} donation
                   </Text>
                 )}
                 {ch.winnerName && (
-                  <Text style={[styles.winnerLine, { color: status.success }]}>
+                  <Text style={[styles.winnerLine, { color: status.successText }]}>
                     🏆 Winner: {ch.winnerName}
                   </Text>
                 )}
               </View>
               <View style={styles.cardActions}>
                 <Pressable accessibilityRole="button" accessibilityLabel={`Edit hole ${ch.holeNumber} challenge`} onPress={() => openEdit(ch)} style={styles.editBtn}>
-                  <Text style={[styles.editText, { color: theme.colors.action }]}>Edit</Text>
+                  <Text style={[styles.editText, { color: theme.actionText }]}>Edit</Text>
                 </Pressable>
                 <Pressable accessibilityRole="button" accessibilityLabel={`Delete hole ${ch.holeNumber} challenge`} onPress={() => handleDelete(ch.holeNumber)} style={styles.deleteBtn}>
                   <Text style={styles.deleteText}>Delete</Text>
@@ -246,7 +246,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
                   value={holeNumber}
                   onChangeText={setHoleNumber}
                   placeholder={`1–${holeCount}`}
-                  placeholderTextColor="#999"
+                  placeholderTextColor={neutral.placeholder}
                   keyboardType="numeric"
                   editable={!loading}
                 />
@@ -277,7 +277,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
               value={description}
               onChangeText={setDescription}
               placeholder="Custom description…"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
               editable={!loading}
             />
   
@@ -287,7 +287,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
               value={sponsorName}
               onChangeText={setSponsorName}
               placeholder="ACME Corp"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
               editable={!loading}
             />
   
@@ -297,7 +297,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
               value={sponsorLogoUrl}
               onChangeText={setSponsorLogoUrl}
               placeholder="https://example.com/logo.png"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
               autoCapitalize="none"
               keyboardType="url"
               editable={!loading}
@@ -317,7 +317,7 @@ function ChallengeFormModal({ visible, eventId, holeCount, initial, existingHole
               value={donationAmt}
               onChangeText={setDonationAmt}
               placeholder="$0.00"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
               editable={!loading}
             />
   
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   editBtn: { paddingVertical: spacing[1], paddingHorizontal: spacing[3], borderRadius: radius.sm, borderWidth: 1, borderColor: '#3498db' },
   editText: { fontSize: fontSize.xs, fontWeight: '700' },
   deleteBtn: { paddingVertical: spacing[1], paddingHorizontal: spacing[3], borderRadius: radius.sm, borderWidth: 1, borderColor: status.danger },
-  deleteText: { fontSize: fontSize.xs, fontWeight: '700', color: status.danger },
+  deleteText: { fontSize: fontSize.xs, fontWeight: '700', color: status.dangerText },
 
   // The overlay scrolls when the form is taller than the window, so nothing is cut off.
   overlayScroll:  { width: '100%' },

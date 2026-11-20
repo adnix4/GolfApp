@@ -121,7 +121,7 @@ export default function FundraisingScreen() {
           >
             {refreshing
               ? <ActivityIndicator size="small" color={theme.colors.action} />
-              : <Text style={[styles.refreshText, { color: theme.colors.action }]}>Refresh</Text>}
+              : <Text style={[styles.refreshText, { color: theme.actionText }]}>Refresh</Text>}
           </Pressable>
         </View>
       </View>
@@ -249,7 +249,7 @@ export default function FundraisingScreen() {
           {/* Failed auction charges */}
           {failedCharges.length > 0 && (
             <View style={[styles.section, { borderColor: status.danger, borderWidth: 2 }]}>
-              <Heading level={2} style={[styles.sectionTitle, { color: status.danger }]}>
+              <Heading level={2} style={[styles.sectionTitle, { color: status.dangerText }]}>
                 Failed Charges ({failedCharges.length})
               </Heading>
               <Text style={{ fontSize: fontSize.sm, color: '#666', marginBottom: spacing[2] }}>
@@ -262,7 +262,7 @@ export default function FundraisingScreen() {
                     <Text style={{ fontSize: fontSize.sm, color: '#666' }}>
                       {fc.playerName} · {fc.playerEmail}
                     </Text>
-                    <Text style={{ fontSize: fontSize.sm, color: status.danger, fontWeight: '600' }}>
+                    <Text style={{ fontSize: fontSize.sm, color: status.dangerText, fontWeight: '600' }}>
                       {formatCurrency(fc.amountCents)}
                     </Text>
                   </View>

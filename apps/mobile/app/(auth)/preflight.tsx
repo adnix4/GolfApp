@@ -54,7 +54,7 @@ function CheckItem({
         <Text style={[itemStyles.label, { color: theme.colors.primary }]}>{label}</Text>
         <Text style={[itemStyles.detail, {
           color: state.status === 'fail' ? '#c0392b' :
-                 state.status === 'warn' ? '#b7770d' : theme.mutedText,
+                 state.status === 'warn' ? status.warningText : theme.mutedText,
         }]}>
           {state.detail}
         </Text>
@@ -167,8 +167,8 @@ export default function PreflightScreen() {
   return (
     <SafeAreaView style={c.screen}>
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-        <Heading level={1} style={[styles.headerTitle, { color: theme.colors.highlight }]}>Pre-Flight Check</Heading>
-        <Text style={[styles.headerSub,   { color: theme.colors.highlight }]} numberOfLines={1}>
+        <Heading level={1} style={[styles.headerTitle, { color: theme.highlightText }]}>Pre-Flight Check</Heading>
+        <Text style={[styles.headerSub,   { color: theme.highlightText }]} numberOfLines={1}>
           {session.event.name}
         </Text>
       </View>
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   offlineBadge: {
     borderWidth: 1, borderRadius: radius.lg, padding: spacing[3], marginBottom: spacing[3],
   },
-  offlineBadgeText: { fontSize: fontSize.sm, color: '#b7770d', textAlign: 'center' },
+  offlineBadgeText: { fontSize: fontSize.sm, color: status.warningText, textAlign: 'center' },
 
   retryRow: { flexDirection: 'row', gap: spacing[3], marginBottom: spacing[5] },
   retryBtn: { paddingVertical: spacing[2], paddingHorizontal: spacing[4], borderRadius: radius.md, backgroundColor: '#f0f0f0' },

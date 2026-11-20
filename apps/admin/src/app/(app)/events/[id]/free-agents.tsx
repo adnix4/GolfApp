@@ -8,7 +8,7 @@ import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { digitsOnly, fmtAgeGroup, fmtPhone, fmtPhoneInput, validateGolfer, toPlayerInput } from '@gfp/shared-types';
 import { playersApi, type Player, type AddPlayerPayload } from '@/lib/api';
 import { useFreeAgentList, useTeamList } from '@/lib/queries';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 export default function FreeAgentsScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
@@ -92,7 +92,7 @@ export default function FreeAgentsScreen() {
       {/* Selection action bar */}
       {selected.size > 0 && (
         <View style={[styles.actionBar, { backgroundColor: theme.colors.highlight }]}>
-          <Text style={[styles.actionBarText, { color: theme.colors.primary }]}>
+          <Text style={[styles.actionBarText, { color: theme.highlightLabel }]}>
             {selected.size} player{selected.size !== 1 ? 's' : ''} selected
           </Text>
           <Pressable accessibilityRole="button"
@@ -102,7 +102,7 @@ export default function FreeAgentsScreen() {
             <Text style={[styles.assignBtnText, { color: theme.ctaLabel }]}>Assign to Team</Text>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Clear selection" onPress={() => setSelected(new Set())} style={styles.clearBtn}>
-            <Text style={[styles.clearText, { color: theme.mutedText }]}>Clear</Text>
+            <Text style={[styles.clearText, { color: theme.highlightMuted }]}>Clear</Text>
           </Pressable>
         </View>
       )}
@@ -291,31 +291,31 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
             <TextInput
               style={[c.input, styles.halfInput, { borderColor: '#ccc' }]}
               value={firstName} onChangeText={v => { setFirstName(v); if (error) setError(null); }}
-              placeholder="First *" placeholderTextColor="#999" editable={!loading}
+              placeholder="First *" placeholderTextColor={neutral.placeholder} editable={!loading}
             />
             <TextInput
               style={[c.input, styles.halfInput, { borderColor: '#ccc' }]}
               value={lastName} onChangeText={v => { setLastName(v); if (error) setError(null); }}
-              placeholder="Last *" placeholderTextColor="#999" editable={!loading}
+              placeholder="Last *" placeholderTextColor={neutral.placeholder} editable={!loading}
             />
           </View>
           <TextInput
             style={[c.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
             value={email} onChangeText={v => { setEmail(v); if (error) setError(null); }}
-            placeholder="email@example.com *" placeholderTextColor="#999"
+            placeholder="email@example.com *" placeholderTextColor={neutral.placeholder}
             keyboardType="email-address" autoCapitalize="none" editable={!loading}
           />
           <TextInput
             style={[c.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
             value={phone}
             onChangeText={v => { setPhone(fmtPhoneInput(digitsOnly(v))); if (error) setError(null); }}
-            placeholder="(555) 867-5309 (optional)" placeholderTextColor="#999"
+            placeholder="(555) 867-5309 (optional)" placeholderTextColor={neutral.placeholder}
             keyboardType="phone-pad" editable={!loading}
           />
           <TextInput
             style={[c.input, { borderColor: '#ccc', marginTop: spacing[2] }]}
             value={handicap} onChangeText={v => { setHandicap(v.replace(/[^0-9.]/g, '')); if (error) setError(null); }}
-            placeholder="Handicap index (optional)" placeholderTextColor="#999"
+            placeholder="Handicap index (optional)" placeholderTextColor={neutral.placeholder}
             keyboardType="decimal-pad" editable={!loading}
           />
           <View style={{ flexDirection: 'row', gap: spacing[3], marginTop: spacing[5] }}>
@@ -323,7 +323,7 @@ function AddFreeAgentModal({ visible, eventId, onClose, onAdded }: AddFreeAgentM
               style={[styles.cancelModalBtn, { flex: 1, borderColor: '#aaa' }]}
               onPress={() => { reset(); onClose(); }}
             >
-              <Text style={[styles.cancelModalText, { color: '#888' }]}>Cancel</Text>
+              <Text style={[styles.cancelModalText, { color: neutral.mutedText }]}>Cancel</Text>
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="Add"
               style={[{ flex: 2, borderRadius: radius.md, paddingVertical: spacing[3], alignItems: 'center' as const }, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.6 }]}

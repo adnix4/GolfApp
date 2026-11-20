@@ -16,13 +16,13 @@ export function ScoringHeader({
   const theme = useTheme();
   return (
     <View style={[screenStyles.header, { backgroundColor: theme.colors.primary }]}>
-      <Heading level={1} style={[styles.headerTeam, { color: theme.colors.highlight }]} numberOfLines={1}>
+      <Heading level={1} style={[styles.headerTeam, { color: theme.highlightText }]} numberOfLines={1}>
         {teamName}
       </Heading>
       {/* Hole counter and sync state ride the event line rather than owning a
           row in the nav bar — same information, ~30px more scroll area. */}
       <View style={styles.headerMetaRow}>
-        <Text style={[styles.headerEvent, { color: theme.colors.highlight }]} numberOfLines={1}>
+        <Text style={[styles.headerEvent, { color: theme.highlightText }]} numberOfLines={1}>
           {eventName}
         </Text>
         {/* The hole the golfer is standing on, NOT their position in the
@@ -30,7 +30,7 @@ export function ScoringHeader({
             on 12 plays 12..18,1..11 — "Hole 1/18" there was flatly wrong, and
             contradicted the Hole N button and detail modal, which have always
             shown the real number. Progress is the Through chip's job. */}
-        <Heading level={2} style={[styles.headerHole, { color: theme.colors.highlight }]}>
+        <Heading level={2} style={[styles.headerHole, { color: theme.highlightText }]}>
           Hole {currentHoleNumber}
           <Text style={styles.headerPar}>  Par {par}</Text>
         </Heading>

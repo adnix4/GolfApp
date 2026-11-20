@@ -74,7 +74,7 @@ export function DialogFrame({
 
   const { parts, standalone } = splitHighlights(message ?? '', highlights);
   const chip = (k: Highlight['kind']) => k === 'sponsor'
-    ? { backgroundColor: theme.colors.highlight, color: theme.colors.primary }
+    ? { backgroundColor: theme.colors.highlight, color: theme.highlightLabel }
     : { backgroundColor: theme.colors.action,    color: theme.ctaLabel };
   const chipText = (h: { text: string; kind: Highlight['kind'] }) => h.kind === 'sponsor' ? `★ ${h.text}` : h.text;
   const icon = KIND_ICON[kind];

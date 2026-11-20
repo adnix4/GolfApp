@@ -136,7 +136,7 @@ function LeaguePromo() {
 }
 import { fetchMemberSeasonSummary, MemberSeasonSummary } from '@/lib/api';
 import { formatDateOnly, formatDate } from '@gfp/shared-types';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 export default function LeagueScreen() {
   const theme   = useTheme();
@@ -249,7 +249,7 @@ export default function LeagueScreen() {
                   {h.oldIndex.toFixed(1)} → {h.newIndex.toFixed(1)}
                 </Text>
                 <Text style={[styles.trendDiff, {
-                  color: h.differential < 0 ? '#16a34a' : h.differential > 0 ? '#ef4444' : theme.mutedText
+                  color: h.differential < 0 ? status.successText : h.differential > 0 ? status.dangerText : theme.mutedText
                 }]}>
                   diff {h.differential > 0 ? '+' : ''}{h.differential.toFixed(1)}
                 </Text>

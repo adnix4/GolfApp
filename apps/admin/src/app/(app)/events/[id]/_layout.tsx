@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Slot, useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { ThemeProvider, useTheme, useClasses } from '@gfp/ui';
-import { ECO_GREEN_DEFAULT, type GFPTheme, spacing, fontSize } from '@gfp/theme';
+import { ECO_GREEN_DEFAULT, type GFPTheme, spacing, fontSize, neutral } from '@gfp/theme';
 import { EventProvider, useEventLoader, type EventContextValue } from '@/lib/eventContext';
 import type { EventDetail } from '@/lib/api';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
@@ -188,7 +188,7 @@ function EventChrome({ event, error, retry, eventCtx }: {
                 >
                   <Text style={[
                     styles.subLabel,
-                    { color: isActive ? theme.colors.action : '#888' },
+                    { color: isActive ? theme.actionText : neutral.mutedText },
                     isActive && styles.subLabelActive,
                   ]}>
                     {tab.label}
@@ -210,7 +210,7 @@ function EventChrome({ event, error, retry, eventCtx }: {
           <View style={styles.center}>
             <Text style={[c.errorText, styles.errorText]}>{error}</Text>
             <Pressable onPress={retry} accessibilityRole="button">
-              <Text style={{ color: theme.colors.action, marginTop: spacing[2] }}>Retry</Text>
+              <Text style={{ color: theme.actionText, marginTop: spacing[2] }}>Retry</Text>
             </Pressable>
           </View>
         ) : (

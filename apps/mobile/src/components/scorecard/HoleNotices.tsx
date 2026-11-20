@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '@gfp/ui';
 import type { ChallengeCacheDto } from '@/lib/api';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 /** Challenge badge plus the conflict / organizer-edit / read-only notices. */
 export function HoleNotices({
@@ -24,15 +24,15 @@ export function HoleNotices({
       {holeChallenge && (
         <View style={[styles.challengeBadge, { backgroundColor: theme.colors.highlight, borderColor: theme.colors.accent + '44' }]}>
           {holeChallenge.sponsorName && (
-            <Text style={[styles.challengeSponsor, { color: theme.mutedText }]}>
+            <Text style={[styles.challengeSponsor, { color: theme.highlightMuted }]}>
               {holeChallenge.sponsorName}
             </Text>
           )}
-          <Text style={[styles.challengeDesc, { color: theme.colors.primary }]}>
+          <Text style={[styles.challengeDesc, { color: theme.highlightLabel }]}>
             {holeChallenge.description}
           </Text>
           {holeChallenge.prizeDescription && (
-            <Text style={[styles.challengePrize, { color: theme.mutedText }]}>
+            <Text style={[styles.challengePrize, { color: theme.highlightMuted }]}>
               🏆 {holeChallenge.prizeDescription}
             </Text>
           )}
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderRadius: radius.lg,
     padding: spacing[3], marginBottom: spacing[3],
   },
-  conflictNoticeText: { fontSize: fontSize.sm, lineHeight: 18, color: '#a67100', fontWeight: '600' },
+  conflictNoticeText: { fontSize: fontSize.sm, lineHeight: 18, color: status.warningText, fontWeight: '600' },
   challengeBadge: {
     borderWidth: 1, borderRadius: radius.lg,
     padding: spacing[3], marginBottom: spacing[3], gap: spacing[1],

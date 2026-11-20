@@ -36,7 +36,11 @@ body {
   color: var(--color-primary);
   line-height: 1.5;
 }
-a { color: var(--color-action); text-decoration: none; }
+a { color: var(--color-action-text); text-decoration: none; }
 a:hover { text-decoration: underline; }
+/* Keyboard focus is always visible (MCAG 1.4.3 / AX4): a ring in the brand's
+   readable action shade, >= 4.5:1 on the page. :focus-visible keeps it off
+   mouse clicks. Inline styles must not set outline: none — they would win. */
+:focus-visible { outline: 2px solid var(--color-action-text); outline-offset: 2px; }
 img { max-width: 100%; height: auto; }
 `;

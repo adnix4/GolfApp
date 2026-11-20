@@ -3,7 +3,7 @@ import { View, Text, Pressable, Modal, TextInput, ActivityIndicator } from 'reac
 import { useClasses, Heading } from '@gfp/ui';
 import { teamsApi, type Team } from '@/lib/api';
 import { formStyles } from './formStyles';
-import { fontSize, spacing } from '@gfp/theme';
+import { fontSize, spacing, neutral } from '@gfp/theme';
 
 // ── Edit Team Modal ───────────────────────────────────────────────────────────
 
@@ -66,7 +66,7 @@ export function EditTeamModal({ visible, eventId, team, onClose, onSaved }: Edit
             value={name}
             onChangeText={v => { setName(v); if (error) setError(null); }}
             placeholder="Team name"
-            placeholderTextColor="#999"
+            placeholderTextColor={neutral.placeholder}
             editable={!loading}
             maxLength={200}
           />
@@ -77,12 +77,12 @@ export function EditTeamModal({ visible, eventId, team, onClose, onSaved }: Edit
             value={maxPlayers}
             onChangeText={v => { setMaxPlayers(v.replace(/[^0-9]/g, '')); if (error) setError(null); }}
             placeholder="4"
-            placeholderTextColor="#999"
+            placeholderTextColor={neutral.placeholder}
             keyboardType="number-pad"
             editable={!loading}
           />
           {team && (
-            <Text style={{ color: '#888', fontSize: fontSize.xs, marginTop: spacing[1] }}>
+            <Text style={{ color: neutral.mutedText, fontSize: fontSize.xs, marginTop: spacing[1] }}>
               Currently {team.players.length} player{team.players.length !== 1 ? 's' : ''} on this team.
             </Text>
           )}

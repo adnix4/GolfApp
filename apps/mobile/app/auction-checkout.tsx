@@ -20,7 +20,7 @@ import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { fetchMyCheckout, confirmMyCheckout, type CheckoutCartDto } from '@/lib/api';
 import { checkoutCounts, checkoutHeadline } from '@/lib/checkoutSummary';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 function usd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -85,7 +85,7 @@ export default function AuctionCheckoutScreen() {
   }
 
   if (!session) return (
-    <View style={c.center}><Text style={{ color: '#888' }}>No active event session.</Text></View>
+    <View style={c.center}><Text style={{ color: neutral.mutedText }}>No active event session.</Text></View>
   );
 
   if (loading) return (
@@ -180,12 +180,12 @@ export default function AuctionCheckoutScreen() {
 const styles = StyleSheet.create({
   content: { padding: spacing[5], paddingBottom: spacing[12] },
   title:   { marginBottom: spacing[4] },   // over c.title
-  empty:   { color: '#888', fontSize: fontSize.lg, lineHeight: 21 },
+  empty:   { color: neutral.mutedText, fontSize: fontSize.lg, lineHeight: 21 },
 
   line:       { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.08)' },
   lineTitle:  { fontSize: fontSize.xl, fontWeight: '700', color: '#111' },
   pledgeTag:  { fontSize: fontSize.xxs, fontWeight: '700', color: '#7c3aed', letterSpacing: 0.5 },
-  lineMeta:   { fontSize: fontSize.xs, color: '#777', marginTop: spacing[0.5] },
+  lineMeta:   { fontSize: fontSize.xs, color: neutral.mutedText, marginTop: spacing[0.5] },
   lineAmount: { fontSize: fontSize.xl, fontWeight: '700', color: '#111' },
 
   totalRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing[4] },
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
 
   payBtn:     { marginTop: spacing[5], paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
   payBtnText: { color: '#fff', fontWeight: '800', fontSize: fontSize.xl },
-  deskNote:   { color: '#777', fontSize: fontSize.xs, textAlign: 'center', marginTop: spacing[3], lineHeight: 17 },
-  paidNote:   { color: '#059669', fontSize: fontSize.lg, fontWeight: '600', marginTop: spacing[5], lineHeight: 21 },
+  deskNote:   { color: neutral.mutedText, fontSize: fontSize.xs, textAlign: 'center', marginTop: spacing[3], lineHeight: 17 },
+  paidNote:   { color: status.successText, fontSize: fontSize.lg, fontWeight: '600', marginTop: spacing[5], lineHeight: 21 },
   error:      { color: status.dangerText, fontSize: fontSize.sm, marginTop: spacing[3], lineHeight: 18 },
 });

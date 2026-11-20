@@ -357,7 +357,7 @@ export default function ScoringScreen() {
       {/* Scorecard summary */}
       {scorecard && (
         <View style={[styles.summaryBar, { backgroundColor: theme.colors.highlight }]}>
-          <Text style={[styles.summaryText, { color: theme.colors.primary }]}>
+          <Text style={[styles.summaryText, { color: theme.highlightLabel }]}>
             {scorecard.teamName} · {FORMAT_LABELS[format] ?? format} · {format === 'Stableford' ? `Points: ${scorecard.stablefordPoints} · ` : ''}Gross: {scorecard.grossTotal} · To Par: {scorecard.toPar >= 0 ? `+${scorecard.toPar}` : scorecard.toPar} · {scorecard.holesComplete}/{holesCount} holes
           </Text>
           {scorecard.hasConflicts && (
@@ -420,7 +420,7 @@ export default function ScoringScreen() {
                     </View>
                   ) : (
                     <Pressable accessibilityRole="button"
-                      style={[styles.resolveBtn, { backgroundColor: '#e67e22' }]}
+                      style={[styles.resolveBtn, { backgroundColor: '#b34700' }]} // white label 5.5:1
                       onPress={() => handleResolveConflict(holeNum, score)}
                     >
                       <Text style={styles.resolveBtnText}>Accept {score}</Text>
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryText: { fontSize: fontSize.md, fontWeight: '600' },
-  conflictWarning: { fontSize: fontSize.sm, fontWeight: '700', color: '#e67e22' },
+  conflictWarning: { fontSize: fontSize.sm, fontWeight: '700', color: status.warningText },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

@@ -18,7 +18,7 @@ import {
 } from '@/lib/dateTime';
 import { DateTimePairField } from '@/components/DateTimePairField';
 import { confirmAction, alertAction } from '@/lib/confirmAction';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 // An item's auction type is locked once it has bids or leaves the Open state
 // (the API enforces this too). Mirror that here so we can warn before saving.
@@ -328,7 +328,7 @@ export default function AuctionScreen() {
         <View style={c.errorBox}>
           <Text style={c.errorText}>{error}</Text>
           <Pressable accessibilityRole="button" onPress={load} style={{ marginTop: spacing[2] }}>
-            <Text style={{ color: theme.colors.action, fontSize: fontSize.sm }}>Retry</Text>
+            <Text style={{ color: theme.actionText, fontSize: fontSize.sm }}>Retry</Text>
           </Pressable>
         </View>
       )}
@@ -368,7 +368,7 @@ export default function AuctionScreen() {
                     : `Starting: ${fmt(item.startingBidCents)} · High bid: ${fmt(item.currentHighBidCents)}`}
                 </Text>
                 {item.closesAt && (
-                  <Text style={{ color: '#888', fontSize: fontSize.xs, marginTop: spacing[0.5] }}>
+                  <Text style={{ color: neutral.mutedText, fontSize: fontSize.xs, marginTop: spacing[0.5] }}>
                     Closes: {formatDateTime(item.closesAt)}
                   </Text>
                 )}
@@ -378,14 +378,14 @@ export default function AuctionScreen() {
                   <Text style={{ color: theme.colors.primary, fontSize: fontSize.sm, fontWeight: '600' }}>Edit</Text>
                 </Pressable>
                 <Pressable accessibilityRole="button" accessibilityLabel={`Cancel ${item.title}`} onPress={() => handleDelete(item)} style={[styles.smallBtn, { borderColor: status.danger, marginTop: spacing[2] }]}>
-                  <Text style={{ color: status.danger, fontSize: fontSize.sm, fontWeight: '600' }}>Cancel</Text>
+                  <Text style={{ color: status.dangerText, fontSize: fontSize.sm, fontWeight: '600' }}>Cancel</Text>
                 </Pressable>
               </View>
             </View>
           </View>
         )}
         ListEmptyComponent={
-          <Text style={{ textAlign: 'center', color: '#999', marginTop: spacing[10] }}>
+          <Text style={{ textAlign: 'center', color: neutral.mutedText, marginTop: spacing[10] }}>
             No auction items yet. Tap "+ Add Item" to create one.
           </Text>
         }
@@ -411,7 +411,7 @@ export default function AuctionScreen() {
             value={form.title}
             onChangeText={v => field('title', v)}
             placeholder="Signed golf bag, spa package, etc."
-            placeholderTextColor="#999"
+            placeholderTextColor={neutral.placeholder}
           />
           {fieldErrors.title && <Text style={styles.fieldError}>{fieldErrors.title}</Text>}
 
@@ -422,7 +422,7 @@ export default function AuctionScreen() {
             value={form.description}
             onChangeText={v => field('description', v)}
             placeholder="Describe the item, donor, or condition..."
-            placeholderTextColor="#999"
+            placeholderTextColor={neutral.placeholder}
             multiline
           />
 
@@ -450,7 +450,7 @@ export default function AuctionScreen() {
               value={form.startingBid}
               onChangeText={v => field('startingBid', v)}
               placeholder="$25.00"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
             />
           </View>
           {fieldErrors.startingBid && <Text style={styles.fieldError}>{fieldErrors.startingBid}</Text>}
@@ -465,7 +465,7 @@ export default function AuctionScreen() {
                   value={form.bidIncrement}
                   onChangeText={v => field('bidIncrement', v)}
                   placeholder="$5.00"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={neutral.placeholder}
                 />
               </View>
               <Text style={styles.fieldHint}>
@@ -492,7 +492,7 @@ export default function AuctionScreen() {
               value={form.buyNowPrice}
               onChangeText={v => field('buyNowPrice', v)}
               placeholder="Leave blank for no buy-now option"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
             />
           </View>
 
@@ -530,7 +530,7 @@ export default function AuctionScreen() {
                   value={form.goal}
                   onChangeText={v => field('goal', v)}
                   placeholder="Leave blank if no target goal"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={neutral.placeholder}
                 />
               </View>
             </>
@@ -544,7 +544,7 @@ export default function AuctionScreen() {
               value={form.fairMarketValue}
               onChangeText={v => field('fairMarketValue', v)}
               placeholder="$0.00"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
             />
           </View>
 
@@ -556,7 +556,7 @@ export default function AuctionScreen() {
             onChangeText={v => field('displayOrder', v.replace(/[^0-9]/g, ''))}
             keyboardType="number-pad"
             placeholder="0 = first"
-            placeholderTextColor="#999"
+            placeholderTextColor={neutral.placeholder}
           />
 
           {/* Photos */}
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
   label:   { fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing[4], marginBottom: spacing[1], color: '#333' },
   input:   { borderColor: '#ddd' },   // over c.input: a neutral border, not the accent
   inputError: { borderColor: status.danger, backgroundColor: status.dangerBg },
-  fieldError: { color: status.danger, fontSize: fontSize.xs, marginTop: spacing[1] },
+  fieldError: { color: status.dangerText, fontSize: fontSize.xs, marginTop: spacing[1] },
   fieldHint:  { color: '#6b7280', fontSize: fontSize.xs, marginTop: spacing[1] },
   // Amber, not red: nothing here blocks the save.
   fieldWarning: {
@@ -676,7 +676,7 @@ const styles = StyleSheet.create({
   modalContent: { padding: spacing[6], paddingBottom: 60 },
   modalBtnRow:  { flexDirection: 'row', marginTop: spacing[8] },
   photoGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[1] },
-  formatHint: { color: '#777', fontSize: fontSize.xs, lineHeight: 16, marginBottom: spacing[2] },
+  formatHint: { color: neutral.mutedText, fontSize: fontSize.xs, lineHeight: 16, marginBottom: spacing[2] },
   photoThumbWrap: { width: 72, height: 72, borderRadius: radius.md, overflow: 'hidden', position: 'relative' },
   photoThumb:    { width: 72, height: 72 },
   photoPending:  { backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', padding: spacing[1] },

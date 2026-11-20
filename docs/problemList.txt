@@ -89,7 +89,8 @@ P4 — FEATURES / POLISH
           accessibilityState never reached the browser); 5 lint rules
      [x] AX3 headings 2026-11-19: <Heading> in @gfp/ui, 145 titles converted,
           title-is-heading lint rule
-     AX4  contrast: ~43 text colours under 4.5:1 -> theme tokens
+     [x] AX4 contrast + brand colors 2026-11-19: 260 text colours fixed,
+          companion shades keep brands readable, brandPriority override
      AX5  message timing: short-lived messages >= 6 s and announced
      AX6  device pass: VoiceOver, TalkBack, max text size on the scorer flow
           (needs a build — see D5)
@@ -1121,6 +1122,65 @@ AX4. CONTRAST (MCAG 1.4.1)
         Follows the theming contract (light-surface rule; accent decorative-only).
         Also: web registration inputs drop the focus outline with no
         replacement (EventActions.tsx ~818, MCAG 1.4.3).
+        [x] DONE 2026-11-19 — widened at the user's request: organizers keep
+        their brand colors; where a brand color would fail, pair it with a
+        readable companion; when that isn't possible, warn, offer fixes, and
+        let them choose brand over accessibility.
+        - packages/theme split: color.ts (contrast maths) + brand.ts (audit).
+          brandTextColors() derives the text companions — actionText (links /
+          text buttons: a darker shade of action), highlightText (highlight
+          text on primary headers), highlightLabel / highlightMuted (text ON a
+          highlight fill: primary or the muted grey when they read, else
+          black/white). Fills always keep the exact brand color. ThemeContext
+          and the CSS vars (--color-action-text, --color-highlight-text,
+          --color-on-highlight[-muted]) carry them; web buildThemeCss too.
+        - auditTheme(): blocking = primary on surface < 4.5:1 or surface too
+          dark (the two the apps can't pair around), each with one-tap fixes
+          that keep the hue (Darker Primary, Paler Surface, Swap Primary and
+          Surface). paired = action / highlight, shown with the companion and
+          its ratio. GFPTheme.brandPriority (stored in the theme JSON) turns
+          blocking into accepted and drops the companions — brand colors used
+          as entered. Labels on fills stay black/white either way.
+        - Admin: one BrandColorEditor shared by org and event settings (was
+          duplicated) — live check panel (aria-live), fixes, "Prioritize my
+          brand colors" switch behind a warning popup (confirmAction, kind
+          warning), and a preview using the real derived colors.
+        - API ThemeValidation: brandPriority waives the contrast/surface gates;
+          hex validation stays. +3 tests.
+        - readableTextOn bug: a 0.179 luminance cutoff assumed pure black but
+          returned #1a1a1a, so mid-tone fills got 4.2–4.47:1 (the default Leaf
+          Green CTA label: 4.47). Now compares real ratios, pure black as last
+          resort — ≥ 4.5:1 on every fill.
+        - Text colours: 220 literals/status fills converted by codemod
+          (greys -> neutral.mutedText, placeholders -> neutral.placeholder
+          #6b7280, reds/greens/ambers/blues -> status.dangerText/successText/
+          warningText/infoText), 37 brand-colored text sites -> companions,
+          44 texts inside highlight fills -> highlightLabel/Muted. StatusPill
+          and the web event status badge derive their label per fill; event
+          status/help colour tables moved to text tokens; LIVE/FINAL badges and
+          two orange buttons darkened so white reads. TV board kept its dark
+          palette (all ≥ 5.1:1 on #161b22) and #484f58 (2.2:1 there) raised.
+        - Web: global :focus-visible ring in --color-action-text; the input's
+          inline outline:none removed.
+        - Lint gfp-a11y/no-low-contrast-text (mobile, admin, ui, web): text
+          colours in style objects that fail 4.5:1 on white AND on the default
+          dark fill; status fills used as text; text/fill pairs in one style
+          object; placeholderTextColor. Dark-background exceptions carry a
+          disable comment with the measured ratio.
+        NOT DONE: email templates still substitute raw brand colors
+        ({{ACTION_COLOR}} etc.) — server-side, no companion shades yet.
+        VERIFIED: lint 0 errors (probe-free: the rule found the 260 sites).
+        tsc clean everywhere. Tests: theme 61, ui 10, mobile 288, admin 238,
+        web 43, API ThemeValidation 10. Browser 30/30 (Edge; admin + mobile
+        exports and Next on a branch API at :5001): computed-colour audit of
+        every visible text node on 9 admin, 5 mobile screens and the web event
+        page (1,000+ nodes) — all at their minimum; editor flow: pale Primary
+        blocked with "Darker Primary" fix, save refused client-side; dark
+        Surface offers Swap; priority asks first, then saves with
+        brandPriority:true (API accepted; refused without it); mobile header
+        uses the adjusted Highlight, and the exact one under brandPriority;
+        web --color-action-text darker than a light action; keyboard focus
+        ring drawn.
 
 AX5. MESSAGE TIMING (MCAG 1.3.2)
         Under the 5 s minimum: "Saved" 3 s (admin settings.tsx ~199,

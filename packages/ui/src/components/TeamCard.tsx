@@ -17,7 +17,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { TeamDTO } from '@gfp/shared-types';
 import { useTheme } from './ThemeProvider';
 import { formatTime } from '@gfp/shared-types';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 interface TeamCardProps {
   team: TeamDTO;
@@ -57,12 +57,12 @@ export function TeamCard({ team, showCheckIn: _showCheckIn = false }: TeamCardPr
       {/* ── START INFO ── */}
       <View style={styles.startInfo}>
         {team.startingHole && (
-          <Text style={[styles.infoText, { color: theme.colors.action }]}>
+          <Text style={[styles.infoText, { color: theme.actionText }]}>
             Hole {team.startingHole}
           </Text>
         )}
         {team.teeTime && (
-          <Text style={[styles.infoText, { color: theme.colors.action }]}>
+          <Text style={[styles.infoText, { color: theme.actionText }]}>
             {formatTime(team.teeTime)}
           </Text>
         )}
@@ -81,7 +81,7 @@ export function TeamCard({ team, showCheckIn: _showCheckIn = false }: TeamCardPr
             styles.playerStatus,
             { backgroundColor: player.checkInStatus === 'CheckedIn' ? '#eafaf1' : '#f8f9fa' }
           ]}>
-            <Text style={{ fontSize: fontSize.xxs, color: player.checkInStatus === 'CheckedIn' ? '#27ae60' : '#95a5a6' }}>
+            <Text style={{ fontSize: fontSize.xxs, color: player.checkInStatus === 'CheckedIn' ? status.successText : neutral.mutedText }}>
               {player.checkInStatus === 'CheckedIn' ? '✓ In' : 'Pending'}
             </Text>
           </View>

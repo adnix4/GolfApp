@@ -15,7 +15,7 @@
  * `--color-on-primary` / `--color-on-action` label colors).
  */
 
-import { getContrastRatio, mixHex, readableOn, readableTextOn } from '@gfp/theme';
+import { getContrastRatio, mixHex, readableOn, readableTextOn, status, neutral } from '@gfp/theme';
 
 export { buildThemeCss } from '../eventPageStyles';
 
@@ -217,9 +217,9 @@ export const nm = {
   orgName:     { fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-on-primary, #fff)', opacity: 0.7, textTransform: 'uppercase' as const, letterSpacing: 1 },
   eventName:   { fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-on-primary, #fff)' },
   badges:      { display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 },
-  liveBadge:   { display: 'flex', alignItems: 'center', gap: 6, backgroundColor: '#e74c3c', color: '#fff', padding: '4px 12px', borderRadius: 14, fontSize: '0.8rem', fontWeight: 700, letterSpacing: 0.5 },
+  liveBadge:   { display: 'flex', alignItems: 'center', gap: 6, backgroundColor: '#c0392b', color: '#fff', padding: '4px 12px', borderRadius: 14, fontSize: '0.8rem', fontWeight: 700, letterSpacing: 0.5 },
   liveDot:     { width: 8, height: 8, borderRadius: '50%', backgroundColor: '#fff', animation: PULSE, display: 'inline-block' },
-  finalBadge:  { backgroundColor: '#27ae60', color: '#fff', padding: '4px 12px', borderRadius: 14, fontSize: '0.8rem', fontWeight: 700 },
+  finalBadge:  { backgroundColor: '#1a7f43', color: '#fff', padding: '4px 12px', borderRadius: 14, fontSize: '0.8rem', fontWeight: 700 },
 
   main:      { flex: 1, maxWidth: 960, margin: '0 auto', width: '100%', padding: '1.5rem 1rem' },
 
@@ -229,13 +229,13 @@ export const nm = {
 
   tableWrap: { backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.08)' },
   table:     { width: '100%', borderCollapse: 'collapse' as const, fontSize: '0.95rem' },
-  th:        { padding: '0.75rem 1rem', fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase' as const, letterSpacing: 0.5, backgroundColor: 'var(--color-highlight)', borderBottom: '2px solid #e8e8e8' },
+  th:        { padding: '0.75rem 1rem', fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-on-highlight, var(--color-primary))', textTransform: 'uppercase' as const, letterSpacing: 0.5, backgroundColor: 'var(--color-highlight)', borderBottom: '2px solid #e8e8e8' },
   td:        { padding: '0.75rem 1rem', color: 'var(--color-primary)' },
 
   footer:      { borderTop: '1px solid #e0e0e0', padding: '0.875rem 1.5rem', backgroundColor: '#fff' },
   footerInner: { maxWidth: 960, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' },
   footerMeta:  { fontSize: '0.8rem', color: '#4b5563' },
-  footerError: { fontSize: '0.8rem', color: '#e74c3c', fontWeight: 600 },
+  footerError: { fontSize: '0.8rem', color: status.dangerText, fontWeight: 600 },
 
   // Ticker — full-bleed under the header, so it reads as part of the board
   // rather than a card floating in the content column.
@@ -260,6 +260,11 @@ export const nm = {
 
 // ── TV MODE ───────────────────────────────────────────────────────────────────
 
+// The board is dark (#0d1117, panels #161b22), so the contrast rule's
+// white-or-brand-fill check doesn't apply here. Measured on #161b22, the
+// lighter of the two: #8b949e 5.62:1, #3fb950 6.81:1, #f85149 5.16:1. (#484f58
+// was 2.2:1 here — fine on white, which is why the rule never saw it.)
+/* eslint-disable gfp-a11y/no-low-contrast-text */
 export const tv = {
   page:   { minHeight: '100vh', display: 'flex', flexDirection: 'column' as const, backgroundColor: 'var(--tv-board, #0d1117)' },
 
@@ -300,7 +305,7 @@ export const tv = {
   td:        { padding: '1rem 1.25rem', color: '#e6edf3', fontWeight: 600 },
 
   statusBar:   { padding: '0.625rem 2.5rem', backgroundColor: 'var(--tv-panel, #161b22)', borderTop: '1px solid var(--tv-border, #30363d)' },
-  statusMeta:  { fontSize: '0.85rem', color: '#484f58' },
+  statusMeta:  { fontSize: '0.85rem', color: '#8b949e' },
   statusError: { fontSize: '0.85rem', color: '#f85149', fontWeight: 600 },
 
   // Ticker — runs across the TOP, directly under the header, so the divider
@@ -313,7 +318,7 @@ export const tv = {
   // Deliberately the loudest thing in the strip — bigger than a sponsor name or
   // a lot title — so a room glancing up gets the instruction before the list.
   tickerHeading:  { fontSize: '1.6rem', fontWeight: 900, letterSpacing: 1, textTransform: 'uppercase' as const, color: 'var(--tv-brand-ink, #f5f7fa)', whiteSpace: 'nowrap' as const },
-  tickerChip:     { fontSize: '0.65rem', fontWeight: 800, color: '#484f58', textTransform: 'uppercase' as const, letterSpacing: 2 },
+  tickerChip:     { fontSize: '0.65rem', fontWeight: 800, color: '#8b949e', textTransform: 'uppercase' as const, letterSpacing: 2 },
   tickerLogo:     { height: 28, width: 'auto', objectFit: 'contain' as const, borderRadius: 4, backgroundColor: '#fff', padding: '2px 6px' },
   // Bigger than the sponsor logo here on purpose: a lot photo is the thing a
   // guest across the room decides to bid on, and it has to read at that range.
@@ -347,11 +352,12 @@ export const tvCellStyles = {
   toParBase:   { ...tv.td, textAlign: 'right' as const, fontWeight: 900 as const, fontSize: '1.3rem' },
   rightMuted:  { ...tv.td, textAlign: 'right' as const, color: '#8b949e' },
 } as const;
+/* eslint-enable gfp-a11y/no-low-contrast-text */
 
 export const nmCellStyles = {
   rank:           { ...nm.td, textAlign: 'center' as const, fontWeight: 700 as const, color: '#555' },
   team:           { ...nm.td, fontWeight: 600 as const },
   toParBase:      { ...nm.td, textAlign: 'right' as const, fontWeight: 800 as const, fontSize: '1.05rem' },
   rightMuted:     { ...nm.td, textAlign: 'right' as const, color: '#555' },
-  rightMutedAlt:  { ...nm.td, textAlign: 'right' as const, color: '#888' },
+  rightMutedAlt:  { ...nm.td, textAlign: 'right' as const, color: neutral.mutedText },
 } as const;

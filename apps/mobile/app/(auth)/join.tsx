@@ -11,14 +11,15 @@ import { GfpLogo } from '@/components/GfpLogo';
 import { useSession } from '@/lib/session';
 import { joinEvent, fetchActiveEvents, type ActiveEventSummary, type JoinEventResponse } from '@/lib/api';
 import { registerForPushNotifications } from '@/lib/pushNotifications';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 type Step = 'pick' | 'join' | 'verify' | 'waiting';
 
+// `color` is the pill's text (on a 13% tint of itself), so each clears 4.5:1.
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   Registration: { label: 'Registration Open', color: '#2e7d32' },
   Active:       { label: 'Day of Event',       color: '#1565c0' },
-  Scoring:      { label: 'In Progress',         color: '#e65100' },
+  Scoring:      { label: 'In Progress',         color: '#b34700' },
 };
 
 function formatEventDate(iso: string | null): string {
@@ -332,7 +333,7 @@ export default function JoinScreen() {
               value={verifyCode}
               onChangeText={v => { setVerifyCode(v.replace(/[^0-9]/g, '')); setResent(false); }}
               placeholder="••••••"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={neutral.placeholder}
               keyboardType="number-pad"
               maxLength={6}
               returnKeyType="done"
@@ -443,7 +444,7 @@ export default function JoinScreen() {
                   value={eventCode}
                   onChangeText={v => setEventCode(v.toUpperCase())}
                   placeholder="e.g. ABC12345"
-                  placeholderTextColor="#aaa"
+                  placeholderTextColor={neutral.placeholder}
                   autoCapitalize="characters"
                   autoCorrect={false}
                   editable={!joining}
@@ -457,7 +458,7 @@ export default function JoinScreen() {
               value={email}
               onChangeText={setEmail}
               placeholder="you@example.com"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={neutral.placeholder}
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
@@ -632,7 +633,7 @@ export default function JoinScreen() {
               value={eventCode}
               onChangeText={v => { setEventCode(v.toUpperCase()); setError(null); }}
               placeholder="e.g. ABC12345"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={neutral.placeholder}
               autoCapitalize="characters"
               autoCorrect={false}
               returnKeyType="done"

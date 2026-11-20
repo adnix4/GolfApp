@@ -12,7 +12,7 @@ import { useSponsorList } from '@/lib/queries';
 import { UPLOAD_ABORTED } from '@/lib/upload';
 import { UploadProgress } from '@/components/UploadProgress';
 import { confirmAction } from '@/lib/confirmAction';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 const TIER_OPTIONS = ['title', 'gold', 'hole', 'silver', 'bronze'] as const;
 const TIER_COLOR: Record<string, string> = {
@@ -172,7 +172,7 @@ export default function SponsorsScreen() {
                     />
                   ) : (
                     <View style={[styles.logoPlaceholder, { backgroundColor: theme.colors.highlight }]}>
-                      <Text style={{ fontSize: fontSize.xxs, color: theme.mutedText }}>No Logo</Text>
+                      <Text style={{ fontSize: fontSize.xxs, color: theme.highlightMuted }}>No Logo</Text>
                     </View>
                   )}
                 </View>
@@ -182,10 +182,10 @@ export default function SponsorsScreen() {
                     <Text style={[styles.tagline, { color: theme.mutedText }]}>{s.tagline}</Text>
                   )}
                   {s.websiteUrl && (
-                    <Text style={[styles.url, { color: theme.colors.action }]} numberOfLines={1}>{s.websiteUrl}</Text>
+                    <Text style={[styles.url, { color: theme.actionText }]} numberOfLines={1}>{s.websiteUrl}</Text>
                   )}
                   {s.donationAmountCents != null && s.donationAmountCents > 0 && (
-                    <Text style={[styles.donationAmt, { color: '#16a085' }]}>
+                    <Text style={[styles.donationAmt, { color: status.successText }]}>
                       {formatCentsShort(s.donationAmountCents)} donation
                     </Text>
                   )}
@@ -374,7 +374,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
             <TextInput
               style={c.input}
               value={name} onChangeText={setName}
-              placeholder="Acme Corp" placeholderTextColor="#999" editable={!loading}
+              placeholder="Acme Corp" placeholderTextColor={neutral.placeholder} editable={!loading}
             />
 
             {/* Logo section */}
@@ -428,7 +428,7 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
               value={logoUrl}
               onChangeText={v => { setLogoUrl(v); setPendingFile(null); setLocalPreview(null); }}
               placeholder="https://example.com/logo.png"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
               editable={!loading}
             />
             {/* Informational, never blocking: the server converts on save. Only
@@ -444,21 +444,21 @@ function SponsorFormModal({ visible, eventId, initialData, onClose, onSaved }: S
             <TextInput
               style={c.input}
               value={websiteUrl} onChangeText={setWebsiteUrl}
-              placeholder="https://acme.com (optional)" placeholderTextColor="#999" editable={!loading}
+              placeholder="https://acme.com (optional)" placeholderTextColor={neutral.placeholder} editable={!loading}
             />
 
             <Text style={c.fieldLabel}>Tagline</Text>
             <TextInput
               style={c.input}
               value={tagline} onChangeText={setTagline}
-              placeholder="Powering your round (optional)" placeholderTextColor="#999" editable={!loading}
+              placeholder="Powering your round (optional)" placeholderTextColor={neutral.placeholder} editable={!loading}
             />
 
             <Text style={c.fieldLabel}>Donation Amount</Text>
             <MoneyInput
               style={c.input}
               value={donationAmt} onChangeText={setDonationAmt}
-              placeholder="$0.00 (optional)" placeholderTextColor="#999"
+              placeholder="$0.00 (optional)" placeholderTextColor={neutral.placeholder}
               editable={!loading}
             />
 
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
   editBtn: { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: spacing[3], paddingVertical: spacing[1] },
   editBtnText: { fontSize: fontSize.xs, fontWeight: '600' },
   deleteBtn: { paddingHorizontal: spacing[3], paddingVertical: spacing[1] },
-  deleteBtnText: { fontSize: fontSize.xs, fontWeight: '600', color: status.danger },
+  deleteBtnText: { fontSize: fontSize.xs, fontWeight: '600', color: status.dangerText },
   modal:    { width: '100%', maxWidth: 480, backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[8], maxHeight: '90%' },
   modalScroll: { maxHeight: 500 },
   pillRow: { marginBottom: spacing[1] },
@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
   uploadBtn: { borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[2] },
   uploadBtnText: { fontSize: fontSize.sm, fontWeight: '700' },
   fileNameText: { flex: 1, fontSize: fontSize.xs, color: '#555' },
-  orText: { textAlign: 'center', color: '#aaa', fontSize: fontSize.xs, marginVertical: spacing[2] },
-  formatHint: { color: '#777', fontSize: fontSize.xs, lineHeight: 16, marginTop: spacing[2] },
-  formatWarn: { color: '#a67100', fontSize: fontSize.xs, lineHeight: 16, marginTop: spacing[1] },
+  orText: { textAlign: 'center', color: neutral.mutedText, fontSize: fontSize.xs, marginVertical: spacing[2] },
+  formatHint: { color: neutral.mutedText, fontSize: fontSize.xs, lineHeight: 16, marginTop: spacing[2] },
+  formatWarn: { color: status.warningText, fontSize: fontSize.xs, lineHeight: 16, marginTop: spacing[1] },
 });

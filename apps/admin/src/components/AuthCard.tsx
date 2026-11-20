@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, neutral } from '@gfp/theme';
 
 /**
  * The signed-out card the account screens share: forgot password, reset
@@ -39,7 +39,7 @@ export function AuthField({ label, ...input }: { label: string } & TextInputProp
       <Text style={c.fieldLabel}>{label}</Text>
       <TextInput
         style={[c.input, { color: theme.colors.primary }]}
-        placeholderTextColor="#999"
+        placeholderTextColor={neutral.placeholder}
         {...input}
       />
     </>

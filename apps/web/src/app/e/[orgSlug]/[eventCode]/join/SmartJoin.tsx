@@ -3,6 +3,7 @@
 import { resolveMedia } from '@/lib/api';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { neutral } from '@gfp/theme';
 
 // ── DEVICE-AWARE JOIN HAND-OFF ────────────────────────────────────────────────
 // Web-first: registration (names + entry fee payment) lives on the event page
@@ -157,7 +158,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 2px 16px rgba(0,0,0,0.08)',
   },
   logo:    { height: 64, objectFit: 'contain', marginBottom: '1rem' },
-  eyebrow: { fontSize: '0.75rem', fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#888', margin: '0 0 0.375rem' },
+  eyebrow: { fontSize: '0.75rem', fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: neutral.mutedText, margin: '0 0 0.375rem' },
   title:   { fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary, #1a1a2e)', margin: '0 0 1rem', lineHeight: 1.25 },
   status:  { fontSize: '0.95rem', color: '#4b5563', lineHeight: 1.5, margin: '0 0 1.25rem' },
 
@@ -176,5 +177,5 @@ const s: Record<string, React.CSSProperties> = {
     display: 'inline-block', fontSize: '0.95rem', fontWeight: 700,
     color: 'var(--color-primary, #1a1a2e)', textDecoration: 'none',
   },
-  note: { fontSize: '0.8rem', color: '#888', margin: 0 },
+  note: { fontSize: '0.8rem', color: neutral.mutedText, margin: 0 },
 };

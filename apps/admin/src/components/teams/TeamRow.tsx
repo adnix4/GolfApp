@@ -8,7 +8,7 @@ import {
   isCheckedIn as statusIsCheckedIn, checkInLabel, checkInColor,
   checkInConfirmCopy, cardlessHint, canCheckInWholeTeam, golfersWithoutCard,
 } from '@/lib/checkIn';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // ── Team row (memoized) ───────────────────────────────────────────────────────
 // Hoisted out of the FlatList renderItem so the closure doesn't recreate the
@@ -69,7 +69,7 @@ export const TeamRow = memo(function TeamRow({
                 style={[styles.editBtn, { borderColor: '#e74c3c' }]}
                 onPress={() => onRemoveTeam(team)}
               >
-                <Text style={[styles.editBtnText, { color: '#e74c3c' }]}>Remove</Text>
+                <Text style={[styles.editBtnText, { color: status.dangerText }]}>Remove</Text>
               </Pressable>
             )}
             {!teamIsIn && canCheckInAll && eventStatus === 'Active' && (
@@ -124,7 +124,7 @@ export const TeamRow = memo(function TeamRow({
               <View style={styles.playerActions}>
                 {eventStatus === 'Active' && (
                   statusIsCheckedIn(p.checkInStatus) ? (
-                    <Text style={[styles.golferDone, { color: '#27ae60' }]}>✓ In</Text>
+                    <Text style={[styles.golferDone, { color: status.successText }]}>✓ In</Text>
                   ) : (
                     <Pressable accessibilityRole="button" accessibilityLabel={`Check In ${p.firstName} ${p.lastName}`}
                       style={[styles.smallBtn, { borderColor: theme.colors.action }]}
@@ -134,7 +134,7 @@ export const TeamRow = memo(function TeamRow({
                         confirmAction(c.title, c.message, () => onCheckInPlayer(p), c.confirmText, c.dialog);
                       }}
                     >
-                      <Text style={[styles.smallBtnText, { color: theme.colors.action }]}>Check In</Text>
+                      <Text style={[styles.smallBtnText, { color: theme.actionText }]}>Check In</Text>
                     </Pressable>
                   )
                 )}
@@ -154,7 +154,7 @@ export const TeamRow = memo(function TeamRow({
                     { destructive: true },
                   )}
                 >
-                  <Text style={[styles.smallBtnText, { color: '#e74c3c' }]}>Remove</Text>
+                  <Text style={[styles.smallBtnText, { color: status.dangerText }]}>Remove</Text>
                 </Pressable>
               </View>
             </View>
@@ -165,7 +165,7 @@ export const TeamRow = memo(function TeamRow({
       {/* Add player row */}
       <View style={styles.cardFooter}>
         <Text style={[styles.feePill, {
-          color: team.entryFeePaid ? '#27ae60' : '#e74c3c',
+          color: team.entryFeePaid ? status.successText : status.dangerText,
           borderColor: team.entryFeePaid ? '#27ae60' : '#e74c3c',
         }]}>
           {team.entryFeePaid ? 'Fee Paid' : 'Fee Unpaid'}
@@ -175,7 +175,7 @@ export const TeamRow = memo(function TeamRow({
             style={[styles.addPlayerBtn, { borderColor: theme.colors.action }]}
             onPress={() => onAddPlayer(team)}
           >
-            <Text style={[styles.addPlayerBtnText, { color: theme.colors.action }]}>+ Add Player</Text>
+            <Text style={[styles.addPlayerBtnText, { color: theme.actionText }]}>+ Add Player</Text>
           </Pressable>
         )}
       </View>

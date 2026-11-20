@@ -8,7 +8,7 @@ import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useAuth } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 function toSlug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
@@ -109,7 +109,7 @@ export default function RegisterScreen() {
             if (fieldErrors[errorKey]) setFieldErrors(p => ({ ...p, [errorKey]: '' }));
           }}
           placeholder={placeholder}
-          placeholderTextColor="#aaa"
+          placeholderTextColor={neutral.placeholder}
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize ?? 'sentences'}
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
 
   fieldWrap: { marginBottom: spacing[1] },
   hint:      { fontSize: fontSize.xs, marginTop: spacing[1] },
-  fieldError:{ color: status.danger, fontSize: fontSize.xs, marginTop: spacing[1] },
+  fieldError:{ color: status.dangerText, fontSize: fontSize.xs, marginTop: spacing[1] },
 
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[4], marginBottom: spacing[1] },
 

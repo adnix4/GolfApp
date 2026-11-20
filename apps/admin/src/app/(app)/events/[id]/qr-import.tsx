@@ -11,7 +11,7 @@ import { scoresApi, type QrCollectResult } from '@/lib/api';
 import { eventKeys } from '@/lib/queries';
 import { decodeQrPayload, type DecodedQrPayload as DecodedPreview } from '@/lib/qrUtils';
 import { formatDateTime } from '@gfp/shared-types';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 export default function QrImportScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
@@ -77,7 +77,7 @@ export default function QrImportScreen() {
           value={payload}
           onChangeText={handlePayloadChange}
           placeholder="Scan QR code or paste payload here…"
-          placeholderTextColor="#aaa"
+          placeholderTextColor={neutral.placeholder}
           multiline
           numberOfLines={4}
           autoFocus
@@ -139,7 +139,7 @@ export default function QrImportScreen() {
 
       {result && (
         <View style={[styles.resultCard, { borderColor: result.conflicts > 0 ? '#f39c12' : '#27ae60' }]}>
-          <Heading level={2} style={[styles.resultTitle, { color: result.conflicts > 0 ? '#d68910' : '#1a6b3c' }]}>
+          <Heading level={2} style={[styles.resultTitle, { color: result.conflicts > 0 ? status.warningText : '#1a6b3c' }]}>
             {result.conflicts > 0 ? '⚠ Import completed with conflicts' : '✓ Import successful'}
           </Heading>
           <PreviewRow label="Team"            value={result.teamName} />
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   inputCard: { backgroundColor: '#fff', borderWidth: 2, borderRadius: radius.lg, padding: spacing[1], minHeight: 100 },
   input:     { fontSize: fontSize.md, padding: spacing[3], minHeight: 88, textAlignVertical: 'top', fontFamily: 'monospace' },
   clearBtn:  { alignSelf: 'flex-end', paddingHorizontal: spacing[3], paddingBottom: spacing[2] },
-  clearText: { fontSize: fontSize.xs, color: '#999', fontWeight: '600' },
+  clearText: { fontSize: fontSize.xs, color: neutral.mutedText, fontWeight: '600' },
 
   previewCard:  { borderWidth: 1.5, borderRadius: radius.lg, padding: spacing[4], gap: spacing[2] },
   previewTitle: { fontSize: fontSize.md, fontWeight: '800', marginBottom: spacing[1] },

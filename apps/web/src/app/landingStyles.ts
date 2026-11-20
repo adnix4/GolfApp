@@ -24,7 +24,7 @@ export const L: Record<string, CSSProperties> = {
   heroInner: { maxWidth: CONTAINER, margin: '0 auto', padding: '3rem 1.25rem 0' },
   heroTag:   { color: '#c8dfb0', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: '1rem' },
   heroTitle: { color: 'var(--color-surface)', fontSize: '2.75rem', fontWeight: 900, lineHeight: 1.1, marginBottom: '1.25rem', maxWidth: 720 },
-  heroSub:   { color: 'var(--color-highlight)', fontSize: '1.1rem', lineHeight: 1.6, marginBottom: '2rem', maxWidth: 620 },
+  heroSub:   { color: 'var(--color-highlight-text)', fontSize: '1.1rem', lineHeight: 1.6, marginBottom: '2rem', maxWidth: 620 },
   heroCtas:  { display: 'flex', flexWrap: 'wrap', gap: '0.9rem' },
 
   // ── Buttons ────────────────────────────────────────────────────────────────
@@ -53,7 +53,7 @@ export const L: Record<string, CSSProperties> = {
   // ── Lifecycle walkthrough ────────────────────────────────────────────────
   step:       { backgroundColor: '#fff', border: '1px solid #e8e8e8', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' },
   stepShot:   { width: '100%', aspectRatio: '16 / 10', objectFit: 'cover', display: 'block', backgroundColor: 'var(--color-highlight)' },
-  stepShotPlaceholder: { width: '100%', aspectRatio: '16 / 10', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--color-highlight)', color: 'var(--color-primary)', gap: '0.35rem' },
+  stepShotPlaceholder: { width: '100%', aspectRatio: '16 / 10', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--color-highlight)', color: 'var(--color-on-highlight, var(--color-primary))', gap: '0.35rem' },
   stepBody:   { padding: '1.25rem 1.5rem 1.5rem' },
   stepBadge:  { display: 'inline-block', backgroundColor: 'var(--color-primary)', color: '#fff', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6, padding: '0.25rem 0.6rem', borderRadius: 999, marginBottom: '0.6rem' },
   stepTitle:  { color: 'var(--color-primary)', fontSize: '1.15rem', fontWeight: 800, marginBottom: '0.4rem' },
@@ -69,7 +69,7 @@ export const L: Record<string, CSSProperties> = {
   bottomCta:      { backgroundColor: 'var(--color-primary)', textAlign: 'center' },
   bottomCtaInner: { maxWidth: CONTAINER, margin: '0 auto', padding: '3.5rem 1.25rem' },
   bottomCtaTitle: { color: 'var(--color-surface)', fontSize: '1.9rem', fontWeight: 900, marginBottom: '0.75rem' },
-  bottomCtaSub:   { color: 'var(--color-highlight)', fontSize: '1rem', lineHeight: 1.6, marginBottom: '1.75rem', maxWidth: 520, marginLeft: 'auto', marginRight: 'auto' },
+  bottomCtaSub:   { color: 'var(--color-highlight-text)', fontSize: '1rem', lineHeight: 1.6, marginBottom: '1.75rem', maxWidth: 520, marginLeft: 'auto', marginRight: 'auto' },
 
   // ── Footer ─────────────────────────────────────────────────────────────────
   footer:     { borderTop: '1px solid #eee', backgroundColor: '#fff' },

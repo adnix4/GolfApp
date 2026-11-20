@@ -20,7 +20,7 @@ import {
   registerTeam, registerFreeAgent, joinTeam, fetchInvitePreview, confirmEntryFee,
   type SkillLevel, type AgeGroup, type TeamInvitePreview,
 } from '@/lib/api';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 const STRIPE_PK = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
@@ -367,7 +367,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={c.inputLg}
                 value={firstName} onChangeText={v => { setFirstName(v); setError(null); }}
-                placeholder="Jane" placeholderTextColor="#aaa"
+                placeholder="Jane" placeholderTextColor={neutral.placeholder}
                 autoCapitalize="words" autoCorrect={false} editable={!submitting} autoFocus
               />
             </View>
@@ -376,7 +376,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={c.inputLg}
                 value={lastName} onChangeText={v => { setLastName(v); setError(null); }}
-                placeholder="Smith" placeholderTextColor="#aaa"
+                placeholder="Smith" placeholderTextColor={neutral.placeholder}
                 autoCapitalize="words" autoCorrect={false} editable={!submitting}
               />
             </View>
@@ -386,7 +386,7 @@ export default function RegisterScreen() {
           <TextInput
             style={c.inputLg}
             value={email} onChangeText={v => { setEmail(v); setError(null); }}
-            placeholder="you@example.com" placeholderTextColor="#aaa"
+            placeholder="you@example.com" placeholderTextColor={neutral.placeholder}
             autoCapitalize="none" keyboardType="email-address" autoComplete="email" editable={!submitting}
           />
 
@@ -394,7 +394,7 @@ export default function RegisterScreen() {
           <TextInput
             style={c.inputLg}
             value={phone} onChangeText={v => { setPhone(fmtPhoneInput(digitsOnly(v))); setError(null); }}
-            placeholder="(555) 867-5309" placeholderTextColor="#aaa"
+            placeholder="(555) 867-5309" placeholderTextColor={neutral.placeholder}
             keyboardType="phone-pad" editable={!submitting}
           />
 
@@ -404,7 +404,7 @@ export default function RegisterScreen() {
           <TextInput
             style={c.inputLg}
             value={handicap} onChangeText={v => { setHandicap(v); setError(null); }}
-            placeholder="e.g. 14.2" placeholderTextColor="#aaa"
+            placeholder="e.g. 14.2" placeholderTextColor={neutral.placeholder}
             keyboardType="decimal-pad" editable={!submitting}
           />
         </View>
@@ -441,7 +441,7 @@ export default function RegisterScreen() {
                 style={c.inputLg}
                 value={teamName} onChangeText={v => { setTeamName(v); setError(null); }}
                 placeholder="e.g. The Bogey Brothers"
-                placeholderTextColor="#aaa"
+                placeholderTextColor={neutral.placeholder}
                 autoCapitalize="words" editable={!submitting}
               />
               <Text style={[styles.fieldHint, { color: theme.mutedText }]}>
@@ -457,7 +457,7 @@ export default function RegisterScreen() {
                 style={c.inputLg}
                 value={inviteInput} onChangeText={v => { setInviteInput(v); setError(null); }}
                 placeholder="Paste the link your captain sent you"
-                placeholderTextColor="#aaa"
+                placeholderTextColor={neutral.placeholder}
                 autoCapitalize="none" autoCorrect={false} editable={!submitting}
                 accessibilityLabel="Invite link or code"
               />
@@ -490,7 +490,7 @@ export default function RegisterScreen() {
 
           {isFreeAgent && (
             <View style={[styles.assignNotice, { backgroundColor: theme.colors.highlight, borderColor: theme.colors.primary + '44' }]}>
-              <Text style={[styles.assignNoticeText, { color: theme.colors.primary }]}>
+              <Text style={[styles.assignNoticeText, { color: theme.highlightLabel }]}>
                 You&apos;ll join the free agent pool, and the organizer will put you on a team before the event starts.
               </Text>
             </View>
@@ -550,7 +550,7 @@ export default function RegisterScreen() {
               style={[c.inputLg, styles.textArea]}
               value={pairingNote} onChangeText={setPairingNote}
               placeholder="e.g. I know the Johnson family — please pair me with them if possible."
-              placeholderTextColor="#aaa" multiline numberOfLines={3} maxLength={PAIRING_NOTE_MAX} editable={!submitting}
+              placeholderTextColor={neutral.placeholder} multiline numberOfLines={3} maxLength={PAIRING_NOTE_MAX} editable={!submitting}
             />
           </View>
         )}
@@ -579,7 +579,7 @@ export default function RegisterScreen() {
                     <TextInput
                       style={c.inputLg}
                       value={tm.firstName} onChangeText={v => updateTeammate(idx, 'firstName', v)}
-                      placeholder="Alex" placeholderTextColor="#aaa" autoCapitalize="words" autoCorrect={false} editable={!submitting}
+                      placeholder="Alex" placeholderTextColor={neutral.placeholder} autoCapitalize="words" autoCorrect={false} editable={!submitting}
                     />
                   </View>
                   <View style={styles.halfField}>
@@ -587,7 +587,7 @@ export default function RegisterScreen() {
                     <TextInput
                       style={c.inputLg}
                       value={tm.lastName} onChangeText={v => updateTeammate(idx, 'lastName', v)}
-                      placeholder="Jones" placeholderTextColor="#aaa" autoCapitalize="words" autoCorrect={false} editable={!submitting}
+                      placeholder="Jones" placeholderTextColor={neutral.placeholder} autoCapitalize="words" autoCorrect={false} editable={!submitting}
                     />
                   </View>
                 </View>
@@ -595,7 +595,7 @@ export default function RegisterScreen() {
                 <TextInput
                   style={c.inputLg}
                   value={tm.email} onChangeText={v => updateTeammate(idx, 'email', v)}
-                  placeholder="teammate@example.com" placeholderTextColor="#aaa"
+                  placeholder="teammate@example.com" placeholderTextColor={neutral.placeholder}
                   autoCapitalize="none" keyboardType="email-address" autoComplete="email" editable={!submitting}
                 />
                 <View style={styles.row}>
@@ -606,7 +606,7 @@ export default function RegisterScreen() {
                     <TextInput
                       style={c.inputLg}
                       value={tm.phone ?? ''} onChangeText={v => updateTeammate(idx, 'phone', fmtPhoneInput(digitsOnly(v)))}
-                      placeholder="(555) 867-5309" placeholderTextColor="#aaa"
+                      placeholder="(555) 867-5309" placeholderTextColor={neutral.placeholder}
                       keyboardType="phone-pad" editable={!submitting}
                     />
                   </View>
@@ -617,7 +617,7 @@ export default function RegisterScreen() {
                     <TextInput
                       style={c.inputLg}
                       value={tm.handicap ?? ''} onChangeText={v => updateTeammate(idx, 'handicap', v)}
-                      placeholder="e.g. 14.2" placeholderTextColor="#aaa"
+                      placeholder="e.g. 14.2" placeholderTextColor={neutral.placeholder}
                       keyboardType="decimal-pad" editable={!submitting}
                     />
                   </View>
@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
   feePayError:    { fontSize: fontSize.xs, color: status.dangerText, marginTop: spacing[2] },
   feePayBtn:      { borderRadius: radius.lg, paddingVertical: spacing[3], alignItems: 'center', marginTop: spacing[3] },
   feePayBtnText:  { color: '#fff', fontWeight: '700', fontSize: fontSize.lg },
-  feeSecureNote:  { fontSize: fontSize.xxs, color: '#aaa', textAlign: 'center', marginTop: spacing[2] },
+  feeSecureNote:  { fontSize: fontSize.xxs, color: neutral.mutedText, textAlign: 'center', marginTop: spacing[2] },
   rosterBox:      { borderRadius: radius.lg, borderWidth: 1, padding: spacing[4], marginTop: spacing[4], gap: spacing[1] },
   inviteCard:     { borderRadius: radius.lg, borderWidth: 1, padding: spacing[4], marginTop: spacing[4] },
   inviteTitle:    { fontSize: fontSize.lg, fontWeight: '700', marginBottom: spacing[1] },

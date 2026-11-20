@@ -8,14 +8,18 @@
 
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { radius, spacing } from '@gfp/theme';
+import { radius, spacing, readableTextOn, isHexColor } from '@gfp/theme';
 
 export interface StatusPillProps {
   /** Background color (a hex like '#27ae60' or theme.colors.*). */
   color: string;
   /** Text shown inside the pill. */
   label: string;
-  /** Text color — defaults to white. */
+  /**
+   * Text color — defaults to white or near-black, whichever reads better on
+   * `color`. The status palettes use bright fills (#2ecc71 green is 2.0:1
+   * under white text), so the pill keeps its color and the label adapts. AX4.
+   */
   textColor?: string;
   /** 'sm' is tighter padding for inline use; 'md' is the default. */
   size?: 'sm' | 'md';
@@ -30,10 +34,11 @@ export interface StatusPillProps {
 export function StatusPill({
   color,
   label,
-  textColor = '#fff',
+  textColor,
   size = 'md',
   textTransform = 'uppercase',
 }: StatusPillProps) {
+  const labelColor = textColor ?? (isHexColor(color) ? readableTextOn(color) : '#fff');
   const padding = size === 'sm' ? styles.smPad : styles.mdPad;
   const fontSize = size === 'sm' ? 10 : 11;
   return (
@@ -46,7 +51,7 @@ export function StatusPill({
         style={[
           styles.label,
           {
-            color: textColor,
+            color: labelColor,
             fontSize,
             textTransform,
             letterSpacing: textTransform === 'uppercase' ? 0.4 : 0,

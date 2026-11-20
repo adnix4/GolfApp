@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { readableTextOn, radius, spacing, fontSize } from '@gfp/theme';
+import { readableTextOn, radius, spacing, fontSize, status } from '@gfp/theme';
 import { useTheme } from './ThemeProvider';
 
 const MIN_TOUCH_TARGET         = 56;
@@ -112,15 +112,15 @@ export function ScoreCard({
               accessibilityLabel={challenge.sponsorName ?? 'Sponsor'}
             />
           ) : challenge.sponsorName ? (
-            <Text style={[styles.challengeSponsor, { color: theme.mutedText }]} numberOfLines={1}>
+            <Text style={[styles.challengeSponsor, { color: theme.highlightMuted }]} numberOfLines={1}>
               {challenge.sponsorName}
             </Text>
           ) : null}
-          <Text style={[styles.challengeDesc, { color: theme.colors.primary }]} numberOfLines={compact ? 1 : 2}>
+          <Text style={[styles.challengeDesc, { color: theme.highlightLabel }]} numberOfLines={compact ? 1 : 2}>
             {challenge.description}
           </Text>
           {challenge.prizeDescription && (
-            <Text style={[styles.challengePrize, { color: theme.mutedText }]} numberOfLines={1}>
+            <Text style={[styles.challengePrize, { color: theme.highlightMuted }]} numberOfLines={1}>
               🏆 {challenge.prizeDescription}
             </Text>
           )}
@@ -172,9 +172,9 @@ export function ScoreCard({
               styles.relativeScore,
               {
                 color: relativeScore !== null && relativeScore < 0
-                  ? '#27ae60'
+                  ? status.successText
                   : relativeScore !== null && relativeScore > 0
-                    ? '#e74c3c'
+                    ? status.dangerText
                     : theme.mutedText,
               },
             ]}
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   },
   conflictText: {
     fontSize: fontSize.xs,
-    color: '#e67e22',
+    color: status.warningText,
     fontWeight: '600',
     textAlign: 'center',
   },

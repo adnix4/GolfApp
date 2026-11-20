@@ -23,7 +23,7 @@ function PlayerRow({
   return (
     <View style={rowStyles.row}>
       <View style={[rowStyles.avatar, { backgroundColor: theme.colors.highlight }]}>
-        <Text style={[rowStyles.initials, { color: theme.colors.primary }]}>
+        <Text style={[rowStyles.initials, { color: theme.highlightLabel }]}>
           {player.firstName[0]}{player.lastName[0]}
         </Text>
       </View>
@@ -100,10 +100,10 @@ export default function TeamScreen() {
 
         {/* ── TEAM HEADER ── */}
         <View style={[styles.teamCard, { backgroundColor: theme.colors.primary }]}>
-          <Heading level={1} style={[styles.teamName,  { color: theme.colors.highlight }]} numberOfLines={2}>
+          <Heading level={1} style={[styles.teamName,  { color: theme.highlightText }]} numberOfLines={2}>
             {team.name}
           </Heading>
-          <Text style={[styles.eventName, { color: theme.colors.highlight }]} numberOfLines={1}>
+          <Text style={[styles.eventName, { color: theme.highlightText }]} numberOfLines={1}>
             {event.name}
           </Text>
         </View>

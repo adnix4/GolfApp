@@ -274,7 +274,7 @@ export function AbsencesModal({
               <View style={{ flex: 1 }}>
                 <Text style={{ color: theme.colors.primary, fontSize: fontSize.sm, fontWeight: '600' }}>{a.memberName}</Text>
                 {a.subMemberName
-                  ? <Text style={{ color: status.success, fontSize: fontSize.xs }}>Sub: {a.subMemberName}</Text>
+                  ? <Text style={{ color: status.successText, fontSize: fontSize.xs }}>Sub: {a.subMemberName}</Text>
                   : <Text style={[c.muted, { fontSize: fontSize.xs }]}>No sub assigned</Text>}
               </View>
               {!a.subMemberId && (
@@ -282,7 +282,7 @@ export function AbsencesModal({
                   style={[mStyles.iconBtn, { borderColor: theme.colors.accent }]}
                   onPress={() => onAddSub(a.memberId)}
                 >
-                  <Text style={{ fontSize: fontSize.xs, color: theme.colors.action }}>Add Sub</Text>
+                  <Text style={{ fontSize: fontSize.xs, color: theme.actionText }}>Add Sub</Text>
                 </Pressable>
               )}
             </View>
@@ -347,7 +347,7 @@ export function CloseRoundModal({
         placeholder="Leave blank for no skins"
         placeholderTextColor={PLACEHOLDER}
       />
-      {error && <Text style={{ color: status.danger, fontSize: fontSize.sm }}>{error}</Text>}
+      {error && <Text style={{ color: status.dangerText, fontSize: fontSize.sm }}>{error}</Text>}
     </FormModal>
   );
 }
@@ -409,7 +409,7 @@ export function EnterScoresModal({
           );
         })}
       </ScrollView>
-      {notice && <Text style={{ color: status.success, fontSize: fontSize.sm }}>{notice}</Text>}
+      {notice && <Text style={{ color: status.successText, fontSize: fontSize.sm }}>{notice}</Text>}
       {selMemberId !== '' && (
         <>
           <Text style={c.fieldLabel}>Gross Score by Hole</Text>
@@ -430,7 +430,7 @@ export function EnterScoresModal({
           </View>
         </>
       )}
-      {error && <Text style={{ color: status.danger, fontSize: fontSize.sm }}>{error}</Text>}
+      {error && <Text style={{ color: status.dangerText, fontSize: fontSize.sm }}>{error}</Text>}
     </FormModal>
   );
 }
@@ -482,7 +482,7 @@ export function AddFlightModal({
         keyboardType="numbers-and-punctuation"
       />
       <Text style={c.fieldHint}>The range is a guide for you. Assign each member to a flight from the roster.</Text>
-      {error && <Text style={{ color: status.danger, fontSize: fontSize.sm }}>{error}</Text>}
+      {error && <Text style={{ color: status.dangerText, fontSize: fontSize.sm }}>{error}</Text>}
     </FormModal>
   );
 }
@@ -587,7 +587,7 @@ const mStyles = StyleSheet.create({
   holeInput:    { width: 48, textAlign: 'center', paddingHorizontal: spacing[1] },
   row:           { flexDirection: 'row', gap: spacing[2] },
   half:          { flex: 1 },
-  fieldError:    { fontSize: fontSize.xs, color: status.danger, marginTop: spacing[1] },
+  fieldError:    { fontSize: fontSize.xs, color: status.dangerText, marginTop: spacing[1] },
   formError:     { marginTop: spacing[3], marginBottom: 0 },   // over c.errorBox: sits right above the buttons
   picker:        { maxHeight: 120, borderWidth: 1, borderRadius: radius.md },
   pairingGroup:  { borderWidth: 1, borderRadius: radius.md, padding: spacing[3], marginBottom: spacing[2] },

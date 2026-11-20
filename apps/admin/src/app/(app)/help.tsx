@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, neutral, radius, spacing, status } from '@gfp/theme';
 
 // ── Content ───────────────────────────────────────────────────────────────────
 
+// Each colour fills a numbered circle with a white digit, so they are the
+// text tokens (white reads ≥ 4.5:1 on each), not the bright status fills.
 const LIFECYCLE = [
   {
-    step: 1, status: 'Draft', color: '#95a5a6',
+    step: 1, status: 'Draft', color: neutral.mutedText,
     title: 'Draft — Set Up Your Event',
     items: [
       'Create the event from the Events list (name, format, start type, holes).',
@@ -21,7 +23,7 @@ const LIFECYCLE = [
     ],
   },
   {
-    step: 2, status: 'Registration', color: '#3498db',
+    step: 2, status: 'Registration', color: status.infoText,
     title: 'Registration — Golfers Join',
     items: [
       'Your tournament appears in the mobile app event picker and on the public event site.',
@@ -33,7 +35,7 @@ const LIFECYCLE = [
     ],
   },
   {
-    step: 3, status: 'Active', color: '#2ecc71',
+    step: 3, status: 'Active', color: status.successText,
     title: 'Active — Day of Event',
     items: [
       'Use the Registration tab to check in golfers as they arrive and take entry fees.',
@@ -42,7 +44,7 @@ const LIFECYCLE = [
     ],
   },
   {
-    step: 4, status: 'Scoring', color: status.warning,
+    step: 4, status: 'Scoring', color: status.warningText,
     title: 'Scoring — Round in Progress',
     items: [
       'Golfers enter scores hole by hole on their mobile Scorecard tab.',
@@ -54,7 +56,7 @@ const LIFECYCLE = [
     ],
   },
   {
-    step: 5, status: 'Completed', color: status.success,
+    step: 5, status: 'Completed', color: status.successText,
     title: 'Completed — Wrap Up',
     items: [
       'Scoring closes and the final leaderboard is published on the public event page.',

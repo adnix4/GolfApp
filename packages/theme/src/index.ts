@@ -21,9 +21,13 @@
  *
  * WCAG REQUIREMENT (from spec §6.1):
  *   "Contrast validation blocks theme save if primary text pairing fails."
- *   All theme saves must pass validateContrast(primary, surface) before
- *   the API will accept the theme JSONB update.
+ *   brand.ts audits the whole palette; the save gates (admin editors and the
+ *   API) refuse a blocking failure unless the organizer sets brandPriority.
  */
+
+import { readableTextOn } from './color';
+import { brandTextColors } from './brand';
+import { neutral } from './status';
 
 // ── TOKEN TYPE ────────────────────────────────────────────────────────────────
 
@@ -31,7 +35,7 @@
  * GFPTheme is the shape of the theme JSONB column in the organizations table.
  * It is also the shape of the per-event config.theme_override JSONB.
  *
- * All values are CSS hex strings: "#rrggbb" or "#rrggbbaa".
+ * All color values are CSS hex strings: "#rrggbb".
  */
 export interface GFPTheme {
   /** Nav, header, footer, primary button fill */
@@ -44,6 +48,12 @@ export interface GFPTheme {
   highlight: string;
   /** Page backgrounds, card surfaces, email body background */
   surface:   string;
+  /**
+   * The organizer chose their exact brand colors over the accessibility
+   * rules: a failing palette may be saved, and text is drawn in the brand
+   * colors as entered instead of the readable companion shades. See brand.ts.
+   */
+  brandPriority?: boolean;
 }
 
 // ── DEFAULT PALETTE ───────────────────────────────────────────────────────────
@@ -55,186 +65,23 @@ export interface GFPTheme {
  *
  * WCAG contrast ratios for this palette (spec §6.1):
  *   primary (#31572c) on surface (#f4f7de) ≈ 7.4:1  → AAA ✓
- *   action  (#409151) on surface (#f4f7de) ≈ 3.6:1  → fails AA (use action on white for body text)
+ *   action  (#409151) on surface (#f4f7de) ≈ 3.6:1  → fails AA as text, so
+ *     link text uses actionText, a darker shade of it (brand.ts)
  *
  * Color names are informal nicknames for developer communication only.
  */
 export const ECO_GREEN_DEFAULT: GFPTheme = {
   primary:   '#31572c', // "Dark Forest"  — deep green, high contrast
-  action:    '#409151', // "Leaf Green"   — mid green, passes AA
+  action:    '#409151', // "Leaf Green"   — mid green, button fills
   accent:    '#8ba955', // "Sage"         — muted green, decorative use
   highlight: '#ecf39e', // "Pale Lime"    — very light, attention-grabbing
   surface:   '#f4f7de', // "Cream"        — warm off-white background
 };
 
-// ── WCAG CONTRAST VALIDATION ──────────────────────────────────────────────────
+// ── COLOR MATHS + BRAND AUDIT ─────────────────────────────────────────────────
 
-/**
- * validateContrast — checks whether two hex colors meet WCAG 2.1 AA contrast.
- *
- * WHY THIS MATTERS:
- *   The spec states that the theme save endpoint must reject any theme where
- *   the primary color on the surface color fails WCAG 4.5:1.  This function
- *   is used by BOTH the API (server-side validation before DB write) and the
- *   admin theme editor (client-side live preview feedback).
- *
- * ALGORITHM:
- *   1. Convert hex → linear RGB (undo gamma correction with sRGB formula)
- *   2. Compute relative luminance L = 0.2126R + 0.7152G + 0.0722B
- *   3. Contrast ratio = (L_lighter + 0.05) / (L_darker + 0.05)
- *   4. WCAG AA requires ratio ≥ 4.5:1 for normal text
- *
- * @param foreground  hex color of the text / foreground element  e.g. '#31572c'
- * @param background  hex color of the background surface          e.g. '#f4f7de'
- * @returns true if the pair meets WCAG 2.1 AA (≥ 4.5:1 contrast ratio)
- */
-export function validateContrast(foreground: string, background: string): boolean {
-  const ratio = getContrastRatio(foreground, background);
-  // WCAG 2.1 AA minimum for normal text is 4.5:1
-  return ratio >= 4.5;
-}
-
-/**
- * getContrastRatio — returns the raw WCAG contrast ratio between two colors.
- * Exposed separately so the UI can display the actual ratio value to the user
- * (e.g. "7.4:1 — Passes AAA").
- */
-export function getContrastRatio(colorA: string, colorB: string): number {
-  const lumA = getRelativeLuminance(colorA);
-  const lumB = getRelativeLuminance(colorB);
-  // Contrast ratio formula: (lighter + 0.05) / (darker + 0.05)
-  const lighter = Math.max(lumA, lumB);
-  const darker  = Math.min(lumA, lumB);
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
-/**
- * readableTextOn — picks the text color (white or near-black) with the higher
- * WCAG contrast against an arbitrary fill color.
- *
- * WHY THIS EXISTS:
- *   Only the primary↔surface pairing is validated at theme-save time.  Any
- *   component that places text on an UNVALIDATED fill (action, accent,
- *   highlight, or a legacy theme saved before validation existed) must not
- *   hardcode '#fff' — a light fill would make the label invisible.
- *
- * The luminance breakpoint 0.179 is where white and black text have equal
- * WCAG contrast against the background: (L+0.05)/0.05 = 1.05/(L+0.05).
- *
- * @param background  hex fill color the text will sit on
- * @returns '#ffffff' for dark fills, '#1a1a1a' for light fills
- */
-export function readableTextOn(background: string): string {
-  return getRelativeLuminance(background) > 0.179 ? '#1a1a1a' : '#ffffff';
-}
-
-/**
- * mixHex — blends two hex colors, `weightA` of the way from b to a.
- *
- * Channel-wise in sRGB space (not linear): this is for *tinting a surface*,
- * where matching what a designer expects from a 10%-opacity overlay matters
- * more than photometric correctness. Weight is clamped to [0,1].
- */
-export function mixHex(a: string, b: string, weightA: number): string {
-  const w  = Math.min(1, Math.max(0, weightA));
-  const ca = hexToRGB255(a);
-  const cb = hexToRGB255(b);
-  const ch = (x: number, y: number) =>
-    Math.round(x * w + y * (1 - w)).toString(16).padStart(2, '0');
-  return `#${ch(ca.r, cb.r)}${ch(ca.g, cb.g)}${ch(ca.b, cb.b)}`;
-}
-
-/**
- * readableOn — nudges a brand color away from a background until the pair
- * clears `minRatio`, keeping as much of the original hue as it can.
- *
- * WHY THIS EXISTS:
- *   readableTextOn answers "black or white?"; this answers "how do I keep the
- *   brand color and still be legible?" Brand tokens are validated only against
- *   a LIGHT surface (see MIN_SURFACE_LUMINANCE), so a dark-navy primary is
- *   invisible the moment it lands on a dark surface — which is exactly what the
- *   TV scoreboard is. Lightening toward white (or darkening toward near-black
- *   on a light background) preserves the hue that makes it recognizable as the
- *   brand while restoring contrast.
- *
- * Returns the original color untouched when it already clears the ratio.
- */
-export function readableOn(color: string, background: string, minRatio = 4.5): string {
-  const target = getRelativeLuminance(background) > 0.179 ? '#1a1a1a' : '#ffffff';
-  // 2% steps: fine enough that the result still reads as the brand hue, coarse
-  // enough to settle in a handful of iterations.
-  for (let w = 1; w >= 0; w -= 0.02) {
-    const candidate = mixHex(color, target, w);
-    if (getContrastRatio(candidate, background) >= minRatio) return candidate;
-  }
-  return target;
-}
-
-/**
- * MIN_SURFACE_LUMINANCE — floor for isLightSurface().
- *
- * WHY 0.4:
- *   Cards across all three apps render as WHITE panels with primary-colored
- *   text on top of the surface background.  That layout only works when the
- *   surface is light: if surface luminance ≥ 0.4 AND primary↔surface passes
- *   4.5:1 (the existing save gate), primary luminance is forced ≤ 0.05, which
- *   guarantees primary text on a white card reads at ≥ 10.5:1 (AAA).  It also
- *   makes hardcoded white text on primary-filled elements safe by construction.
- */
-export const MIN_SURFACE_LUMINANCE = 0.4;
-
-/**
- * isLightSurface — true when a color is light enough to serve as the surface
- * (page background) token.  Used by the theme save gates (admin editors and
- * the API) alongside validateContrast; see MIN_SURFACE_LUMINANCE for why.
- */
-export function isLightSurface(surface: string): boolean {
-  return getRelativeLuminance(surface) >= MIN_SURFACE_LUMINANCE;
-}
-
-/**
- * getRelativeLuminance — computes WCAG relative luminance for a hex color.
- * Returns a value between 0 (absolute black) and 1 (absolute white).
- *
- * Formula source: https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
- */
-function getRelativeLuminance(hex: string): number {
-  const { r, g, b } = hexToLinearRGB(hex);
-  // WCAG luminance coefficients reflect human eye sensitivity to each channel
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-/**
- * hexToRGB255 — parses a hex color (long or shorthand) into 0–255 channels.
- */
-function hexToRGB255(hex: string): { r: number; g: number; b: number } {
-  // Strip leading '#' and expand shorthand (#abc → #aabbcc)
-  const clean = hex.replace('#', '');
-  const full  = clean.length === 3
-    ? clean.split('').map(c => c + c).join('')
-    : clean;
-
-  return {
-    r: parseInt(full.slice(0, 2), 16),
-    g: parseInt(full.slice(2, 4), 16),
-    b: parseInt(full.slice(4, 6), 16),
-  };
-}
-
-/**
- * hexToLinearRGB — converts a hex color string to linear (gamma-corrected) RGB.
- * The sRGB gamma curve must be undone before luminance math is valid.
- */
-function hexToLinearRGB(hex: string): { r: number; g: number; b: number } {
-  const { r, g, b } = hexToRGB255(hex);
-
-  // Apply inverse sRGB gamma: values ≤ 0.04045 use linear scale,
-  // values above use the power curve defined by the sRGB spec.
-  const linearize = (c: number) =>
-    c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-
-  return { r: linearize(r / 255), g: linearize(g / 255), b: linearize(b / 255) };
-}
+export * from './color';
+export * from './brand';
 
 // ── PLATFORM ADAPTERS ─────────────────────────────────────────────────────────
 
@@ -254,12 +101,14 @@ function hexToLinearRGB(hex: string): { r: number; g: number; b: number } {
  *   }
  *
  * Then any component can do:  color: var(--color-primary);
- * Tailwind users can reference these via CSS variable references in config.
+ * Text drawn in a brand color uses the derived vars: links are
+ * var(--color-action-text), never var(--color-action).
  *
  * @param theme  a GFPTheme (org override or ECO_GREEN_DEFAULT)
  * @returns      a complete CSS :root { } block as a string
  */
 export function buildCSSVars(theme: GFPTheme): string {
+  const text = brandTextColors(theme);
   return `
 :root {
   --color-primary:   ${theme.primary};
@@ -269,6 +118,10 @@ export function buildCSSVars(theme: GFPTheme): string {
   --color-surface:   ${theme.surface};
   --color-on-primary: ${readableTextOn(theme.primary)};
   --color-on-action:  ${readableTextOn(theme.action)};
+  --color-action-text:    ${text.actionText};
+  --color-highlight-text: ${text.highlightText};
+  --color-on-highlight:   ${text.highlightLabel};
+  --color-on-highlight-muted: ${text.highlightMuted};
 }
 `.trim();
 }
@@ -293,9 +146,26 @@ export interface ThemeContextValue {
   ctaLabel:           string;  // = readableTextOn(action)
   pageBackground:     string;  // = surface
   cardBackground:     string;  // = surface
-  linkColor:          string;  // = action
+  linkColor:          string;  // = actionText
   hoverBackground:    string;  // = accent
   selectedBackground: string;  // = highlight
+
+  /**
+   * Action as TEXT (links, text buttons) on the page or a white card: a
+   * darker shade of action that reads at 4.5:1, or action itself when it
+   * already does or the organizer set brandPriority. Fills keep colors.action.
+   */
+  actionText:         string;
+  /** Highlight as TEXT on a primary fill (screen headers). Same rules. */
+  highlightText:      string;
+  /**
+   * Text ON a highlight fill (table headers, selected rows, callouts): primary
+   * when it reads there, else black or white. Use instead of colors.primary
+   * inside anything filled with colors.highlight.
+   */
+  highlightLabel:     string;
+  /** Secondary text on a highlight fill: mutedText when it reads there. */
+  highlightMuted:     string;
 
   /**
    * Neutral secondary-text color for hints, captions, and metadata.
@@ -320,6 +190,7 @@ export interface ThemeContextValue {
  * @returns      a ThemeContextValue ready to be placed in React context
  */
 export function buildThemeContext(theme: GFPTheme): ThemeContextValue {
+  const text = brandTextColors(theme);
   return {
     colors: theme,
 
@@ -332,10 +203,14 @@ export function buildThemeContext(theme: GFPTheme): ThemeContextValue {
     ctaLabel:           readableTextOn(theme.action),
     pageBackground:     theme.surface,
     cardBackground:     theme.surface,
-    linkColor:          theme.action,
+    linkColor:          text.actionText,
     hoverBackground:    theme.accent,
     selectedBackground: theme.highlight,
-    mutedText:          '#4b5563',
+    actionText:         text.actionText,
+    highlightText:      text.highlightText,
+    highlightLabel:     text.highlightLabel,
+    highlightMuted:     text.highlightMuted,
+    mutedText:          neutral.mutedText,
   };
 }
 

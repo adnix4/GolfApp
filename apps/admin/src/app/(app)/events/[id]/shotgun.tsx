@@ -10,7 +10,7 @@ import { eventsApi } from '@/lib/api';
 import { useTeamList } from '@/lib/queries';
 import { useResponsive } from '@/lib/responsive';
 import { autoAssignHoles, validateShotgunAssignments } from '@/lib/shotgunUtils';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 export default function ShotgunScreen() {
   const { id }  = useLocalSearchParams<{ id: string }>();
@@ -116,7 +116,7 @@ export default function ShotgunScreen() {
               onPress={handleAutoAssign}
               style={[styles.autoBtn, { borderColor: theme.colors.action }]}
             >
-              <Text style={[styles.autoBtnText, { color: theme.colors.action }]}>⚡ Auto-Assign</Text>
+              <Text style={[styles.autoBtnText, { color: theme.actionText }]}>⚡ Auto-Assign</Text>
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="Save All"
               onPress={handleSave}
@@ -217,7 +217,7 @@ export default function ShotgunScreen() {
                     value={val}
                     onChangeText={v => setHole(team.id, v.replace(/[^0-9]/g, ''))}
                     placeholder="—"
-                    placeholderTextColor="#bbb"
+                    placeholderTextColor={neutral.placeholder}
                     keyboardType="numeric"
                     maxLength={2}
                     selectTextOnFocus

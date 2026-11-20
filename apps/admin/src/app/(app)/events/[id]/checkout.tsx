@@ -25,7 +25,7 @@ import { useCheckoutDesk } from '@/lib/queries';
 import { confirmAction } from '@/lib/confirmAction';
 import { formatCents, settleCopy, paidLabel, CHECK_NUMBER_INPUT } from '@/lib/auctionEnd';
 import { AddCardModal, cardCaptureEnabled } from '@/components/AddCardModal';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 const METHODS: SettlementMethod[] = ['Card', 'Cash', 'Check'];
 
@@ -382,7 +382,7 @@ export default function AuctionCheckoutScreen() {
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={[
                     styles.rowAmount,
-                    { color: item.outstandingCents > 0 ? '#b45309' : '#059669' },
+                    { color: item.outstandingCents > 0 ? '#b45309' : status.successText },
                   ]}>
                     {item.outstandingCents > 0 ? formatCents(item.outstandingCents) : 'Paid'}
                   </Text>
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   rowName:    { fontSize: fontSize.lg, fontWeight: '700', color: '#111' },
   rowMeta:    { fontSize: fontSize.xs, marginTop: spacing[0.5] },
   rowAmount:  { fontSize: fontSize.lg, fontWeight: '800' },
-  rowDoneTag: { fontSize: fontSize.xxs, color: '#059669', fontWeight: '700', marginTop: spacing[0.5] },
+  rowDoneTag: { fontSize: fontSize.xxs, color: status.successText, fontWeight: '700', marginTop: spacing[0.5] },
   empty:      { textAlign: 'center', paddingVertical: spacing[8], fontSize: fontSize.md },
 
   cart:       {
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs, lineHeight: 17, marginTop: spacing[3],
     paddingVertical: spacing[2], paddingHorizontal: spacing[3], borderRadius: radius.xs,
   },
-  settledNote: { color: '#059669', fontSize: fontSize.md, fontWeight: '600', marginTop: spacing[3] },
+  settledNote: { color: status.successText, fontSize: fontSize.md, fontWeight: '600', marginTop: spacing[3] },
   pledgeTag:   { fontSize: fontSize.xxs, fontWeight: '700', color: '#7c3aed', letterSpacing: 0.5 },
   addCardBtn:  { marginTop: spacing[3], paddingVertical: spacing[3], borderRadius: radius.md, borderWidth: 1, borderColor: '#6b7280', alignItems: 'center' },
   addCardText: { fontSize: fontSize.sm, fontWeight: '600', color: '#374151' },

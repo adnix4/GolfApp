@@ -134,7 +134,7 @@ export function PlayerShotsCard({
                 ]}
                 accessibilityLabel={`${playerTotal} strokes, entered by the organizer`}
               >
-                <Text style={[styles.adminTotalText, { color: theme.colors.primary, fontSize: shotSize.valueFont }]}>
+                <Text style={[styles.adminTotalText, { color: theme.highlightLabel, fontSize: shotSize.valueFont }]}>
                   {playerTotal}
                 </Text>
               </View>
@@ -179,7 +179,7 @@ export function PlayerShotsCard({
                   width: layout.avatar, height: layout.avatar, borderRadius: layout.avatar / 2,
                 },
               ]}>
-                <Text style={[styles.playerInitials, { color: theme.colors.primary }]}>
+                <Text style={[styles.playerInitials, { color: theme.highlightLabel }]}>
                   {initials}
                 </Text>
               </View>
