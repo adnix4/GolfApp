@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Brightness from 'expo-brightness';
 import QRCode from 'react-native-qrcode-svg';
-import { useTheme, useClasses, Heading } from '@gfp/ui';
+import { useTheme, useClasses, Heading, GlyphText } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { buildQrPayloads, type QrScore } from '@/lib/qrPayload';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
@@ -157,7 +157,7 @@ export default function QrTransferScreen() {
           ]}
           accessibilityRole="button"
         >
-          <Text style={[styles.doneBtnText, { color: theme.ctaLabel }]}>Admin Has Scanned ✓</Text>
+          <GlyphText style={[styles.doneBtnText, { color: theme.ctaLabel }]}>Admin Has Scanned ✓</GlyphText>
         </Pressable>
       </View>
     </SafeAreaView>

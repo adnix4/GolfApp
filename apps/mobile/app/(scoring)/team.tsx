@@ -158,7 +158,7 @@ function InfoRow({ icon, label, value, theme }: {
 }) {
   return (
     <View style={infoRowStyles.row}>
-      <Text style={infoRowStyles.icon}>{icon}</Text>
+      <Text style={infoRowStyles.icon} aria-hidden>{icon}</Text>
       <View style={infoRowStyles.body}>
         <Text style={[infoRowStyles.label, { color: theme.mutedText }]}>{label}</Text>
         <Text style={[infoRowStyles.value, { color: theme.colors.primary }]}>{value}</Text>

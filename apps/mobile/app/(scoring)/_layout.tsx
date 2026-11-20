@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Tabs, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,6 +30,14 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
     />
   );
 }
+
+/**
+ * The name a tab is read by. Left to React Navigation, Android gets no label and
+ * TalkBack builds one from the tab's children — the icon glyph contributes an
+ * empty part, so every tab was read as ", Scorecard". iOS keeps the library's
+ * "Scorecard, tab, 1 of 6".
+ */
+const tabName = (label: string) => (Platform.OS === 'ios' ? undefined : label);
 
 export default function ScoringLayout() {
   const theme  = useTheme();
@@ -147,7 +155,7 @@ export default function ScoringLayout() {
         <View style={styles.waitBody}>
           <View style={[styles.waitCard, { backgroundColor: theme.colors.surface }]}>
             {isEnded ? (
-              <Text style={styles.waitIconEnded}>🏁</Text>
+              <Text style={styles.waitIconEnded} aria-hidden>🏁</Text>
             ) : (
               <ActivityIndicator
                 size="large"
@@ -185,6 +193,7 @@ export default function ScoringLayout() {
                 ]}
                 onPress={() => setDismissed(true)}
                 accessibilityRole="button"
+                accessibilityLabel="Continue to Event"
               >
                 <Text style={styles.continueBtnText}>Continue to Event →</Text>
               </Pressable>
@@ -285,6 +294,7 @@ export default function ScoringLayout() {
           options={{
             title: 'Scorecard',
             tabBarLabel: 'Scorecard',
+            tabBarAccessibilityLabel: tabName('Scorecard'),
             href: isGuest ? null : undefined,
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'golf' : 'golf-outline'} size={22} color={color as string} />
@@ -296,6 +306,7 @@ export default function ScoringLayout() {
           options={{
             title: 'Standings',
             tabBarLabel: 'Standings',
+            tabBarAccessibilityLabel: tabName('Standings'),
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={22} color={color as string} />
             ),
@@ -306,6 +317,7 @@ export default function ScoringLayout() {
           options={{
             title: 'Team',
             tabBarLabel: 'Team',
+            tabBarAccessibilityLabel: tabName('Team'),
             href: isGuest ? null : undefined,
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color as string} />
@@ -317,6 +329,7 @@ export default function ScoringLayout() {
           options={{
             title: 'Auction',
             tabBarLabel: 'Auction',
+            tabBarAccessibilityLabel: tabName('Auction'),
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'pricetag' : 'pricetag-outline'} size={22} color={color as string} />
             ),
@@ -327,6 +340,7 @@ export default function ScoringLayout() {
           options={{
             title: 'League Preview',
             tabBarLabel: 'League',
+            tabBarAccessibilityLabel: tabName('League'),
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'ribbon' : 'ribbon-outline'} size={22} color={color as string} />
             ),
@@ -340,6 +354,7 @@ export default function ScoringLayout() {
           options={{
             title: 'Help',
             tabBarLabel: 'Help',
+            tabBarAccessibilityLabel: tabName('Help'),
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'help-circle' : 'help-circle-outline'} size={22} color={color as string} />
             ),

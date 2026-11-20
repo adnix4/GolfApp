@@ -9,6 +9,7 @@
  * `variant` picks the color preset for the background the mark sits on:
  * 'onLight' for cream/white auth screens, 'onDark' for primary-green chrome.
  */
+import { View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { gfpLogoSvg, GFP_LOGO_ON_DARK, GFP_LOGO_ON_LIGHT } from '@gfp/shared-types';
 
@@ -21,8 +22,16 @@ export interface GfpLogoProps {
   variant: 'onDark' | 'onLight';
   /** Rendered width/height in points (the mark is square). Default 32. */
   size?: number;
+  /**
+   * True when the product name is written out beside the mark: the logo is then
+   * hidden from screen readers, which otherwise said "Golf Fundraiser Pro" twice.
+   */
+  decorative?: boolean;
 }
 
-export function GfpLogo({ variant, size = 32 }: GfpLogoProps) {
+export function GfpLogo({ variant, size = 32, decorative = false }: GfpLogoProps) {
+  if (decorative) {
+    return <View aria-hidden><SvgXml xml={XML[variant]} width={size} height={size} /></View>;
+  }
   return <SvgXml xml={XML[variant]} width={size} height={size} accessibilityLabel="Golf Fundraiser Pro" />;
 }

@@ -4,7 +4,7 @@ import {
   StyleSheet, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, Heading } from '@gfp/ui';
+import { useTheme, Heading, GlyphText } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
@@ -245,9 +245,9 @@ export default function LeagueScreen() {
                 </Text>
               </View>
               <View style={styles.trendRight}>
-                <Text style={[styles.trendChange, { color: theme.colors.primary }]}>
-                  {h.oldIndex.toFixed(1)} → {h.newIndex.toFixed(1)}
-                </Text>
+                <GlyphText style={[styles.trendChange, { color: theme.colors.primary }]}>
+                  {`${h.oldIndex.toFixed(1)} → ${h.newIndex.toFixed(1)}`}
+                </GlyphText>
                 <Text style={[styles.trendDiff, {
                   color: h.differential < 0 ? status.successText : h.differential > 0 ? status.dangerText : theme.mutedText
                 }]}>

@@ -20,10 +20,12 @@
  * the two read differently at a glance.
  */
 import { useEffect, useState, type ReactNode } from 'react';
-import { Modal, View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { Modal, View, Text, Pressable, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { splitHighlights, type Highlight } from '@gfp/shared-types';
 import { useTheme } from './ThemeProvider';
 import { Heading } from './Heading';
+import { GlyphText } from './GlyphText';
+import { hasGlyph, plainSpeech } from './plainSpeech';
 import { fontSize, minTouchTarget, radius, spacing } from '@gfp/theme';
 
 export type DialogKind = 'confirm' | 'warning' | 'error' | 'info';
@@ -58,9 +60,9 @@ export interface DialogFrameProps {
 }
 
 const DESTRUCTIVE = '#c0392b';
-const KIND_ICON: Partial<Record<DialogKind, { glyph: string; color: string }>> = {
-  warning: { glyph: '⚠', color: '#b9770e' },
-  error:   { glyph: '✕', color: DESTRUCTIVE },
+const KIND_ICON: Partial<Record<DialogKind, { glyph: string; color: string; spoken: string }>> = {
+  warning: { glyph: '⚠', color: '#b9770e', spoken: 'Warning: ' },
+  error:   { glyph: '✕', color: DESTRUCTIVE, spoken: 'Error: ' },
 };
 
 export function DialogFrame({
@@ -94,8 +96,10 @@ export function DialogFrame({
 
           <View style={styles.body}>
             <View style={styles.titleRow}>
-              {icon && <Text style={[styles.icon, { color: icon.color }]}>{icon.glyph}</Text>}
-              <Heading level={2} style={[styles.title, { color: theme.colors.primary }]}>
+              {/* The glyph is seen; the title says it in words ("Warning: …"). */}
+              {icon && <Text style={[styles.icon, { color: icon.color }]} aria-hidden>{icon.glyph}</Text>}
+              <Heading level={2} style={[styles.title, { color: theme.colors.primary }]}
+                accessibilityLabel={icon || hasGlyph(title) ? `${icon?.spoken ?? ''}${plainSpeech(title)}` : undefined}>
                 {title}
               </Heading>
             </View>
@@ -103,15 +107,20 @@ export function DialogFrame({
             {standalone.length > 0 && (
               <View style={styles.chipRow}>
                 {standalone.map((h, i) => (
-                  <Text key={i} style={[styles.chip, chip(h.kind)]}>{chipText(h)}</Text>
+                  <GlyphText key={i} style={[styles.chip, chip(h.kind)]}>{chipText(h)}</GlyphText>
                 ))}
               </View>
             )}
 
             {parts.length > 0 && (
-              <Text style={styles.message}>
+              // Phones merge nested Text into one element, so it gets one glyph-free
+              // name; on web the sponsor star is its own aria-hidden span.
+              <Text style={styles.message}
+                accessibilityLabel={Platform.OS === 'web' ? undefined : plainSpeech(parts.map(p => p.text).join(''))}>
                 {parts.map((p, i) => p.kind
-                  ? <Text key={i} style={[styles.inlineChip, chip(p.kind)]}>{` ${chipText({ text: p.text, kind: p.kind })} `}</Text>
+                  ? <Text key={i} style={[styles.inlineChip, chip(p.kind)]}>
+                      {' '}{p.kind === 'sponsor' && <Text aria-hidden>★ </Text>}{p.text}{' '}
+                    </Text>
                   : <Text key={i}>{p.text}</Text>)}
               </Text>
             )}
@@ -147,6 +156,7 @@ export function DialogFrame({
                     onPress={() => onButton(b, dontShow)}
                     disabled={busy}
                     accessibilityRole="button"
+                    accessibilityLabel={hasGlyph(b.text) ? plainSpeech(b.text) : undefined}
                     aria-disabled={!!busy} aria-busy={!!busy && !isCancel}
                     style={[
                       busy && { opacity: 0.6 },

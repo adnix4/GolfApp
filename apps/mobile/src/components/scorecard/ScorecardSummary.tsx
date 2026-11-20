@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme, Heading } from '@gfp/ui';
+import { useTheme, Heading, GlyphText } from '@gfp/ui';
 import { teamHolePar } from '@gfp/shared-types';
 import type {
   ChallengeCacheDto, HoleCacheDto, JoinEventResponse, PendingScore, SponsorCacheDto, TeamCacheDto,
@@ -39,14 +39,15 @@ export function ScorecardSummary({
 
   return (
     <SafeAreaView edges={['left', 'right']} style={[screenStyles.page, { backgroundColor: theme.pageBackground }]}>
-      {/* Header: event name + hosted by course */}
+      {/* Header: event name + who hosts it, and where */}
       <View style={[screenStyles.header, { backgroundColor: theme.colors.primary }]}>
         <Heading level={1} style={[styles.headerEventName, { color: theme.highlightText }]} numberOfLines={2}>
           {session.event.name}
         </Heading>
-        {session.course ? (
-          <Text style={[styles.headerHostedBy, { color: theme.highlightText }]} numberOfLines={1}>
-            Hosted by {session.course.name}
+        {/* The organizer hosts; the course is where. It used to name the course as host. */}
+        {session.org?.name ? (
+          <Text style={[styles.headerHostedBy, { color: theme.highlightText }]} numberOfLines={2}>
+            Hosted by {session.org.name}{session.course ? ` at ${session.course.name}` : ''}
           </Text>
         ) : null}
       </View>
@@ -135,7 +136,7 @@ export function ScorecardSummary({
                     accessibilityRole="button"
                     accessibilityLabel={`View challenge for hole ${holeNum}`}
                   >
-                    <Text style={styles.summaryChallengeIcon}>🏆</Text>
+                    <Text style={styles.summaryChallengeIcon} aria-hidden>🏆</Text>
                   </Pressable>
                 ) : (
                   <Text style={[summaryCol.chal, styles.summaryCellDash, { color: theme.mutedText }]}>—</Text>
@@ -143,9 +144,9 @@ export function ScorecardSummary({
               </View>
               {pending?.conflict && (
                 <View style={styles.summarySubRow}>
-                  <Text style={[styles.summarySubText, { color: status.warningText }]}>
+                  <GlyphText style={[styles.summarySubText, { color: status.warningText }]}>
                     ⚠ Your score is waiting for admin approval
-                  </Text>
+                  </GlyphText>
                 </View>
               )}
             </View>

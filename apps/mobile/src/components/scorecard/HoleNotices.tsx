@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '@gfp/ui';
+import { useTheme, GlyphText } from '@gfp/ui';
 import type { ChallengeCacheDto } from '@/lib/api';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
 
@@ -32,9 +32,9 @@ export function HoleNotices({
             {holeChallenge.description}
           </Text>
           {holeChallenge.prizeDescription && (
-            <Text style={[styles.challengePrize, { color: theme.highlightMuted }]}>
-              🏆 {holeChallenge.prizeDescription}
-            </Text>
+            <GlyphText style={[styles.challengePrize, { color: theme.highlightMuted }]}>
+              {`🏆 ${holeChallenge.prizeDescription}`}
+            </GlyphText>
           )}
         </View>
       )}
@@ -42,10 +42,10 @@ export function HoleNotices({
       {/* ── CONFLICT / PENDING-APPROVAL NOTICE ── */}
       {holeConflict && (
         <View style={[styles.conflictNotice, { backgroundColor: '#fff7e6', borderColor: '#f0a500' }]}>
-          <Text style={styles.conflictNoticeText}>
+          <GlyphText style={styles.conflictNoticeText}>
             ⚠ Your score for this hole is waiting for admin approval. The score shown is the
             organizer's current record.
-          </Text>
+          </GlyphText>
         </View>
       )}
 

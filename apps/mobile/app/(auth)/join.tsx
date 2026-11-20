@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useObserve } from 'expo-observe';
-import { useTheme, useClasses, Heading, LiveRegion } from '@gfp/ui';
+import { useTheme, useClasses, Heading, LiveRegion, GlyphText } from '@gfp/ui';
 import { FORMAT_LABELS, formatDate } from '@gfp/shared-types';
 import { GfpLogo } from '@/components/GfpLogo';
 import { useSession } from '@/lib/session';
@@ -213,7 +213,7 @@ export default function JoinScreen() {
 
   const logo = (
     <View style={styles.logoRow}>
-      <GfpLogo variant="onLight" size={56} />
+      <GfpLogo variant="onLight" size={56} decorative />
       <Text accessibilityRole="text" style={[styles.logoTitle, { color: theme.colors.primary }]}>GFP Scorer</Text>
       <Text style={[styles.logoSub,   { color: theme.mutedText }]}>Golf Fundraiser Pro</Text>
     </View>
@@ -252,8 +252,8 @@ export default function JoinScreen() {
 
             <View style={[styles.waitingInfoBox, { backgroundColor: theme.colors.primary + '0d', borderColor: theme.colors.primary + '33' }]}>
               <Text style={[styles.waitingInfoLabel, { color: theme.colors.primary }]}>Your registration</Text>
-              <Text style={[styles.waitingInfoRow,  { color: theme.mutedText }]}>📧 {waitingEmail}</Text>
-              <Text style={[styles.waitingInfoRow,  { color: theme.mutedText }]}>🏌️ Free agent pool</Text>
+              <GlyphText style={[styles.waitingInfoRow,  { color: theme.mutedText }]}>{`📧 ${waitingEmail}`}</GlyphText>
+              <GlyphText style={[styles.waitingInfoRow,  { color: theme.mutedText }]}>🏌️ Free agent pool</GlyphText>
             </View>
 
             <Pressable
@@ -303,13 +303,13 @@ export default function JoinScreen() {
             style={styles.backBtn}
             accessibilityRole="button"
           >
-            <Text style={[styles.backBtnText, { color: theme.mutedText }]}>
+            <GlyphText style={[styles.backBtnText, { color: theme.mutedText }]}>
               ← Use a different email
-            </Text>
+            </GlyphText>
           </Pressable>
 
           <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-            <Text style={styles.verifyIcon}>📬</Text>
+            <Text style={styles.verifyIcon} aria-hidden>📬</Text>
             <Heading level={1} style={[styles.heading, { color: theme.colors.primary }]}>Check Your Email</Heading>
             <Text style={[styles.sub, { color: theme.mutedText }]}>
               We sent a 6-digit code to{' '}
@@ -327,7 +327,7 @@ export default function JoinScreen() {
 
             {resent && !error && (
               <View style={styles.resentBox}>
-                <Text style={styles.resentText}>A new code is on its way. ✉️</Text>
+                <GlyphText style={styles.resentText}>A new code is on its way. ✉️</GlyphText>
               </View>
             )}
 
@@ -393,9 +393,9 @@ export default function JoinScreen() {
           {logo}
 
           <Pressable accessibilityRole="button" onPress={() => { setStep('pick'); setError(null); }} style={styles.backBtn}>
-            <Text style={[styles.backBtnText, { color: theme.mutedText }]}>
+            <GlyphText style={[styles.backBtnText, { color: theme.mutedText }]}>
               ← Choose a different tournament
-            </Text>
+            </GlyphText>
           </Pressable>
 
           {selected && (
@@ -512,7 +512,7 @@ export default function JoinScreen() {
                   },
                 })}
                 accessibilityRole="button"
-                accessibilityLabel="Register for this event"
+                accessibilityLabel="Sign up for this event"
               >
                 <Text style={[styles.registerBtnText, { color: theme.colors.primary }]}>
                   Not registered yet? Sign up →
@@ -609,7 +609,7 @@ export default function JoinScreen() {
                     )}
                   </View>
                 </View>
-                <Text style={[styles.chevron, { color: theme.colors.primary }]}>›</Text>
+                <Text style={[styles.chevron, { color: theme.colors.primary }]} aria-hidden>›</Text>
               </Pressable>
             );
           })
@@ -620,10 +620,11 @@ export default function JoinScreen() {
           onPress={() => setShowManual(v => !v)}
           style={styles.manualToggle}
           accessibilityRole="button"
+          aria-expanded={showManual}
         >
-          <Text style={[styles.manualToggleText, { color: theme.mutedText }]}>
+          <GlyphText style={[styles.manualToggleText, { color: theme.mutedText }]}>
             {showManual ? 'Hide ↑' : 'Have a different event code? ↓'}
-          </Text>
+          </GlyphText>
         </Pressable>
 
         {showManual && (
