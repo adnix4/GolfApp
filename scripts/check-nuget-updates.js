@@ -13,13 +13,16 @@
  *   • Patch updates only (same major.minor) are applied. Minor and major
  *     updates are reported, never applied: ImageSharp 3.1 → 3.2 was a MINOR
  *     and it broke the build by demanding a license key.
- *   • 72h cooldown, same as check-updates.js (UPDATE_COOLDOWN_HOURS overrides).
- *     Unknown or unlisted publish dates fail closed (held back).
+ *   • 72h cooldown, same as check-updates.js (UPDATE_COOLDOWN_HOURS overrides):
+ *     the target is the NEWEST patch that has been published for at least the
+ *     cooldown, so a fresh patch never blocks an older mature one
+ *     (scripts/lib/cooldown.js). Unknown or unlisted publish dates fail closed.
  *   • Families move together. Microsoft.AspNetCore.* / EntityFrameworkCore.* /
  *     Extensions.* share one servicing train, and the Npgsql EF provider and
- *     its NetTopologySuite plugin ship as a pair. If any member's target is
- *     still cooling down, the whole family waits — a half-moved train is how
- *     you get NU1605 downgrade errors.
+ *     its NetTopologySuite plugin ship as a pair. The family moves to the
+ *     highest version past the cooldown for EVERY member; if there is none, the
+ *     whole family waits — a half-moved train is how you get NU1605 downgrade
+ *     errors. A patch update only ever moves a version up.
  *   • Only exact versions are touched. A floating or ranged PackageReference
  *     is reported and left alone.
  *
@@ -41,6 +44,7 @@
 const { execSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const { candidatesBetween, newestMature, familyTarget } = require('./lib/cooldown');
 
 const repoRoot = path.resolve(__dirname, '..');
 const PROJECTS = ['apps/api/WebAPI.csproj', 'apps/api-tests/WebAPI.Tests.csproj'];
@@ -137,6 +141,20 @@ async function publishedHoursAgo(id, version) {
   return hours;
 }
 
+/** Every version of `id` on nuget.org (unlisted ones too; publishedHoursAgo
+ *  treats those as unknown, so they never qualify). null if unreachable. */
+async function listedVersions(id) {
+  try {
+    const res = await fetch(`https://api.nuget.org/v3-flatcontainer/${id.toLowerCase()}/index.json`,
+      { signal: AbortSignal.timeout(NETWORK_TIMEOUT_MS) });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return Array.isArray(body.versions) ? body.versions : null;
+  } catch {
+    return null;
+  }
+}
+
 function fmtAge(hours) {
   if (hours == null) return 'publish date unknown';
   return hours < 48 ? `${Math.floor(hours)}h old` : `${Math.floor(hours / 24)}d old`;
@@ -187,37 +205,68 @@ async function buildReport() {
     }
     if (!p.patch) continue;
     if (!isExact(p.requested)) { notExact.push({ id: p.id, requested: p.requested, version: p.patch }); continue; }
-    const hours = await publishedHoursAgo(p.id, p.patch);
+    // The newest patch on this major.minor that has cleared the cooldown — not
+    // just the highest patch, which held everything back whenever it was fresh.
+    const line = parseVer(p.current);
+    const sameLine = (v) => { const x = parseVer(v); return !!x && !!line && x.major === line.major && x.minor === line.minor; };
+    const versions = await listedVersions(p.id);
+    const between = candidatesBetween(versions ?? [p.patch], p.current, p.patch, sameLine);
+    const hoursOf = (v) => publishedHoursAgo(p.id, v);
+    const pick = await newestMature(between, hoursOf, COOLDOWN_HOURS);
     candidates.push({
       id: p.id,
       from: p.current,
-      to: p.patch,
+      to: pick.version ?? p.patch,
+      latestPatch: p.patch,
+      latestPatchHours: pick.newestHours,
       projects: [...p.projects].sort(),
-      hours,
-      mature: hours != null && hours >= COOLDOWN_HOURS,
+      hours: pick.version ? pick.hours : pick.newestHours,
+      mature: !!pick.version,
+      candidates: between,
+      hoursOf,
       family: familyOf(p.id)?.name || null,
     });
   }
 
-  // Family rule: one member cooling down holds back the whole train.
-  const blockedFamilies = new Set(candidates.filter((c) => c.family && !c.mature).map((c) => c.family));
-  for (const c of candidates) {
-    if (c.mature && c.family && blockedFamilies.has(c.family)) c.blocked = `family "${c.family}" has a member still in cooldown`;
+  // Family rule: the train moves to ONE version every member can take, the
+  // highest that has cleared the cooldown for all of them (familyTarget). If
+  // there is none, the whole family waits — a split train is NU1605.
+  const families = new Map();
+  for (const c of candidates) if (c.family) families.set(c.family, [...(families.get(c.family) ?? []), c]);
+  for (const [name, members] of families) {
+    const target = await familyTarget(members.map((c) => ({
+      id: c.id, current: c.from, candidates: c.candidates, matureVersion: c.mature ? c.to : null, hoursOf: c.hoursOf,
+    })), COOLDOWN_HOURS);
+    for (const c of members) {
+      if (!target) {
+        if (c.mature) c.blocked = `family "${name}" has no version past the cooldown for every member`;
+        continue;
+      }
+      if (c.to !== target) { c.to = target; c.hours = await c.hoursOf(target); }
+      if (c.from === target) c.noop = true;
+    }
   }
   await pairSkia(candidates);
 
   const applyPatch = [];
   const heldBack = [];
+  const eta = (hours) => (hours == null ? null : Math.max(0, Math.ceil(COOLDOWN_HOURS - hours)));
   for (const c of candidates.sort((a, b) => a.id.localeCompare(b.id))) {
+    if (c.noop) continue;
     if (c.mature && !c.blocked) {
-      applyPatch.push({ id: c.id, from: c.from, to: c.to, projects: c.projects, age: fmtAge(c.hours) });
+      // Moving to an older patch while a newer one cools down: say so.
+      const newerHeldBack = c.to !== c.latestPatch
+        ? { version: c.latestPatch, age: fmtAge(c.latestPatchHours), eligibleIn: eta(c.latestPatchHours) }
+        : null;
+      applyPatch.push({ id: c.id, from: c.from, to: c.to, projects: c.projects, age: fmtAge(c.hours), newerHeldBack });
     } else {
+      const hours = c.blocked ? c.hours : c.latestPatchHours;
       heldBack.push({
         id: c.id,
-        version: c.to,
-        age: fmtAge(c.hours),
-        reason: c.blocked || (c.hours == null ? 'publish date unknown (fail closed)' : 'in cooldown'),
-        eligibleIn: c.hours == null ? null : Math.max(0, Math.ceil(COOLDOWN_HOURS - c.hours)),
+        version: c.blocked ? c.to : c.latestPatch,
+        age: fmtAge(hours),
+        reason: c.blocked || (hours == null ? 'publish date unknown (fail closed)' : 'no patch past the cooldown yet'),
+        eligibleIn: eta(hours),
       });
     }
   }
@@ -264,6 +313,15 @@ async function pairSkia(candidates) {
     return;
   }
   const want = await svgSkiaSkiaSharpDep(svg.to);
+  // Svg.Skia may be moving to an older mature patch than its newest; the native
+  // assets follow it to exactly the SkiaSharp that release asks for.
+  for (const n of natives) {
+    if (want && n.to !== want && n.candidates.includes(want)) {
+      n.to = want;
+      n.hours = await n.hoursOf(want);
+      n.mature = n.hours != null && n.hours >= COOLDOWN_HOURS;
+    }
+  }
   const mismatched = natives.filter((n) => n.to !== want);
   if (!want || mismatched.length > 0) {
     const why = want
@@ -323,7 +381,10 @@ async function main() {
   console.log(`\n=== NuGet update check (dotnet ${dn.version}, ${COOLDOWN_HOURS}h cooldown) ===\n`);
   if (report.applyPatch.length) {
     console.log(`Patch updates ready${APPLY ? ' — APPLIED' : ''}:`);
-    for (const u of report.applyPatch) console.log(`  • ${u.id} ${u.from} → ${u.to} (${u.age})`);
+    for (const u of report.applyPatch) {
+      const newer = u.newerHeldBack ? `; ${u.newerHeldBack.version} is newer but still cooling down` : '';
+      console.log(`  • ${u.id} ${u.from} → ${u.to} (${u.age}${newer})`);
+    }
   } else {
     console.log('✓ No patch updates ready to apply.');
   }

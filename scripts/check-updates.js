@@ -20,11 +20,15 @@
  *   3. Runtime-tracked pins — packages whose major must track something other
  *      than npm's newest: @types/node follows the Node major this repo runs
  *      (engines.node / CI), @types/react* follow the pinned React minor.
- *   4. Outdated packages   — genuinely actionable updates. Any update whose
- *      target version was published less than COOLDOWN_HOURS (default 72h)
- *      ago is "held back" — flagged as not-yet-installable so a freshly
- *      published (and possibly compromised) version is never pulled in
- *      immediately. The window is a supply-chain safety cooldown.
+ *   4. Outdated packages   — genuinely actionable updates. Each one's install
+ *      `target` is the NEWEST version within its range that has been published
+ *      for at least COOLDOWN_HOURS (default 72h), a supply-chain safety
+ *      cooldown, so a freshly published (and possibly compromised) version is
+ *      never pulled in. A newer, still-fresh release does not block an older
+ *      mature one; a package is "held back" only when nothing newer than the
+ *      installed version has cleared the cooldown (scripts/lib/cooldown.js).
+ *      The JSON's `cooldownCutoff` is the `npm update --before=` value that
+ *      makes npm resolve exactly these targets, transitive dependencies too.
  *
  * Report-only: it never touches git or node_modules. Run via:
  *     npm run check-updates                    # full report
@@ -58,6 +62,7 @@
 const { execSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const { candidatesBetween, newestMature, hoursSince, cooldownCutoff } = require('./lib/cooldown');
 
 const repoRoot = path.resolve(__dirname, '..');
 
@@ -573,6 +578,12 @@ function cooldownGrace(row) {
   };
 }
 
+/** Hours until `ver` clears the cooldown; null when its publish date is unknown. */
+function eligibleIn(ver, times) {
+  const hours = hoursSince(times && times.get(ver));
+  return hours == null ? null : Math.max(0, Math.ceil(COOLDOWN_HOURS - hours));
+}
+
 function describeTarget(ver, times) {
   const when = times && times.get(ver);
   if (!when) return { mature: false, label: ver + ' (publish date unknown — held back)' };
@@ -624,21 +635,41 @@ async function main() {
     const info = Array.isArray(outdated[name]) ? outdated[name][0] : outdated[name];
     if (managed.has(name) || sdkUnverifiable(name)) { suppressed.push(name); continue; }
     const times = getPublishTimes(name);
+    // Install target: the newest version in (installed, wanted] that has cleared
+    // the cooldown. `latest` is outside the declared range (a major), so it is
+    // reported but never decides what gets installed. Before 2026-11-20 the
+    // gate timed `latest`: a fresh in-range patch slipped through whenever an
+    // old major existed, and a fresh major blocked a mature in-range patch.
+    const pick = await newestMature(
+      candidatesBetween(times ? [...times.keys()] : [], info.current, info.wanted),
+      (v) => hoursSince(times && times.get(v)),
+      COOLDOWN_HOURS,
+    );
+    const target = pick.version;
+    const isHeld = !!info.wanted && info.wanted !== info.current && !target;
+    if (isHeld) heldBack.push(name);
     const wantedT = info.wanted ? describeTarget(info.wanted, times) : null;
     const latestT = (info.latest && info.latest !== info.wanted)
       ? describeTarget(info.latest, times) : null;
-    const gating = latestT || wantedT;
-    const isHeld = !!(gating && !gating.mature);
-    if (isHeld) heldBack.push(name);
+    // A newer in-range release still cooling down while the older `target` goes in.
+    const newerHeldBack = target && info.wanted && target !== info.wanted
+      ? { version: info.wanted, eligibleIn: eligibleIn(info.wanted, times) }
+      : null;
     actionable.push({
       name,
       current: info.current || null,
       wanted: info.wanted || null,
       latest: info.latest || null,
+      target: target || null,
+      newerHeldBack,
       dependent: info.dependent || null,
       heldBack: isHeld,
-      label: [wantedT ? 'wanted ' + wantedT.label : null, latestT ? 'latest ' + latestT.label : null]
-        .filter(Boolean).join(', '),
+      label: [
+        target ? 'install ' + target + (target === info.wanted ? '' : ' (newest past the cooldown)')
+          : isHeld ? 'nothing past the cooldown yet' : 'no in-range update (major only)',
+        wantedT ? 'wanted ' + wantedT.label : null,
+        latestT ? 'latest ' + latestT.label : null,
+      ].filter(Boolean).join(', '),
     });
   }
 
@@ -670,6 +701,9 @@ async function main() {
       // the SDK's targets for them could not be checked.
       sdkUnverified: suppressed.filter(sdkUnverifiable),
       cooldownHours: COOLDOWN_HOURS,
+      // Pass to `npm update --before=` so npm resolves each `target` above, and
+      // every transitive dependency, as the registry stood COOLDOWN_HOURS ago.
+      cooldownCutoff: cooldownCutoff(COOLDOWN_HOURS),
       ok: !failed,
     }, null, 2));
     process.exitCode = failed ? 1 : 0;
@@ -756,18 +790,26 @@ async function main() {
   } else if (actionable.length === 0) {
     console.log('✓ Outdated packages: none actionable.');
   } else {
-    console.log('• ' + actionable.length + ' actionable update(s) (updates younger than '
-      + COOLDOWN_HOURS + 'h are held back):');
+    console.log('• ' + actionable.length + ' actionable update(s) (each installs the newest version at least '
+      + COOLDOWN_HOURS + 'h old):');
     for (const a of actionable) {
       const loc = a.dependent ? ' (' + a.dependent + ')' : '';
       console.log('    ' + a.name + ': ' + (a.current || '—') + ' → ' + a.label + loc);
     }
+    const partial = actionable.filter((a) => a.newerHeldBack);
     if (heldBack.length > 0) {
-      console.log('\n  ⏳ ' + heldBack.length + ' update(s) held back by the ' + COOLDOWN_HOURS
-        + 'h cooldown — do NOT install yet: ' + heldBack.join(', ') + '.');
-    } else {
-      console.log('\n  ✓ All actionable updates have cleared the ' + COOLDOWN_HOURS + 'h cooldown.');
+      console.log('\n  ⏳ ' + heldBack.length + ' package(s) with nothing past the ' + COOLDOWN_HOURS
+        + 'h cooldown yet — do NOT install: ' + heldBack.join(', ') + '.');
     }
+    if (partial.length > 0) {
+      console.log('  ⏳ Newer releases still cooling down (the newest mature version goes in instead): '
+        + partial.map((a) => a.name + ' ' + a.newerHeldBack.version).join(', ') + '.');
+    }
+    if (heldBack.length === 0 && partial.length === 0) {
+      console.log('\n  ✓ Every actionable update is past the ' + COOLDOWN_HOURS + 'h cooldown.');
+    }
+    console.log('  Install with: npm update <names> --workspaces --include-workspace-root --legacy-peer-deps --before='
+      + cooldownCutoff(COOLDOWN_HOURS));
   }
   if (suppressed.length > 0) {
     console.log('\n  ℹ ' + suppressed.length + ' package(s) hidden from the list above because their '
