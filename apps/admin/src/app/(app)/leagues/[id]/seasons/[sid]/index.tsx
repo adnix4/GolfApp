@@ -25,7 +25,7 @@ import { validatePickerDateTime } from '@/lib/dateTime';
 import { useLeagueName } from '../../_layout';
 import { useQueryClient } from '@tanstack/react-query';
 import { leagueKeys, useSeasonDashboard } from '@/lib/queries';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 type Tab = 'overview' | 'roster' | 'rounds' | 'handicaps' | 'standings' | 'skins';
 
@@ -387,7 +387,7 @@ export default function SeasonDashboardScreen() {
     <View style={[styles.root, { backgroundColor: theme.colors.surface }]}>
       <View style={[styles.header, { borderBottomColor: theme.colors.accent }]}>
         <Pressable accessibilityRole="button" onPress={() => router.back()}>
-          <Text style={{ color: theme.colors.action }}>← Back</Text>
+          <Text style={{ color: theme.actionText }}>← Back</Text>
         </Pressable>
         <Heading level={1} style={[styles.title, { color: theme.colors.primary }]} numberOfLines={1}>
           {dashboard?.season.name ?? 'Season'}
@@ -432,8 +432,8 @@ export default function SeasonDashboardScreen() {
                 { label: 'Flights', value: String(dashboard.flights.length) },
               ].map(s => (
                 <View key={s.label} style={[styles.statCard, { backgroundColor: theme.colors.highlight, borderColor: theme.colors.accent }]}>
-                  <Text style={[styles.statVal, { color: theme.colors.primary }]}>{s.value}</Text>
-                  <Text style={[styles.statLabel, { color: theme.mutedText }]}>{s.label}</Text>
+                  <Text style={[styles.statVal, { color: theme.highlightLabel }]}>{s.value}</Text>
+                  <Text style={[styles.statLabel, { color: theme.highlightMuted }]}>{s.label}</Text>
                 </View>
               ))}
             </View>
@@ -508,11 +508,11 @@ export default function SeasonDashboardScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.memberName, { color: theme.colors.primary }]}>
                     {m.lastName}, {m.firstName}
-                    {m.isSandbagger ? <Text style={{ color: '#f59e0b' }}> ⚠</Text> : null}
+                    {m.isSandbagger ? <Text style={{ color: status.warningText }}> ⚠</Text> : null}
                   </Text>
                   <Text style={[styles.memberMeta, { color: theme.mutedText }]}>
                     HC {m.handicapIndex.toFixed(1)} · {m.flightName ?? 'No flight'} · {m.roundsPlayed} rounds
-                    {!m.duesPaid ? <Text style={{ color: '#ef4444' }}> · Dues unpaid</Text> : null}
+                    {!m.duesPaid ? <Text style={{ color: status.dangerText }}> · Dues unpaid</Text> : null}
                   </Text>
                 </View>
                 <View style={styles.memberActions}>
@@ -522,7 +522,7 @@ export default function SeasonDashboardScreen() {
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel={`HC History for ${m.firstName} ${m.lastName}`} style={[styles.iconBtn, { borderColor: theme.colors.accent }]}
                     onPress={() => openHandicapHistory(m)}>
-                    <Text style={{ fontSize: fontSize.xs, color: theme.colors.action }}>HC History</Text>
+                    <Text style={{ fontSize: fontSize.xs, color: theme.actionText }}>HC History</Text>
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Override ${m.firstName} ${m.lastName}`} style={[styles.iconBtn, { borderColor: theme.colors.accent }]}
                     onPress={() => { setSelMember(m); setOverrideIdx(m.handicapIndex.toString()); setShowOverride(true); }}>
@@ -567,7 +567,7 @@ export default function SeasonDashboardScreen() {
                     {(r.status === 'Scheduled' || r.status === 'Open') && (
                       <Pressable accessibilityRole="button" style={[styles.actionBtn, { backgroundColor: '#f59e0b22' }]}
                         onPress={() => handleOpenScoring(r)}>
-                        <Text style={{ color: '#d97706', fontSize: fontSize.xs }}>Open Scoring</Text>
+                        <Text style={{ color: status.warningText, fontSize: fontSize.xs }}>Open Scoring</Text>
                       </Pressable>
                     )}
                     {r.status === 'Scoring' && (
@@ -579,19 +579,19 @@ export default function SeasonDashboardScreen() {
                     {r.status === 'Scoring' && (
                       <Pressable accessibilityRole="button" style={[styles.actionBtn, { backgroundColor: '#16a34a22' }]}
                         onPress={() => setClosingRound(r)}>
-                        <Text style={{ color: '#16a34a', fontSize: fontSize.xs }}>Close Round</Text>
+                        <Text style={{ color: status.successText, fontSize: fontSize.xs }}>Close Round</Text>
                       </Pressable>
                     )}
                     {r.status === 'Closed' && (
                       <Pressable accessibilityRole="button" style={[styles.actionBtn, { backgroundColor: '#6366f122' }]}
                         onPress={() => handleLoadSkins(r)}>
-                        <Text style={{ color: '#6366f1', fontSize: fontSize.xs }}>View Skins</Text>
+                        <Text style={{ color: status.infoText, fontSize: fontSize.xs }}>View Skins</Text>
                       </Pressable>
                     )}
                     {(r.status === 'Scheduled' || r.status === 'Open') && (
                       <Pressable accessibilityRole="button" style={[styles.actionBtn, { backgroundColor: '#ef444422' }]}
                         onPress={() => handleOpenAbsences(r)}>
-                        <Text style={{ color: '#ef4444', fontSize: fontSize.xs }}>
+                        <Text style={{ color: status.dangerText, fontSize: fontSize.xs }}>
                           Absences{r.absenceCount > 0 ? ` (${r.absenceCount})` : ''}
                         </Text>
                       </Pressable>
@@ -599,7 +599,7 @@ export default function SeasonDashboardScreen() {
                     {r.pairingCount > 0 && (
                       <Pressable accessibilityRole="button" style={[styles.actionBtn, { backgroundColor: '#0ea5e922' }]}
                         onPress={() => handleDownloadPairingsPdf(r)}>
-                        <Text style={{ color: '#0ea5e9', fontSize: fontSize.xs }}>Print Pairings</Text>
+                        <Text style={{ color: status.infoText, fontSize: fontSize.xs }}>Print Pairings</Text>
                       </Pressable>
                     )}
                   </View>
@@ -618,7 +618,7 @@ export default function SeasonDashboardScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.memberName, { color: theme.colors.primary }]}>
                     {m.lastName}, {m.firstName}
-                    {m.isSandbagger ? <Text style={{ color: '#f59e0b' }}> ⚠</Text> : null}
+                    {m.isSandbagger ? <Text style={{ color: status.warningText }}> ⚠</Text> : null}
                   </Text>
                   <Text style={[styles.memberMeta, { color: theme.mutedText }]}>
                     Current HC: {m.handicapIndex.toFixed(1)} · {m.roundsPlayed} rounds
@@ -627,11 +627,11 @@ export default function SeasonDashboardScreen() {
                 <View style={styles.memberActions}>
                   <Pressable accessibilityRole="button" accessibilityLabel={`History for ${m.firstName} ${m.lastName}`} style={[styles.iconBtn, { borderColor: theme.colors.accent }]}
                     onPress={() => openHandicapHistory(m)}>
-                    <Text style={{ fontSize: fontSize.xs, color: theme.colors.action }}>History</Text>
+                    <Text style={{ fontSize: fontSize.xs, color: theme.actionText }}>History</Text>
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Override ${m.firstName} ${m.lastName}`} style={[styles.iconBtn, { borderColor: theme.colors.accent }]}
                     onPress={() => { setSelMember(m); setOverrideIdx(m.handicapIndex.toString()); setShowOverride(true); }}>
-                    <Text style={{ fontSize: fontSize.xs, color: '#f59e0b' }}>Override</Text>
+                    <Text style={{ fontSize: fontSize.xs, color: status.warningText }}>Override</Text>
                   </Pressable>
                 </View>
               </View>

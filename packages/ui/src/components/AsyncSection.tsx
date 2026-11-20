@@ -74,7 +74,7 @@ export function AsyncSection({
             accessibilityLabel={retryLabel}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={[styles.retryText, { color: theme.colors.action }]}>{retryLabel}</Text>
+            <Text style={[styles.retryText, { color: theme.actionText }]}>{retryLabel}</Text>
           </Pressable>
         ) : null}
       </View>

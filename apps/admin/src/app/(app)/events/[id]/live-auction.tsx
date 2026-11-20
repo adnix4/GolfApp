@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { auctionApi, type AuctionItem, type AuctionSession } from '@/lib/api';
 import { eventKeys, useAuctionItemList, useAuctionSession } from '@/lib/queries';
 import { confirmAction } from '@/lib/confirmAction';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 export default function LiveAuctionScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
@@ -231,7 +231,7 @@ export default function LiveAuctionScreen() {
                   value={calledAmt}
                   onChangeText={setCalledAmt}
                   placeholder="$0.00"
-                  placeholderTextColor="#aaa"
+                  placeholderTextColor={neutral.placeholder}
                 />
                 <Pressable accessibilityRole="button"
                   style={[styles.btn, { backgroundColor: theme.colors.primary }]}
@@ -348,7 +348,7 @@ function AwardWinnerInput({
           value={winnerId}
           onChangeText={v => { setWinnerId(v); if (idError) setIdError(null); }}
           placeholder="Player ID (UUID)"
-          placeholderTextColor="#aaa"
+          placeholderTextColor={neutral.placeholder}
           autoCapitalize="none"
           autoCorrect={false}
         />
@@ -360,7 +360,7 @@ function AwardWinnerInput({
           <Text style={styles.btnText}>Award</Text>
         </Pressable>
       </View>
-      {idError && <Text style={{ color: status.danger, fontSize: fontSize.xs, marginTop: spacing[1] }}>{idError}</Text>}
+      {idError && <Text style={{ color: status.dangerText, fontSize: fontSize.xs, marginTop: spacing[1] }}>{idError}</Text>}
     </View>
   );
 }
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   infoText:    { fontSize: fontSize.md, color: '#555', marginBottom: spacing[3] },
   itemTitle:   { fontSize: fontSize.xl, fontWeight: '800', marginBottom: spacing[2] },
   itemDesc:    { color: '#555', fontSize: fontSize.md, marginBottom: spacing[2] },
-  itemMeta:    { color: '#777', fontSize: fontSize.sm },
+  itemMeta:    { color: neutral.mutedText, fontSize: fontSize.sm },
   label:       { fontSize: fontSize.sm, fontWeight: '600', marginBottom: spacing[2], color: '#333' },
   amountRow:   { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   amtInput:    { borderWidth: 1.5, borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[3], fontSize: fontSize.xl, fontWeight: '700', minWidth: 100, backgroundColor: '#fafafa' },

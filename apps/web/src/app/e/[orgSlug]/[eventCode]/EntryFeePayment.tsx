@@ -5,6 +5,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { confirmEntryFee, confirmDonation } from '@/lib/api';
 import { PUBLISHABLE_KEY, stripeEnabled, formatUsd } from './stripeConfig';
+import { neutral } from '@gfp/theme';
 
 // ── STRIPE SETUP ──────────────────────────────────────────────────────────────
 // This module is loaded with next/dynamic only when a card form is shown, and
@@ -166,5 +167,5 @@ const p: Record<string, React.CSSProperties> = {
     backgroundColor: 'var(--color-action)', color: 'var(--color-on-action, #fff)',
     fontSize: '1rem', fontWeight: 700, cursor: 'pointer',
   },
-  secureNote: { fontSize: '0.75rem', color: '#888', textAlign: 'center', margin: '0.75rem 0 0' },
+  secureNote: { fontSize: '0.75rem', color: neutral.mutedText, textAlign: 'center', margin: '0.75rem 0 0' },
 };

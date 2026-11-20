@@ -10,7 +10,7 @@ import { ApiError } from '@/lib/api';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { AuthLink } from '@/components/AuthCard';
 import { useRouter } from 'expo-router';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, neutral } from '@gfp/theme';
 
 export default function LoginScreen() {
   const theme = useTheme();
@@ -66,7 +66,7 @@ export default function LoginScreen() {
           value={email}
           onChangeText={setEmail}
           placeholder="organizer@email.com"
-          placeholderTextColor="#999"
+          placeholderTextColor={neutral.placeholder}
           autoCapitalize="none"
           keyboardType="email-address"
           autoComplete="email"
@@ -80,7 +80,7 @@ export default function LoginScreen() {
           value={password}
           onChangeText={setPassword}
           placeholder="••••••••"
-          placeholderTextColor="#999"
+          placeholderTextColor={neutral.placeholder}
           secureTextEntry
           autoComplete="current-password"
           returnKeyType="done"

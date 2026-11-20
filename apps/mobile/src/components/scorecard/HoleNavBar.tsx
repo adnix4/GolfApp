@@ -1,6 +1,6 @@
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { useTheme } from '@gfp/ui';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 /** Prev / Complete Hole (or Edit Score) / Next. */
 export function HoleNavBar({
@@ -121,5 +121,5 @@ const styles = StyleSheet.create({
     alignItems: 'center', backgroundColor: '#27ae60' + '22',
     borderWidth: 1, borderColor: '#27ae60',
   },
-  completedBtnText: { fontSize: fontSize.md, fontWeight: '700', color: '#27ae60' },
+  completedBtnText: { fontSize: fontSize.md, fontWeight: '700', color: status.successText },
 });

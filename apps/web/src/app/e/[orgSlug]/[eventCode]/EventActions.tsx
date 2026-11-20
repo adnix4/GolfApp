@@ -24,6 +24,7 @@ import {
   type GolferFields, type SkillLevel, type AgeGroup,
 } from '@gfp/shared-types';
 import { stripeEnabled, formatUsd } from './stripeConfig';
+import { neutral } from '@gfp/theme';
 
 // The card forms (and the Stripe SDK behind them) load only when a payment
 // step actually renders: most visitors to an event page never pay.
@@ -810,12 +811,12 @@ const s: Record<string, React.CSSProperties> = {
   modal:       { backgroundColor: '#fff', borderRadius: 16, padding: '1.75rem', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' },
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' },
   modalTitle:  { fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-primary)', margin: 0 },
-  closeBtn:    { background: 'none', border: 'none', fontSize: '1.1rem', cursor: 'pointer', color: '#888', padding: '4px 6px' },
+  closeBtn:    { background: 'none', border: 'none', fontSize: '1.1rem', cursor: 'pointer', color: neutral.mutedText, padding: '4px 6px' },
   hint:        { fontSize: '0.875rem', color: '#4b5563', marginBottom: '1rem', marginTop: 0 },
 
   fieldRow:   { marginBottom: '1rem' },
   fieldLabel: { display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: '0.375rem' },
-  input:      { width: '100%', padding: '0.6rem 0.75rem', borderRadius: 7, border: '1.5px solid #ddd', fontSize: '0.95rem', color: '#222', boxSizing: 'border-box', outline: 'none' },
+  input:      { width: '100%', padding: '0.6rem 0.75rem', borderRadius: 7, border: '1.5px solid #ddd', fontSize: '0.95rem', color: '#222', boxSizing: 'border-box' },
 
   sectionLabel: { fontSize: '0.8rem', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: 0.4, margin: '1rem 0 0.5rem' },
   playerBlock:  { borderTop: '1px solid #f0f0f0', paddingTop: '0.75rem', marginBottom: '0.5rem' },

@@ -346,7 +346,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
                 setFieldErrors(prev => ({ ...prev, name: validate().name }));
               }}
               placeholder="e.g. Spring Charity Classic"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
               editable={!loading}
               maxLength={200}
               accessibilityLabel="Event name"
@@ -456,7 +456,7 @@ function CreateEventModal({ visible, onClose, onCreated }: CreateEventModalProps
                 setFieldErrors(prev => ({ ...prev, entryFee: validate().entryFee }));
               }}
               placeholder="Leave blank for a free event"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
               editable={!loading}
               accessibilityLabel="Entry fee per golfer in dollars"
             />
@@ -564,11 +564,11 @@ const styles = StyleSheet.create({
   },
   requiredNote: {
     fontSize: fontSize.xs,
-    color: '#888',
+    color: neutral.mutedText,
     marginBottom: spacing[4],
   },
   requiredStar: {
-    color: status.danger,
+    color: status.dangerText,
     fontWeight: '700',
   },
   submitErrorBox: {
@@ -608,14 +608,14 @@ const styles = StyleSheet.create({
   },
   charCount: {
     fontSize: fontSize.xxs,
-    color: '#aaa',
+    color: neutral.mutedText,
   },
   charCountWarn: {
-    color: '#e67e22',
+    color: status.warningText,
   },
   fieldError: {
     fontSize: fontSize.xs,
-    color: status.danger,
+    color: status.dangerText,
     marginTop: spacing[1],
     marginLeft: spacing[0.5],
   },
@@ -650,7 +650,7 @@ const styles = StyleSheet.create({
   },
   optionCardHint: {
     fontSize: fontSize.xxs,
-    color: '#777',
+    color: neutral.mutedText,
     lineHeight: 15,
   },
   pillRow: {
@@ -674,6 +674,6 @@ const styles = StyleSheet.create({
   optionalTag: {
     fontSize: fontSize.xs,
     fontWeight: '400',
-    color: '#888',
+    color: neutral.mutedText,
   },
 });

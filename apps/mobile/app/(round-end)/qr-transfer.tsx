@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   qrPlaceholder: { alignItems: 'center', gap: spacing[4] },
   qrPlaceholderText: { color: '#fff', fontSize: fontSize.md },
 
-  errorText: { color: status.danger, textAlign: 'center', fontSize: fontSize.md, paddingHorizontal: spacing[8] },
+  errorText: { color: status.dangerText, textAlign: 'center', fontSize: fontSize.md, paddingHorizontal: spacing[8] },
   retryBtn:  { marginTop: spacing[3], paddingVertical: spacing[3], paddingHorizontal: spacing[6], borderRadius: radius.md, borderWidth: 1, borderColor: '#fff' },
   retryText: { color: '#fff', fontWeight: '700' },
 

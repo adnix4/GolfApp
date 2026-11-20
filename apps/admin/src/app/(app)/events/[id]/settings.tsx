@@ -7,92 +7,12 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEventDetail } from '@/lib/eventContext';
 import { clearDismissedWarnings, notify } from '@/lib/dialog';
 import { useTheme, useClasses, Heading } from '@gfp/ui';
-import { ECO_GREEN_DEFAULT, getContrastRatio, validateContrast, isLightSurface, readableTextOn, type GFPTheme, spacing, radius, fontSize, status } from '@gfp/theme';
+import { ECO_GREEN_DEFAULT, isThemeSaveBlocked, type GFPTheme, spacing, radius, fontSize, status, neutral } from '@gfp/theme';
 import { useResponsive } from '@/lib/responsive';
 import { eventsApi, eventBrandingApi } from '@/lib/api';
 import { UPLOAD_ABORTED } from '@/lib/upload';
 import { UploadProgress } from '@/components/UploadProgress';
-
-const TOKEN_META: { key: keyof GFPTheme; label: string; desc: string }[] = [
-  { key: 'primary',   label: 'Primary',   desc: 'Nav, headers, footer, primary buttons' },
-  { key: 'action',    label: 'Action',    desc: 'CTAs, links, active tabs, leaderboard highlights' },
-  { key: 'accent',    label: 'Accent',    desc: 'Hover states, secondary badges, sponsor strip' },
-  { key: 'highlight', label: 'Highlight', desc: 'Selected states, callout banners, QR borders' },
-  { key: 'surface',   label: 'Surface',   desc: 'Page backgrounds, cards, email body background' },
-];
-
-function parseTheme(json: string | null): GFPTheme {
-  if (!json) return { ...ECO_GREEN_DEFAULT };
-  try { return { ...ECO_GREEN_DEFAULT, ...JSON.parse(json) }; }
-  catch { return { ...ECO_GREEN_DEFAULT }; }
-}
-
-function isValidHex(s: string): boolean {
-  return /^#[0-9a-fA-F]{6}$/.test(s);
-}
-
-function openColorPicker(current: string, onChange: (v: string) => void) {
-  if (Platform.OS !== 'web') return;
-  const input = (globalThis as any).document?.createElement('input');
-  if (!input) return;
-  input.type  = 'color';
-  input.value = isValidHex(current) ? current : '#000000';
-  input.style.position = 'fixed';
-  input.style.opacity  = '0';
-  input.style.pointerEvents = 'none';
-  (globalThis as any).document.body.appendChild(input);
-  input.oninput  = () => onChange(input.value);
-  input.onchange = () => {
-    onChange(input.value);
-    (globalThis as any).document.body.removeChild(input);
-  };
-  input.click();
-}
-
-function ColorRow({
-  meta, value, onChange, disabled,
-}: {
-  meta: (typeof TOKEN_META)[number];
-  value: string;
-  onChange: (v: string) => void;
-  disabled: boolean;
-}) {
-  const valid = isValidHex(value);
-  return (
-    <View style={cr.row}>
-      <Pressable accessibilityRole="button"
-        style={[cr.swatch, { backgroundColor: valid ? value : '#cccccc' }]}
-        onPress={() => !disabled && openColorPicker(value, onChange)}
-        accessibilityLabel={`Pick color for ${meta.label}`}
-      />
-      <View style={cr.info}>
-        <Text style={cr.tokenLabel}>{meta.label}</Text>
-        <Text style={cr.tokenDesc}>{meta.desc}</Text>
-      </View>
-      <TextInput
-        style={[cr.hexInput, !valid && cr.hexInputError]}
-        value={value}
-        onChangeText={onChange}
-        placeholder="#rrggbb"
-        placeholderTextColor="#aaa"
-        autoCapitalize="none"
-        autoCorrect={false}
-        maxLength={7}
-        editable={!disabled}
-      />
-    </View>
-  );
-}
-
-const cr = StyleSheet.create({
-  row:           { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], gap: spacing[3], borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  swatch:        { width: 36, height: 36, borderRadius: radius.md, borderWidth: 1, borderColor: '#ddd', flexShrink: 0 },
-  info:          { flex: 1 },
-  tokenLabel:    { fontSize: fontSize.md, fontWeight: '700', color: '#333' },
-  tokenDesc:     { fontSize: fontSize.xs, color: '#888', marginTop: 1 },
-  hexInput:      { borderWidth: 1, borderColor: '#ccc', borderRadius: radius.sm, paddingHorizontal: spacing[3], paddingVertical: spacing[2], fontSize: fontSize.md, width: 90, fontFamily: Platform.OS === 'web' ? 'monospace' : undefined },
-  hexInputError: { borderColor: status.danger },
-});
+import { BrandColorEditor, BLOCKED_SAVE_MESSAGE, allColorsValid, parseTheme } from '@/components/BrandColorEditor';
 
 export default function EventSettingsScreen() {
   const { id }  = useLocalSearchParams<{ id: string }>();
@@ -147,27 +67,12 @@ export default function EventSettingsScreen() {
     }
   }, [event]);
 
-  function setToken(key: keyof GFPTheme, value: string) {
-    setColors(prev => ({ ...prev, [key]: value }));
-  }
-
-  const contrastRatio  = getContrastRatio(colors.primary, colors.surface);
-  const contrastPasses = validateContrast(colors.primary, colors.surface);
-  // Cards render as white panels, so the surface behind them must stay light.
-  const surfaceIsLight = !isValidHex(colors.surface) || isLightSurface(colors.surface);
-  const allColorsValid = TOKEN_META.every(m => isValidHex(colors[m.key]));
-
   async function handleSave() {
     if (!id) return;
-    if (hasTheme && !allColorsValid) { setError('Fix invalid hex color values before saving.'); return; }
-    if (hasTheme && !contrastPasses) {
-      setError(`Primary on Surface contrast is ${contrastRatio.toFixed(1)}:1 — must be ≥ 4.5:1 (WCAG AA). Adjust Primary or Surface.`);
-      return;
-    }
-    if (hasTheme && !surfaceIsLight) {
-      setError('Surface must be a light color — it sits behind white cards on every page. Pick a pale tint.');
-      return;
-    }
+    if (hasTheme && !allColorsValid(colors)) { setError('Fix invalid hex color values before saving.'); return; }
+    // Hard contrast failures need a fix or the organizer's explicit choice of
+    // brand over accessibility — the check under Brand Colors offers both.
+    if (hasTheme && isThemeSaveBlocked(colors)) { setError(BLOCKED_SAVE_MESSAGE); return; }
     setSaving(true);
     setSaved(false);
     setError(null);
@@ -271,7 +176,7 @@ export default function EventSettingsScreen() {
             value={websiteUrl}
             onChangeText={setWebsiteUrl}
             placeholder="yourcharity.org"
-            placeholderTextColor="#aaa"
+            placeholderTextColor={neutral.placeholder}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
@@ -344,7 +249,7 @@ export default function EventSettingsScreen() {
             value={logoUrl}
             onChangeText={setLogoUrl}
             placeholder="https://cdn.example.com/logo.png  (blank = org default)"
-            placeholderTextColor="#aaa"
+            placeholderTextColor={neutral.placeholder}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
@@ -360,7 +265,7 @@ export default function EventSettingsScreen() {
             value={mission}
             onChangeText={setMission}
             placeholder="What is this event raising funds for? (blank = org default)"
-            placeholderTextColor="#aaa"
+            placeholderTextColor={neutral.placeholder}
             multiline
             numberOfLines={4}
             autoCapitalize="sentences"
@@ -401,7 +306,7 @@ export default function EventSettingsScreen() {
                 onPress={() => { setHasTheme(false); setColors({ ...ECO_GREEN_DEFAULT }); }}
                 style={[styles.resetBtn, { borderColor: status.danger }]}
               >
-                <Text style={[styles.resetBtnText, { color: status.danger }]}>Clear (use org)</Text>
+                <Text style={[styles.resetBtnText, { color: status.dangerText }]}>Clear (use org)</Text>
               </Pressable>
             )}
             <Pressable accessibilityRole="button"
@@ -426,45 +331,7 @@ export default function EventSettingsScreen() {
               These colors override the org theme for this event only.
             </Text>
 
-            {TOKEN_META.map(meta => (
-              <ColorRow
-                key={meta.key}
-                meta={meta}
-                value={colors[meta.key]}
-                onChange={v => setToken(meta.key, v)}
-                disabled={saving}
-              />
-            ))}
-
-            <View style={[
-              styles.contrastBadge,
-              { backgroundColor: contrastPasses ? '#f0fdf4' : '#fdf2f2',
-                borderColor:      contrastPasses ? '#27ae60'  : '#e74c3c' },
-            ]}>
-              <Text style={[styles.contrastText, { color: contrastPasses ? '#1e8449' : '#c0392b' }]}>
-                Primary on Surface: {contrastRatio.toFixed(1)}:1
-                {'  '}
-                {contrastPasses ? '✓ Passes WCAG AA' : '✗ Fails WCAG AA (need ≥ 4.5:1)'}
-              </Text>
-            </View>
-
-            {!surfaceIsLight && (
-              <View style={[styles.contrastBadge, { backgroundColor: status.dangerBg, borderColor: status.danger }]}>
-                <Text style={[styles.contrastText, { color: status.dangerText }]}>
-                  ✗ Surface is too dark — it sits behind white cards on every page. Pick a pale tint.
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.previewRow}>
-              {TOKEN_META.map(m => (
-                <View key={m.key} style={[styles.previewChip, { backgroundColor: isValidHex(colors[m.key]) ? colors[m.key] : '#ccc' }]}>
-                  <Text style={[styles.previewLabel, { color: readableTextOn(isValidHex(colors[m.key]) ? colors[m.key] : '#ccc') }]}>
-                    {m.label}
-                  </Text>
-                </View>
-              ))}
-            </View>
+            <BrandColorEditor colors={colors} onChange={setColors} disabled={saving} />
           </>
         )}
       </View>
@@ -543,7 +410,8 @@ export default function EventSettingsScreen() {
       </View>
 
       <Pressable accessibilityRole="button" accessibilityLabel="Save Event Options"
-        style={[styles.saveBtn, { backgroundColor: '#e67e22', marginTop: spacing[4] }, savingConfig && { opacity: 0.6 }]}
+        // Deep orange: the white label reads 5.5:1 (#e67e22 was 2.85).
+        style={[styles.saveBtn, { backgroundColor: '#b34700', marginTop: spacing[4] }, savingConfig && { opacity: 0.6 }]}
         onPress={async () => {
           setSavingConfig(true);
           try {
@@ -599,7 +467,7 @@ const styles = StyleSheet.create({
 
   fieldWrap:    { marginBottom: spacing[1] },
   textArea:     { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing[4], paddingVertical: spacing[3], fontSize: fontSize.lg, backgroundColor: '#fafafa', minHeight: 100, textAlignVertical: 'top' },
-  hint:         { fontSize: fontSize.xs, marginTop: spacing[1], color: '#888' },
+  hint:         { fontSize: fontSize.xs, marginTop: spacing[1], color: neutral.mutedText },
 
   extractRow:    { flexDirection: 'row', alignItems: 'stretch', gap: spacing[2] },
   extractBtn:    { paddingHorizontal: spacing[5], borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', minWidth: 120 },
@@ -620,13 +488,6 @@ const styles = StyleSheet.create({
   inheritBanner: { backgroundColor: '#f5f5f5', borderRadius: radius.md, padding: spacing[4], marginTop: spacing[2] },
   inheritText:   { fontSize: fontSize.sm, color: '#666', lineHeight: 20 },
 
-  contrastBadge: { marginTop: spacing[4], borderRadius: radius.md, padding: spacing[3], borderWidth: 1 },
-  contrastText:  { fontSize: fontSize.sm, fontWeight: '600' },
-
-  previewRow:   { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3], flexWrap: 'wrap' },
-  previewChip:  { flex: 1, minWidth: 60, paddingVertical: spacing[2], borderRadius: radius.sm, alignItems: 'center' },
-  previewLabel: { fontSize: fontSize.xxs, fontWeight: '700' },
-
-  saveBtn:     { marginTop: spacing[6], paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
+  saveBtn:    { marginTop: spacing[6], paddingVertical: spacing[4], borderRadius: radius.lg, alignItems: 'center' },
   saveBtnText: { fontSize: fontSize.xl, fontWeight: '800', color: '#fff' },
 });

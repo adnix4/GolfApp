@@ -231,9 +231,137 @@ const titleIsHeading = {
   },
 };
 
+// ── Text contrast (AX4) ──────────────────────────────────────────────────────
+// A literal text colour has to be readable somewhere. White text belongs on a
+// dark fill and dark text on the page, but a mid-tone (#888, #aaa, the status
+// oranges and greens) fails 4.5:1 on white AND on the default dark brand fill,
+// so it is unreadable wherever it is used. Use theme.mutedText for greys, the
+// status.*Text colours for messages, and theme.actionText for brand links.
+const lin = c => (c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+function luminance(hex) {
+  const h = hex.slice(1);
+  const f = h.length === 3 ? [...h].map(x => x + x).join('') : h;
+  return 0.2126 * lin(parseInt(f.slice(0, 2), 16)) + 0.7152 * lin(parseInt(f.slice(2, 4), 16)) + 0.0722 * lin(parseInt(f.slice(4, 6), 16));
+}
+const contrast = (a, b) => { const x = luminance(a), y = luminance(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+/** ECO_GREEN_DEFAULT.primary: the dark fill light text sits on. */
+const DARK_FILL = '#31572c';
+/** Status FILL colours; each has a *Text twin that reads on white. */
+const STATUS_FILLS = { danger: 'dangerText', success: 'successText', warning: 'warningText' };
+const TEXT_COLOR_KEYS = new Set(['color', 'placeholderTextColor']);
+
+const CSS_KEY = /^(font|text|line|letter|margin|padding|background|border|flex|display|opacity|width|height|min|max|cursor|position|top|left|right|bottom|align|justify|gap|overflow|transform|whiteSpace)/;
+
+/**
+ * A `color:` that styles text: inside a style prop, inside StyleSheet.create,
+ * or beside other CSS keys (web style objects). A lookup table such as
+ * `{ status: 'Active', color: '#2ecc71' }` is data, and how it is drawn is
+ * decided where it is used.
+ */
+function isStyleProperty(context, node) {
+  for (const a of context.sourceCode.getAncestors(node)) {
+    if (a.type === 'JSXAttribute' && /style$/i.test(a.name.name)) return true;
+    if (a.type === 'CallExpression' && a.callee.type === 'MemberExpression'
+      && a.callee.object.name === 'StyleSheet' && a.callee.property.name === 'create') return true;
+  }
+  return node.parent.type === 'ObjectExpression' && node.parent.properties.some(p =>
+    p !== node && p.type === 'Property' && p.key.type === 'Identifier' && CSS_KEY.test(p.key.name));
+}
+
+function lowContrastHex(value) {
+  return HEX.test(value) && contrast(value, '#ffffff') < 4.5 && contrast(value, DARK_FILL) < 4.5;
+}
+
+const noLowContrastText = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Text colours must reach 4.5:1 on white or on a dark fill' },
+    schema: [],
+    messages: {
+      literal:
+        'Text colour {{value}} is {{ratio}}:1 on white and too light for a dark fill, so it is hard to read anywhere. '
+        + 'Use theme.mutedText for secondary text, status.dangerText / successText / warningText for messages, '
+        + 'or theme.actionText for links.',
+      status:
+        'status.{{name}} is a fill colour ({{ratio}}:1 on white). For text use status.{{twin}}.',
+      pair:
+        'Text {{fg}} on {{bg}} is {{ratio}}:1 (needs 4.5:1). Use readableTextOn({{bgName}}) for the label, '
+        + 'or a darker fill.',
+    },
+  },
+  create(context) {
+    const STATUS_HEX = {
+      danger: '#e74c3c', dangerText: '#c0392b', dangerBg: '#fdf2f2', success: '#27ae60', successText: '#1a7f43',
+      warning: '#f39c12', warningText: '#8a5a00', infoText: '#1f6fb2',
+    };
+    /** A colour known at lint time: a hex literal or a status.* token. */
+    function staticHex(n) {
+      if (!n) return null;
+      if (n.type === 'Literal' && typeof n.value === 'string' && HEX.test(n.value)) return n.value;
+      if (n.type === 'MemberExpression' && !n.computed && n.object.type === 'Identifier'
+        && n.object.name === 'status' && STATUS_HEX[n.property.name]) return STATUS_HEX[n.property.name];
+      return null;
+    }
+    const prop = (obj, name) => obj.properties.find(p => p.type === 'Property' && !p.computed
+      && (p.key.type === 'Identifier' ? p.key.name : p.key.value) === name);
+    function check(keyName, valueNode) {
+      if (!TEXT_COLOR_KEYS.has(keyName) || !valueNode) return;
+      // `active ? '#fff' : '#888'`, `muted && '#999'`: check each colour it can be.
+      if (valueNode.type === 'ConditionalExpression') {
+        check(keyName, valueNode.consequent);
+        check(keyName, valueNode.alternate);
+        return;
+      }
+      if (valueNode.type === 'LogicalExpression') {
+        check(keyName, valueNode.right);
+        return;
+      }
+      if (valueNode.type === 'Literal' && typeof valueNode.value === 'string' && lowContrastHex(valueNode.value)) {
+        context.report({ node: valueNode, messageId: 'literal', data: { value: valueNode.value, ratio: contrast(valueNode.value, '#ffffff').toFixed(2) } });
+      }
+      if (valueNode.type === 'MemberExpression' && !valueNode.computed
+        && valueNode.object.type === 'Identifier' && valueNode.object.name === 'status'
+        && STATUS_FILLS[valueNode.property.name]) {
+        const name = valueNode.property.name;
+        const hex = { danger: '#e74c3c', success: '#27ae60', warning: '#f39c12' }[name];
+        context.report({ node: valueNode, messageId: 'status', data: { name, twin: STATUS_FILLS[name], ratio: contrast(hex, '#ffffff').toFixed(2) } });
+      }
+    }
+    return {
+      Property(node) {
+        const key = node.key.type === 'Identifier' ? node.key.name : node.key.value;
+        if (key !== 'color' || !isStyleProperty(context, node)) return;
+        check(key, node.value);
+      },
+      // Text and fill set in the same style object: check them against each other.
+      ObjectExpression(node) {
+        const fg = prop(node, 'color');
+        const bg = prop(node, 'backgroundColor') ?? prop(node, 'background');
+        const fgHex = staticHex(fg?.value);
+        const bgHex = staticHex(bg?.value);
+        if (!fgHex || !bgHex) return;
+        const ratio = contrast(fgHex, bgHex);
+        if (ratio >= 4.5) return;
+        context.report({ node: fg.value, messageId: 'pair', data: {
+          fg: fgHex, bg: bgHex, ratio: ratio.toFixed(2), bgName: context.sourceCode.getText(bg.value),
+        } });
+      },
+      // Only the placeholder: a `color` PROP sets an icon or spinner, which is
+      // a graphic (3:1), not text.
+      JSXAttribute(node) {
+        if (node.name.name !== 'placeholderTextColor') return;
+        if (node.value?.type === 'Literal') check(node.name.name, node.value);
+        else if (node.value?.type === 'JSXExpressionContainer') check(node.name.name, node.value.expression);
+      },
+    };
+  },
+};
+
 export default {
   meta: { name: 'gfp-a11y' },
   rules: {
+    'no-low-contrast-text': noLowContrastText,
     'title-is-heading': titleIsHeading,
     'pressable-has-role': pressableHasRole,
     'image-has-alt': imageHasAlt,

@@ -15,7 +15,7 @@ import {
   type SyncConflictDto,
   type ChallengeCacheDto,
 } from '@/lib/api';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 // ── CONFLICT CARD ─────────────────────────────────────────────────────────────
 
@@ -34,9 +34,9 @@ function ConflictCard({ conflict }: { conflict: SyncConflictDto }) {
 
 const conflictStyles = StyleSheet.create({
   card:   { borderWidth: 1, borderRadius: radius.lg, padding: spacing[4], marginBottom: spacing[2] },
-  title:  { fontSize: fontSize.md, fontWeight: '700', color: '#e67e22', marginBottom: spacing[1] },
+  title:  { fontSize: fontSize.md, fontWeight: '700', color: status.warningText, marginBottom: spacing[1] },
   detail: { fontSize: fontSize.sm, marginBottom: spacing[1] },
-  hint:   { fontSize: fontSize.xs, color: '#999' },
+  hint:   { fontSize: fontSize.xs, color: neutral.mutedText },
 });
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────
@@ -145,11 +145,11 @@ export default function SyncScreen() {
 
       {/* ── HEADER ── */}
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-        <Heading level={1} style={[styles.headerEventName, { color: theme.colors.highlight }]} numberOfLines={2}>
+        <Heading level={1} style={[styles.headerEventName, { color: theme.highlightText }]} numberOfLines={2}>
           {session.event.name}
         </Heading>
         {session.course ? (
-          <Text style={[styles.headerHostedBy, { color: theme.colors.highlight }]} numberOfLines={1}>
+          <Text style={[styles.headerHostedBy, { color: theme.highlightText }]} numberOfLines={1}>
             Hosted by {session.course.name}
           </Text>
         ) : null}

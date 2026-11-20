@@ -12,7 +12,7 @@ import { announce, autoDismissMs, useScreenReaderEnabled } from '@/lib/a11y';
 import { holeInOneAlertHaptic } from '@/lib/haptics';
 import { fetchLeaderboard } from '@/lib/api';
 import type { PublicLeaderboardEntry, PublicIndividualEntry } from '@/lib/api';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // Spec §3 Phase 3: SignalR is primary; 15 s HTTP fallback only when the hub
 // connection is down. Spec §2.4: offline-mode events disable live leaderboard
@@ -108,19 +108,19 @@ function TableHeader({ stableford = false, golfers = false }: { stableford?: boo
   const theme = useTheme();
   return (
     <View style={[rowStyles.row, { backgroundColor: theme.colors.highlight }]}>
-      <Text style={[rowStyles.rank,  headerStyles.th, { color: theme.colors.primary }]}>#</Text>
-      <Text style={[rowStyles.team,  headerStyles.th, { color: theme.colors.primary }]}>{golfers ? 'Golfer' : 'Team'}</Text>
-      <Text style={[rowStyles.toPar, headerStyles.th, { color: theme.colors.primary }]}>{stableford ? 'Pts' : 'To Par'}</Text>
-      <Text style={[rowStyles.back,  headerStyles.th, { color: theme.colors.primary }]}>Back</Text>
+      <Text style={[rowStyles.rank,  headerStyles.th, { color: theme.highlightLabel }]}>#</Text>
+      <Text style={[rowStyles.team,  headerStyles.th, { color: theme.highlightLabel }]}>{golfers ? 'Golfer' : 'Team'}</Text>
+      <Text style={[rowStyles.toPar, headerStyles.th, { color: theme.highlightLabel }]}>{stableford ? 'Pts' : 'To Par'}</Text>
+      <Text style={[rowStyles.back,  headerStyles.th, { color: theme.highlightLabel }]}>Back</Text>
       {golfers ? (
-        <Text style={[rowStyles.num, headerStyles.th, { color: theme.colors.primary }]}>Gross</Text>
+        <Text style={[rowStyles.num, headerStyles.th, { color: theme.highlightLabel }]}>Gross</Text>
       ) : (
         <>
-          <Text style={[rowStyles.num, headerStyles.th, { color: theme.colors.primary }]}>Best</Text>
-          <Text style={[rowStyles.num, headerStyles.th, { color: theme.colors.primary }]}>Score</Text>
+          <Text style={[rowStyles.num, headerStyles.th, { color: theme.highlightLabel }]}>Best</Text>
+          <Text style={[rowStyles.num, headerStyles.th, { color: theme.highlightLabel }]}>Score</Text>
         </>
       )}
-      <Text style={[rowStyles.thru,  headerStyles.th, { color: theme.colors.primary }]}>Thru</Text>
+      <Text style={[rowStyles.thru,  headerStyles.th, { color: theme.highlightLabel }]}>Thru</Text>
     </View>
   );
 }
@@ -174,9 +174,9 @@ function HoleInOneOverlay({
           accessibilityRole="alert"
         >
           <Text style={hioStyles.flag} aria-hidden>⛳</Text>
-          <Heading level={2} style={[hioStyles.headline, { color: theme.colors.primary }]}>HOLE-IN-ONE!</Heading>
-          <Text style={[hioStyles.name, { color: theme.colors.primary }]}>{data.playerName}</Text>
-          <Text style={[hioStyles.sub,  { color: theme.mutedText  }]}>Hole {data.holeNumber}</Text>
+          <Heading level={2} style={[hioStyles.headline, { color: theme.highlightLabel }]}>HOLE-IN-ONE!</Heading>
+          <Text style={[hioStyles.name, { color: theme.highlightLabel }]}>{data.playerName}</Text>
+          <Text style={[hioStyles.sub,  { color: theme.highlightMuted  }]}>Hole {data.holeNumber}</Text>
           <Pressable
             style={[hioStyles.btn, { backgroundColor: theme.colors.primary }]}
             onPress={onDismiss}
@@ -240,7 +240,7 @@ function StatusBar({
           : `Updated ${agoText} · polling every ${FALLBACK_POLL_MS / 1000}s`;
 
   const bg   = error ? '#fdf2f2' : offline ? '#fff7e6' : '#f0faf4';
-  const fg   = error ? '#c0392b' : offline ? '#a67100' : '#27ae60';
+  const fg   = error ? status.dangerText : offline ? status.warningText : status.successText;
 
   return (
     <View style={[styles.statusBar, { backgroundColor: bg }]}>

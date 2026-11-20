@@ -67,4 +67,30 @@ public class ThemeValidationTests
     {
         Assert.Throws<ValidationException>(() => ThemeValidation.Validate(ThemeJson(primary: "#ffffff", surface: "#e74c3c")));
     }
+
+    // ── Brand priority: organizer chose their colors over the contrast rules ──
+
+    private static string WithPriority(string json, bool priority) =>
+        json.TrimEnd('}') + $",\"brandPriority\":{(priority ? "true" : "false")}}}";
+
+    [Fact]
+    public void Accepts_failing_contrast_and_dark_surface_when_brand_priority_is_set()
+    {
+        ThemeValidation.Validate(WithPriority(ThemeJson(primary: "#888888", surface: "#ffffff"), true));
+        ThemeValidation.Validate(WithPriority(ThemeJson(primary: "#ecf39e", surface: "#1a1a2e"), true));
+    }
+
+    [Fact]
+    public void Brand_priority_false_still_enforces_the_gates()
+    {
+        Assert.Throws<ValidationException>(() =>
+            ThemeValidation.Validate(WithPriority(ThemeJson(primary: "#888888", surface: "#ffffff"), false)));
+    }
+
+    [Fact]
+    public void Brand_priority_does_not_waive_well_formed_hex()
+    {
+        Assert.Throws<ValidationException>(() =>
+            ThemeValidation.Validate(WithPriority(ThemeJson(primary: "green"), true)));
+    }
 }

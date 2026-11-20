@@ -28,7 +28,7 @@ import {
   completionGate, markCompleteCopy, markCompleteUncheckedCopy, cancelEventCopy,
   goActiveNeedsCourseCopy,
 } from '@/lib/eventStatus';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 // ── Entry fee helpers ─────────────────────────────────────────────────────────
 // The per-golfer fee lives in the event config JSONB (entryFeeCents). Organizers
@@ -543,7 +543,7 @@ function ChecklistItem({ done, required, label, doneDetail, missingDetail, actio
           style={[styles.checkAction, { borderColor: theme.colors.action }]}
           onPress={action.onPress}
         >
-          <Text style={[styles.checkActionText, { color: theme.colors.action }]}>{action.label}</Text>
+          <Text style={[styles.checkActionText, { color: theme.actionText }]}>{action.label}</Text>
         </Pressable>
       )}
     </View>
@@ -661,7 +661,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
               value={name}
               onChangeText={v => { setName(v); if (fieldErrors.name) setFieldErrors(p => ({ ...p, name: undefined })); }}
               placeholder="Annual Charity Golf Classic"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
               editable={!loading}
               maxLength={200}
             />
@@ -711,7 +711,7 @@ function EditEventModal({ visible, event, onClose, onSaved }: EditEventModalProp
               value={entryFee}
               onChangeText={v => { setEntryFee(v); if (fieldErrors.entryFee) setFieldErrors(p => ({ ...p, entryFee: undefined })); }}
               placeholder="Leave blank for a free event"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
               editable={!loading}
             />
             {fieldErrors.entryFee
@@ -818,7 +818,7 @@ function AttachCourseModal({ visible, eventId, course, onClose, onAttached }: At
               <TextInput
                 style={c.input}
                 value={f.value} onChangeText={f.setter as any}
-                placeholder={f.placeholder} placeholderTextColor="#999" editable={!loading}
+                placeholder={f.placeholder} placeholderTextColor={neutral.placeholder} editable={!loading}
               />
             </View>
           ))}
@@ -888,7 +888,7 @@ const styles = StyleSheet.create({
   openRegBtnText:  { fontSize: fontSize.xl, fontWeight: '800', color: '#fff' },
   openRegBtnSub:   { fontSize: fontSize.xxs, color: 'rgba(255,255,255,0.8)', marginTop: spacing[1] },
   dangerLink:      { alignItems: 'center', paddingTop: spacing[4] },
-  dangerLinkText:  { fontSize: fontSize.sm, color: status.danger, fontWeight: '500' },
+  dangerLinkText:  { fontSize: fontSize.sm, color: status.dangerText, fontWeight: '500' },
   testDataSection: { borderWidth: 1, borderRadius: radius.md, padding: spacing[3], marginTop: spacing[1], gap: spacing[2] },
   testDataTitle:   { fontSize: fontSize.sm, fontWeight: '700' },
   testDataDesc:    { fontSize: fontSize.xs, lineHeight: 16 },
@@ -921,9 +921,9 @@ const styles = StyleSheet.create({
   overrideLink:     { marginTop: spacing[3], alignSelf: 'flex-start', paddingVertical: spacing[1] },
   overrideLinkText: { fontSize: fontSize.sm, fontWeight: '600', textDecorationLine: 'underline' },
   cancelBtn:      { paddingVertical: spacing[3], paddingHorizontal: spacing[4], borderRadius: radius.md, borderWidth: 1.5, borderColor: status.danger, alignItems: 'center' },
-  cancelBtnText:  { fontSize: fontSize.md, fontWeight: '600', color: status.danger },
+  cancelBtnText:  { fontSize: fontSize.md, fontWeight: '600', color: status.dangerText },
 
-  fieldError:     { color: status.danger, fontSize: fontSize.xs, marginTop: spacing[1], marginBottom: spacing[1] },
+  fieldError:     { color: status.dangerText, fontSize: fontSize.xs, marginTop: spacing[1], marginBottom: spacing[1] },
   fieldHint:      { fontSize: fontSize.xxs, lineHeight: 15, marginTop: spacing[1] },
   modalScroll:    { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[5] },
   modal:          { width: '100%', maxWidth: 480, backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[8] },

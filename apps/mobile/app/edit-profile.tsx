@@ -11,7 +11,7 @@ import { useSession } from '@/lib/session';
 import { notify, notifyFailure } from '@/lib/notify';
 import { updateMyProfile } from '@/lib/api';
 import { digitsOnly, fmtPhoneInput, isValidPhone, PHONE_INVALID } from '@gfp/shared-types';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, neutral } from '@gfp/theme';
 
 export default function EditProfileScreen() {
   const theme   = useTheme();
@@ -159,7 +159,7 @@ function Field({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#aaa"
+        placeholderTextColor={neutral.placeholder}
         keyboardType={keyboardType ?? 'default'}
         autoCapitalize="words"
       />
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   },
   readonlyLabel: { fontSize: fontSize.xs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   readonlyValue: { fontSize: fontSize.xl, fontWeight: '500', marginTop: spacing[1] },
-  readonlyHint:  { fontSize: fontSize.xs, color: '#aaa', marginTop: spacing[2] },
+  readonlyHint:  { fontSize: fontSize.xs, color: neutral.mutedText, marginTop: spacing[2] },
 
   saveBtn: {
     borderRadius: radius.lg, paddingVertical: spacing[4],

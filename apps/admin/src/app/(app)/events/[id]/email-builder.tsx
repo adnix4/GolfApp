@@ -216,7 +216,7 @@ export default function EmailBuilderScreen() {
                 style={[styles.btn, styles.btnOutline, { borderColor: status.success }]}
                 onPress={handlePreviewPdf}
               >
-                <Text style={[styles.btnText, { color: status.success }]}>Preview / Print PDF</Text>
+                <Text style={[styles.btnText, { color: status.successText }]}>Preview / Print PDF</Text>
               </Pressable>
             )}
 
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   arrowDisabled:  { opacity: 0.3 },
   arrowText:      { fontSize: fontSize.md, fontWeight: '700' },
   removeBtn:      { padding: spacing[2], borderRadius: radius.sm, backgroundColor: status.dangerBg },
-  removeText:     { fontSize: fontSize.sm, color: status.danger, fontWeight: '700' },
+  removeText:     { fontSize: fontSize.sm, color: status.dangerText, fontWeight: '700' },
 
   addRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[2] },
   addLabel:  { fontSize: fontSize.xs, fontWeight: '600', alignSelf: 'center' },
@@ -294,6 +294,6 @@ const styles = StyleSheet.create({
   btnText:     { color: '#fff', fontSize: fontSize.md, fontWeight: '700' },
 
   sendErrorBox: { backgroundColor: status.dangerBg, borderRadius: radius.md, padding: spacing[3], borderLeftWidth: 3, borderLeftColor: status.danger },
-  successMsg: { color: status.success, fontSize: fontSize.sm, fontWeight: '600', textAlign: 'center' },
+  successMsg: { color: status.successText, fontSize: fontSize.sm, fontWeight: '600', textAlign: 'center' },
   errorMsg:   { color: status.dangerText, fontSize: fontSize.sm, fontWeight: '600' },
 });

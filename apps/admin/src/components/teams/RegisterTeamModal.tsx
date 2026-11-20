@@ -8,7 +8,7 @@ import {
 } from '@gfp/shared-types';
 import { teamsApi, type Team, type RegisterTeamPayload } from '@/lib/api';
 import { formStyles } from './formStyles';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, neutral, status } from '@gfp/theme';
 
 // ── Register Team Modal ───────────────────────────────────────────────────────
 
@@ -101,7 +101,7 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
               value={teamName}
               onChangeText={v => { setTeamName(v); if (error) setError(null); }}
               placeholder="The Eagles"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
               editable={!loading}
               maxLength={200}
             />
@@ -115,7 +115,7 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
                   </Heading>
                   {players.length > 1 && (
                     <Pressable accessibilityRole="button" accessibilityLabel={`Remove player ${idx + 1}`} onPress={() => removePlayer(idx)}>
-                      <Text style={{ color: '#e74c3c', fontSize: fontSize.sm }}>Remove</Text>
+                      <Text style={{ color: status.dangerText, fontSize: fontSize.sm }}>Remove</Text>
                     </Pressable>
                   )}
                 </View>
@@ -123,31 +123,31 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
                   <TextInput
                     style={[c.input, formStyles.halfInput]}
                     value={p.firstName} onChangeText={v => updatePlayer(idx, 'firstName', v)}
-                    placeholder="First *" placeholderTextColor="#999" editable={!loading}
+                    placeholder="First *" placeholderTextColor={neutral.placeholder} editable={!loading}
                   />
                   <TextInput
                     style={[c.input, formStyles.halfInput]}
                     value={p.lastName} onChangeText={v => updatePlayer(idx, 'lastName', v)}
-                    placeholder="Last *" placeholderTextColor="#999" editable={!loading}
+                    placeholder="Last *" placeholderTextColor={neutral.placeholder} editable={!loading}
                   />
                 </View>
                 <TextInput
                   style={[c.input, { marginTop: spacing[2] }]}
                   value={p.email} onChangeText={v => updatePlayer(idx, 'email', v)}
-                  placeholder="Email *" placeholderTextColor="#999"
+                  placeholder="Email *" placeholderTextColor={neutral.placeholder}
                   keyboardType="email-address" autoCapitalize="none" editable={!loading}
                 />
                 <View style={[formStyles.nameRow, { marginTop: spacing[2] }]}>
                   <TextInput
                     style={[c.input, formStyles.halfInput]}
                     value={p.phone ?? ''} onChangeText={v => updatePlayer(idx, 'phone', fmtPhoneInput(digitsOnly(v)))}
-                    placeholder="Phone (optional)" placeholderTextColor="#999"
+                    placeholder="Phone (optional)" placeholderTextColor={neutral.placeholder}
                     keyboardType="phone-pad" editable={!loading}
                   />
                   <TextInput
                     style={[c.input, formStyles.halfInput]}
                     value={p.handicap ?? ''} onChangeText={v => updatePlayer(idx, 'handicap', v)}
-                    placeholder="Handicap (optional)" placeholderTextColor="#999"
+                    placeholder="Handicap (optional)" placeholderTextColor={neutral.placeholder}
                     keyboardType="decimal-pad" editable={!loading}
                   />
                 </View>
@@ -155,7 +155,7 @@ export function RegisterTeamModal({ visible, eventId, onClose, onRegistered }: R
             ))}
 
             <Pressable accessibilityRole="button" style={[styles.addPlayerFormBtn, { borderColor: theme.colors.action }]} onPress={addPlayer}>
-              <Text style={[styles.addPlayerFormText, { color: theme.colors.action }]}>+ Add Player</Text>
+              <Text style={[styles.addPlayerFormText, { color: theme.actionText }]}>+ Add Player</Text>
             </Pressable>
 
             <View style={c.formActions}>

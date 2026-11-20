@@ -212,8 +212,8 @@ export function ChallengeDetailModal({
     >
       {challenge.prizeDescription ? (
         <View style={[chalModalStyles.prizeBox, { backgroundColor: theme.colors.highlight }]}>
-          <Text style={[chalModalStyles.prizeLabel, { color: theme.colors.primary }]}>🏆 Prize</Text>
-          <Text style={[chalModalStyles.prizeText, { color: theme.colors.primary }]}>{challenge.prizeDescription}</Text>
+          <Text style={[chalModalStyles.prizeLabel, { color: theme.highlightLabel }]}>🏆 Prize</Text>
+          <Text style={[chalModalStyles.prizeText, { color: theme.highlightLabel }]}>{challenge.prizeDescription}</Text>
         </View>
       ) : null}
     </DialogFrame>

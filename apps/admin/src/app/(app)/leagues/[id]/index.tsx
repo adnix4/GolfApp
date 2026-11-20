@@ -13,7 +13,7 @@ import { useLeagueName } from './_layout';
 import { DateTimeField } from '@/components/DateTimeField';
 import { validateDateRange } from '@/lib/dateTime';
 import { formatDateOnly } from '@gfp/shared-types';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 export default function LeagueDetailScreen() {
   const theme  = useTheme();
@@ -88,7 +88,7 @@ export default function LeagueDetailScreen() {
     <View style={[styles.root, { backgroundColor: theme.colors.surface }]}>
       <View style={[styles.header, { borderBottomColor: theme.colors.accent }]}>
         <Pressable accessibilityRole="button" onPress={() => router.back()}>
-          <Text style={{ color: theme.colors.action, fontSize: fontSize.lg }}>← Back</Text>
+          <Text style={{ color: theme.actionText, fontSize: fontSize.lg }}>← Back</Text>
         </Pressable>
         <Heading level={1} style={[styles.title, { color: theme.colors.primary }]}>Seasons</Heading>
         <Pressable accessibilityRole="button"
@@ -155,7 +155,7 @@ export default function LeagueDetailScreen() {
         <TextInput
           style={c.input}
           value={sName} onChangeText={setSName} placeholder="2026 Spring Season"
-          placeholderTextColor="#999"
+          placeholderTextColor={neutral.placeholder}
         />
 
         <View style={styles.row}>
@@ -194,7 +194,7 @@ export default function LeagueDetailScreen() {
             <TextInput
               style={c.input}
               value={rounds} onChangeText={setRounds} keyboardType="numeric"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
             />
           </View>
           <View style={styles.half}>
@@ -202,7 +202,7 @@ export default function LeagueDetailScreen() {
             <TextInput
               style={c.input}
               value={counted} onChangeText={setCounted} keyboardType="numeric"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
             />
           </View>
         </View>
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   cardMeta:     { fontSize: fontSize.xs, marginBottom: spacing[2] },
   cardStats:    { flexDirection: 'row', gap: spacing[4] },
   stat:         { fontSize: fontSize.sm, fontWeight: '500' },
-  fieldError:   { fontSize: fontSize.xs, color: status.danger, marginTop: spacing[1] },
+  fieldError:   { fontSize: fontSize.xs, color: status.dangerText, marginTop: spacing[1] },
   row:          { flexDirection: 'row', gap: spacing[2] },
   half:         { flex: 1 },
   segRow:       { flexDirection: 'row', gap: spacing[2], marginTop: spacing[1] },

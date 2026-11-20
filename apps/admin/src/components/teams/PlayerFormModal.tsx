@@ -6,7 +6,7 @@ import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { digitsOnly, fmtPhoneInput, isValidPhone, PHONE_INVALID } from '@gfp/shared-types';
 import { playersApi, type Team, type Player, type AddPlayerPayload } from '@/lib/api';
 import { formStyles } from './formStyles';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, neutral } from '@gfp/theme';
 
 // ── Player Form Modal (add or edit) ──────────────────────────────────────────
 
@@ -128,12 +128,12 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
               <TextInput
                 style={[c.input, formStyles.halfInput]}
                 value={firstName} onChangeText={v => { setFirstName(v); if (error) setError(null); }}
-                placeholder="First name" placeholderTextColor="#999" editable={!loading}
+                placeholder="First name" placeholderTextColor={neutral.placeholder} editable={!loading}
               />
               <TextInput
                 style={[c.input, formStyles.halfInput]}
                 value={lastName} onChangeText={v => { setLastName(v); if (error) setError(null); }}
-                placeholder="Last name" placeholderTextColor="#999" editable={!loading}
+                placeholder="Last name" placeholderTextColor={neutral.placeholder} editable={!loading}
               />
             </View>
 
@@ -144,7 +144,7 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
               style={c.input}
               value={email} onChangeText={v => { setEmail(v); if (error) setError(null); }}
               placeholder="player@example.com"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
               keyboardType="email-address" autoCapitalize="none" editable={!loading}
             />
 
@@ -155,7 +155,7 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
               value={phone}
               onChangeText={v => { setPhone(fmtPhoneInput(digitsOnly(v))); if (error) setError(null); }}
               placeholder="(555) 867-5309"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
               keyboardType="phone-pad" editable={!loading}
             />
 
@@ -166,7 +166,7 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
               style={c.input}
               value={handicap} onChangeText={v => { setHandicap(v.replace(/[^0-9.]/g, '')); if (error) setError(null); }}
               placeholder="e.g. 14.2"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
               keyboardType="decimal-pad" editable={!loading}
             />
 
@@ -185,7 +185,7 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
                   onPress={() => setPickerOpen(o => !o)}
                   disabled={loading}
                 >
-                  <Text style={[styles.pickerBtnText, { color: selectedTeamId ? theme.colors.primary : '#999' }]} numberOfLines={1}>
+                  <Text style={[styles.pickerBtnText, { color: selectedTeamId ? theme.colors.primary : neutral.mutedText }]} numberOfLines={1}>
                     {teamLabel(selectedTeamId)}
                   </Text>
                   <Text style={{ color: theme.mutedText, fontSize: fontSize.xs, marginLeft: spacing[2] }}>{pickerOpen ? '▲' : '▼'}</Text>
@@ -240,7 +240,7 @@ export function PlayerFormModal({ visible, eventId, teamId, teams, player, title
 
                     {availableTeams.length === 0 && (
                       <View style={styles.pickerOption}>
-                        <Text style={{ color: '#888', fontSize: fontSize.sm, fontStyle: 'italic' }}>No teams with open slots</Text>
+                        <Text style={{ color: neutral.mutedText, fontSize: fontSize.sm, fontStyle: 'italic' }}>No teams with open slots</Text>
                       </View>
                     )}
                   </ScrollView>

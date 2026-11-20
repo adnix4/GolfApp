@@ -98,6 +98,21 @@ export default [
     },
   },
   {
+    // Text contrast covers apps/web too: its inline style objects set text
+    // colours the same way (`color: '#888'`). AX4.
+    files: [
+      'apps/mobile/**/*.{ts,tsx}',
+      'apps/admin/**/*.{ts,tsx}',
+      'apps/web/src/**/*.{ts,tsx}',
+      'packages/ui/**/*.{ts,tsx}',
+    ],
+    ignores: ['**/__tests__/**'],
+    plugins: { 'gfp-a11y': gfpA11y },
+    rules: {
+      'gfp-a11y/no-low-contrast-text': 'error',
+    },
+  },
+  {
     // Everything EXCEPT packages/shared-types, which owns the direct import.
     files: [
       'apps/**/*.{ts,tsx}',

@@ -9,7 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { leagueApi } from '@/lib/api';
 import { leagueKeys, useLeagueList } from '@/lib/queries';
 import { useResponsive } from '@/lib/responsive';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, neutral } from '@gfp/theme';
 
 const FORMATS    = ['Stableford', 'Stroke', 'Match'];
 const HC_SYSTEMS = ['Club', 'USGA'];
@@ -128,7 +128,7 @@ export default function LeaguesScreen() {
             <TextInput
               style={c.input}
               value={name} onChangeText={setName} placeholder="Tuesday Night League"
-              placeholderTextColor="#999"
+              placeholderTextColor={neutral.placeholder}
             />
 
             <Text style={c.fieldLabel}>Format</Text>
@@ -167,7 +167,7 @@ export default function LeaguesScreen() {
                 <TextInput
                   style={c.input}
                   value={hcCap} onChangeText={setHcCap} keyboardType="numeric"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={neutral.placeholder}
                 />
               </View>
               <View style={styles.half}>
@@ -175,7 +175,7 @@ export default function LeaguesScreen() {
                 <MoneyInput
                   style={c.input}
                   value={dues} onChangeText={setDues} placeholder="$0.00"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={neutral.placeholder}
                 />
               </View>
             </View>

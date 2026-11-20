@@ -16,7 +16,7 @@ import {
 } from '@/lib/checkIn';
 import { AddCardModal, cardCaptureEnabled } from '@/components/AddCardModal';
 import { formatTime, digitsOnly, fmtPhoneInput, validateGolfer, toPlayerInput } from '@gfp/shared-types';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral, readableTextOn } from '@gfp/theme';
 
 type Filter = 'all' | 'pending' | 'checked_in';
 
@@ -187,11 +187,12 @@ export default function RegistrationScreen() {
           isMobile && styles.statsRowMobile,
         ]}>
           <StatChip label="Total"      value={teams.length}              color={theme.colors.primary} style={isMobile ? styles.statHalf : undefined} />
-          <StatChip label="Checked In" value={checkedIn}                 color={status.success}              style={isMobile ? styles.statHalf : undefined} />
+          {/* StatChip draws its value in `color`: text tokens, not the status fills. */}
+          <StatChip label="Checked In" value={checkedIn}                 color={status.successText}          style={isMobile ? styles.statHalf : undefined} />
           {hasEntryFee && (
-            <StatChip label={`Golfers Paid (of ${golfersTotal})`} value={golfersPaid} color="#2980b9"   style={isMobile ? styles.statHalf : undefined} />
+            <StatChip label={`Golfers Paid (of ${golfersTotal})`} value={golfersPaid} color={status.infoText} style={isMobile ? styles.statHalf : undefined} />
           )}
-          <StatChip label="Pending"    value={teams.length - checkedIn}  color={status.warning}              style={isMobile ? styles.statHalf : undefined} />
+          <StatChip label="Pending"    value={teams.length - checkedIn}  color={status.warningText}          style={isMobile ? styles.statHalf : undefined} />
         </View>
       )}
 
@@ -267,7 +268,7 @@ export default function RegistrationScreen() {
                     styles.statusBadge,
                     { backgroundColor: isCheckedIn ? '#2ecc71' : '#f39c12' },
                   ]}>
-                    <Text style={styles.statusText}>
+                    <Text style={[styles.statusText, { color: readableTextOn(isCheckedIn ? '#2ecc71' : '#f39c12') }]}>
                       {isCheckedIn ? 'Checked In' : 'Pending'}
                     </Text>
                   </View>
@@ -278,7 +279,7 @@ export default function RegistrationScreen() {
                       paid. Suppressed entirely on a free event (D16). */}
                   {!hasEntryFee ? null : team.entryFeePaid ? (
                     <View style={[styles.pill, { borderColor: status.success }]}>
-                      <Text style={[styles.pillText, { color: status.success }]}>✓ Fees Paid</Text>
+                      <Text style={[styles.pillText, { color: status.successText }]}>✓ Fees Paid</Text>
                     </View>
                   ) : (
                     <>
@@ -286,7 +287,7 @@ export default function RegistrationScreen() {
                           left a team with an unpaid roster looking identical to
                           one with no fee at all. */}
                       <View style={[styles.pill, { borderColor: status.warning }]}>
-                        <Text style={[styles.pillText, { color: status.warning }]}>
+                        <Text style={[styles.pillText, { color: status.warningText }]}>
                           {team.playersPaid}/{team.players.length} paid
                         </Text>
                       </View>
@@ -297,7 +298,7 @@ export default function RegistrationScreen() {
                       >
                         {busy[team.id + '_fee']
                           ? <ActivityIndicator size="small" color="#2980b9" />
-                          : <Text style={[styles.actionBtnText, { color: '#2980b9' }]}>Mark All Paid</Text>}
+                          : <Text style={[styles.actionBtnText, { color: status.infoText }]}>Mark All Paid</Text>}
                       </Pressable>
                     </>
                   )}
@@ -336,22 +337,22 @@ export default function RegistrationScreen() {
                             {name}
                           </Text>
                           {player.hasPaymentMethod ? (
-                            <Text style={[styles.cardTag, { color: status.success }]}>✓ card</Text>
+                            <Text style={[styles.cardTag, { color: status.successText }]}>✓ card</Text>
                           ) : cardCaptureEnabled ? (
                             // Tap the warning to key the card in at the desk.
                             <Pressable accessibilityRole="button" accessibilityLabel={`Add card for ${name}`} onPress={() => setCardFor(player)}>
-                              <Text style={[styles.cardTag, styles.cardTagAction, { color: status.warning }]}>
+                              <Text style={[styles.cardTag, styles.cardTagAction, { color: status.warningText }]}>
                                 ⚠ add card
                               </Text>
                             </Pressable>
                           ) : (
-                            <Text style={[styles.cardTag, { color: status.warning }]}>⚠ no card</Text>
+                            <Text style={[styles.cardTag, { color: status.warningText }]}>⚠ no card</Text>
                           )}
                           {/* Cash/check taken at the desk — one golfer (D11).
                               Hidden on free events, same rule as the team row. */}
                           {hasEntryFee && (
                             player.entryFeePaidCents > 0 ? (
-                              <Text style={[styles.cardTag, { color: status.success }]}>✓ paid</Text>
+                              <Text style={[styles.cardTag, { color: status.successText }]}>✓ paid</Text>
                             ) : (
                               <Pressable accessibilityRole="button" accessibilityLabel={`Take fee from ${name}`}
                                 onPress={() => confirmAction(
@@ -368,12 +369,12 @@ export default function RegistrationScreen() {
                               >
                                 {busy[player.id + '_fee']
                                   ? <ActivityIndicator size="small" color="#2980b9" />
-                                  : <Text style={[styles.golferBtnText, { color: '#2980b9' }]}>Take Fee</Text>}
+                                  : <Text style={[styles.golferBtnText, { color: status.infoText }]}>Take Fee</Text>}
                               </Pressable>
                             )
                           )}
                           {golferIn ? (
-                            <Text style={[styles.golferDone, { color: status.success }]}>Checked In</Text>
+                            <Text style={[styles.golferDone, { color: status.successText }]}>Checked In</Text>
                           ) : !checkInOpen ? (
                             <Text style={[styles.golferDone, { color: theme.mutedText }]}>Pending</Text>
                           ) : (
@@ -387,7 +388,7 @@ export default function RegistrationScreen() {
                             >
                               {busy[player.id + '_ci']
                                 ? <ActivityIndicator size="small" color={theme.colors.action} />
-                                : <Text style={[styles.golferBtnText, { color: theme.colors.action }]}>Check In</Text>}
+                                : <Text style={[styles.golferBtnText, { color: theme.actionText }]}>Check In</Text>}
                             </Pressable>
                           )}
                         </View>
@@ -452,12 +453,12 @@ function GuestsSection({ guests, checkInOpen, busy, onCheckIn, theme }: GuestsSe
               </Text>
               <Text style={[
                 styles.cardTag,
-                { color: guest.hasPaymentMethod ? '#27ae60' : '#f39c12' },
+                { color: guest.hasPaymentMethod ? status.successText : status.warningText },
               ]}>
                 {guest.hasPaymentMethod ? '✓ card' : '⚠ no card'}
               </Text>
               {guestIn ? (
-                <Text style={[styles.golferDone, { color: status.success }]}>Checked In</Text>
+                <Text style={[styles.golferDone, { color: status.successText }]}>Checked In</Text>
               ) : !checkInOpen ? (
                 <Text style={[styles.golferDone, { color: theme.mutedText }]}>Pending</Text>
               ) : (
@@ -471,7 +472,7 @@ function GuestsSection({ guests, checkInOpen, busy, onCheckIn, theme }: GuestsSe
                 >
                   {busy[guest.id + '_ci']
                     ? <ActivityIndicator size="small" color={theme.colors.action} />
-                    : <Text style={[styles.golferBtnText, { color: theme.colors.action }]}>Check In</Text>}
+                    : <Text style={[styles.golferBtnText, { color: theme.actionText }]}>Check In</Text>}
                 </Pressable>
               )}
             </View>
@@ -669,7 +670,7 @@ function LabeledInput({ label, ...props }: { label: string } & React.ComponentPr
   return (
     <View style={styles.inputRow}>
       <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput style={styles.textInput} placeholderTextColor="#aaa" {...props} />
+      <TextInput style={styles.textInput} placeholderTextColor={neutral.placeholder} {...props} />
     </View>
   );
 }
@@ -715,7 +716,7 @@ const styles = StyleSheet.create({
   statChip:       { alignItems: 'center', flex: 1 },
   statHalf:       { flex: 0, width: '50%', paddingVertical: spacing[3], paddingHorizontal: spacing[2] },
   statValue: { fontSize: fontSize.title, fontWeight: '900' },
-  statLabel: { fontSize: fontSize.xxs, fontWeight: '600', color: '#888', textTransform: 'uppercase', letterSpacing: 0.4 },
+  statLabel: { fontSize: fontSize.xxs, fontWeight: '600', color: neutral.mutedText, textTransform: 'uppercase', letterSpacing: 0.4 },
 
   filterRow: { flexDirection: 'row', paddingHorizontal: spacing[6], borderBottomWidth: 1 },
   filterBtn: { paddingVertical: spacing[3], paddingHorizontal: spacing[1], marginRight: spacing[6], borderBottomWidth: 3, borderBottomColor: 'transparent' },

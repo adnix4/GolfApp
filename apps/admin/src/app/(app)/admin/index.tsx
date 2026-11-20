@@ -7,7 +7,7 @@ import { useTheme, StatusPill, useClasses, Heading } from '@gfp/ui';
 import { useResponsive } from '@/lib/responsive';
 import { useAllOrganizations, useAllEvents } from '@/lib/queries';
 import { formatDate } from '@gfp/shared-types';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // Super-admin uses a different palette than the organizer event view —
 // here Completed is blue (legacy) and Archived is a real status.
@@ -145,7 +145,7 @@ export default function SuperAdminDashboard() {
               <Text style={[styles.tdCell, styles.thEvents, { color: theme.colors.primary }]}>
                 {org.eventCount}
               </Text>
-              <Text style={[styles.tdCell, styles.th501, { color: org.is501c3 ? '#27ae60' : theme.mutedText }]}>
+              <Text style={[styles.tdCell, styles.th501, { color: org.is501c3 ? status.successText : theme.mutedText }]}>
                 {org.is501c3 ? '✓' : '—'}
               </Text>
               {!isMobile && (

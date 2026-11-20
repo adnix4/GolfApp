@@ -46,6 +46,12 @@ public static class ThemeValidation
             !IsValidHex(theme.Surface))
             throw new ValidationException("All theme colors must be valid 6-digit hex strings (e.g. #31572c).");
 
+        // The organizer chose their exact brand colors over the accessibility
+        // rules (packages/theme brand.ts): the admin editor showed the failing
+        // pairings and the fixes, and they ticked "Prioritize my brand colors".
+        // The palette is still well-formed; only the contrast gates are waived.
+        if (theme.BrandPriority) return;
+
         var ratio = GetContrastRatio(theme.Primary, theme.Surface);
         if (ratio < 4.5)
             throw new ValidationException(
@@ -96,5 +102,6 @@ public static class ThemeValidation
         public string Accent    { get; init; } = string.Empty;
         public string Highlight { get; init; } = string.Empty;
         public string Surface   { get; init; } = string.Empty;
+        public bool   BrandPriority { get; init; }
     }
 }

@@ -12,10 +12,11 @@ import { fetchPublicEvent, type ActiveEventSummary } from '@/lib/api';
 import { L } from '../landingStyles';
 import { formatDate } from '@gfp/shared-types';
 
+// `color` is the badge's text (on a 9% tint of itself), so each clears 4.5:1.
 const STATUS: Record<string, { label: string; color: string }> = {
   Registration: { label: 'Registration Open', color: '#2e7d32' },
   Active:       { label: 'Event Day',          color: '#1565c0' },
-  Scoring:      { label: 'In Progress',        color: '#e65100' },
+  Scoring:      { label: 'In Progress',        color: '#b34700' },
 };
 
 function formatEventDate(iso: string | null): string {

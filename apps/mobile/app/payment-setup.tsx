@@ -16,7 +16,7 @@ import { useTheme, useClasses, Heading } from '@gfp/ui';
 import { useSession } from '@/lib/session';
 import { notify, notifyFailure } from '@/lib/notify';
 import { createSetupIntent, confirmSetup } from '@/lib/api';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 // Set EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY in your .env file.
 const STRIPE_PK = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: fontSize.xl },
 
-  secureNote: { fontSize: fontSize.xs, color: '#aaa', textAlign: 'center', marginTop: spacing[1] },
+  secureNote: { fontSize: fontSize.xs, color: neutral.mutedText, textAlign: 'center', marginTop: spacing[1] },
 
   actionBtn: {
     borderRadius: radius.lg, paddingVertical: spacing[4], paddingHorizontal: spacing[8],

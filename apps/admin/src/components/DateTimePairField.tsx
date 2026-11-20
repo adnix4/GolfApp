@@ -9,7 +9,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTheme } from '@gfp/ui';
 import { DateTimeField } from './DateTimeField';
 import type { PickerErrors } from '@/lib/dateTime';
-import { fontSize, spacing } from '@gfp/theme';
+import { fontSize, spacing, neutral } from '@gfp/theme';
 
 const ERROR_RED = '#e74c3c';
 
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   subLabel: {
     fontSize: fontSize.xxs,
     fontWeight: '600',
-    color: '#888',
+    color: neutral.mutedText,
     marginBottom: spacing[1],
     textTransform: 'uppercase',
     letterSpacing: 0.5,

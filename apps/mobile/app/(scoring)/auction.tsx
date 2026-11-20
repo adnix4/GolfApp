@@ -28,7 +28,7 @@ import { describeBidError } from '@/lib/bidMessages';
 import {
   canQueueOffline, enqueueBid, isTransientFailure, newRequestId, useBidQueue, QUEUE_MAX_AGE_MS,
 } from '@/lib/bidQueue';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 type Tab = 'items' | 'history' | 'live';
 
@@ -365,7 +365,7 @@ export default function AuctionScreen() {
 
   if (!eventId) return (
     <View style={styles.center}>
-      <Text style={{ color: '#888' }}>No active event session.</Text>
+      <Text style={{ color: neutral.mutedText }}>No active event session.</Text>
     </View>
   );
 
@@ -508,7 +508,7 @@ export default function AuctionScreen() {
                       <>
                         {/* Pledges stack rather than compete, so this stays the
                             green "money raised" line for everyone. */}
-                        <Text style={{ color: status.success, fontWeight: '700', marginTop: spacing[1] }}>
+                        <Text style={{ color: status.successText, fontWeight: '700', marginTop: spacing[1] }}>
                           Raised: {fmt(item.totalRaisedCents)}
                           {item.goalCents ? ` / ${fmt(item.goalCents)}` : ''}
                         </Text>
@@ -544,7 +544,7 @@ export default function AuctionScreen() {
                             : {fmt(mine.maxCents)}
                           </Text>
                         )}
-                        <Text style={{ color: '#888', fontSize: fontSize.xs, marginTop: spacing[0.5] }}>
+                        <Text style={{ color: neutral.mutedText, fontSize: fontSize.xs, marginTop: spacing[0.5] }}>
                           min increment: {fmt(item.bidIncrementCents)}
                         </Text>
                       </>
@@ -555,7 +555,7 @@ export default function AuctionScreen() {
             );
           }}
           ListEmptyComponent={
-            <Text style={{ textAlign: 'center', color: '#999', marginTop: spacing[10] }}>
+            <Text style={{ textAlign: 'center', color: neutral.mutedText, marginTop: spacing[10] }}>
               No open auction items.
             </Text>
           }
@@ -573,7 +573,7 @@ export default function AuctionScreen() {
               <Text style={{ color: '#555', marginBottom: spacing[3] }}>{currentLiveItem.description}</Text>
               <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
                 <Text style={{ fontSize: fontSize.sm, color: theme.mutedText }}>Called Amount</Text>
-                <Text style={{ fontSize: 36, fontWeight: '900', color: status.success }}>
+                <Text style={{ fontSize: 36, fontWeight: '900', color: status.successText }}>
                   {fmt(liveSession.currentCalledAmountCents)}
                 </Text>
               </View>
@@ -609,7 +609,7 @@ export default function AuctionScreen() {
                   value={bidAmt}
                   onChangeText={t => { setBidAmt(t); setBidError(null); }}
                   placeholder="$0.00"
-                  placeholderTextColor="#aaa"
+                  placeholderTextColor={neutral.placeholder}
                 />
                 {/* Same gate as the silent-auction modal — this button used to be
                     ungated entirely, so a cardless golfer's live bid was accepted
@@ -628,7 +628,7 @@ export default function AuctionScreen() {
             </View>
           ) : (
             <View style={styles.center}>
-              <Text style={{ color: '#888', fontSize: fontSize.lg }}>
+              <Text style={{ color: neutral.mutedText, fontSize: fontSize.lg }}>
                 {liveSession?.isActive
                   ? 'Waiting for the host to call the next item…'
                   : 'No live auction is active right now.'}
@@ -659,13 +659,13 @@ export default function AuctionScreen() {
                     the golfer set, not what the item is going for. */}
                 {usesProxyBidding(item.auctionType) ? 'max ' : ''}{fmt(item.amountCents)} · {item.status}
               </Text>
-              <Text style={{ color: '#888', fontSize: fontSize.xxs, marginTop: spacing[0.5] }}>
+              <Text style={{ color: neutral.mutedText, fontSize: fontSize.xxs, marginTop: spacing[0.5] }}>
                 {formatDateTime(item.placedAt)}
               </Text>
             </View>
           )}
           ListEmptyComponent={
-            <Text style={{ textAlign: 'center', color: '#999', marginTop: spacing[10] }}>
+            <Text style={{ textAlign: 'center', color: neutral.mutedText, marginTop: spacing[10] }}>
               You haven't placed any bids yet.
             </Text>
           }
@@ -764,7 +764,7 @@ export default function AuctionScreen() {
                         proxy item the number entered is a ceiling, and the item
                         will sit well below it until someone pushes. */}
                     {usesProxyBidding(liveSelectedItem.auctionType) && (
-                      <Text style={{ color: '#888' }}>
+                      <Text style={{ color: neutral.mutedText }}>
                         {'\n'}Enter your maximum — we bid only enough to keep you
                         in front, in {fmt(liveSelectedItem.bidIncrementCents)} steps,
                         and never more than your maximum.
@@ -779,7 +779,7 @@ export default function AuctionScreen() {
                     value={bidAmt}
                     onChangeText={t => { setBidAmt(t); setBidError(null); }}
                     placeholder="$0.00"
-                    placeholderTextColor="#aaa"
+                    placeholderTextColor={neutral.placeholder}
                   />
                   <Pressable accessibilityRole="button" accessibilityLabel={isDonationItem(liveSelectedItem.auctionType) ? 'Pledge' : 'Bid'}
                     style={[
@@ -805,7 +805,7 @@ export default function AuctionScreen() {
                   style={[styles.cancelBtn]}
                   onPress={() => { setSelectedItem(null); setBidError(null); }}
                 >
-                  <Text style={{ color: '#888' }}>Cancel</Text>
+                  <Text style={{ color: neutral.mutedText }}>Cancel</Text>
                 </Pressable>
 
                 {/* Nested instance — a modal-in-modal is the only reliable way
@@ -838,6 +838,8 @@ const styles = StyleSheet.create({
   cardThumb:   { width: 64, height: 64, borderRadius: radius.md, backgroundColor: '#f0f0f0' },
   photoViewerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)' },
   photoViewerScroll:  { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[3], paddingTop: 64, paddingBottom: spacing[6] },
+  // On the photo viewer's near-black overlay: #bbb is 9.9:1 there.
+  // eslint-disable-next-line gfp-a11y/no-low-contrast-text
   photoViewerHint:    { color: '#bbb', fontSize: fontSize.sm, marginTop: spacing[4] },
   photoViewerClose:   {
     position: 'absolute', top: 40, right: 16, width: 40, height: 40, borderRadius: radius.xxl,
@@ -877,12 +879,12 @@ const styles = StyleSheet.create({
   errorBannerText: { color: status.dangerText, fontSize: fontSize.sm },
   paymentWarning:    { backgroundColor: '#fff8e1', borderLeftWidth: 3, borderLeftColor: status.warning, padding: spacing[3] },
   paymentWarningRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2] },
-  paymentWarningText: { color: '#b7770d', fontSize: fontSize.sm, flex: 1 },
-  paymentWarningLink: { color: '#e67e22', fontSize: fontSize.sm, fontWeight: '700' },
+  paymentWarningText: { color: status.warningText, fontSize: fontSize.sm, flex: 1 },
+  paymentWarningLink: { color: status.warningText, fontSize: fontSize.sm, fontWeight: '700' },
   // Green, not amber: winning is good news, and it must not read as another warning.
   wonBanner:     { backgroundColor: '#ecfdf5', borderLeftWidth: 3, borderLeftColor: '#10b981', padding: spacing[3] },
   wonBannerText: { color: '#065f46', fontSize: fontSize.sm, fontWeight: '600', flex: 1 },
-  wonBannerLink: { color: '#059669', fontSize: fontSize.sm, fontWeight: '700' },
+  wonBannerLink: { color: status.successText, fontSize: fontSize.sm, fontWeight: '700' },
   checkedInNotice:     { backgroundColor: '#eafaf1', borderLeftWidth: 3, borderLeftColor: status.success, padding: spacing[3] },
   checkedInNoticeText: { color: '#1e8449', fontSize: fontSize.sm },
 });

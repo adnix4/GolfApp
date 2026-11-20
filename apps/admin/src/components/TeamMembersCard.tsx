@@ -5,7 +5,7 @@ import { orgApi, type CreateInviteResult, type OrgInvite, type OrgMember, type S
 import { confirmAction } from '@/lib/confirmAction';
 import { alertFailure } from '@/lib/dialog';
 import { friendlyApiError } from '@/lib/errors';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
 
 const ROLE_LABEL: Record<string, string> = { OrgAdmin: 'Organizer', EventStaff: 'Event staff' };
 
@@ -157,7 +157,7 @@ export function TeamMembersCard() {
         value={email}
         onChangeText={setEmail}
         placeholder="volunteer@email.com"
-        placeholderTextColor="#999"
+        placeholderTextColor={neutral.placeholder}
         autoCapitalize="none"
         keyboardType="email-address"
         editable={!sending}
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   card:        { backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing[6], boxShadow: '0px 3px 12px rgba(0, 0, 0, 0.06)', elevation: 3 },
   title:       { fontSize: fontSize.xl, fontWeight: '800', marginBottom: spacing[1] },
   subTitle:    { fontSize: fontSize.md, fontWeight: '800', marginTop: spacing[5], marginBottom: spacing[1] },
-  hint:        { fontSize: fontSize.xs, marginTop: spacing[1], color: '#888' },
+  hint:        { fontSize: fontSize.xs, marginTop: spacing[1], color: neutral.mutedText },
   error:       { color: status.dangerText, fontSize: fontSize.md, marginTop: spacing[3] },
   row:         { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: '#eee' },
   name:        { fontSize: fontSize.lg, fontWeight: '700' },

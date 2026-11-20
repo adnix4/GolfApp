@@ -16,7 +16,7 @@ import {
   describeFailure, dismissKey, resolveDontShowAgain,
   type DontShowAgainOption, type FailureOverrides, type Highlight,
 } from '@gfp/shared-types';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, radius, spacing, neutral } from '@gfp/theme';
 
 export type { DialogButton };
 
@@ -180,7 +180,7 @@ function DialogInputField({ input, onSubmit }: { input: DialogInput; onSubmit: (
         value={value}
         onChangeText={v => { setValue(v); input.onChangeText?.(v); }}
         placeholder={input.placeholder}
-        placeholderTextColor="#999"
+        placeholderTextColor={neutral.placeholder}
         maxLength={input.maxLength}
         autoFocus
         returnKeyType="done"
