@@ -35,7 +35,9 @@ export function ScoringHeader({
           <Text style={styles.headerPar}>  Par {par}</Text>
         </Heading>
         {isCurrentHoleDone && (
-          <View style={[styles.completedBadge, roundFullySynced ? styles.badgeSynced : styles.badgePending]}>
+          // A bare "✓" was all TalkBack said here; name what it means.
+          <View style={[styles.completedBadge, roundFullySynced ? styles.badgeSynced : styles.badgePending]}
+            accessible accessibilityLabel={roundFullySynced ? 'Hole complete, saved' : 'Hole complete, pending sync'}>
             <Text style={[styles.completedBadgeText, !roundFullySynced && styles.badgePendingText]}>
               {roundFullySynced ? '✓' : 'Pending sync'}
             </Text>

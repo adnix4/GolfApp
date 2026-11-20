@@ -11,6 +11,7 @@
  * toPar.ts and leaderboardState.ts.
  */
 import type { PublicIndividualEntry, PublicLeaderboardEntry } from './api';
+import { spokenToPar } from './toPar';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -19,12 +20,6 @@ export function ordinal(n: number): string {
   const teen = n % 100 >= 11 && n % 100 <= 13;
   const suffix = teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
   return `${n}${suffix}`;
-}
-
-/** "even par", "2 under par", "1 over par". */
-export function spokenToPar(toPar: number): string {
-  if (toPar === 0) return 'even par';
-  return `${Math.abs(toPar)} ${toPar < 0 ? 'under' : 'over'} par`;
 }
 
 function progress(holesComplete: number, isComplete: boolean): string {

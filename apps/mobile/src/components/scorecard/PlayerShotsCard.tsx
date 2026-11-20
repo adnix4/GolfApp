@@ -52,7 +52,9 @@ export function PlayerShotsCard({
           every golfer. Spacer matches the name block so the labels line up
           with the columns they title. */}
       {teamPlayers.length > 0 && (
-        <View style={styles.colHeaderRow}>
+        // Hidden from screen readers: every shot button already names its
+        // column ("Increase Ava's drive"), so these were three extra stops.
+        <View style={styles.colHeaderRow} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <View style={styles.playerNameBlock} />
           <View style={styles.playerCols}>
             {['Drive', 'Approach', 'Putt'].map((l, i) => (
@@ -171,7 +173,16 @@ export function PlayerShotsCard({
             {/* Name sits BESIDE the controls rather than above them. A
                 separate name row cost ~30px per golfer — 120px across a
                 foursome — which is most of what used to force the collapse. */}
-            <View style={styles.playerNameBlock}>
+            {/* One spoken item, read before this golfer's shot columns:
+                "Ava Stone, 3 strokes". Read piece by piece it was the initials
+                ("AS"), the first name and a bare number, after the + buttons. */}
+            <View
+              style={styles.playerNameBlock}
+              accessible
+              accessibilityRole="header"
+              accessibilityLabel={`${player.firstName} ${player.lastName}${
+                playerTotal > 0 && !adminTotal ? `, ${playerTotal} ${playerTotal === 1 ? 'stroke' : 'strokes'}` : ''}`}
+            >
               <View style={[
                 styles.playerAvatar,
                 {
@@ -196,7 +207,7 @@ export function PlayerShotsCard({
               )}
             </View>
 
-            {adminCols || <View style={styles.playerCols}>
+            {adminCols || <View style={styles.playerCols} collapsable={false}>
               <ShotColumn
                 label="Drive"
                 value={shots.drive}

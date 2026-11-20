@@ -588,7 +588,10 @@ export default function AuctionScreen() {
                 ]}
                 onPress={handleRaiseHand}
                 disabled={raisingHand}
-                accessibilityLabel="Raise hand to signal interest"
+                // The spoken name starts with the visible words, so voice
+                // control ("tap I'm bidding") finds it; the hint says what it does.
+                accessibilityLabel={handRaised.message ? 'Hand raised' : "I'm bidding"}
+                accessibilityHint="Lets the auctioneer see you're bidding"
                 accessibilityRole="button"
               >
                 {raisingHand

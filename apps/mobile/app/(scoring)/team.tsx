@@ -22,7 +22,9 @@ function PlayerRow({
 }) {
   return (
     <View style={rowStyles.row}>
-      <View style={[rowStyles.avatar, { backgroundColor: theme.colors.highlight }]}>
+      {/* Decorative: the full name follows. Read aloud it was "AS" as a word. */}
+      <View style={[rowStyles.avatar, { backgroundColor: theme.colors.highlight }]}
+        accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <Text style={[rowStyles.initials, { color: theme.highlightLabel }]}>
           {player.firstName[0]}{player.lastName[0]}
         </Text>
