@@ -9,7 +9,7 @@ import { confirmLeaveEvent, unsyncedHoleCount } from '@/lib/confirmLeave';
 import { shouldShowTabs } from '@/lib/scoringTabs';
 import { fetchEventStatus } from '@/lib/api';
 import { isForeground, onForeground } from '@/lib/foregroundPoll';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, minTouchTarget, radius, spacing } from '@gfp/theme';
 
 
 // Waiting-screen check for "has scoring opened yet". 15 s matches the
@@ -406,11 +406,11 @@ const styles = StyleSheet.create({
 
   checkBtn: {
     borderWidth: 1.5, borderRadius: radius.lg,
-    paddingVertical: spacing[3], paddingHorizontal: spacing[8],
-    alignItems: 'center', width: '100%', marginBottom: spacing[3],
+    paddingVertical: spacing[3], paddingHorizontal: spacing[8], minHeight: minTouchTarget,
+    alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: spacing[3],
   },
   checkBtnText: { fontSize: fontSize.lg, fontWeight: '600' },
 
-  leaveBtn:     { paddingVertical: spacing[2] },
+  leaveBtn:     { minHeight: minTouchTarget, paddingHorizontal: spacing[4], justifyContent: 'center' },
   leaveBtnText: { fontSize: fontSize.md, fontWeight: '500' },
 });

@@ -118,7 +118,10 @@ describe('estimateContentHeight', () => {
   it('grows only by a summary row per extra golfer once collapsed', () => {
     const three = estimateContentHeight('tight', 3);
     const four  = estimateContentHeight('tight', 4);
-    expect(four - three).toBeLessThan(MIN_TOUCH_TARGET);
+    // A summary row is one 48dp tap target — a fraction of an expanded golfer.
+    const expandedGolfer = estimateContentHeight('compact', 4) - estimateContentHeight('compact', 3);
+    expect(four - three).toBe(48);
+    expect(four - three).toBeLessThan(expandedGolfer / 2);
   });
 
   it('orders the tiers from roomiest to tightest', () => {

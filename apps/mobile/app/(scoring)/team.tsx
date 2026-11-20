@@ -8,7 +8,7 @@ import { LeaveEventButton } from '@/components/LeaveEventButton';
 import { InviteTeammateButton } from '@/components/InviteTeammateButton';
 import type { PlayerCacheDto } from '@/lib/api';
 import { formatTime } from '@gfp/shared-types';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, minTouchTarget, radius, spacing } from '@gfp/theme';
 
 // ── PLAYER ROW ────────────────────────────────────────────────────────────────
 
@@ -50,7 +50,6 @@ function PlayerRow({
           style={rowStyles.editBtn}
           accessibilityLabel="Edit your profile"
           accessibilityRole="button"
-          hitSlop={8}
         >
           <Ionicons name="pencil-outline" size={18} color={theme.colors.primary} />
         </Pressable>
@@ -69,7 +68,7 @@ const rowStyles = StyleSheet.create({
   email:    { fontSize: fontSize.sm, marginTop: spacing[0.5] },
   youBadge: { paddingHorizontal: spacing[2], paddingVertical: spacing[0.5], borderRadius: radius.md },
   youText:  { fontSize: fontSize.xxs, fontWeight: '700' },
-  editBtn:  { padding: spacing[2] },
+  editBtn:  { minWidth: minTouchTarget, minHeight: minTouchTarget, alignItems: 'center', justifyContent: 'center' },
 });
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────────────────

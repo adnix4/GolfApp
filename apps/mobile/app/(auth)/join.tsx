@@ -11,7 +11,7 @@ import { GfpLogo } from '@/components/GfpLogo';
 import { useSession } from '@/lib/session';
 import { joinEvent, fetchActiveEvents, type ActiveEventSummary, type JoinEventResponse } from '@/lib/api';
 import { registerForPushNotifications } from '@/lib/pushNotifications';
-import { fontSize, radius, spacing, status, neutral } from '@gfp/theme';
+import { fontSize, minTouchTarget, radius, spacing, status, neutral } from '@gfp/theme';
 
 type Step = 'pick' | 'join' | 'verify' | 'waiting';
 
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
   manualToggleText: { fontSize: fontSize.md },
 
   // Join step — back button
-  backBtn:     { marginBottom: spacing[3] },
+  backBtn:     { marginBottom: spacing[3], minHeight: minTouchTarget, justifyContent: 'center', alignSelf: 'flex-start' },
   backBtnText: { fontSize: fontSize.md, fontWeight: '500' },
 
   // Selected event mini-card

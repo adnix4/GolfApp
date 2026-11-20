@@ -1,6 +1,6 @@
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { useTheme } from '@gfp/ui';
-import { fontSize, radius, spacing, status } from '@gfp/theme';
+import { fontSize, minTouchTarget, radius, spacing, status } from '@gfp/theme';
 
 /** Prev / Complete Hole (or Edit Score) / Next. */
 export function HoleNavBar({
@@ -107,18 +107,19 @@ const styles = StyleSheet.create({
   },
   navBtn: {
     paddingHorizontal: spacing[4], paddingVertical: spacing[3],
-    borderRadius: radius.lg, minWidth: 80, alignItems: 'center',
+    borderRadius: radius.lg, minWidth: 80, minHeight: minTouchTarget,
+    alignItems: 'center', justifyContent: 'center',
   },
   navBtnText: { fontSize: fontSize.md, fontWeight: '700' },
   completeBtn: {
-    flex: 1, paddingVertical: spacing[3], borderRadius: radius.lg,
+    flex: 1, paddingVertical: spacing[3], minHeight: minTouchTarget, borderRadius: radius.lg,
     alignItems: 'center', justifyContent: 'center',
   },
   completeBtnDisabled: { opacity: 0.4 },
   completeBtnText:     { fontSize: fontSize.md, fontWeight: '700', color: '#fff' },
   completedBtn: {
-    flex: 1, paddingVertical: spacing[3], borderRadius: radius.lg,
-    alignItems: 'center', backgroundColor: '#27ae60' + '22',
+    flex: 1, paddingVertical: spacing[3], minHeight: minTouchTarget, borderRadius: radius.lg,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#27ae60' + '22',
     borderWidth: 1, borderColor: '#27ae60',
   },
   completedBtnText: { fontSize: fontSize.md, fontWeight: '700', color: status.successText },

@@ -71,6 +71,16 @@ export const fontSize = {
   display: 28,
 } as const;
 
+/**
+ * minTouchTarget — the smallest side of anything tappable, in dp/px. Android's
+ * accessibility guideline (and its Accessibility Scanner) asks for 48; Apple's
+ * 44 sits under it, so meeting 48 meets both. A control drawn smaller than
+ * this either grows its own bounds (minHeight/minWidth, padding) or, where the
+ * layout can't spare the room, extends its touch area with hitSlop and says
+ * why at the call site.
+ */
+export const minTouchTarget = 48;
+
 export type SpacingStep  = keyof typeof spacing;
 export type RadiusStep   = keyof typeof radius;
 export type FontSizeStep = keyof typeof fontSize;

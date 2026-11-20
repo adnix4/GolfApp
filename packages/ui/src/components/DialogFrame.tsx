@@ -24,7 +24,7 @@ import { Modal, View, Text, Pressable, StyleSheet, ActivityIndicator } from 'rea
 import { splitHighlights, type Highlight } from '@gfp/shared-types';
 import { useTheme } from './ThemeProvider';
 import { Heading } from './Heading';
-import { fontSize, radius, spacing } from '@gfp/theme';
+import { fontSize, minTouchTarget, radius, spacing } from '@gfp/theme';
 
 export type DialogKind = 'confirm' | 'warning' | 'error' | 'info';
 
@@ -196,6 +196,6 @@ const styles = StyleSheet.create({
   tick:        { fontSize: fontSize.sm, fontWeight: '900', lineHeight: 16 },
   checkLabel:  { fontSize: fontSize.md, color: '#333' },
   actions:     { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing[3], marginTop: spacing[5], flexWrap: 'wrap' },
-  btn:         { paddingVertical: spacing[3], paddingHorizontal: spacing[5], borderRadius: radius.lg, minWidth: 96, alignItems: 'center' },
+  btn:         { paddingVertical: spacing[3], paddingHorizontal: spacing[5], borderRadius: radius.lg, minWidth: 96, minHeight: minTouchTarget, alignItems: 'center', justifyContent: 'center' },
   btnText:     { fontSize: fontSize.lg, fontWeight: '700' },
 });

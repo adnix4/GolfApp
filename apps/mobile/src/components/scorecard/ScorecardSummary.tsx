@@ -167,12 +167,12 @@ export function ScorecardSummary({
 
 const summaryCol = StyleSheet.create({
   row:  { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[2], paddingHorizontal: spacing[2] },
-  hole: { flex: 1,   textAlign: 'center' },   // "#"   — up to "18"
+  hole: { flex: 1.4,   textAlign: 'center' },   // "#"   — up to "18" — 1.4 keeps the header cell 48dp wide
   yds:  { flex: 1.5, textAlign: 'center' },   // "Yds" — 3-digit yardage
-  par:  { flex: 1,   textAlign: 'center' },   // "Par" — single digit
+  par:  { flex: 1.4,   textAlign: 'center' },   // "Par" — single digit — 1.4 keeps the header cell 48dp wide
   scr:  { flex: 1.5, textAlign: 'center' },   // "Scr" — up to 2 digits
   rel:  { flex: 1.5, textAlign: 'center' },   // "+/−" — up to "+10"
-  spon: { flex: 3,   textAlign: 'center' },   // "Spon" — absorbs remaining space
+  spon: { flex: 2.2,   textAlign: 'center' },   // "Spon" — absorbs remaining space (gave 0.8 to # and Par)
   chal: { flex: 1.5, alignItems: 'center' },  // "Chal" — 🏆 or —
 });
 
@@ -184,8 +184,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[4], marginBottom: spacing[2], paddingHorizontal: spacing[3],
   },
   summaryTableHeader: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: spacing[2], paddingHorizontal: spacing[3],
+    // No vertical padding: the ColumnHeader cells are full-height tap targets.
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[3],
   },
   summaryTh:            { fontSize: fontSize.xxs, fontWeight: '700', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center' },
   summaryHoleBlock:     {},
