@@ -123,6 +123,14 @@ export default [
     rules: { 'gfp-a11y/input-has-label': 'error' },
   },
   {
+    // The scorer runs on phones: TalkBack ignores a field's accessibilityLabel,
+    // so each field must also point at its visible label (accessibilityLabelledBy).
+    files: ['apps/mobile/**/*.tsx'],
+    ignores: ['**/__tests__/**'],
+    plugins: { 'gfp-a11y': gfpA11y },
+    rules: { 'gfp-a11y/input-has-label': ['error', { android: true }] },
+  },
+  {
     // Everything EXCEPT packages/shared-types, which owns the direct import.
     files: [
       'apps/**/*.{ts,tsx}',

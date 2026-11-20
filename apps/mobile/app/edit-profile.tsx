@@ -151,11 +151,13 @@ function Field({
   keyboardType?: 'default' | 'phone-pad';
   theme: ReturnType<typeof useTheme>;
 }) {
+  const labelId = `profile-${label.toLowerCase().replace(/\W+/g, '-')}-label`;
   return (
     <View style={styles.fieldGroup}>
-      <Text style={[styles.fieldLabel, { color: theme.mutedText }]}>{label}</Text>
+      <Text style={[styles.fieldLabel, { color: theme.mutedText }]} nativeID={labelId}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
+        accessibilityLabelledBy={labelId}
         style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
         value={value}
         onChangeText={onChangeText}

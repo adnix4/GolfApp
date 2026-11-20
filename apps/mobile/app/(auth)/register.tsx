@@ -365,8 +365,8 @@ export default function RegisterScreen() {
 
           <View style={styles.row}>
             <View style={styles.halfField}>
-              <Text style={c.fieldLabel}>First Name *</Text>
-              <TextInput accessibilityLabel="First Name"
+              <Text style={c.fieldLabel} nativeID="reg-first-label" accessibilityLabel="First Name, required">First Name *</Text>
+              <TextInput accessibilityLabelledBy="reg-first-label" accessibilityLabel="First Name"
                 style={c.inputLg}
                 value={firstName} onChangeText={v => { setFirstName(v); setError(null); }}
                 placeholder="Jane" placeholderTextColor={neutral.placeholder}
@@ -374,8 +374,8 @@ export default function RegisterScreen() {
               />
             </View>
             <View style={styles.halfField}>
-              <Text style={c.fieldLabel}>Last Name *</Text>
-              <TextInput accessibilityLabel="Last Name"
+              <Text style={c.fieldLabel} nativeID="reg-last-label" accessibilityLabel="Last Name, required">Last Name *</Text>
+              <TextInput accessibilityLabelledBy="reg-last-label" accessibilityLabel="Last Name"
                 style={c.inputLg}
                 value={lastName} onChangeText={v => { setLastName(v); setError(null); }}
                 placeholder="Smith" placeholderTextColor={neutral.placeholder}
@@ -384,26 +384,26 @@ export default function RegisterScreen() {
             </View>
           </View>
 
-          <Text style={c.fieldLabel}>Email *</Text>
-          <TextInput accessibilityLabel="Email"
+          <Text style={c.fieldLabel} nativeID="reg-email-label" accessibilityLabel="Email, required">Email *</Text>
+          <TextInput accessibilityLabelledBy="reg-email-label" accessibilityLabel="Email"
             style={c.inputLg}
             value={email} onChangeText={v => { setEmail(v); setError(null); }}
             placeholder="you@example.com" placeholderTextColor={neutral.placeholder}
             autoCapitalize="none" keyboardType="email-address" autoComplete="email" editable={!submitting}
           />
 
-          <Text style={c.fieldLabel}>Phone *</Text>
-          <TextInput accessibilityLabel="Phone"
+          <Text style={c.fieldLabel} nativeID="reg-phone-label" accessibilityLabel="Phone, required">Phone *</Text>
+          <TextInput accessibilityLabelledBy="reg-phone-label" accessibilityLabel="Phone"
             style={c.inputLg}
             value={phone} onChangeText={v => { setPhone(fmtPhoneInput(digitsOnly(v))); setError(null); }}
             placeholder="(555) 867-5309" placeholderTextColor={neutral.placeholder}
             keyboardType="phone-pad" editable={!submitting}
           />
 
-          <Text style={c.fieldLabel}>
+          <Text style={c.fieldLabel} nativeID="reg-handicap-label">
             Handicap Index <Text style={styles.optional}>(optional)</Text>
           </Text>
-          <TextInput accessibilityLabel="Handicap Index"
+          <TextInput accessibilityLabelledBy="reg-handicap-label" accessibilityLabel="Handicap Index"
             style={c.inputLg}
             value={handicap} onChangeText={v => { setHandicap(v); setError(null); }}
             placeholder="e.g. 14.2" placeholderTextColor={neutral.placeholder}
@@ -438,8 +438,8 @@ export default function RegisterScreen() {
 
           {mode === 'team' && (
             <>
-              <Text style={c.fieldLabel}>Team Name *</Text>
-              <TextInput accessibilityLabel="Team Name"
+              <Text style={c.fieldLabel} nativeID="reg-team-label" accessibilityLabel="Team Name, required">Team Name *</Text>
+              <TextInput accessibilityLabelledBy="reg-team-label" accessibilityLabel="Team Name"
                 style={c.inputLg}
                 value={teamName} onChangeText={v => { setTeamName(v); setError(null); }}
                 placeholder="e.g. The Bogey Brothers"
@@ -454,8 +454,8 @@ export default function RegisterScreen() {
 
           {mode === 'join' && (
             <>
-              <Text style={c.fieldLabel}>Invite Link or Code *</Text>
-              <TextInput
+              <Text style={c.fieldLabel} nativeID="reg-invite-label" accessibilityLabel="Invite Link or Code, required">Invite Link or Code *</Text>
+              <TextInput accessibilityLabelledBy="reg-invite-label"
                 style={c.inputLg}
                 value={inviteInput} onChangeText={v => { setInviteInput(v); setError(null); }}
                 placeholder="Paste the link your captain sent you"
@@ -547,8 +547,8 @@ export default function RegisterScreen() {
               ))}
             </View>
 
-            <Text style={c.fieldLabel}>Note to Organizer</Text>
-            <TextInput accessibilityLabel="Note to Organizer"
+            <Text style={c.fieldLabel} nativeID="reg-note-label">Note to Organizer</Text>
+            <TextInput accessibilityLabelledBy="reg-note-label" accessibilityLabel="Note to Organizer"
               style={[c.inputLg, styles.textArea]}
               value={pairingNote} onChangeText={setPairingNote}
               placeholder="e.g. I know the Johnson family — please pair me with them if possible."
@@ -577,24 +577,24 @@ export default function RegisterScreen() {
                 </View>
                 <View style={styles.row}>
                   <View style={styles.halfField}>
-                    <Text style={c.fieldLabel}>First Name *</Text>
-                    <TextInput accessibilityLabel={`Teammate ${idx + 1} first name`}
+                    <Text style={c.fieldLabel} nativeID={`tm-${idx}-first-label`} accessibilityLabel={`Teammate ${idx + 1} first name, required`}>First Name *</Text>
+                    <TextInput accessibilityLabelledBy={`tm-${idx}-first-label`} accessibilityLabel={`Teammate ${idx + 1} first name`}
                       style={c.inputLg}
                       value={tm.firstName} onChangeText={v => updateTeammate(idx, 'firstName', v)}
                       placeholder="Alex" placeholderTextColor={neutral.placeholder} autoCapitalize="words" autoCorrect={false} editable={!submitting}
                     />
                   </View>
                   <View style={styles.halfField}>
-                    <Text style={c.fieldLabel}>Last Name *</Text>
-                    <TextInput accessibilityLabel={`Teammate ${idx + 1} last name`}
+                    <Text style={c.fieldLabel} nativeID={`tm-${idx}-last-label`} accessibilityLabel={`Teammate ${idx + 1} last name, required`}>Last Name *</Text>
+                    <TextInput accessibilityLabelledBy={`tm-${idx}-last-label`} accessibilityLabel={`Teammate ${idx + 1} last name`}
                       style={c.inputLg}
                       value={tm.lastName} onChangeText={v => updateTeammate(idx, 'lastName', v)}
                       placeholder="Jones" placeholderTextColor={neutral.placeholder} autoCapitalize="words" autoCorrect={false} editable={!submitting}
                     />
                   </View>
                 </View>
-                <Text style={c.fieldLabel}>Email *</Text>
-                <TextInput accessibilityLabel={`Teammate ${idx + 1} email`}
+                <Text style={c.fieldLabel} nativeID={`tm-${idx}-email-label`} accessibilityLabel={`Teammate ${idx + 1} email, required`}>Email *</Text>
+                <TextInput accessibilityLabelledBy={`tm-${idx}-email-label`} accessibilityLabel={`Teammate ${idx + 1} email`}
                   style={c.inputLg}
                   value={tm.email} onChangeText={v => updateTeammate(idx, 'email', v)}
                   placeholder="teammate@example.com" placeholderTextColor={neutral.placeholder}
@@ -602,10 +602,10 @@ export default function RegisterScreen() {
                 />
                 <View style={styles.row}>
                   <View style={styles.halfField}>
-                    <Text style={c.fieldLabel}>
+                    <Text style={c.fieldLabel} nativeID={`tm-${idx}-phone-label`} accessibilityLabel={`Teammate ${idx + 1} phone, optional`}>
                       Phone <Text style={styles.optional}>(optional)</Text>
                     </Text>
-                    <TextInput accessibilityLabel={`Teammate ${idx + 1} phone`}
+                    <TextInput accessibilityLabelledBy={`tm-${idx}-phone-label`} accessibilityLabel={`Teammate ${idx + 1} phone`}
                       style={c.inputLg}
                       value={tm.phone ?? ''} onChangeText={v => updateTeammate(idx, 'phone', fmtPhoneInput(digitsOnly(v)))}
                       placeholder="(555) 867-5309" placeholderTextColor={neutral.placeholder}
@@ -613,10 +613,10 @@ export default function RegisterScreen() {
                     />
                   </View>
                   <View style={styles.halfField}>
-                    <Text style={c.fieldLabel}>
+                    <Text style={c.fieldLabel} nativeID={`tm-${idx}-handicap-label`} accessibilityLabel={`Teammate ${idx + 1} handicap, optional`}>
                       Handicap <Text style={styles.optional}>(optional)</Text>
                     </Text>
-                    <TextInput accessibilityLabel={`Teammate ${idx + 1} handicap`}
+                    <TextInput accessibilityLabelledBy={`tm-${idx}-handicap-label`} accessibilityLabel={`Teammate ${idx + 1} handicap`}
                       style={c.inputLg}
                       value={tm.handicap ?? ''} onChangeText={v => updateTeammate(idx, 'handicap', v)}
                       placeholder="e.g. 14.2" placeholderTextColor={neutral.placeholder}

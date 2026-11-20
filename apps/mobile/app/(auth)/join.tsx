@@ -331,8 +331,8 @@ export default function JoinScreen() {
               </View>
             )}
 
-            <Text style={c.fieldLabel}>Verification Code</Text>
-            <TextInput accessibilityLabel="Verification Code"
+            <Text style={c.fieldLabel} nativeID="join-verify-code-label">Verification Code</Text>
+            <TextInput accessibilityLabel="Verification Code" accessibilityLabelledBy="join-verify-code-label"
               style={[c.inputLg, styles.codeInput]}
               value={verifyCode}
               onChangeText={v => { setVerifyCode(v.replace(/[^0-9]/g, '')); setResent(false); }}
@@ -444,8 +444,8 @@ export default function JoinScreen() {
 
             {!selected && (
               <>
-                <Text style={c.fieldLabel}>Event Code</Text>
-                <TextInput accessibilityLabel="Event Code"
+                <Text style={c.fieldLabel} nativeID="join-email-step-code-label">Event Code</Text>
+                <TextInput accessibilityLabel="Event Code" accessibilityLabelledBy="join-email-step-code-label"
                   style={c.inputLg}
                   value={eventCode}
                   onChangeText={v => setEventCode(v.toUpperCase())}
@@ -458,8 +458,8 @@ export default function JoinScreen() {
               </>
             )}
 
-            <Text style={c.fieldLabel}>Your Email</Text>
-            <TextInput accessibilityLabel="Your Email"
+            <Text style={c.fieldLabel} nativeID="join-email-label">Your Email</Text>
+            <TextInput accessibilityLabel="Your Email" accessibilityLabelledBy="join-email-label"
               style={c.inputLg}
               value={email}
               onChangeText={setEmail}
@@ -635,8 +635,8 @@ export default function JoinScreen() {
                 </View>
               )}
             </LiveRegion>
-            <Text style={c.fieldLabel}>Event Code</Text>
-            <TextInput accessibilityLabel="Event Code"
+            <Text style={c.fieldLabel} nativeID="join-code-label">Event Code</Text>
+            <TextInput accessibilityLabel="Event Code" accessibilityLabelledBy="join-code-label"
               style={c.inputLg}
               value={eventCode}
               onChangeText={v => { setEventCode(v.toUpperCase()); setError(null); }}

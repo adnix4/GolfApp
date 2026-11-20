@@ -606,11 +606,14 @@ export default function AuctionScreen() {
               <Heading level={2} style={[styles.sectionTitle, { color: theme.colors.primary, marginTop: spacing[4] }]}>
                 Pledge / Bid on this item
               </Heading>
-              <Text style={styles.bidLabel}>
+              {/* Labels the field below for TalkBack, which ignores a text
+                  field's own accessibilityLabel and reads its placeholder. */}
+              <Text style={styles.bidLabel} nativeID="live-bid-label"
+                accessibilityLabel={`Bid amount, minimum ${fmt(minimumBidCents(currentLiveItem))}`}>
                 Min bid: {fmt(minimumBidCents(currentLiveItem))}
               </Text>
               <View style={styles.bidRow}>
-                <MoneyInput accessibilityLabel="Bid amount"
+                <MoneyInput accessibilityLabel="Bid amount" accessibilityLabelledBy="live-bid-label"
                   style={[styles.bidInput, { borderColor: theme.colors.accent }]}
                   value={bidAmt}
                   onChangeText={t => { setBidAmt(t); setBidError(null); }}
@@ -756,9 +759,10 @@ export default function AuctionScreen() {
                         })}
                       </View>
                     ) : null}
-                    <Text style={styles.bidLabel}>Or enter an amount:</Text>
+                    <Text style={styles.bidLabel} nativeID="item-bid-label" accessibilityLabel="Pledge amount">Or enter an amount:</Text>
                   </>
                 ) : (
+                  <>
                   <Text style={styles.bidLabel}>
                     Current bid: {fmt(liveSelectedItem.currentHighBidCents)}
                     {/* Must be the shared rule, not currentHigh + increment: on
@@ -777,10 +781,17 @@ export default function AuctionScreen() {
                       </Text>
                     )}
                   </Text>
+                  {/* The field's visible name — and TalkBack's, which ignores a
+                      text field's own accessibilityLabel and reads its placeholder. */}
+                  <Text style={styles.bidLabel} nativeID="item-bid-label">
+                    {usesProxyBidding(liveSelectedItem.auctionType) ? 'Your maximum bid:' : 'Your bid:'}
+                  </Text>
+                  </>
                 )}
 
                 <View style={styles.bidRow}>
-                  <MoneyInput accessibilityLabel={isDonationItem(liveSelectedItem.auctionType) ? 'Pledge amount' : 'Bid amount'}
+                  <MoneyInput accessibilityLabelledBy="item-bid-label"
+                    accessibilityLabel={isDonationItem(liveSelectedItem.auctionType) ? 'Pledge amount' : 'Bid amount'}
                     style={[styles.bidInput, { borderColor: theme.colors.accent, flex: 1 }]}
                     value={bidAmt}
                     onChangeText={t => { setBidAmt(t); setBidError(null); }}
