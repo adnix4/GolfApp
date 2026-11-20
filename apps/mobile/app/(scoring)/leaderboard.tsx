@@ -12,6 +12,7 @@ import { announce, autoDismissMs, useScreenReaderEnabled } from '@/lib/a11y';
 import { holeInOneAlertHaptic } from '@/lib/haptics';
 import { fetchLeaderboard } from '@/lib/api';
 import type { PublicLeaderboardEntry, PublicIndividualEntry } from '@/lib/api';
+import { golferRowLabel, teamRowLabel } from '@/lib/standingsSpeech';
 import { fontSize, radius, spacing, status } from '@gfp/theme';
 
 // Spec §3 Phase 3: SignalR is primary; 15 s HTTP fallback only when the hub
@@ -20,6 +21,18 @@ import { fontSize, radius, spacing, status } from '@gfp/theme';
 // transports when the `disabled` flag is set.
 const FALLBACK_POLL_MS = 15_000;
 const BASE             = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
+
+// ── ROW ACCESSIBILITY ─────────────────────────────────────────────────────────
+// On a phone each row is ONE screen-reader item that speaks its own sentence
+// ("1st, Timing Crew, 2 under par, through 9 holes"): read cell by cell it was
+// "0, Timing Crew, capital E, Em dash, Em dash…" with the column names far
+// above. The header row is then hidden there, since every row names its own
+// numbers. The web keeps the cells and the header.
+const NATIVE = Platform.OS !== 'web';
+const rowA11y = (label: string) => (NATIVE ? { accessible: true, accessibilityLabel: label } : {});
+const HIDDEN_ON_PHONES = NATIVE
+  ? { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' as const }
+  : {};
 
 // ── ROW (memoized) ────────────────────────────────────────────────────────────
 // Pulls theme from context so identity is stable across parent re-renders.
@@ -31,7 +44,9 @@ const StandingRow = memo(function StandingRow({
   const theme = useTheme();
   // Stableford ranks on points (per golfer, summed — U8), so that's the
   // headline number; everything else ranks on to-par.
+  const scored = entry.holesComplete > 0;
   const toParLabel =
+    !scored           ? '—' :
     stableford        ? `${entry.stablefordPoints}` :
     entry.toPar === 0 ? 'E' :
     entry.toPar > 0   ? `+${entry.toPar}` :
@@ -41,14 +56,15 @@ const StandingRow = memo(function StandingRow({
     entry.toPar < 0 ? '#27ae60' :
     entry.toPar > 0 ? '#e74c3c' :
                       theme.colors.primary;
-  const thru = entry.isComplete ? 'F' : `${entry.holesComplete}`;
+  const thru = !scored ? '—' : entry.isComplete ? 'F' : `${entry.holesComplete}`;
   const back = entry.holesComplete === 0 || entry.strokesBack === 0 ? '—' : `${entry.strokesBack}`;
   const bestHole  = entry.bestHole == null ? '—' : `${entry.bestHole}`;
   const bestScore = entry.bestHoleScore == null ? '—' : `${entry.bestHoleScore}`;
 
   return (
-    <View style={[rowStyles.row, { borderBottomColor: '#f0f0f0' }]}>
-      <Text style={[rowStyles.rank,  { color: theme.mutedText   }]}>{entry.rank}</Text>
+    <View style={[rowStyles.row, { borderBottomColor: '#f0f0f0' }]} {...rowA11y(teamRowLabel(entry, stableford))}>
+      {/* Rank 0 = not ranked yet (no holes scored); it showed as "0". */}
+      <Text style={[rowStyles.rank,  { color: theme.mutedText   }]}>{entry.rank || '—'}</Text>
       <Text style={[rowStyles.team,  { color: theme.colors.primary  }]} numberOfLines={1}>{entry.teamName}</Text>
       <Text style={[rowStyles.toPar, { color: toParColor            }]} numberOfLines={1}>{toParLabel}</Text>
       <Text style={[rowStyles.back,  { color: theme.colors.primary  }]}>{back}</Text>
@@ -76,7 +92,7 @@ const GolferRow = memo(function GolferRow({ entry }: { entry: PublicIndividualEn
   const thru = !scored ? '—' : entry.isComplete ? 'F' : `${entry.holesComplete}`;
 
   return (
-    <View style={[rowStyles.row, { borderBottomColor: '#f0f0f0' }]}>
+    <View style={[rowStyles.row, { borderBottomColor: '#f0f0f0' }]} {...rowA11y(golferRowLabel(entry))}>
       <Text style={[rowStyles.rank, { color: theme.mutedText }]}>{entry.rank || '—'}</Text>
       <View style={rowStyles.team}>
         <Text style={[rowStyles.golfer, { color: theme.colors.primary }]} numberOfLines={1}>{entry.playerName}</Text>
@@ -107,7 +123,7 @@ const rowStyles = StyleSheet.create({
 function TableHeader({ stableford = false, golfers = false }: { stableford?: boolean; golfers?: boolean }) {
   const theme = useTheme();
   return (
-    <View style={[rowStyles.row, { backgroundColor: theme.colors.highlight }]}>
+    <View style={[rowStyles.row, { backgroundColor: theme.colors.highlight }]} {...HIDDEN_ON_PHONES}>
       <Text style={[rowStyles.rank,  headerStyles.th, { color: theme.highlightLabel }]}>#</Text>
       <Text style={[rowStyles.team,  headerStyles.th, { color: theme.highlightLabel }]}>{golfers ? 'Golfer' : 'Team'}</Text>
       <Text style={[rowStyles.toPar, headerStyles.th, { color: theme.highlightLabel }]}>{stableford ? 'Pts' : 'To Par'}</Text>
@@ -251,7 +267,7 @@ function StatusBar({
       {!loading && (
         <Pressable
           onPress={onRefresh}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={styles.refreshTarget}
           accessibilityRole="button"
           accessibilityLabel="Refresh standings"
         >
@@ -419,6 +435,13 @@ const styles = StyleSheet.create({
   },
   statusText:  { fontSize: fontSize.xs, fontWeight: '600' },
   refreshBtn:  { fontSize: fontSize.xxl, fontWeight: '700' },
+  // A real 48×48 target (it was 20×28 plus hitSlop, which TalkBack's focus
+  // box and Android's touch-target check don't see). The negative margin keeps
+  // the status bar its old height.
+  refreshTarget: {
+    minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center',
+    marginVertical: -spacing[2], marginRight: -spacing[3],
+  },
 
   emptyIcon:  { fontSize: 48 },
   emptyTitle: { fontSize: fontSize.xxl, fontWeight: '800' },
