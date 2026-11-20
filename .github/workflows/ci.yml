@@ -101,6 +101,11 @@ jobs:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM:  ${{ secrets.TURBO_TEAM }}
 
+      - name: Test the dependency-update scripts
+        # scripts/ is not a workspace, so `npm test` never reaches it. These
+        # cover how the weekly routine picks versions under the 72h cooldown.
+        run: npm run test:scripts
+
   # ── .NET API ──────────────────────────────────────────────────────────────
   dotnet-build:
     name: Build & Verify (ASP.NET Core)

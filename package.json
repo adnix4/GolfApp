@@ -16,6 +16,8 @@
     "audit:prod": "node scripts/audit-prod.js",
     "audit:nuget": "node scripts/audit-nuget.js",
     "check-updates:nuget": "node scripts/check-nuget-updates.js",
+    "check-lock-downgrades": "node scripts/check-lock-downgrades.js",
+    "test:scripts": "node --test \"scripts/__tests__/*.test.js\"",
     "e2e": "node scripts/e2e-clean.js",
     "e2e:fast": "node scripts/e2e-clean.js --fast",
     "db:backup": "node scripts/db-backup.js",
