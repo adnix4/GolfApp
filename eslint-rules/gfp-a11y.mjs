@@ -410,6 +410,37 @@ const noShortMessageTimer = {
   },
 };
 
+// ── input-has-label (AX6 prep) ───────────────────────────────────────────────
+// A <TextInput> whose label is a separate <Text> above it is announced by its
+// placeholder ("you@example.com, text field") or by nothing at all. Give the
+// field its own name: accessibilityLabel (or aria-label / aria-labelledby).
+const INPUTS = new Set(['TextInput', 'MoneyInput']);
+const LABEL_ATTRS = ['accessibilityLabel', 'aria-label', 'aria-labelledby', 'accessibilityLabelledBy'];
+
+const inputHasLabel = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Text fields need their own accessible name' },
+    schema: [],
+    messages: {
+      missing:
+        '{{name}} has no accessibilityLabel. Screen readers read its placeholder (or nothing), not the label text above it. '
+        + 'Add accessibilityLabel matching the visible label.',
+    },
+  },
+  create(context) {
+    return {
+      JSXOpeningElement(node) {
+        const name = elementName(node);
+        if (!INPUTS.has(name)) return;
+        if (LABEL_ATTRS.some(a => attr(node, a))) return;
+        if (hasSpread(node)) return; // a wrapper forwarding its props carries the label
+        context.report({ node, messageId: 'missing', data: { name } });
+      },
+    };
+  },
+};
+
 export default {
   meta: { name: 'gfp-a11y' },
   rules: {
@@ -417,6 +448,7 @@ export default {
     'no-short-message-timer': noShortMessageTimer,
     'title-is-heading': titleIsHeading,
     'pressable-has-role': pressableHasRole,
+    'input-has-label': inputHasLabel,
     'image-has-alt': imageHasAlt,
     'switch-has-label': switchHasLabel,
     'no-accessibility-state': noAccessibilityState,

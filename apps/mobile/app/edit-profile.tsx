@@ -155,6 +155,7 @@ function Field({
     <View style={styles.fieldGroup}>
       <Text style={[styles.fieldLabel, { color: theme.mutedText }]}>{label}</Text>
       <TextInput
+        accessibilityLabel={label}
         style={[styles.input, { borderColor: theme.colors.accent, color: theme.colors.primary }]}
         value={value}
         onChangeText={onChangeText}

@@ -360,7 +360,7 @@ const DEFAULT_SHOT_SIZE: ShotColumnSize = {
 
 export function ShotColumn({
   label, value, onDecrement, onIncrement, disabled, theme, size = DEFAULT_SHOT_SIZE,
-  showLabel = true,
+  showLabel = true, who,
 }: {
   label:       string;
   value:       number;
@@ -375,7 +375,22 @@ export function ShotColumn({
    * ~16px per golfer less, which is what lets a foursome stay expanded.
    */
   showLabel?:  boolean;
+  /** The golfer's name: every golfer has a Drive column, so it names them apart. */
+  who?:        string;
 }) {
+  // "Ava's drive" — what VoiceOver/TalkBack call this column.
+  const name = who ? `${who}'s ${label.toLowerCase()}` : label;
+  // Speak the new value after a tap here (and only then: moving to another
+  // hole also changes `value`, and that must stay quiet). A tap the scorecard
+  // refuses (the stroke limit) changes nothing, so nothing is said.
+  const pressedAt = useRef(0);
+  useEffect(() => {
+    if (Date.now() - pressedAt.current > 1500) return;
+    pressedAt.current = 0;
+    announce(`${name}: ${value > 0 ? value : 'none'}`);
+  }, [value, name]);
+  const tap = (change: () => void) => { pressedAt.current = Date.now(); tickHaptic(); change(); };
+
   const btnStyle = {
     width: size.button, height: size.button, borderRadius: size.button / 2,
   };
@@ -387,7 +402,7 @@ export function ShotColumn({
         <Text style={[shotColStyles.label, { color: theme.mutedText, fontSize: size.labelFont }]}>{label}</Text>
       )}
       <Pressable
-        onPress={() => { tickHaptic(); onIncrement(); }}
+        onPress={() => tap(onIncrement)}
         disabled={disabled}
         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         style={({ pressed }) => [
@@ -396,19 +411,22 @@ export function ShotColumn({
           { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary },
           disabled && shotColStyles.btnDisabled,
         ]}
-        accessibilityLabel={`Increase ${label}`}
+        accessibilityLabel={`Increase ${name}`}
         accessibilityRole="button"
       >
         <Text style={[shotColStyles.btnText, btnTextStyle]}>+</Text>
       </Pressable>
-      <Text style={[
-        shotColStyles.value,
-        { color: theme.colors.primary, fontSize: size.valueFont, lineHeight: Math.round(size.valueFont * 1.15) },
-      ]}>
+      <Text
+        style={[
+          shotColStyles.value,
+          { color: theme.colors.primary, fontSize: size.valueFont, lineHeight: Math.round(size.valueFont * 1.15) },
+        ]}
+        accessibilityLabel={`${name}: ${value > 0 ? value : 'none'}`}
+      >
         {value > 0 ? value : '—'}
       </Text>
       <Pressable
-        onPress={() => { tickHaptic(); onDecrement(); }}
+        onPress={() => tap(onDecrement)}
         disabled={disabled || value <= 0}
         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         style={({ pressed }) => [
@@ -417,7 +435,7 @@ export function ShotColumn({
           { backgroundColor: pressed ? theme.colors.accent : theme.colors.primary },
           (disabled || value <= 0) && shotColStyles.btnDisabled,
         ]}
-        accessibilityLabel={`Decrease ${label}`}
+        accessibilityLabel={`Decrease ${name}`}
         accessibilityRole="button"
       >
         <Text style={[shotColStyles.btnText, btnTextStyle]}>−</Text>

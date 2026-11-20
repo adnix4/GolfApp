@@ -13,7 +13,7 @@
  * Use urgency="assertive" only for errors that stop what the user was doing.
  */
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { AccessibilityInfo, Platform, View, type ViewProps } from 'react-native';
 
 export interface LiveRegionProps extends ViewProps {
@@ -24,7 +24,11 @@ export interface LiveRegionProps extends ViewProps {
 }
 
 export function LiveRegion({ message, urgency = 'polite', children, ...rest }: LiveRegionProps) {
+  // Like aria-live, only a CHANGE is spoken: text already there when the
+  // region mounts (a scorecard opening on saved shots) is not announced.
+  const mounted = useRef(false);
   useEffect(() => {
+    if (!mounted.current) { mounted.current = true; return; }
     if (message && Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(message);
   }, [message]);
 

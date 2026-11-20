@@ -115,6 +115,15 @@ export default [
     },
   },
   {
+    // Text fields name themselves: a <Text> label above a field is not read
+    // with it. Scorer app only for now; the admin has ~70 unlabelled fields
+    // (problemList AX6 follow-up).
+    files: ['apps/mobile/**/*.tsx', 'packages/ui/**/*.tsx'],
+    ignores: ['**/__tests__/**'],
+    plugins: { 'gfp-a11y': gfpA11y },
+    rules: { 'gfp-a11y/input-has-label': 'error' },
+  },
+  {
     // Everything EXCEPT packages/shared-types, which owns the direct import.
     files: [
       'apps/**/*.{ts,tsx}',
