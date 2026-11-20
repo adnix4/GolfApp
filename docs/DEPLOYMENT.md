@@ -47,7 +47,10 @@ Production hardening (added 2026-07-09, all documented in `.env.example`):
 | `DATA_PROTECTION_KEYS_PATH` | Persistent mounted volume for DataProtection keys |
 | `GFP_MIGRATE_ON_STARTUP` | `true` only if the host has no CI/CD migration step; failures crash startup on purpose |
 | `SUPER_ADMIN_EMAIL` / `_PASSWORD` / `_NAME` | Seeds the first platform admin on any environment (idempotent) |
-| Storage vars | `STORAGE_CONNECTION_STRING` + `CDN_BASE_URL` for S3/R2; blank = local disk (dev only — doesn't survive redeploys) |
+| `Storage__Provider` | `S3` for production (S3 / R2 / MinIO). Unset = `Local` disk: dev only, doesn't survive redeploys or span instances |
+| `Storage__S3__Bucket` + `Storage__S3__PublicBaseUrl` | Required with `S3` (startup fails without them). Uploads are served from `{PublicBaseUrl}/uploads/…`, so the bucket must be publicly readable there |
+| `Storage__S3__ServiceUrl` | R2 (`https://<account>.r2.cloudflarestorage.com`) or MinIO endpoint; leave empty for AWS S3 (uses `Storage__S3__Region`) |
+| `Storage__S3__AccessKey` / `__SecretKey` | Bucket credentials; leave empty on AWS to use the instance role / `AWS_*` chain. `Storage__S3__ForcePathStyle=true` for MinIO |
 
 Guards that refuse to start in Production: `JoinVerification__TestBypassCode`
 set (join-verification bypass), `JWT_SECRET` missing/short, `DATABASE_URL`
