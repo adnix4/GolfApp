@@ -18,7 +18,7 @@ public class NullRealTimeService : IRealTimeService
         CancellationToken ct = default) => Task.CompletedTask;
 
     public virtual Task SendCheckInUpdatedAsync(
-        string eventCode, Guid eventId, CancellationToken ct = default) => Task.CompletedTask;
+        string eventCode, Guid eventId, IReadOnlyCollection<Guid> playerIds, CancellationToken ct = default) => Task.CompletedTask;
 
     public Task SendBidPlacedAsync(
         string eventCode, Guid itemId, Guid playerId, int amountCents,
@@ -53,4 +53,7 @@ public class NullRealTimeService : IRealTimeService
 
     public virtual Task SendSponsorsChangedAsync(
         string eventCode, int version, CancellationToken ct = default) => Task.CompletedTask;
+
+    public virtual Task SendEventStatusChangedAsync(
+        string eventCode, string status, string? themeJson, CancellationToken ct = default) => Task.CompletedTask;
 }

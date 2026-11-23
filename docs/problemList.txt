@@ -41,7 +41,7 @@ P2 — CORRECTNESS THE ORGANIZER WILL HIT ON THE DAY  (tier clear)
 
 P3 — PERFORMANCE BEFORE A REAL CROWD
      [x] D18  both queries split 2026-08-01
-     PF1  mobile still POLLS /status (15 s waiting screen, 30 s session); push it over SignalR
+     [x] PF1 status/theme/check-in pushed over SignalR 2026-11-20; poll is a 5 min fallback
 
 P4 — FEATURES / POLISH
      [x] U4  proxy bidding, Silent items only, steps by the item's increment 2026-08-01
@@ -93,7 +93,10 @@ P4 — FEATURES / POLISH
           companion shades keep brands readable, brandPriority override
      [x] AX5 message timing 2026-11-19: useTimedMessage (6 s floor) +
           LiveRegion; save results moved under their buttons; lint rule
-     AX6  device pass: VoiceOver, TalkBack, max text size on the scorer flow
+     AX6  device pass: VoiceOver, TalkBack, max text size on the scorer flow.
+          ANDROID HALF DONE 2026-11-20 on an emulator (TalkBack speech log +
+          font scale 2.0; #183-#191). Left: VoiceOver (iPhone), real-phone
+          hardware incl. haptics, the run sheet, the 4.1.2 dark-mode decision
           (needs a build — see D5)
 
 P5 — BLOCKED OR DEFERRED (no action available yet)
@@ -1282,6 +1285,44 @@ AX6. DEVICE PASS (MCAG 4.1.1, 3.3.2, 2.1.1, 3.1.2-3.1.5, 3.5, 1.1.6, 1.4.4, 2.1.
         email builder, checkout, and the auction item / sponsor / challenge /
         register team / free agent / new league forms — every visible field
         (55) has its own name; no page errors. 13/13.
+        ANDROID PASS 2026-11-20 (emulator, not a phone). AVD gfp_a11y_test
+        (Pixel 7, Android 16) running a dev-client build. What TalkBack SAID
+        came from its own speech log (verbose logging; driven with a virtual
+        USB keyboard, Alt+arrows). Text size checked at font scale 2.0.
+        Found and fixed, each verified in the speech log or on screen:
+        - #183 expo ~58.0.25: haptics / sqlite / application crashed the
+          native app on launch (expo-modules-core v2 registration).
+        - #184 LiveRegion announced nothing on Android (aria-live is web-only):
+          now announceForAccessibility on iOS + Android. Shot counts, "Hand
+          raised" and join errors are spoken.
+        - #185 TalkBack ignores a field's accessibilityLabel and reads the
+          hint: every scorer field is now linked to its visible label
+          (accessibilityLabelledBy/nativeID): "…, Edit box for Event Code".
+          Lint input-has-label {android:true} for apps/mobile.
+        - #186 standings rows read cell by cell ("0, Timing Crew, capital E,
+          Em dash…"): each row is now one sentence ("1st, Timing Crew, 2 over
+          par, through 1 hole…").
+        - #188 scoring screen read every "+" before the golfer's name (view
+          flattening): columns kept, name block is a heading ("Ava Stone,
+          3 strokes"), hole chips are one phrase each ("Score 7, 2 over
+          par"), "✓" is "Hole complete, saved"; Raise hand is named by its
+          visible text ("I'm bidding").
+        - #189 touch targets under 48dp (summary headers 35x15, join back
+          link, Leave Event, Prev/Next, auction tabs, popup buttons,
+          collapsed golfer rows): all >= 48dp, minTouchTarget in @gfp/theme.
+          Shot buttons stay 44 + 6px hitSlop (56dp touch) by design.
+        - #190 emoji and arrows read aloud ("party popper", "right arrow"),
+          tabs read ", Scorecard": GlyphText/plainSpeech in @gfp/ui, explicit
+          tab names. Also "Hosted by" named the course, not the organizer.
+          Hermes matches nothing with \p{Extended_Pictographic} — explicit
+          code-point ranges instead.
+        - #191 at font scale 2.0 tabs read "Scor…", standings split "BA/CK"
+          and cut names, "APPR…", emails clipped: content wraps from 1.3,
+          standings reflow to labelled lines (useLargeText/useLineClamp).
+        STILL OPEN for AX6: VoiceOver on an iPhone (nothing iOS has been
+        heard); real phones, incl. the haptics that an emulator cannot feel;
+        the run sheet's remaining checks (gestures, focus traps, colour-only
+        meaning); and the 4.1.2 decision on following system dark mode.
 
 ## Test coverage & performance (2026-06-24)
 Captured while filling API test-coverage holes. Mark [x] when done.
@@ -1929,7 +1970,7 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         flights. Either add the screen (Roster or Overview tab: name + optional
         handicap range, then assign members) or drop that phrase from the help.
 
-  [ ] PF1. (OPEN, added 2026-11-09) MOBILE LEARNS STATUS CHANGES BY POLLING, NOT PUSH.
+  [x] PF1. (FIXED 2026-11-20, added 2026-11-09) MOBILE LEARNS STATUS CHANGES BY POLLING, NOT PUSH.
         Every golfer device polls GET /pub/events/{code}/status: the pre-scoring
         waiting screen every 15 s (app/(scoring)/_layout.tsx POLL_MS) and the
         session status/check-in/branding loop every 30 s on Wi-Fi, 60 s on cellular
@@ -1944,3 +1985,27 @@ Captured while filling API test-coverage holes. Mark [x] when done.
         ScoreUpdated / CheckInUpdated / SponsorsChanged to the event group; add an
         EventStatusChanged (+ theme) broadcast on the status PATCH and a mobile hub
         connection, then keep the poll only as a slow fallback like the web's 15 s.
+        (Correction: mobile did have SignalR, but only on the Standings and
+        Auction screens, via useLiveLeaderboard / useLiveAuction while open.)
+        FIXED 2026-11-20:
+        - API: EventStatusChanged { status, themeJson } on a status change
+          (EventService.UpdateAsync), an event theme change (UpdateBrandingAsync)
+          and an org theme change (OrgService, to each live event with no theme
+          of its own). The theme is read back from the DB so the push is
+          byte-identical to the status endpoint (jsonb reorders keys).
+          CheckInUpdated now carries playerIds, so only the checked-in golfer's
+          phone refetches — the whole group hears every check-in.
+        - Mobile: src/lib/eventHub.ts, one hub connection per joined event held
+          by the session (off for offline-mode events / no network). Pushed
+          theme applies straight away; pushed status reaches the waiting screen
+          only, never the scorecard mid-round (same rule as the poll). An own
+          check-in or SponsorsChanged triggers one status fetch; a (re)connect
+          catches up. While connected the waiting screen does not poll and the
+          session fetches status every 5 min (HUB_FALLBACK_POLL_MS); the
+          bid-queue flush keeps its own 30/60 s tick.
+        - Verified: 918 API tests (5 new); 317 mobile (6 new, eventHub.test.ts);
+          e2e T9 phase now checks branding / check-in / status pushes; a
+          SignalR client on a local API + Postgres + Redis 7/7 (status pushed
+          ~20 ms after the PATCH); on the Android emulator the "Scoring Not
+          Open Yet" screen opened ~3 s after scoring opened, the same whether
+          or not a poll was due (the old poll: up to 15 s).

@@ -691,6 +691,8 @@ async function phaseConflict(ctx) {
 //   - a scramble ace → HoleInOneAlert;
 //   - a burst of syncs is coalesced (≤ 2 broadcasts inside the 1.5 s window)
 //     and the last one carries the final state;
+//   - a branding change, a check-in and a status change push EventStatusChanged
+//     / CheckInUpdated to the phones (PF1: they used to poll /status);
 //   - a client in ANOTHER event's group hears none of it.
 // The client is resolved from apps/web, which declares it, so this does not
 // lean on npm hoisting it to the root.
@@ -705,7 +707,7 @@ async function hubClient(code) {
     .configureLogging(sr.LogLevel.Error)
     .build();
   const got = [];                                 // { name, payload, at }
-  for (const name of ['LeaderboardRefreshed', 'ScoreUpdated', 'HoleInOneAlert']) {
+  for (const name of ['LeaderboardRefreshed', 'ScoreUpdated', 'HoleInOneAlert', 'EventStatusChanged', 'CheckInUpdated']) {
     // Block body: a handler that returns a value is taken as a reply to the
     // server, which logs "Result given … server is not expecting a result".
     conn.on(name, payload => { got.push({ name, payload, at: Date.now() }); });
@@ -802,6 +804,39 @@ async function phaseSignalR(ctx) {
     pass('burst of 5 syncs coalesced', c.dim(burstMs < 1200
       ? `${burst.length} broadcast(s) · final -2 · thru 9`
       : `burst took ${burstMs} ms, so the count was not asserted · final -2 · thru 9`));
+
+    // PF1: what the phones' waiting screen and session used to poll /status for.
+    // A branding change pushes the event's status with the new resolved theme.
+    phaseStart = Date.now();
+    mark = watch.got.length;
+    const theme = JSON.stringify({ primary: '#31572c', action: '#409151', accent: '#8ba955', highlight: '#ecf39e', surface: '#f4f7de' });
+    await api('PATCH', `/events/${e.eventId}/branding`, { token: ctx.token, body: { themeJson: theme } });
+    // Compared parsed: the column is jsonb, so Postgres reorders the keys.
+    const sameTheme = t => !!t && JSON.stringify(Object.entries(JSON.parse(t)).sort()) === JSON.stringify(Object.entries(JSON.parse(theme)).sort());
+    const themed = await watch.until('EventStatusChanged', p => sameTheme(p.themeJson), { from: mark });
+    if (!themed || themed.payload.status !== 'Scoring') {
+      fail('branding pushes EventStatusChanged', `expected Scoring + the new theme; got ${JSON.stringify(themed?.payload ?? watch.got.slice(mark))}`);
+    }
+    pass('branding change pushes EventStatusChanged with the theme', c.dim('Scoring'));
+
+    // A check-in names the golfer, so only that phone refetches its status.
+    phaseStart = Date.now();
+    mark = watch.got.length;
+    const lena = e.playerIds[0];
+    await api('POST', `/events/${e.eventId}/players/${lena}/check-in`, { token: ctx.token, body: {} });
+    const checkIn = await watch.until('CheckInUpdated', p => (p.playerIds ?? []).includes(lena), { from: mark });
+    if (!checkIn) fail('check-in names the golfer', `no CheckInUpdated naming ${lena}; got ${JSON.stringify(watch.got.slice(mark))}`);
+    pass('check-in pushes CheckInUpdated naming the golfer', c.dim(`${checkIn.payload.checkedIn}/${checkIn.payload.total} in`));
+
+    // A status change pushes the new status (the waiting screen opens or closes on it).
+    phaseStart = Date.now();
+    mark = watch.got.length;
+    await api('PATCH', `/events/${e.eventId}`, { token: ctx.token, body: { status: 'Completed' } });
+    const done = await watch.until('EventStatusChanged', p => p.status === 'Completed', { from: mark });
+    if (!done || !sameTheme(done.payload.themeJson)) {
+      fail('status change pushes EventStatusChanged', `expected Completed + the event theme; got ${JSON.stringify(done?.payload ?? watch.got.slice(mark))}`);
+    }
+    pass('status change pushes EventStatusChanged', c.dim('Scoring → Completed'));
 
     // Group isolation: the other event's client heard nothing at all.
     if (stray.got.length) {

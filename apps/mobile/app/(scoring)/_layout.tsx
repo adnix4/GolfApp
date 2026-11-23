@@ -59,7 +59,10 @@ export default function ScoringLayout() {
   const clamp = useLineClamp();
   const theme  = useTheme();
   const router = useRouter();
-  const { session, networkTier, updateEventStatus, clearSession, completedHoles, syncedHoles } = useSession();
+  const { session, networkTier, updateEventStatus, clearSession, completedHoles, syncedHoles, liveConnected, onEventStatus } = useSession();
+  // Read by the poll's interval callback, which must not restart on every flip.
+  const liveConnectedRef = useRef(liveConnected);
+  useEffect(() => { liveConnectedRef.current = liveConnected; }, [liveConnected]);
 
   const [liveStatus, setLiveStatus] = useState(session?.event.status ?? '');
   const [liveTheme,  setLiveTheme]  = useState<string | null>(session?.event.themeJson ?? null);
@@ -105,14 +108,21 @@ export default function ScoringLayout() {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- see the note above — a stale session here has nothing left to push
   }, [liveStatus, liveTheme]);
 
-  // Poll for status change regardless of dismissed state — so opening scoring
+  // Follow status changes regardless of dismissed state — so opening scoring
   // removes the pre-scoring banner automatically without any player action.
+  // The event hub pushes them (PF1); the 15 s poll only runs while it is down.
   useEffect(() => {
     if (!session || scoringOpen) return;
 
-    async function poll() {
+    const stopPush = onEventStatus(({ status, themeJson }) => {
+      setLiveStatus(status);
+      setLiveTheme(themeJson);
+    });
+
+    async function poll(force = false) {
       // Nobody is looking at a backgrounded app or hidden tab; catch up on return.
       if (!session || !isForeground()) return;
+      if (!force && liveConnectedRef.current) return;
       try {
         const { status, themeJson } = await fetchEventStatus(session.event.eventCode);
         setLiveStatus(status);
@@ -120,14 +130,15 @@ export default function ScoringLayout() {
       } catch { /* silent — will retry next interval */ }
     }
 
-    poll();
-    pollRef.current = setInterval(poll, POLL_MS);
-    const stopForeground = onForeground(poll);
+    void poll(true);
+    pollRef.current = setInterval(() => { void poll(); }, POLL_MS);
+    const stopForeground = onForeground(() => { void poll(true); });
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
       stopForeground();
+      stopPush();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- the closure reads only session.event.eventCode (the dep); the guard is a null check
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the closure reads only session.event.eventCode (the dep) and liveConnectedRef; onEventStatus is a stable useCallback
   }, [session?.event.eventCode, scoringOpen]);
 
   async function handleManualCheck() {

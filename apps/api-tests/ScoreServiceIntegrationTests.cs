@@ -57,7 +57,7 @@ public class ScoreServiceIntegrationTests
             return Task.CompletedTask;
         }
 
-        public Task SendCheckInUpdatedAsync(string eventCode, Guid eventId, CancellationToken ct = default) => Task.CompletedTask;
+        public Task SendCheckInUpdatedAsync(string eventCode, Guid eventId, IReadOnlyCollection<Guid> playerIds, CancellationToken ct = default) => Task.CompletedTask;
         public Task SendBidPlacedAsync(string eventCode, Guid itemId, Guid playerId, int amountCents, bool isDonation, CancellationToken ct = default) => Task.CompletedTask;
         public Task SendAuctionExtendedAsync(string eventCode, Guid itemId, DateTime newClosesAt, CancellationToken ct = default) => Task.CompletedTask;
         public Task SendItemClosedAsync(string eventCode, Guid itemId, Guid? winnerId, int finalAmountCents, CancellationToken ct = default) => Task.CompletedTask;
@@ -68,6 +68,7 @@ public class ScoreServiceIntegrationTests
         public Task SendAuctionAmountUpdatedAsync(string eventCode, Guid? itemId, int amountCents, CancellationToken ct = default) => Task.CompletedTask;
         public Task SendBidderCountUpdatedAsync(string eventCode, int count, CancellationToken ct = default) => Task.CompletedTask;
         public Task SendSponsorsChangedAsync(string eventCode, int version, CancellationToken ct = default) => Task.CompletedTask;
+        public Task SendEventStatusChangedAsync(string eventCode, string status, string? themeJson, CancellationToken ct = default) => Task.CompletedTask;
     }
 
     private static async Task<(Guid orgId, Guid eventId, Guid teamId)> SeedAsync(

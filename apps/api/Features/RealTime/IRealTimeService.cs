@@ -16,8 +16,14 @@ public interface IRealTimeService
         IEnumerable<(Guid TeamId, string TeamName, short HoleNumber, short GrossScore)> acceptedScores,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Check-in count changed. `playerIds` names who was just checked in, so a
+    /// golfer's phone refetches its own status only when the change is its own
+    /// (the group hears every check-in; player ids are already public on the
+    /// per-golfer leaderboard).
+    /// </summary>
     Task SendCheckInUpdatedAsync(
-        string eventCode, Guid eventId, CancellationToken ct = default);
+        string eventCode, Guid eventId, IReadOnlyCollection<Guid> playerIds, CancellationToken ct = default);
 
     Task SendBidPlacedAsync(
         string eventCode, Guid itemId, Guid playerId, int amountCents,
@@ -56,4 +62,14 @@ public interface IRealTimeService
     /// </summary>
     Task SendSponsorsChangedAsync(
         string eventCode, int version, CancellationToken ct = default);
+
+    /// <summary>
+    /// Announces an event's lifecycle status or resolved theme changed. Carries
+    /// both, as GET /pub/events/{code}/status reports them, so a device applies
+    /// the change without a request: the waiting screen opens scoring and every
+    /// screen repaints its brand. Phones used to learn this only by polling
+    /// that endpoint every 15–60 s (problemList PF1).
+    /// </summary>
+    Task SendEventStatusChangedAsync(
+        string eventCode, string status, string? themeJson, CancellationToken ct = default);
 }

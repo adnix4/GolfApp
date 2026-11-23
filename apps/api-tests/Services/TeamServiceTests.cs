@@ -454,10 +454,12 @@ public class TeamServiceTests
     private sealed class CapturingRealTime : NullRealTimeService
     {
         public int CheckInBroadcasts;
+        public IReadOnlyCollection<Guid> LastPlayerIds = [];
         public override Task SendCheckInUpdatedAsync(
-            string eventCode, Guid eventId, CancellationToken ct = default)
+            string eventCode, Guid eventId, IReadOnlyCollection<Guid> playerIds, CancellationToken ct = default)
         {
             CheckInBroadcasts++;
+            LastPlayerIds = playerIds;
             return Task.CompletedTask;
         }
     }
@@ -520,6 +522,10 @@ public class TeamServiceTests
         var stamps = c.Db.Players.Where(p => p.TeamId == reg.Team.Id)
             .Select(p => p.CheckInAt).ToList();
         Assert.Equal(1, rt.CheckInBroadcasts);
+        // Names every golfer, so each phone knows the check-in was its own (PF1).
+        Assert.Equal(
+            c.Db.Players.Where(p => p.TeamId == reg.Team.Id).Select(p => p.Id).OrderBy(id => id).ToList(),
+            rt.LastPlayerIds.OrderBy(id => id).ToList());
 
         // Re-tapping the button must not error or re-stamp anyone.
         await c.Svc.CheckInTeamAsync(c.OrgId, c.EventId, reg.Team.Id);

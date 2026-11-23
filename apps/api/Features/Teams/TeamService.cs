@@ -440,7 +440,8 @@ public class TeamService
             teamId, team.Players.Count, eventId);
 
         if (!string.IsNullOrEmpty(team.Event.EventCode))
-            await _realTime.SendCheckInUpdatedAsync(team.Event.EventCode, eventId, ct);
+            await _realTime.SendCheckInUpdatedAsync(
+                team.Event.EventCode, eventId, team.Players.Select(p => p.Id).ToList(), ct);
 
         return MapToTeamResponse(team);
     }

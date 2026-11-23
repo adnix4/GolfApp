@@ -102,7 +102,7 @@ public class RealTimeService : IRealTimeService
     /// Queries current checked-in count so the admin dashboard counter stays accurate.
     /// </summary>
     public async Task SendCheckInUpdatedAsync(
-        string eventCode, Guid eventId, CancellationToken ct = default)
+        string eventCode, Guid eventId, IReadOnlyCollection<Guid> playerIds, CancellationToken ct = default)
     {
         var total     = await _db.Players.CountAsync(p => p.EventId == eventId, ct);
         var checkedIn = await _db.Players
@@ -110,7 +110,7 @@ public class RealTimeService : IRealTimeService
                 (p.CheckInStatus == Domain.Enums.CheckInStatus.CheckedIn ||
                  p.CheckInStatus == Domain.Enums.CheckInStatus.Complete), ct);
 
-        await TrySendAsync("CheckInUpdated", eventCode, new { checkedIn, total }, ct);
+        await TrySendAsync("CheckInUpdated", eventCode, new { checkedIn, total, playerIds }, ct);
     }
 
     public async Task SendChallengeUpdatedAsync(
@@ -175,6 +175,11 @@ public class RealTimeService : IRealTimeService
         string eventCode, int version, CancellationToken ct = default) =>
         await TrySendAsync("SponsorsChanged", eventCode,
             new { version }, ct);
+
+    public async Task SendEventStatusChangedAsync(
+        string eventCode, string status, string? themeJson, CancellationToken ct = default) =>
+        await TrySendAsync("EventStatusChanged", eventCode,
+            new { status, themeJson }, ct);
 
     // ── HELPERS ────────────────────────────────────────────────────────────────
 

@@ -208,7 +208,7 @@ public class PlayerService
             "Checked in player {PlayerId} for event {EventId}", playerId, eventId);
 
         if (!string.IsNullOrEmpty(evt.EventCode))
-            await _realTime.SendCheckInUpdatedAsync(evt.EventCode, eventId, ct);
+            await _realTime.SendCheckInUpdatedAsync(evt.EventCode, eventId, [playerId], ct);
 
         return MapToPlayerResponse(player);
     }
@@ -358,7 +358,7 @@ public class PlayerService
         await _db.SaveChangesAsync(ct);
 
         if (evt is not null && !string.IsNullOrEmpty(evt.EventCode))
-            await _realTime.SendCheckInUpdatedAsync(evt.EventCode, eventId, ct);
+            await _realTime.SendCheckInUpdatedAsync(evt.EventCode, eventId, [playerId], ct);
 
         return MapToPlayerResponse(player);
     }
