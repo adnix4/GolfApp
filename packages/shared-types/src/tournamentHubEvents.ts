@@ -27,6 +27,8 @@ export const TOURNAMENT_HUB_EVENTS = [
   'ChallengeUpdated',
   'FundraisingUpdated',
   'SponsorsChanged',
+  // { status, themeJson } — lifecycle status or resolved theme changed (PF1)
+  'EventStatusChanged',
   // auction family
   'BidPlaced',
   'AuctionExtended',

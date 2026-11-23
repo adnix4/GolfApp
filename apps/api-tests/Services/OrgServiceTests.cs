@@ -25,6 +25,34 @@ public class OrgServiceTests
     }
 
     [Fact]
+    public async Task Org_theme_change_pushes_to_live_events_that_use_the_org_theme()
+    {
+        const string theme =
+            """{"primary":"#31572c","action":"#409151","accent":"#8ba955","highlight":"#ecf39e","surface":"#f4f7de"}""";
+        var db = InMemoryDbFactory.Create();
+        var orgId = Guid.NewGuid();
+        db.Organizations.Add(new Organization { Id = orgId, Name = "Acme", Slug = "acme" });
+        Event Ev(string code, GolfFundraiserPro.Api.Domain.Enums.EventStatus status, string? themeJson = null) => new()
+        {
+            Id = Guid.NewGuid(), OrgId = orgId, Name = code, EventCode = code, ConfigJson = "{}",
+            Holes = 18, Status = status, ThemeJson = themeJson,
+        };
+        db.Events.AddRange(
+            Ev("LIVE0001", GolfFundraiserPro.Api.Domain.Enums.EventStatus.Scoring),
+            Ev("OWNTHEME", GolfFundraiserPro.Api.Domain.Enums.EventStatus.Scoring, """{"primary":"#111111"}"""),
+            Ev("DONE0001", GolfFundraiserPro.Api.Domain.Enums.EventStatus.Completed));
+        db.SaveChanges();
+        var rt  = new StatusCapturingRealTimeService();
+        var svc = new OrgService(db, new FakeFileStorage(), NullLogger<OrgService>.Instance, rt);
+
+        await svc.UpdateAsync(orgId, new UpdateOrgRequest { ThemeJson = theme });
+        await svc.UpdateAsync(orgId, new UpdateOrgRequest { Name = "Acme Golf" });   // no theme change
+
+        var push = Assert.Single(rt.StatusChanges);
+        Assert.Equal(("LIVE0001", "Scoring", theme), push);
+    }
+
+    [Fact]
     public async Task Get_unknown_org_throws_NotFound()
     {
         var (svc, _, _) = Build();

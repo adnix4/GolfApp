@@ -25,7 +25,8 @@ public class EventServiceTests
         public Guid OrgId;
     }
 
-    private static Ctx Build(EventStatus status = EventStatus.Registration, int sponsorsVersion = 0)
+    private static Ctx Build(EventStatus status = EventStatus.Registration, int sponsorsVersion = 0,
+        GolfFundraiserPro.Api.Features.RealTime.IRealTimeService? realTime = null)
     {
         var db      = InMemoryDbFactory.Create();
         var orgId   = Guid.NewGuid();
@@ -41,7 +42,7 @@ public class EventServiceTests
         db.SaveChanges();
 
         var testData = new TestDataService(db, NullLogger<TestDataService>.Instance);
-        var svc      = new EventService(db, NullLogger<EventService>.Instance, testData);
+        var svc      = new EventService(db, NullLogger<EventService>.Instance, testData, realTime: realTime);
         return new Ctx { Db = db, Svc = svc, EventId = eventId, OrgId = orgId };
     }
 
@@ -674,6 +675,67 @@ public class EventServiceTests
             });
         }
         c.Db.SaveChanges();
+    }
+
+    // ── EventStatusChanged push (PF1) ─────────────────────────────────────────
+    // A valid theme (ThemeValidationTests' default: passes WCAG + light surface).
+    private const string Theme =
+        """{"primary":"#31572c","action":"#409151","accent":"#8ba955","highlight":"#ecf39e","surface":"#f4f7de"}""";
+
+    [Fact]
+    public async Task Status_change_pushes_the_new_status_with_the_org_theme_it_resolves_to()
+    {
+        var rt = new StatusCapturingRealTimeService();
+        var c  = Build(EventStatus.Registration, realTime: rt);
+        c.Db.Organizations.Single(o => o.Id == c.OrgId).ThemeJson = """{"primary":"#31572c"}""";
+        c.Db.SaveChanges();
+        SeedCourseAndTeams(c, "Alpha");
+
+        await c.Svc.UpdateAsync(c.OrgId, c.EventId, new UpdateEventRequest { Status = EventStatus.Active });
+
+        var push = Assert.Single(rt.StatusChanges);
+        Assert.Equal(("GALA0001", "Active", """{"primary":"#31572c"}"""), push);
+    }
+
+    [Fact]
+    public async Task An_update_that_leaves_the_status_alone_pushes_nothing()
+    {
+        var rt = new StatusCapturingRealTimeService();
+        var c  = Build(EventStatus.Registration, realTime: rt);
+
+        await c.Svc.UpdateAsync(c.OrgId, c.EventId, new UpdateEventRequest { Name = "Renamed" });
+        await c.Svc.UpdateAsync(c.OrgId, c.EventId, new UpdateEventRequest { Status = EventStatus.Registration });
+
+        Assert.Empty(rt.StatusChanges);
+    }
+
+    [Fact]
+    public async Task Branding_pushes_only_when_the_theme_actually_changes()
+    {
+        var rt = new StatusCapturingRealTimeService();
+        var c  = Build(EventStatus.Scoring, realTime: rt);
+
+        await c.Svc.UpdateBrandingAsync(c.OrgId, c.EventId, new UpdateEventBrandingRequest { ThemeJson = Theme });
+        await c.Svc.UpdateBrandingAsync(c.OrgId, c.EventId, new UpdateEventBrandingRequest { ThemeJson = Theme });
+        await c.Svc.UpdateBrandingAsync(c.OrgId, c.EventId, new UpdateEventBrandingRequest { MissionStatement = "Hi" });
+
+        var push = Assert.Single(rt.StatusChanges);
+        Assert.Equal(("GALA0001", "Scoring", Theme), push);
+    }
+
+    [Fact]
+    public async Task Clearing_the_event_theme_pushes_the_org_theme_it_falls_back_to()
+    {
+        var rt = new StatusCapturingRealTimeService();
+        var c  = Build(EventStatus.Active, realTime: rt);
+        c.Db.Organizations.Single(o => o.Id == c.OrgId).ThemeJson = """{"primary":"#111111"}""";
+        c.Db.Events.Single(e => e.Id == c.EventId).ThemeJson = Theme;
+        c.Db.SaveChanges();
+
+        await c.Svc.UpdateBrandingAsync(c.OrgId, c.EventId, new UpdateEventBrandingRequest { ThemeJson = "" });
+
+        var push = Assert.Single(rt.StatusChanges);
+        Assert.Equal("""{"primary":"#111111"}""", push.ThemeJson);
     }
 
     [Fact]

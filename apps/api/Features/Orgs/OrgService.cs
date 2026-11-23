@@ -15,11 +15,17 @@ public class OrgService
 
     private const long MaxLogoBytes = 2 * 1024 * 1024; // 2 MB
 
-    public OrgService(ApplicationDbContext db, IFileStorage storage, ILogger<OrgService> logger)
+    // Optional so existing test constructions compile; without it an org theme
+    // change reaches devices on their fallback poll instead of at once.
+    private readonly RealTime.IRealTimeService? _realTime;
+
+    public OrgService(ApplicationDbContext db, IFileStorage storage, ILogger<OrgService> logger,
+        RealTime.IRealTimeService? realTime = null)
     {
-        _db      = db;
-        _storage = storage;
-        _logger  = logger;
+        _db       = db;
+        _storage  = storage;
+        _logger   = logger;
+        _realTime = realTime;
     }
 
     public async Task<OrgResponse> GetAsync(Guid orgId, CancellationToken ct = default)
@@ -52,6 +58,7 @@ public class OrgService
         if (request.Is501c3 is not null)
             org.Is501c3 = request.Is501c3.Value;
 
+        var themeBefore = org.ThemeJson;
         if (request.ThemeJson is not null)
         {
             if (string.IsNullOrWhiteSpace(request.ThemeJson))
@@ -67,7 +74,31 @@ public class OrgService
 
         await _db.SaveChangesAsync(ct);
         _logger.LogInformation("Org {OrgId} updated", orgId);
+        if (org.ThemeJson != themeBefore) await BroadcastOrgThemeAsync(orgId, ct);
         return Map(org);
+    }
+
+    /// <summary>
+    /// The org theme is every event's fallback brand, so a change repaints each
+    /// live event that has no theme of its own. Completed and Cancelled events
+    /// are skipped: nobody is looking at them, and a device catches up on its
+    /// fallback poll anyway (problemList PF1).
+    /// </summary>
+    private async Task BroadcastOrgThemeAsync(Guid orgId, CancellationToken ct)
+    {
+        if (_realTime is null) return;
+        // Read back: the column is jsonb, so Postgres re-serialises it. The push
+        // must match the status endpoint's text byte for byte (see EventService).
+        var themeJson = await _db.Organizations.AsNoTracking()
+            .Where(o => o.Id == orgId).Select(o => o.ThemeJson).FirstOrDefaultAsync(ct);
+        var events = await _db.Events.AsNoTracking()
+            .Where(e => e.OrgId == orgId && e.ThemeJson == null
+                && e.Status != Domain.Enums.EventStatus.Completed
+                && e.Status != Domain.Enums.EventStatus.Cancelled)
+            .Select(e => new { e.EventCode, e.Status })
+            .ToListAsync(ct);
+        foreach (var e in events)
+            await _realTime.SendEventStatusChangedAsync(e.EventCode, e.Status.ToString(), themeJson, ct);
     }
 
     /// <summary>

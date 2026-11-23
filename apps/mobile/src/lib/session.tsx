@@ -9,6 +9,7 @@ import { loadSession, saveSession, clearSession, loadPendingScores, loadUnsynced
 import { attemptSync } from './backgroundSync';
 import { useNetworkTier, POLL_INTERVAL_MS, type NetworkTier } from './useNetworkTier';
 import { isForeground, onForeground } from './foregroundPoll';
+import { useEventHub, statusFetchDue, type EventStatusPush } from './eventHub';
 import { clearQueuedBids, flushBidQueue, loadQueuedBids } from './bidQueue';
 import { describeFlushResults } from './bidMessages';
 import { notify } from './notify';
@@ -36,6 +37,10 @@ interface SessionContextValue {
   updateEventStatus:  (status?: string, themeJson?: string | null) => void;
   updateSponsors:     (sponsors: SponsorCacheDto[]) => Promise<void>;
   updatePlayer:       (patch: { isCheckedIn: boolean; hasPaymentMethod: boolean }) => Promise<void>;
+  /** The event hub is connected: status, theme and check-in arrive as pushes (PF1). */
+  liveConnected:      boolean;
+  /** Subscribe to pushed status/theme changes; returns the unsubscribe. */
+  onEventStatus:      (fn: (push: EventStatusPush) => void) => () => void;
   /** Why the saved event was dropped (it no longer exists); shown once on Join. */
   endedNotice:        string | null;
   dismissEndedNotice: () => void;
@@ -62,6 +67,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // When the team scorecard was last pulled from the server (poll or focus), so
   // a scorecard focus right after a poll doesn't fetch the same card again.
   const lastScoresPullMs = useRef(0);
+  // PF1: while the event hub is connected the status poll only fetches every
+  // HUB_FALLBACK_POLL_MS (eventHub.ts); pushes cover the rest. The poll sets
+  // refreshStatus so a push nudge or a (re)connect can run it at once.
+  const hubConnectedRef   = useRef(false);
+  const lastStatusFetchMs = useRef(0);
+  const refreshStatus     = useRef<(() => Promise<void>) | null>(null);
+  const statusListeners   = useRef(new Set<(push: EventStatusPush) => void>());
 
   useEffect(() => {
     async function init() {
@@ -136,7 +148,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session || networkTier === 'offline') return;
     let cancelled = false;
-    const poll = async () => {
+    // `force`: first run, back to the foreground, a push nudge or a hub
+    // (re)connect. A plain tick fetches only when statusFetchDue says so.
+    const poll = async (force = false) => {
       // Branding + sponsor refresh — one cheap public-event read per tick.
       // Theme is applied every phase (incl. active scoring) so an admin
       // colour change repaints without a rejoin; status is deliberately NOT
@@ -150,6 +164,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // is pocketed); the status/branding read is for a screen nobody is
       // looking at, so it waits for the app to come back (onForeground below).
       if (!isForeground()) return;
+      if (!force && !statusFetchDue(hubConnectedRef.current, lastStatusFetchMs.current, Date.now())) return;
+      lastStatusFetchMs.current = Date.now();
       try {
         const { themeJson, sponsorsVersion, player } = await fetchEventStatus(
           session.event.eventCode,
@@ -193,10 +209,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
       } catch { /* storage hiccup — the bids stay queued for the next tick */ }
     };
-    poll();
-    const id = setInterval(poll, POLL_INTERVAL_MS[networkTier]);
-    const stopForeground = onForeground(() => { void poll(); });
-    return () => { cancelled = true; clearInterval(id); stopForeground(); };
+    void poll(true);
+    // Still ticks at the network-tier rate while the hub is up: the bid-queue
+    // flush rides every tick; only the status fetch is gated (statusFetchDue).
+    const id = setInterval(() => { void poll(); }, POLL_INTERVAL_MS[networkTier]);
+    const stopForeground = onForeground(() => { void poll(true); });
+    refreshStatus.current = () => poll(true);
+    return () => { cancelled = true; clearInterval(id); stopForeground(); refreshStatus.current = null; };
   // No team in the deps — this half must keep polling for team-less golfers.
   // Safe to omit session and the three mutators: the mutators are
   // useCallback(..., []) and write through setSessionState(prev => ...), so they
@@ -344,6 +363,30 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // PF1: the event hub (src/lib/eventHub.ts). Off for offline-mode events and
+  // with no network, like the leaderboard's socket.
+  const liveConnected = useEventHub(
+    session?.event.eventCode,
+    session?.player.id,
+    !!session && networkTier !== 'offline' && !session.event.offlineMode,
+    {
+      onStatus: (push) => {
+        // Theme only, exactly like the poll: a status change reaches the
+        // waiting screen through onEventStatus, never the scorecard mid-round.
+        updateEventStatus(undefined, push.themeJson);
+        statusListeners.current.forEach(fn => fn(push));
+      },
+      onNudge:     () => { void refreshStatus.current?.(); },
+      onConnected: () => { void refreshStatus.current?.(); },
+    },
+  );
+  useEffect(() => { hubConnectedRef.current = liveConnected; }, [liveConnected]);
+
+  const onEventStatus = useCallback((fn: (push: EventStatusPush) => void) => {
+    statusListeners.current.add(fn);
+    return () => { statusListeners.current.delete(fn); };
+  }, []);
+
   const syncScores = useCallback(async (): Promise<BatchSyncResponse | null> => {
     if (!session?.team) return null;
     setSyncStatus('syncing');
@@ -407,10 +450,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SessionContextValue>(() => ({
     session, deviceId, loading, pendingScores, completedHoles, syncedHoles, syncStatus, networkTier,
     setSession, clearSession: clear, upsertScore, completeHole, reopenHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors, updatePlayer,
+    liveConnected, onEventStatus,
     endedNotice, dismissEndedNotice,
   }), [
     session, deviceId, loading, pendingScores, completedHoles, syncedHoles, syncStatus, networkTier,
     setSession, clear, upsertScore, completeHole, reopenHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors, updatePlayer,
+    liveConnected, onEventStatus,
     endedNotice, dismissEndedNotice,
   ]);
 

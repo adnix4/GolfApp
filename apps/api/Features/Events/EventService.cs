@@ -62,7 +62,8 @@ public class EventService
         TestDataService testData,
         LeaderboardCache? leaderboardCache = null,
         Payments.PaymentsService? payments = null,
-        RemoteLogoFetcher? remoteLogos = null)
+        RemoteLogoFetcher? remoteLogos = null,
+        RealTime.IRealTimeService? realTime = null)
     {
         _db               = db;
         _logger           = logger;
@@ -70,6 +71,31 @@ public class EventService
         _leaderboardCache = leaderboardCache;
         _payments         = payments;
         _remoteLogos      = remoteLogos;
+        _realTime         = realTime;
+    }
+
+    /// Optional like the others above, so existing test constructions compile;
+    /// without it a status or theme change is simply not pushed (devices still
+    /// pick it up on their fallback poll).
+    private readonly RealTime.IRealTimeService? _realTime;
+
+    /// <summary>
+    /// Pushes EventStatusChanged with the event's status and RESOLVED theme (its
+    /// own override, else the org's) — the same pair the status endpoint serves,
+    /// so a device can apply it without asking (problemList PF1).
+    /// </summary>
+    private async Task BroadcastStatusAsync(Event evt, Guid orgId, CancellationToken ct)
+    {
+        if (_realTime is null) return;
+        // Read back rather than using evt.ThemeJson: the column is jsonb, so
+        // Postgres re-serialises it (key order, spacing). Sending the stored text
+        // keeps the push byte-identical to what the status endpoint returns —
+        // the phone compares theme strings, and a mismatch would repaint once.
+        var themeJson = await _db.Events.AsNoTracking()
+            .Where(e => e.Id == evt.Id)
+            .Select(e => e.ThemeJson ?? e.Organization.ThemeJson)
+            .FirstOrDefaultAsync(ct);
+        await _realTime.SendEventStatusChangedAsync(evt.EventCode, evt.Status.ToString(), themeJson, ct);
     }
 
     /// Optional so the existing test constructions keep compiling; when absent a
@@ -220,7 +246,8 @@ public class EventService
         if (request.StartAt  is not null) evt.StartAt   = request.StartAt;
 
         // ── STATUS TRANSITION ─────────────────────────────────────────────
-        if (request.Status is not null && request.Status != evt.Status)
+        var statusChanged = request.Status is not null && request.Status != evt.Status;
+        if (statusChanged)
         {
             ValidateStatusTransition(evt.Status, request.Status.Value, evt);
 
@@ -257,6 +284,8 @@ public class EventService
         }
 
         await _db.SaveChangesAsync(ct);
+        // After the save, so a device that refetches on the signal reads the new row.
+        if (statusChanged) await BroadcastStatusAsync(evt, orgId, ct);
         var counts        = await LoadCountsAsync(eventId, ct);
         var updateSummary = await _testData.GetSummaryAsync(orgId, eventId, ct);
         return MapToEventResponse(evt, counts, updateSummary);
@@ -747,6 +776,7 @@ public class EventService
             }
         }
 
+        var themeBefore = evt.ThemeJson;
         if (request.ThemeJson is not null)
         {
             if (string.IsNullOrWhiteSpace(request.ThemeJson))
@@ -769,6 +799,7 @@ public class EventService
             evt.Is501c3 = request.Is501c3.Value;
 
         await _db.SaveChangesAsync(ct);
+        if (evt.ThemeJson != themeBefore) await BroadcastStatusAsync(evt, orgId, ct);
         // Include the real test-data summary: the admin publishes this response
         // as the event, and a zeroed summary would drop the test-mode bar's count.
         return MapToEventResponse(evt, await LoadCountsAsync(eventId, ct),
