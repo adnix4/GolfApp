@@ -14,6 +14,7 @@ import {
 import { ScoresRow, GolferScoresRow } from './ScoresRow';
 import EventTicker from './EventTicker';
 import UpdatedAgo from './UpdatedAgo';
+import { useTvAutoScroll } from './tvAutoScroll';
 
 const FALLBACK_POLL_MS = 15_000; // spec: 15-second SSE/HTTP fallback when WebSocket unavailable
 
@@ -177,33 +178,9 @@ export default function ScoresPoller({
   }, [hioAlert, dismissHioAlert]);
 
   // ── TV mode auto-scroll ────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!tvMode) return;
-    let frameId: number;
-    let paused    = false;
-    let pauseTimer: ReturnType<typeof setTimeout>;
-
-    const tick = () => {
-      const el = tableRef.current;
-      if (el && !paused && el.scrollHeight > el.clientHeight) {
-        el.scrollTop += 0.5;
-        if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) {
-          paused = true;
-          pauseTimer = setTimeout(() => {
-            if (tableRef.current) tableRef.current.scrollTop = 0;
-            paused = false;
-          }, 4000);
-        }
-      }
-      frameId = requestAnimationFrame(tick);
-    };
-
-    frameId = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(frameId);
-      clearTimeout(pauseTimer);
-    };
-  }, [tvMode]);
+  // Nobody is at a TV to scroll it, so a field taller than the screen cycles
+  // through on its own (see tvAutoScroll.ts).
+  useTvAutoScroll(tableRef, tvMode);
 
   const isLive      = ['active', 'scoring'].includes(event.status);
   const isCompleted = event.status === 'completed';
