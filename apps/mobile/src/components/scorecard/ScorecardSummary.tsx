@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useTheme, Heading, GlyphText } from '@gfp/ui';
 import { teamHolePar } from '@gfp/shared-types';
 import type {
@@ -10,19 +11,21 @@ import { strokesByPlayer } from '@/lib/holeUtils';
 import { ChallengeDetailModal, SponsorModal } from '@/components/scorecardComponents';
 import { screenStyles } from './scorecardStyles';
 import { ColumnHeader, ColumnTip, useColumnTip } from './ColumnTip';
-import { fontSize, spacing, status } from '@gfp/theme';
+import { fontSize, minTouchTarget, radius, spacing, status } from '@gfp/theme';
 
 /**
  * Pre-scoring summary: the whole course as one table, shown in place of the
  * per-hole sheets until the organizer opens scoring (and after the round).
  */
 export function ScorecardSummary({
-  session, team, pendingScores, holeByNumber, challengeMap, holeSponsorMap,
+  session, team, pendingScores, syncedHoles, holeByNumber, challengeMap, holeSponsorMap,
   selectedSponsor, onSelectSponsor,
 }: {
   session:         JoinEventResponse;
   team:            TeamCacheDto;
   pendingScores:   PendingScore[];
+  /** Holes the server has confirmed. After the round, any other entry never reached the organizer. */
+  syncedHoles:     ReadonlySet<number>;
   holeByNumber:    Map<number, HoleCacheDto>;
   challengeMap:    Map<number, ChallengeCacheDto>;
   holeSponsorMap:  Map<number, SponsorCacheDto>;
@@ -30,12 +33,21 @@ export function ScorecardSummary({
   selectedSponsor: SponsorCacheDto | null;
   onSelectSponsor: (sponsor: SponsorCacheDto | null) => void;
 }) {
-  const theme = useTheme();
+  const theme  = useTheme();
+  const router = useRouter();
   const [selectedChallenge, setSelectedChallenge] = useState<ChallengeCacheDto | null>(null);
   const columnTip = useColumnTip();
 
 
   const allHoles = Array.from({ length: session.event.holes }, (_, i) => i + 1);
+  // Once the round is closed the server takes no more scores, so a hole still
+  // waiting to sync will never get there on its own. The golfer has to raise
+  // it with the scoring desk, so say so on the row instead of showing the
+  // number as if it counted.
+  const roundClosed = session.event.status === 'Completed';
+  const unsentCount = roundClosed
+    ? pendingScores.filter(s => !syncedHoles.has(s.holeNumber)).length
+    : 0;
 
   return (
     <SafeAreaView edges={['left', 'right']} style={[screenStyles.page, { backgroundColor: theme.pageBackground }]}>
@@ -142,16 +154,41 @@ export function ScorecardSummary({
                   <Text style={[summaryCol.chal, styles.summaryCellDash, { color: theme.mutedText }]}>—</Text>
                 )}
               </View>
-              {pending?.conflict && (
+              {pending?.conflict ? (
                 <View style={styles.summarySubRow}>
                   <GlyphText style={[styles.summarySubText, { color: status.warningText }]}>
                     ⚠ Your score is waiting for admin approval
                   </GlyphText>
                 </View>
-              )}
+              ) : roundClosed && hasScore && !syncedHoles.has(holeNum) ? (
+                <View style={styles.summarySubRow}>
+                  <GlyphText style={[styles.summarySubText, { color: status.warningText }]}>
+                    ⚠ Not sent: the round closed before this score reached the organizer.
+                  </GlyphText>
+                </View>
+              ) : null}
             </View>
           );
         })}
+
+        {/* The way out for unsent holes. Sync is closed, but the desk's QR
+            Import still takes a scorecard after the round (ScoreService
+            QrCollect accepts Completed), so the golfer shows it the QR. */}
+        {unsentCount > 0 && (
+          <View style={styles.unsentBox}>
+            <Text style={[styles.unsentText, { color: status.warningText }]}>
+              {unsentCount === 1 ? '1 hole' : `${unsentCount} holes`} didn't reach the organizer before the round closed.
+              Show this QR code at the scoring desk so they can add {unsentCount === 1 ? 'it' : 'them'}.
+            </Text>
+            <Pressable
+              onPress={() => router.push('/qr-transfer')}
+              style={({ pressed }) => [styles.unsentBtn, { borderColor: theme.colors.primary, opacity: pressed ? 0.6 : 1 }]}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.unsentBtnText, { color: theme.colors.primary }]}>Show Scorecard QR</Text>
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
 
       <ChallengeDetailModal
@@ -195,5 +232,9 @@ const styles = StyleSheet.create({
   summaryChallengeIcon: { fontSize: fontSize.xl },
   summarySubRow:        { paddingHorizontal: spacing[3], paddingBottom: spacing[2] },
   summarySubText:       { fontSize: fontSize.xxs, fontWeight: '500' },
+  unsentBox:            { marginTop: spacing[4], marginHorizontal: spacing[3], padding: spacing[3], borderRadius: radius.lg, borderWidth: 1, borderColor: status.warning, backgroundColor: '#fff7e6', gap: spacing[3] },
+  unsentText:           { fontSize: fontSize.sm, fontWeight: '600', lineHeight: 20 },
+  unsentBtn:            { minHeight: minTouchTarget, borderRadius: radius.md, borderWidth: 1.5, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing[4] },
+  unsentBtnText:        { fontSize: fontSize.md, fontWeight: '700' },
   // Column-label tooltip (tap a header abbreviation to reveal full name)
 });

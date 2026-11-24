@@ -77,6 +77,13 @@ export default function ScoringLayout() {
     if (session) setLiveTheme(session.event.themeJson ?? null);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- seeds from the session; a new event id is the only time it must re-seed
   }, [session?.event.id]);
+
+  // The session applies status pushes and polls in every phase. This screen's
+  // own listener below switches off once scoring opens, so follow the session
+  // from there: the round closing (Completed) or a cancellation still lands.
+  useEffect(() => {
+    if (session?.event.status) setLiveStatus(session.event.status);
+  }, [session?.event.status]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isTestMode  = liveStatus === 'Draft';
