@@ -16,7 +16,7 @@ import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import {
-  eventsApi, teamsApi, playersApi, challengesApi, sponsorsApi, auctionApi, checkoutApi, emailBuilderApi, leagueApi, superAdminApi,
+  eventsApi, teamsApi, playersApi, challengesApi, sponsorsApi, auctionApi, checkoutApi, emailBuilderApi, leagueApi, superAdminApi, scoresApi,
   type LeaderboardEntry, type IndividualLeaderboardEntry, type Team, type Player,
   type HoleChallenge, type Sponsor, type AuctionItem, type AuctionSession,
   type FundraisingTotals, type FailedCharge, type CheckoutDeskRow, type EmailBuilderData,
@@ -40,6 +40,10 @@ export const eventKeys = {
   all:         (eventId: string) => ['event', eventId] as const,
   leaderboard: (eventId: string) => ['event', eventId, 'leaderboard'] as const,
   individuals: (eventId: string) => ['event', eventId, 'leaderboard', 'individuals'] as const,
+  // Under 'leaderboard' on purpose: everything that invalidates the
+  // leaderboard after a score change (a save, a resolve, a QR import) also
+  // refreshes which teams have conflicts.
+  conflictedTeams: (eventId: string) => ['event', eventId, 'leaderboard', 'conflicted-teams'] as const,
   teams:       (eventId: string) => ['event', eventId, 'teams'] as const,
   players:     (eventId: string) => ['event', eventId, 'players'] as const,
   freeAgents:  (eventId: string) => ['event', eventId, 'players', 'free-agents'] as const,
@@ -201,6 +205,20 @@ export function useIndividualLeaderboard(eventId: string) {
   return useQuery<IndividualLeaderboardEntry[]>({
     queryKey: eventKeys.individuals(eventId),
     queryFn:  () => eventsApi.getIndividualLeaderboard(eventId),
+  });
+}
+
+/**
+ * Ids of the teams with at least one conflicted score: a phone synced a
+ * different number for a hole someone else already recorded. The leaderboard
+ * leaves those holes out until an admin resolves them, so Scoring marks the
+ * team chips to show where that work is waiting.
+ */
+export function useConflictedTeamIds(eventId: string) {
+  return useQuery<ReadonlySet<string>>({
+    queryKey: eventKeys.conflictedTeams(eventId),
+    queryFn:  async () => new Set(
+      (await scoresApi.getAll(eventId)).filter(s => s.isConflicted).map(s => s.teamId)),
   });
 }
 
