@@ -500,9 +500,22 @@ public class ScoreService
 
             if (existing.TryGetValue(entry.H, out var current))
             {
-                if (current.GrossScore != entry.G && !current.IsConflicted)
+                // A card that disagrees with the desk is a conflict like any
+                // other: the recorded score stays authoritative, and the card's
+                // number is kept as the proposal so the desk can approve it.
+                // Without it the desk could only keep its own value, and after
+                // the round closes (Completed blocks typed entry) the card's
+                // number had no way in at all.
+                //
+                // A hole already conflicted with a proposal (a phone sync got
+                // there first) keeps that one. A hole conflicted WITHOUT one —
+                // flagged by a QR import before proposals were stored — takes
+                // this card's number, so re-importing the card repairs it.
+                if (current.GrossScore != entry.G &&
+                    (!current.IsConflicted || current.ProposedScore is null))
                 {
-                    current.IsConflicted = true;
+                    current.IsConflicted  = true;
+                    current.ProposedScore = (short)entry.G;
                     conflicts.Add(new QrCollectConflictDto
                     {
                         HoleNumber    = (short)entry.H,

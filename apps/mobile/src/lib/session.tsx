@@ -34,6 +34,8 @@ interface SessionContextValue {
   reopenHole:         (holeNumber: number) => Promise<void>;
   syncScores:         () => Promise<BatchSyncResponse | null>;
   refreshFromServer:  () => Promise<void>;
+  /** The desk scanned the scorecard QR: reload the card from the server (see the definition). */
+  confirmQrHandover:  () => Promise<void>;
   updateEventStatus:  (status?: string, themeJson?: string | null) => void;
   updateSponsors:     (sponsors: SponsorCacheDto[]) => Promise<void>;
   updatePlayer:       (patch: { isCheckedIn: boolean; hasPaymentMethod: boolean }) => Promise<void>;
@@ -434,6 +436,42 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSyncedHoles(new Set(syncedNums));
   }, [session]);
 
+  // "Admin Has Scanned": the golfer handed the card to the desk by QR. Reload
+  // the card from the server so it shows what the organizer now has.
+  //
+  // After the round closes, sync is shut, so the holes the QR carried would
+  // otherwise stay "unpushed local edits" forever: mergeServerScores protects
+  // those, so the phone kept its own numbers and its "Not sent" flags whatever
+  // the desk decided. The QR delivered them, so they're marked sent first and
+  // the server's view (a recorded score, a conflict waiting for approval, or
+  // the approved number) replaces them.
+  //
+  // While scoring is still open the queue is left alone: sync can still
+  // deliver those holes itself, and a tap made before the desk actually
+  // scanned must not drop them.
+  const confirmQrHandover = useCallback(async (): Promise<void> => {
+    if (!session?.team) return;
+    const { event, team } = session;
+    if (event.status === 'Completed') {
+      await markScoresSynced(event.id, team.id, await loadPendingScores(event.id, team.id));
+    }
+    const sc = await fetchTeamScores(event.eventCode, team.id);
+    if (sc) {
+      lastScoresPullMs.current = Date.now();
+      await mergeServerScores(event.id, team.id, sc.holes);
+    }
+    // Reloaded even when the pull changed nothing: marking holes sent alone
+    // has to clear their flags.
+    const [updated, completedNums, syncedNums] = await Promise.all([
+      loadPendingScores(event.id, team.id),
+      loadCompletedHoleNumbers(event.id, team.id),
+      loadSyncedHoleNumbers(event.id, team.id),
+    ]);
+    setPendingScores(updated);
+    setCompletedHoles(new Set(completedNums));
+    setSyncedHoles(new Set(syncedNums));
+  }, [session]);
+
   const completeHole = useCallback(async (holeNumber: number): Promise<void> => {
     if (!session?.team) return;
     await markHoleComplete(session.event.id, session.team.id, holeNumber);
@@ -452,12 +490,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // (the foreground poll fires every 10–30s) re-runs every useSession() caller.
   const value = useMemo<SessionContextValue>(() => ({
     session, deviceId, loading, pendingScores, completedHoles, syncedHoles, syncStatus, networkTier,
-    setSession, clearSession: clear, upsertScore, completeHole, reopenHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors, updatePlayer,
+    setSession, clearSession: clear, upsertScore, completeHole, reopenHole, syncScores, refreshFromServer, confirmQrHandover, updateEventStatus, updateSponsors, updatePlayer,
     liveConnected, onEventStatus,
     endedNotice, dismissEndedNotice,
   }), [
     session, deviceId, loading, pendingScores, completedHoles, syncedHoles, syncStatus, networkTier,
-    setSession, clear, upsertScore, completeHole, reopenHole, syncScores, refreshFromServer, updateEventStatus, updateSponsors, updatePlayer,
+    setSession, clear, upsertScore, completeHole, reopenHole, syncScores, refreshFromServer, confirmQrHandover, updateEventStatus, updateSponsors, updatePlayer,
     liveConnected, onEventStatus,
     endedNotice, dismissEndedNotice,
   ]);

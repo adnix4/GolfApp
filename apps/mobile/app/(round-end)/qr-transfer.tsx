@@ -20,12 +20,31 @@ export default function QrTransferScreen() {
   const theme               = useTheme();
   const c = useClasses();
   const router              = useRouter();
-  const { session, pendingScores, deviceId } = useSession();
+  const { session, pendingScores, deviceId, confirmQrHandover } = useSession();
 
   const [qrValues,    setQrValues]    = useState<string[]>([]);
   const [activePart,  setActivePart]  = useState(0);
   const [building,    setBuilding]    = useState(true);
   const [error,       setError]       = useState<string | null>(null);
+  const [handingOver, setHandingOver] = useState(false);
+
+  // "Admin Has Scanned": reload the card from the server first, so the screen
+  // the golfer lands on shows what the organizer now has (confirmQrHandover).
+  // A failed reload still leaves: the next foreground poll catches up.
+  //
+  // Then back to wherever the QR was opened from (round summary, or the
+  // read-only card after the round). With nothing to go back to (the page was
+  // reloaded here, or opened from a link) back() did nothing and logged
+  // GO_BACK, leaving the golfer stuck on the QR, so land on the scorecard.
+  async function handleScanned() {
+    if (handingOver) return;
+    setHandingOver(true);
+    try {
+      await confirmQrHandover();
+    } catch { /* storage or network hiccup: leave anyway */ }
+    if (router.canGoBack()) router.back();
+    else router.replace('/scorecard');
+  }
 
   const savedBrightness = useRef<number | null>(null);
 
@@ -152,12 +171,15 @@ export default function QrTransferScreen() {
       {/* ── BOTTOM ACTIONS ── */}
       <View style={styles.actions}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={handleScanned}
+          disabled={handingOver}
           style={({ pressed }) => [
             styles.doneBtn,
-            { backgroundColor: theme.colors.action, opacity: pressed ? 0.8 : 1 },
+            { backgroundColor: theme.colors.action, opacity: pressed || handingOver ? 0.8 : 1 },
           ]}
           accessibilityRole="button"
+          aria-busy={handingOver}
+          aria-disabled={handingOver}
         >
           <GlyphText style={[styles.doneBtnText, { color: theme.ctaLabel }]}>Admin Has Scanned ✓</GlyphText>
         </Pressable>
