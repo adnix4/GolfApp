@@ -266,7 +266,10 @@ export const nm = {
 // was 2.2:1 here — fine on white, which is why the rule never saw it.)
 /* eslint-disable gfp-a11y/no-low-contrast-text */
 export const tv = {
-  page:   { minHeight: '100vh', display: 'flex', flexDirection: 'column' as const, backgroundColor: 'var(--tv-board, #0d1117)' },
+  // Exactly one screen tall, never taller. With minHeight the document grew to
+  // fit the whole field and the browser page scrolled instead, so the table
+  // never overflowed and the auto-scroll never started.
+  page:   { height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' as const, backgroundColor: 'var(--tv-board, #0d1117)' },
 
   // Solid brand block. It carries the logo and the event name, which makes it
   // the one place on the board where the brand is stated rather than hinted.
@@ -291,17 +294,24 @@ export const tv = {
   liveDot:     { width: 10, height: 10, borderRadius: '50%', backgroundColor: '#fff', animation: PULSE, display: 'inline-block' },
   finalBadge:  { backgroundColor: '#238636', color: '#fff', padding: '6px 16px', borderRadius: 16, fontSize: '0.95rem', fontWeight: 800 },
 
-  main:      { flex: 1, padding: '1.5rem 2.5rem', overflow: 'hidden', display: 'flex', flexDirection: 'column' as const },
+  // minHeight 0 on main and tableWrap: a flex child won't shrink below its
+  // content otherwise, and the table has to be clipped for the auto-scroll.
+  main:      { flex: 1, minHeight: 0, padding: '1.5rem 2.5rem', overflow: 'hidden', display: 'flex', flexDirection: 'column' as const },
 
   empty:     { textAlign: 'center' as const, padding: '6rem 1rem' },
   emptyIcon: { fontSize: '4rem', marginBottom: '1rem' },
   emptyText: { fontSize: '1.5rem', color: '#8b949e', fontStyle: 'italic' as const },
 
-  tableWrap: { backgroundColor: 'transparent', borderRadius: 12, overflow: 'hidden', flex: 1 },
+  // The auto-scroll (tvAutoScroll.ts) drives scrollTop; overflow stays hidden
+  // so no scrollbar shows on the TV.
+  tableWrap: { backgroundColor: 'transparent', borderRadius: 12, overflow: 'hidden', flex: 1, minHeight: 0 },
   table:     { width: '100%', borderCollapse: 'collapse' as const, fontSize: '1.1rem' },
   // Column labels carry the brand color; the scores themselves stay near-white,
   // because a number a room is reading at a glance should be maximum contrast.
-  th:        { padding: '1rem 1.25rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--tv-brand-ink, #8b949e)', textTransform: 'uppercase' as const, letterSpacing: 1, backgroundColor: 'var(--tv-row-odd, #1c2128)', borderBottom: '1px solid var(--tv-border, #30363d)' },
+  // Sticky, so the labels stay in place while the rows scroll under them. The
+  // divider is an inset shadow because a collapsed border doesn't stick with
+  // the cell.
+  th:        { position: 'sticky' as const, top: 0, zIndex: 1, padding: '1rem 1.25rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--tv-brand-ink, #8b949e)', textTransform: 'uppercase' as const, letterSpacing: 1, backgroundColor: 'var(--tv-row-odd, #1c2128)', boxShadow: 'inset 0 -1px 0 var(--tv-border, #30363d)' },
   td:        { padding: '1rem 1.25rem', color: '#e6edf3', fontWeight: 600 },
 
   statusBar:   { padding: '0.625rem 2.5rem', backgroundColor: 'var(--tv-panel, #161b22)', borderTop: '1px solid var(--tv-border, #30363d)' },
