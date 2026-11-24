@@ -151,6 +151,7 @@ export default function ScorecardScreen() {
         session={session}
         team={session.team}
         pendingScores={pendingScores}
+        syncedHoles={syncedHoles}
         holeByNumber={holeByNumber}
         challengeMap={challengeMap}
         holeSponsorMap={holeSponsorMap}

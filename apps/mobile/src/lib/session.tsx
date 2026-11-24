@@ -151,12 +151,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // `force`: first run, back to the foreground, a push nudge or a hub
     // (re)connect. A plain tick fetches only when statusFetchDue says so.
     const poll = async (force = false) => {
-      // Branding + sponsor refresh — one cheap public-event read per tick.
-      // Theme is applied every phase (incl. active scoring) so an admin
-      // colour change repaints without a rejoin; status is deliberately NOT
-      // propagated here (see updateEventStatus) so a mid-round Completed flip
-      // can't yank the golfer off the scorecard. Sponsors refetch only when
-      // the version bumps; seeds silently on the first observation.
+      // Status + branding + sponsor refresh — one cheap public-event read per
+      // tick. Theme is applied every phase so an admin colour change repaints
+      // without a rejoin. Status is applied every phase too: when the round
+      // closes (Completed) the server stops taking scores, so the card has to
+      // go read-only rather than keep accepting edits that can never sync.
+      // Sponsors refetch only when the version bumps; seeds silently on the
+      // first observation.
       // Bids confirmed while offline go out first, on reconnect and then every
       // tick until the queue is empty (lib/bidQueue.ts). Never throws.
       void sendQueuedBids();
@@ -167,12 +168,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!force && !statusFetchDue(hubConnectedRef.current, lastStatusFetchMs.current, Date.now())) return;
       lastStatusFetchMs.current = Date.now();
       try {
-        const { themeJson, sponsorsVersion, player } = await fetchEventStatus(
+        const { status, themeJson, sponsorsVersion, player } = await fetchEventStatus(
           session.event.eventCode,
           { playerId: session.player.id, sessionToken: session.sessionToken },
         );
         if (cancelled) return;
-        updateEventStatus(undefined, themeJson);
+        updateEventStatus(status, themeJson);
         // Check-in happens at the desk after the golfer already joined, so this
         // is the only thing that unlocks cardless auction bidding on-device.
         if (player) await updatePlayer(player);
@@ -343,9 +344,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // change so an unchanged poll tick returns the same object and triggers no
   // re-render. `undefined` for either means "not provided" (leave as-is); an
   // explicit null theme is a real value (branding cleared → org default).
-  // Passing only a theme (status undefined) lets the in-scoring foreground poll
-  // repaint branding WITHOUT propagating a status change — important because
-  // flipping to Completed mid-round would drop a golfer out of the scorecard.
+  //
+  // Status used to be withheld mid-round, because Completed once swapped the
+  // whole scoring area for an "Event Ended" wall. Completed now keeps the tabs
+  // and turns the card read-only (shouldShowTabs), and holding the status back
+  // left golfers editing a card the server had stopped accepting: their
+  // changes queued, failed to sync, and never reached the organizer.
   const updateEventStatus = useCallback((status?: string, themeJson?: string | null) => {
     setSessionState(prev => {
       if (!prev) return null;
@@ -371,9 +375,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     !!session && networkTier !== 'offline' && !session.event.offlineMode,
     {
       onStatus: (push) => {
-        // Theme only, exactly like the poll: a status change reaches the
-        // waiting screen through onEventStatus, never the scorecard mid-round.
-        updateEventStatus(undefined, push.themeJson);
+        // Applied like the poll: the round closing reaches the scorecard too.
+        updateEventStatus(push.status, push.themeJson);
         statusListeners.current.forEach(fn => fn(push));
       },
       onNudge:     () => { void refreshStatus.current?.(); },

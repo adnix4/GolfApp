@@ -7,7 +7,7 @@ import { useEventDetail } from '@/lib/eventContext';
 import { ScoreCard, useTheme, useClasses } from '@gfp/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { scoresApi, testDataApi, type Scorecard } from '@/lib/api';
-import { eventKeys, useTeams, useLeaderboard, useChallenges } from '@/lib/queries';
+import { eventKeys, useTeams, useLeaderboard, useChallenges, useConflictedTeamIds } from '@/lib/queries';
 import { useResponsive } from '@/lib/responsive';
 import { resolveGrossScore, needsAceConfirmation, aceGolferIds, parseStoredShots, buildShotsJson, type StoredShotEntry } from '@/lib/scoring';
 import { countingPlayerId, isOwnBallFormat, stablefordPoints, FORMAT_LABELS, MAX_GOLFER_HOLE_STROKES } from '@gfp/shared-types';
@@ -30,6 +30,8 @@ export default function ScoringScreen() {
   // reads as empty rather than blocking score entry.
   const leaderboard  = useLeaderboard(id).data ?? [];
   const challenges   = useChallenges(id).data ?? [];
+  // Same rule for the conflict marks: a failed lookup shows no marks.
+  const conflictedTeamIds = useConflictedTeamIds(id).data;
   const teams        = teamsQuery.data ?? [];
   const loading      = teamsQuery.isPending;
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
@@ -329,18 +331,27 @@ export default function ScoringScreen() {
         <View accessibilityRole="tablist" style={styles.teamWrap}>
           {teams.map(team => {
             const isSelected = team.id === selectedTeam;
+            // A team whose card has conflicts stands out in the row, so the
+            // desk can find them without opening every card.
+            const hasConflict = conflictedTeamIds?.has(team.id) ?? false;
             return (
               <Pressable accessibilityRole="tab" aria-selected={isSelected}
+                accessibilityLabel={hasConflict ? `${team.name}, has scoring conflicts` : undefined}
                 key={team.id}
                 style={[
                   styles.teamChip,
                   { borderColor: isSelected ? theme.colors.primary : '#ccc' },
+                  hasConflict && styles.teamChipConflict,
                   isSelected && { backgroundColor: theme.colors.primary },
                 ]}
                 onPress={() => setSelectedTeam(team.id)}
               >
-                <Text style={[styles.teamChipText, { color: isSelected ? '#fff' : theme.colors.primary }]}>
-                  {team.name}
+                <Text style={[
+                  styles.teamChipText,
+                  { color: isSelected ? '#fff' : hasConflict ? status.warningText : theme.colors.primary },
+                  hasConflict && styles.teamChipTextConflict,
+                ]}>
+                  {hasConflict ? `⚠ ${team.name}` : team.name}
                 </Text>
               </Pressable>
             );
@@ -528,6 +539,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   teamChipText: { fontSize: fontSize.sm, fontWeight: '600' },
+  // Warning colors, matching the "⚠ Has conflicts" note on the open card. The
+  // border shows on the selected chip too, where the fill is the brand color.
+  teamChipConflict:     { borderColor: status.warning, borderWidth: 2, backgroundColor: '#fff8e1' },
+  teamChipTextConflict: { fontWeight: '800' },
   errorBox: { marginHorizontal: spacing[4], marginTop: spacing[4] },   // inset: the page has no padding
   summaryBar: {
     paddingHorizontal: spacing[5],
