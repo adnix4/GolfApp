@@ -198,5 +198,51 @@ public class QrCollectTests
         var s = c.Db.Scores.Single();
         Assert.Equal(5, s.GrossScore);
         Assert.True(s.IsConflicted);
+        // The card's number waits for the desk, as a phone sync's does.
+        Assert.Equal((short?)4, s.ProposedScore);
+    }
+
+    [Fact]
+    public async Task The_desk_can_approve_the_cards_number_after_the_round_closes()
+    {
+        var c = await Seed(EventStatus.Completed);
+        await Existing(c, 1, 5);
+        await Collect(c, Payload());   // QR says 4
+        var s = c.Db.Scores.Single();
+
+        await c.Svc.ResolveConflictAsync(c.OrgId, c.EventId, s.Id,
+            new ResolveConflictRequest { AcceptedScore = s.ProposedScore!.Value });
+
+        Assert.Equal((4, false, (short?)null), (s.GrossScore, s.IsConflicted, s.ProposedScore));
+    }
+
+    [Fact]
+    public async Task A_proposal_already_waiting_from_a_phone_sync_is_kept()
+    {
+        var c = await Seed();
+        await Existing(c, 1, 5);
+        var s = c.Db.Scores.Single();
+        s.IsConflicted = true; s.ProposedScore = 6;
+        await c.Db.SaveChangesAsync();
+
+        var r = await Collect(c, Payload());   // QR says 4
+
+        Assert.Equal(0, r.Conflicts);
+        Assert.Equal((short?)6, s.ProposedScore);
+    }
+
+    [Fact]
+    public async Task Reimporting_fills_in_a_conflict_flagged_before_proposals_were_stored()
+    {
+        var c = await Seed();
+        await Existing(c, 1, 5);
+        var s = c.Db.Scores.Single();
+        s.IsConflicted = true;          // what an import used to leave: flagged, no number
+        await c.Db.SaveChangesAsync();
+
+        var r = await Collect(c, Payload());   // QR says 4
+
+        Assert.Equal(1, r.Conflicts);
+        Assert.Equal((5, true, (short?)4), (s.GrossScore, s.IsConflicted, s.ProposedScore));
     }
 }
