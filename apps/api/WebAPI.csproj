@@ -99,12 +99,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.4" />
     <!--
       NetTopologySuite integration for Npgsql — enables GEOGRAPHY column mapping.
       UseNetTopologySuite() must be called on NpgsqlDataSourceBuilder in Program.cs.
     -->
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="10.0.3" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="10.0.4" />
     <PackageReference Include="NetTopologySuite" Version="2.6.0" />
 
     <!-- ── AUTHENTICATION ── -->
@@ -130,7 +130,7 @@
     <!-- Logo normalisation (see Common/Images/ImageNormalizer.cs). ImageSharp is
          pure managed; Svg.Skia pulls SkiaSharp, and the NoDependencies Linux
          native asset keeps apps/api/Dockerfile free of apt-get lines. -->
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.2.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.2.1" />
     <PackageReference Include="Svg.Skia" Version="2.0.0.8" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.9" />
   </ItemGroup>
